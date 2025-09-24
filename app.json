@@ -1,0 +1,181 @@
+{
+  "expo": {
+    "name": "Uravugal Matrimony",
+    "scheme": "uravugalmatrimony",
+    "slug": "MatrimonyApp",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/UMO1024x1024.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/UMO1024x1024.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.uravugal.matrimony",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/UMO1024x1024.png",
+        "backgroundColor": "#ffffff"
+      },
+      "googleServicesFile": "./android/app/google-services.json",
+      "package": "com.uravugal.matrimony",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/UMO1024x1024.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-font",
+        {
+          "font": [
+            {
+              "src": "./assets/fonts/Inter-Black.ttf",
+              "name": "Inter-Black",
+              "weight": 900
+            },
+            {
+              "src": "./assets/fonts/Inter-BlackItalic.ttf",
+              "name": "Inter-BlackItalic",
+              "weight": 900,
+              "style": "italic"
+            },
+            {
+              "src": "./assets/fonts/Inter-Bold.ttf",
+              "name": "Inter-Bold",
+              "weight": 700
+            },
+            {
+              "src": "./assets/fonts/Inter-BoldItalic.ttf",
+              "name": "Inter-BoldItalic",
+              "weight": 700,
+              "style": "italic"
+            },
+            {
+              "src": "./assets/fonts/Inter-ExtraBold.ttf",
+              "name": "Inter-ExtraBold",
+              "weight": 800
+            },
+            {
+              "src": "./assets/fonts/Inter-ExtraBoldItalic.ttf",
+              "name": "Inter-ExtraBoldItalic",
+              "weight": 800,
+              "style": "italic"
+            },
+            {
+              "src": "./assets/fonts/Inter-ExtraLight.ttf",
+              "name": "Inter-ExtraLight",
+              "weight": 200
+            },
+            {
+              "src": "./assets/fonts/Inter-ExtraLightItalic.ttf",
+              "name": "Inter-ExtraLightItalic",
+              "weight": 200,
+              "style": "italic"
+            },
+            {
+              "src": "./assets/fonts/Inter-Italic.ttf",
+              "name": "Inter-Italic",
+              "weight": 400,
+              "style": "italic"
+            },
+            {
+              "src": "./assets/fonts/Inter-Light.ttf",
+              "name": "Inter-Light",
+              "weight": 300
+            },
+            {
+              "src": "./assets/fonts/Inter-LightItalic.ttf",
+              "name": "Inter-LightItalic",
+              "weight": 300,
+              "style": "italic"
+            },
+            {
+              "src": "./assets/fonts/Inter-Medium.ttf",
+              "name": "Inter-Medium",
+              "weight": 500
+            },
+            {
+              "src": "./assets/fonts/Inter-MediumItalic.ttf",
+              "name": "Inter-MediumItalic",
+              "weight": 500,
+              "style": "italic"
+            },
+            {
+              "src": "./assets/fonts/Inter-Regular.ttf",
+              "name": "Inter-Regular",
+              "weight": 400
+            },
+            {
+              "src": "./assets/fonts/Inter-SemiBold.ttf",
+              "name": "Inter-SemiBold",
+              "weight": 600
+            },
+            {
+              "src": "./assets/fonts/Inter-SemiBoldItalic.ttf",
+              "name": "Inter-SemiBoldItalic",
+              "weight": 600,
+              "style": "italic"
+            },
+            {
+              "src": "./assets/fonts/Inter-Thin.ttf",
+              "name": "Inter-Thin",
+              "weight": 100
+            },
+            {
+              "src": "./assets/fonts/Inter-ThinItalic.ttf",
+              "name": "Inter-ThinItalic",
+              "weight": 100,
+              "style": "italic"
+            }
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "ndkVersion": "25.1.8937393"
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
+      "expo-asset",
+      "expo-secure-store",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "408db710-364b-4916-bed4-d60051570adb"
+      }
+    }
+  }
+}
