@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Get the IP address from environment variable or use fallback
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.200.73.113:9100'; // Android emulator IP
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.2:9100'; // Android emulator IP
 
 const axiosClient = axios.create({
   baseURL: API_URL,

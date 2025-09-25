@@ -54,10 +54,10 @@ const SwiperProfile = ({ users, onUserPress }) => {
 
   const renderCarouselItem = ({ item }) => (
     <TouchableOpacity onPress={() => handleCardPress(item.userId)}>
-      <Card className='rounded-lg' containerStyle={styles.card}>
+      <Card containerStyle={[styles.card, { borderRadius: 8 }]}>
         <View style={styles.user}>
           <Image style={styles.nearyouImage} source={{ uri: item.profileImage }} />
-          <View className='rounded-lg' style={styles.textOverlay}>
+          <View style={[styles.textOverlay, { borderRadius: 8 }]}>
             <Text style={styles.userText}>{item.firstName} {item.lastName} , {item.age} , {item.location}</Text>
           </View>
         </View>

@@ -403,9 +403,9 @@ const Index = () => {
       {/* {!hasStarted || hasStarted == null ? ( */}
       {/* // <Getstart onStart={onStart} /> */}
       {/* ) : ( */}
-      <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: 'rgba(30,64,175,1.00)', marginBottom: 0, paddingBottom: 0 }}>
+      <SafeAreaView edges={['right', 'left', 'top']}  style={{ backgroundColor: 'rgba(30,64,175,1.00)'}}>
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
-          <View className="mt-3">
+          <View style={{ marginTop: 12 }}>
             {/* <View style={styles.container}>
                  <Text>Token: {expoPushToken?.data ?? ""}</Text>
                  <Text>Notification: {data}</Text>
@@ -414,7 +414,7 @@ const Index = () => {
 
             <View style={{ height: 155 }}>
               {/* <View className=""> */}
-                <View className="rounded-full ps-3" style={styles.container}>
+                <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
                   {/* <TouchableOpacity
                       onPress={() => {
                         router.push({
@@ -430,12 +430,12 @@ const Index = () => {
                     style={styles.profileImage}
                   />
                   {/* </TouchableOpacity> */}
-                  <TextNative className="flex-1 text-white">
-                    <TextNative style={styles.greeting} className="text-white">
+                  <TextNative style={{ flex: 1, color: 'white' }}>
+                    <TextNative style={[styles.greeting, { color: 'white' }]}>
                       Welcome, {'\n'}
                     </TextNative>
                     <View>
-                      <TextNative style={styles.greetingName} className="text-white mt-1">
+                      <TextNative style={[styles.greetingName, { color: 'white', marginTop: 4 }]}>
                         {firstName} {lastName}
                       </TextNative>
                     </View>
@@ -464,6 +464,9 @@ const Index = () => {
               <Box
                 overflow="hidden"
                 borderColor="coolGray.200"
+                width="100%"
+                p={0}
+                m={0}
                 _dark={{
                   borderColor: 'coolGray.600',
                   backgroundColor: 'gray.700',
@@ -475,22 +478,19 @@ const Index = () => {
                 _light={{
                   backgroundColor: 'gray.50',
                 }}
-                className="w-screen p-0 m-0"
-                style={{
-                  borderTopEndRadius: 20, borderTopStartRadius: 20,
-                  // height: "100%",
-                }}
+                borderTopLeftRadius={20}
+                borderTopRightRadius={20}
               >
                 {/* Four Boxes Section */}
-                <Box overflow="hidden" borderColor="coolGray.200" className="p-5" style={{ borderTopEndRadius: 20, borderTopStartRadius: 20 }}>
+                <Box overflow="hidden" borderColor="coolGray.200" p={5} style={{ borderTopEndRadius: 20, borderTopStartRadius: 20 }}>
                   <HStack space={3} justifyContent="center">
                     {/* Box 1 */}
                     <TouchableOpacity onPress={handleFollowersPress}>
                       <Center h="120" w="20" bg="blueGray" rounded="xl" >
                         <VStack alignItems="center" space={2}>
                           <Icon name="heartbeat" size={35} color="#9C27B0" />
-                          <TextNative className="text-sm text-center text-wrap font-medium">Your Connection</TextNative>
-                          <Text color="" fontSize="xl" fontWeight="bold" className="text-lg">{userConnectionCount?.YourConnection}</Text>
+                          <TextNative style={{ fontSize: 14, textAlign: 'center', flexWrap: 'wrap', fontWeight: '500' }}>Your Connection</TextNative>
+                          <Text color="" fontSize="xl" fontWeight="bold" style={{ fontSize: 18 }}>{userConnectionCount?.YourConnection}</Text>
                         </VStack>
                       </Center>
                     </TouchableOpacity>
@@ -500,8 +500,8 @@ const Index = () => {
                       <Center h="120" w="20" bg="blueGray" rounded="xl" >
                         <VStack alignItems="center" space={2}>
                           <Icon name="heart" size={35} color="#9C27B0" />
-                          <TextNative className="text-sm text-center text-wrap font-medium">Interest      Sent</TextNative>
-                          <Text color="" fontSize="xl" fontWeight="bold" className="text-lg">{userConnectionCount?.InterestSent}</Text>
+                          <TextNative style={{ fontSize: 14, textAlign: 'center', flexWrap: 'wrap', fontWeight: '500' }}>Interest      Sent</TextNative>
+                          <Text color="" fontSize="xl" fontWeight="bold" style={{ fontSize: 18 }}>{userConnectionCount?.InterestSent}</Text>
                         </VStack>
                       </Center>
                     </TouchableOpacity>
@@ -510,8 +510,8 @@ const Index = () => {
                     <Center h="120" w="20" bg="blueGray" rounded="xl" >
                       <VStack alignItems="center" space={2}>
                         <Icon name="eye" size={35} color="#9C27B0" />
-                        <TextNative className="text-sm text-center text-wrap font-medium">Viewed        You</TextNative>
-                        <Text color="" fontSize="xl" fontWeight="bold" className="text-lg">{userConnectionCount?.viewCount}</Text>
+                        <TextNative style={{ fontSize: 14, textAlign: 'center', flexWrap: 'wrap', fontWeight: '500' }}>Viewed        You</TextNative>
+                        <Text color="" fontSize="xl" fontWeight="bold" style={{ fontSize: 18 }}>{userConnectionCount?.viewCount}</Text>
                       </VStack>
                     </Center>
 
@@ -519,22 +519,21 @@ const Index = () => {
                     <Center h="120" w="20" bg="blueGray" rounded="xl" >
                       <VStack alignItems="center" space={2}>
                         <Icon name="check-circle-o" size={35} color="#9C27B0" />
-                        <TextNative className="text-sm text-center text-wrap font-medium">Interest Accepted</TextNative>
-                        <Text color="" fontSize="xl" fontWeight="bold" className="text-lg">{userConnectionCount?.InterestAccepted}</Text>
+                        <TextNative style={{ fontSize: 14, textAlign: 'center', flexWrap: 'wrap', fontWeight: '500' }}>Interest Accepted</TextNative>
+                        <Text color="" fontSize="xl" fontWeight="bold" style={{ fontSize: 18 }}>{userConnectionCount?.InterestAccepted}</Text>
                       </VStack>
                     </Center>
                   </HStack>
                 </Box>
 
                 {/*  New Connections Section */}
-                {/* <TouchableOpacity onPress={() => router.push('/screens/ProfileDetail')}> */}
                 <Box
                   overflow="hidden"
                   backgroundColor="blueGray.200"
                   borderColor="black"
-                  className="p-5"
+                  p={2}
                   borderRadius={20}
-                  margin={1}
+                  m={1}
                 >
                   <VStack space={3}>
                     <TouchableOpacity
@@ -564,9 +563,7 @@ const Index = () => {
                       </HStack>
                     </TouchableOpacity>
 
-
-
-                    <Center marginLeft={1} marginBottom={2}>
+                    <Center ml={1} mb={2}>
                       <SwiperProfile users={newConnection} onUserPress={(userId: any) => {
                         router.push({
                           pathname: '/screens/ProfileDetail',
@@ -582,7 +579,7 @@ const Index = () => {
                 <Box
                   overflow="hidden"
                   borderColor="black"
-                  className="p-5"
+                  p={2}
                   borderRadius={20}
                 >
                   <VStack space={3}>
@@ -633,7 +630,7 @@ const Index = () => {
                   overflow="hidden"
                   backgroundColor="blueGray.200"
                   borderColor="black"
-                  className="p-5"
+                  padding={2}
                   borderRadius={20}
                   margin={1}
                 >
@@ -675,7 +672,7 @@ const Index = () => {
                 </Box>
 
                 <Box
-                  className="w-full"
+                  width="100%"
                   style={{
                     height: 200,
                     marginVertical: 10,

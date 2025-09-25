@@ -291,7 +291,7 @@ const handlePickImage = async () => {
       <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#130057', marginBottom: 0, paddingBottom: 0 }} >
         <View style={{}}>
           <View className="">
-            <View className="rounded-full ps-3" style={styles.container}>
+            <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
               {/* {userDetails?.profileImage ? (
                 <Image source={{ uri: userDetails.profileImage }} style={styles.profileImage} />
               ) : (
@@ -334,13 +334,12 @@ const handlePickImage = async () => {
 </TouchableOpacity>
             </HStack>
           </View> 
-              <TextNative className="flex-1 text-white ms-3">
-
+              <TextNative style={{ flex: 1, color: 'white', marginStart: 12 }}>
                 <View>
-                  <TextNative style={styles.greetingName} className="text-white">
+                  <TextNative style={[styles.greetingName, { color: 'white' }]}>
                     {userDetails?.firstName} {userDetails?.lastName}
                   </TextNative>
-                  <TextNative style={styles.greeting} className="text-white mt-1">
+                  <TextNative style={[styles.greeting, { color: 'white', marginTop: 4 }]}>
                     {userDetails?.email}
                   </TextNative>
                 </View>
@@ -358,7 +357,12 @@ const handlePickImage = async () => {
           </View>
         </View>
 
-        <View className='p-5 flex-row justify-between items-start'>
+        <View style={{
+          padding: 20,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start'
+        }}>
           <Text color={"#fff"} style={{ fontStyle: 'italic',width:'93%' }}>{userDetails?.userDetail?.[0]?.about}</Text>
           <TouchableOpacity style={{backgroundColor: '#fff', padding: 5, borderRadius: 999}} onPress={() => {
             setEditedAbout(userDetails?.userDetail?.[0]?.about || '');
@@ -412,7 +416,7 @@ const handlePickImage = async () => {
           </RNModal>
         </View>
 
-        <View className='h-full' style={{ backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopEndRadius: 30 }}>
+        <View  style={{height:'100%', backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopEndRadius: 30 }}>
 
           <Tabs personalDetail={finalData} refreshProfile={refreshProfile} />
         </View>

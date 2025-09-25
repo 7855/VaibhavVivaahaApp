@@ -446,7 +446,7 @@ const ProfileDetail = () => {
 
 
         {/* <ScrollView contentContainerStyle={styles.scrollViewContent}> */}
-        <View>
+        <View style={{height: '100%',width:'100%'}}>
           <View style={{ paddingHorizontal: 0 }}>
             <View style={styles.rowContainer}>
               {/* Left Column - Image */}
@@ -825,13 +825,8 @@ const ProfileDetail = () => {
 
             </View>
           </View>
-          {/* Action Buttons */}
-
-        </View>
-
-
-        {personalDetail && (
-          <View className='h-full mt-0' style={{ backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopEndRadius: 30 }}>
+          {personalDetail && (
+          <View style={{flex: 1, marginTop: 0, backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>
             <ProfileDetailTab
               personalDetail={personalDetail}
               isPremium={isPremiumValue}
@@ -841,6 +836,12 @@ const ProfileDetail = () => {
             />
           </View>
         )}
+          {/* Action Buttons */}
+
+        </View>
+
+
+    
         {/* </ScrollView> */}
         </SafeAreaView>
       </NativeBaseProvider>

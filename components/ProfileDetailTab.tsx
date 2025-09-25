@@ -155,7 +155,7 @@ const FirstRoute = ({
   return (
     <NativeBaseProvider>
       <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 630 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
           <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
             <Box width="100%" alignItems="center">
               <Box
@@ -533,7 +533,7 @@ const SecondRoute = ({
   return (
   <NativeBaseProvider>
     <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)', height: '100%' }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 630 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
           <Box width="100%" alignItems="center">
             <Box
@@ -764,7 +764,7 @@ const SecondRoute = ({
 const ThirdRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
   <NativeBaseProvider>
     <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 630 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
           {renderDetailBox('Education Details', data, undefined, isPremium)}
         </View>
@@ -776,7 +776,7 @@ const ThirdRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
 const FourthRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
   <NativeBaseProvider>
     <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 630 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
           {renderDetailBox('Family Details', data, undefined, isPremium)}
         </View>
