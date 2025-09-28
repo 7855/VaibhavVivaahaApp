@@ -13,7 +13,7 @@ export default function ScreensLayout() {
       screenOptions={{
         headerShown: showHeader,
         headerStyle: {
-          backgroundColor: "#130057",
+          backgroundColor: "#420001",
         },
         headerTintColor: "#fff",
         headerTitleStyle: {

@@ -13,7 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 const PRIMARY_COLOR = "#420001";
-const SECONDARY_COLOR = "#FAFAFA";
+const SECONDARY_COLOR = "#F5F5F5";
 
 const CustomNavBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   return (
@@ -83,17 +83,17 @@ const CustomNavBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
 function getIconByRouteName(routeName: string, color: string) {
   switch (routeName) {
     case "index":
-      return <Feather name="home" size={18} color={color} />;
+      return <Feather name="home" size={21} color={color} />;
     case "explore":
-      return <AntDesign name="search" size={18} color={color} />;
+      return <Feather name="search" size={23} color={color} />;
     case "myChatList":
-      return <Fontisto name="hipchat" size={18} color={color} />;
+      return <Fontisto name="hipchat" size={21} color={color} />;
     case "mailBox":
-      return <Fontisto name="persons" size={18} color={color} />;
+      return <Fontisto name="persons" size={21} color={color} />;
     case "profile":
-      return <FontAwesome6 name="circle-user" size={18} color={color} />;
+      return <FontAwesome6 name="circle-user" size={21} color={color} />;
     default:
-      return <Feather name="home" size={18} color={color} />;
+      return <Feather name="home" size={23} color={color} />;
   }
 }
 
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    height: 36,
+    height: 40,
     paddingHorizontal: 13,
     borderRadius: 30,
   },

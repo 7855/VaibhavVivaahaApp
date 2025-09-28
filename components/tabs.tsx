@@ -163,9 +163,9 @@ Alert.alert(
 
   return (
     <NativeBaseProvider>
-      <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 460 }}>
-          <View style={{ flexGrow: 1, padding: 10, alignItems: 'center', backgroundColor: 'rgba(30,64,175,1.00)' }}>
+          <View style={{ flexGrow: 1, padding: 0, alignItems: 'center', backgroundColor: '#F5F5F5' }}>
             {data && Array.isArray(data) && data.length > 0 ? (
               data.map((section: any, idx: number) => (
                 <Box key={idx} width="100%" alignItems="center" mt={idx > 0 ? 6 : 0}>
@@ -175,8 +175,8 @@ Alert.alert(
                     borderWidth={0.2}
                     borderColor="#fff"
                     p={4}
-                    _dark={{ borderColor: "#fff", backgroundColor: "rgba(30,64,175,1.00)" }}
-                    _light={{ backgroundColor: "rgba(30,64,175,1.00)" }}
+                    _dark={{ borderColor: "#800000", backgroundColor: "#800000" }}
+                    _light={{ backgroundColor: "#F5F5F5" }}
                     _web={{ shadow: 10, borderWidth: 2 }}
                     style={{
                       elevation: 6,
@@ -187,7 +187,7 @@ Alert.alert(
                     }}
                   >
                     <HStack justifyContent="space-between" alignItems="center">
-                      <Text fontSize="md" fontWeight="medium" color={"warning.100"}>{section.title}</Text>
+                      <Text fontSize="md" fontWeight="bold" color={"black"}>{section.title}</Text>
                       <TouchableOpacity style={{ backgroundColor: '#fff', padding: 5, borderRadius: 999 }} onPress={() => handleEdit(section)}>
                                  <MaterialDesignIcons name="circle-edit-outline" size={24} color="#000" />
                       </TouchableOpacity>
@@ -197,24 +197,24 @@ Alert.alert(
                       <Stack space={1}>
                         {Object.entries(section.data).map(([key, value], index) => (
                           <View key={index}>
-                            <Text marginBottom={2} color={'amber.500'} fontSize={13}>{key}</Text>
+                            <Text marginBottom={2} fontWeight={500} fontSize={13}>{key}</Text>
                             <Input
                               type="text"
                               defaultValue={value}
                               borderWidth={0}
                               p={0}
-                              fontWeight="semibold"
+                              fontWeight="bold"
                               fontSize={14}
-                              color={'white'}
+                              color={'#800000'}
                               _dark={{ color: "white" }}
-                              _light={{ color: "white" }}
+                              _light={{ color: "#800000" }}
                               _web={{
                                 color: "white",
-                                backgroundColor: "rgba(30,64,175,1.00)",
+                                backgroundColor: "#F5F5F5",
                               }}
                             />
                             {index < Object.keys(section.data).length - 1 && (
-                              <Divider my={2} height={'0.4px'} _light={{ bg: "blueGray.100" }} _dark={{ bg: "blueGray.100" }} />
+                              <Divider my={2} height={'0.5px'} bg="gray.700" />
                             )}
                           </View>
                         ))}
@@ -428,7 +428,7 @@ const SecondRoute = ({
       <SafeAreaView
         style={{
           flex: 1,
-          backgroundColor: 'rgba(30,64,175,1.00)',
+          backgroundColor: '#F5F5F5',
         }}
       >
         <VStack space={1} p={1} flex={1}>
@@ -682,7 +682,7 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
   if (isLoading) {
     return (
       <NativeBaseProvider>
-        <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
+        <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
           <Center flex={1}>
             <Text>Loading horoscope image...</Text>
           </Center>
@@ -694,7 +694,7 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
   if (error) {
     return (
       <NativeBaseProvider>
-        <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
+        <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
           <Center flex={1}>
             <Text color="red.500">{error}</Text>
           </Center>
@@ -705,7 +705,7 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
 
   return (
     <NativeBaseProvider>
-      <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
         <VStack space={1} p={1} flex={1}>
           <HStack justifyContent="flex-end" pt={3} pr={2}>
             <Pressable
@@ -796,21 +796,27 @@ const Tabs = ({ personalDetail, refreshProfile }: ProfileDetailTabProps) => {
         <TabBar
           {...props}
           style={{
-            backgroundColor: 'rgba(30,64,175,1.00)', // Tab bar background color
+            backgroundColor: '#800000', // Tab bar background color
             // borderBottomWidth: 2, // Bottom border
             borderBottomColor: '#FFD700', // Border color (gold)
             // borderTopWidth: 1, // Bottom border
 
-            borderTopColor: '#fff', // Border color (gold)
+            borderTopColor: '#420001', // Border color (gold)
             borderTopEndRadius: 30,
-            borderTopStartRadius: 30
+            borderTopStartRadius: 30,
+            // color:'#420001'
+            
+            
 
 
           }}
           indicatorStyle={{
             backgroundColor: '#FFD700', // Active tab indicator color
-            height: 1, // Thickness of indicator
+            height: 2, // Thickness of indicator
           }}
+          // activeColor="#420001"     
+          // inactiveColor="#9CA3AF"  
+          
 
         />
       )}

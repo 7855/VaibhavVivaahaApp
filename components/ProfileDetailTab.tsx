@@ -154,7 +154,7 @@ const FirstRoute = ({
 
   return (
     <NativeBaseProvider>
-      <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
           <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
             <Box width="100%" alignItems="center">
@@ -163,7 +163,7 @@ const FirstRoute = ({
                 rounded="lg"
                 borderWidth={0.2}
                 borderColor="#fff"
-                p={4}
+                p={2}
                 style={{
                   elevation: 6,
                   shadowColor: "#fff",
@@ -172,8 +172,8 @@ const FirstRoute = ({
                   shadowRadius: 0,
                 }}
               >
-                <HStack justifyContent="space-between" alignItems="center">
-                  <TextBase fontSize="md" fontWeight="medium" color={"warning.100"}>Personal Details</TextBase>
+                <HStack justifyContent="space-between" alignItems="center" style={{marginBottom:10}}>
+                  <TextBase fontSize="md" fontWeight="bold">Personal Details</TextBase>
                 </HStack>
 
                 <FormControl mt={0}>
@@ -190,7 +190,7 @@ const FirstRoute = ({
 
                       return (
                         <View key={index}>
-                          <TextBase marginBottom={2} color={'amber.500'} fontSize={13}>{key}</TextBase>
+                          <TextBase marginBottom={2} fontWeight={500} fontSize={13}>{key}</TextBase>
 
                           {isPremium ? (
                             isHidden ? (
@@ -249,9 +249,9 @@ const FirstRoute = ({
                                 defaultValue={value}
                                 borderWidth={0}
                                 p={0}
-                                fontWeight="semibold"
+                                fontWeight="bold"
                                 fontSize={14}
-                                color={'#F5F5F5'}
+                                color={'#420001'}
                                 isReadOnly
                                 _focus={{ borderWidth: 0, backgroundColor: 'transparent' }}
                               />
@@ -283,8 +283,8 @@ const FirstRoute = ({
                           )}
 
                           {index < Object.keys(data).length - 1 && (
-                            <Divider my={2} height={'0.4px'} _light={{ bg: "blueGray.100" }} />
-                          )}
+                              <Divider my={2} height={'0.5px'} bg="gray.700" />
+                            )}
                         </View>
                       );
                     })}
@@ -307,7 +307,7 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
       rounded="lg"
       borderWidth={0.2}
       borderColor="#fff"
-      p={4}
+      p={2}
       style={{
         elevation: 6,
         shadowColor: "#fff",
@@ -317,13 +317,13 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
       }}
     >
       <HStack justifyContent="space-between" alignItems="center">
-        <TextBase fontSize="md" fontWeight="medium" color={"warning.100"}>{title}</TextBase>
+        <TextBase fontSize="md" fontWeight="bold" >{title}</TextBase>
       </HStack>
       <FormControl mt={2}>
         <Stack space={1}>
           {Object.entries(details).map(([key, value], index) => (
             <View key={index}>
-              <TextBase marginBottom={2} color={'amber.500'} fontSize={13}>{key}</TextBase>
+              <TextBase marginBottom={2} fontWeight={500} fontSize={13}>{key}</TextBase>
               {key === 'Horoscope' || key === 'Mobile Number' ? (
                 isPremium ? (
                   key === 'Horoscope' ? (
@@ -349,7 +349,7 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
                       p={0}
                       fontWeight="semibold"
                       fontSize={14}
-                      color={'#F5F5F5'}
+                      color={'#420001'}
                       isReadOnly
                       _focus={{ borderWidth: 0, backgroundColor: 'transparent' }}
                     />
@@ -385,16 +385,16 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
                   defaultValue={value}
                   borderWidth={0}
                   p={0}
-                  fontWeight="semibold"
+                  fontWeight="bold"
                   fontSize={14}
-                  color={'#F5F5F5'}
+                  color={'#420001'}
                   isReadOnly
                   _focus={{ borderWidth: 0, backgroundColor: 'transparent' }}
                 />
               )}
               {index < Object.keys(details).length - 1 && (
-                <Divider my={2} height={'0.4px'} _light={{ bg: "blueGray.100" }} />
-              )}
+                              <Divider my={2} height={'0.5px'} bg="gray.700" />
+                            )}
             </View>
           ))}
         </Stack>
@@ -532,7 +532,7 @@ const SecondRoute = ({
 
   return (
   <NativeBaseProvider>
-    <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)', height: '100%' }}>
+    <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5', height: '100%' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
           <Box width="100%" alignItems="center">
@@ -541,7 +541,7 @@ const SecondRoute = ({
               rounded="lg"
               borderWidth={0.2}
               borderColor="#fff"
-              p={4}
+              p={2}
               style={{
                 elevation: 6,
                 shadowColor: "#fff",
@@ -551,7 +551,7 @@ const SecondRoute = ({
               }}
             >
               <HStack justifyContent="space-between" alignItems="center">
-                <TextBase fontSize="md" fontWeight="medium" color={"warning.100"}>Religious Details</TextBase>
+                <TextBase fontSize="md" fontWeight="bold" >Religious Details</TextBase>
               </HStack>
               <FormControl mt={2}>
                 <Stack space={1}>
@@ -566,7 +566,7 @@ const SecondRoute = ({
 
                       return (
                         <View key={index}>
-                          <TextBase marginBottom={2} color={'amber.500'} fontSize={13}>{key}</TextBase>
+                          <TextBase marginBottom={2} fontWeight={500} fontSize={13}>{key}</TextBase>
 
                           {/* Horoscope Field */}
                           {key.toLowerCase() === 'horoscope' ? (
@@ -699,9 +699,9 @@ const SecondRoute = ({
                                   defaultValue={value}
                                   borderWidth={0}
                                   p={0}
-                                  fontWeight="semibold"
+                                  fontWeight="bold"
                                   fontSize={14}
-                                  color={'#F5F5F5'}
+                                  color={'#420001'}
                                   isReadOnly
                                   _focus={{ borderWidth: 0, backgroundColor: 'transparent' }}
                                 />
@@ -737,15 +737,15 @@ const SecondRoute = ({
                               defaultValue={value}
                               borderWidth={0}
                               p={0}
-                              fontWeight="semibold"
+                              fontWeight="bold"
                               fontSize={14}
-                              color={'#F5F5F5'}
+                              color={'#420001'}
                               isReadOnly
                               _focus={{ borderWidth: 0, backgroundColor: 'transparent' }}
                             />
                           )}
                           {index < Object.keys(data).length - 1 && (
-                            <Divider my={2} height={'0.4px'} _light={{ bg: "blueGray.100" }} />
+                              <Divider my={2} height={'0.5px'} bg="gray.700" />
                           )}
                         </View>
                       );
@@ -763,7 +763,7 @@ const SecondRoute = ({
 
 const ThirdRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
   <NativeBaseProvider>
-    <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
+    <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
           {renderDetailBox('Education Details', data, undefined, isPremium)}
@@ -775,7 +775,7 @@ const ThirdRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
 
 const FourthRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
   <NativeBaseProvider>
-    <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: 'rgba(30,64,175,1.00)' }}>
+    <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
           {renderDetailBox('Family Details', data, undefined, isPremium)}
@@ -844,7 +844,7 @@ const ProfileDetailTab = ({ personalDetail, isPremium, hiddenFields, onImagePres
           <TabBar
             {...props}
             style={{
-              backgroundColor: 'rgba(30,64,175,1.00)',
+              backgroundColor: '#800000',
               borderBottomColor: '#FFD700',
               borderTopColor: '#fff',
               borderTopEndRadius: 30,
@@ -853,7 +853,7 @@ const ProfileDetailTab = ({ personalDetail, isPremium, hiddenFields, onImagePres
             }}
             indicatorStyle={{
               backgroundColor: '#FFD700',
-              height: 1,
+              height: 2,
             }}
           />
         )}

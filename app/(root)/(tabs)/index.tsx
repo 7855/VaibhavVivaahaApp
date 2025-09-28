@@ -273,8 +273,10 @@ const Index = () => {
       {/* {!hasStarted || hasStarted == null ? ( */}
       {/* // <Getstart onStart={onStart} /> */}
       {/* ) : ( */}
-      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#FAF3E0' }}>
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'linear-gradient(0deg,rgba(254, 254, 254, 1) 18%, rgba(219, 177, 211, 1) 100%)' }}>
+     
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
+    
           <View style={{ marginTop: 12 }}>
             {/* <View style={styles.container}>
                  <Text>Token: {expoPushToken?.data ?? ""}</Text>
@@ -282,7 +284,7 @@ const Index = () => {
                </View> */}
             {/* ----------------------index page content  */}
 
-            <View style={{ height: 100, marginHorizontal: 5 }}>
+            <View style={{ height: 90, marginHorizontal: 5 }}>
               {/* <View className=""> */}
               <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
                 {/* <TouchableOpacity
@@ -297,7 +299,7 @@ const Index = () => {
                     gender === 'M' ? require('../../../assets/images/avatarMen.png') :
                       gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
                         require('../../../assets/images/defaultAvatar.png')}
-                  style={{...styles.profileImage, borderColor:'#FFD700', borderWidth:3}}
+                  style={{...styles.profileImage, borderColor:'#FFD700', borderWidth:1}}
                 />
                 {/* </TouchableOpacity> */}
                 <TextNative style={{ flex: 1, color: '#fff' }}>
@@ -351,7 +353,7 @@ const Index = () => {
                   borderWidth: 1,
                 }}
                 _light={{
-                  backgroundColor: '#fff',
+                  backgroundColor: '#F5F5F5',
                   borderColor: '#fff',
                 }}
                 style={{
@@ -415,239 +417,245 @@ const Index = () => {
       </View> */}
 
       {/* Card */}
+      <LinearGradient
+    colors={['#F5F5F5', '#F9F3FC']}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 0, y: 0.5 }}
+    style={{
+      borderRadius: 24,
+      paddingVertical: 10,
+      paddingHorizontal: 0,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: '#F3F4F6',
+    }}
+  >
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}
+    >
+      {/* Hearts */}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <LinearGradient
+          colors={['#420001', '#8B0000']}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 999,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
+          <Heart stroke="#ffffff" width={20} height={20} />
+        </LinearGradient>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>247</Text>
+        <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
+          Hearts
+        </Text>
+      </View>
+
+      {/* Divider */}
+      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+
+      {/* Proposals */}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <LinearGradient
+          colors={['#420001', '#8B0000']}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 999,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
+          <Send stroke="#ffffff" width={20} height={20} />
+        </LinearGradient>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>32</Text>
+        <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
+          Proposals
+        </Text>
+      </View>
+
+      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+
+      {/* Admirers */}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <LinearGradient
+          colors={['#420001', '#8B0000']}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 999,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
+          <Eye stroke="#ffffff" width={20} height={20} />
+        </LinearGradient>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>156</Text>
+        <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
+          Admirers
+        </Text>
+      </View>
+
+      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+
+      {/* Matches */}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <LinearGradient
+          colors={['#420001', '#8B0000']}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 999,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
+          <UserCheck stroke="#ffffff" width={20} height={20} />
+        </LinearGradient>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>18</Text>
+        <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
+          Matches
+        </Text>
+      </View>
+    </View>
+  </LinearGradient>
+    </View>
+
+    <View style={{ paddingHorizontal: 5 ,  // 🔥 Box shadow
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 4, }}>
+  <LinearGradient
+    colors={['#FAF3E0', '#FAF3E0']}
+    style={{
+      paddingHorizontal: 5,
+      paddingVertical: 5,
+      borderRadius: 12,
+      marginBottom: 10,
+    }}
+  >
+    <View
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 24,
+        padding: 2,
+      }}
+    >
       <View
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: 24,
-          paddingVertical: 20,
-          paddingHorizontal: 0,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 4,
-          borderWidth: 1,
-          borderColor: '#F3F4F6',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 4,
         }}
       >
+        <Text style={{ color: '#181818', fontWeight: 'bold', fontSize: 15 }}>
+          Profile Completion
+        </Text>
+        <View
+          style={{
+            backgroundColor: '#420001',
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: 999,
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 8 }}>
+            PREMIUM
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ marginBottom: 0 }}>
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'center',
             justifyContent: 'space-between',
+            marginBottom: 8,
+          }}
+        ></View>
+
+        <View
+          style={{
+            width: '100%',
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            borderRadius: 999,
+            height: 12,
+            overflow: 'hidden',
           }}
         >
-          {/* Hearts */}
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <LinearGradient
-              colors={['#420001', '#8B0000']}
+          <LinearGradient
+            colors={['#420001', '#420001']}
+            style={{ height: '100%', borderRadius: 999, position: 'relative' }}
+          >
+            <View
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
-                elevation: 3,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(255,255,255,0.2)',
               }}
-            >
-              <Heart stroke="#ffffff" width={20} height={20} />
-            </LinearGradient>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>247</Text>
-            <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
-              Hearts
-            </Text>
-          </View>
-
-          {/* Divider */}
-          <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
-
-          {/* Proposals */}
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <LinearGradient
-              colors={['#420001', '#8B0000']}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-            >
-              <Send stroke="#ffffff" width={20} height={20} />
-            </LinearGradient>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>32</Text>
-            <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
-              Proposals
-            </Text>
-          </View>
-
-          <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
-
-          {/* Admirers */}
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <LinearGradient
-              colors={['#420001', '#8B0000']}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-            >
-              <Eye stroke="#ffffff" width={20} height={20} />
-            </LinearGradient>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>156</Text>
-            <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
-              Admirers
-            </Text>
-          </View>
-
-          <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
-
-          {/* Matches */}
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <LinearGradient
-              colors={['#420001', '#8B0000']}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-            >
-              <UserCheck stroke="#ffffff" width={20} height={20} />
-            </LinearGradient>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>18</Text>
-            <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
-              Matches
-            </Text>
-          </View>
+            />
+          </LinearGradient>
         </View>
+        <Text
+          style={{
+            color: '#111827',
+            fontWeight: 'bold',
+            fontSize: 10,
+            textAlign: 'right',
+          }}
+        >
+          100% Completed
+        </Text>
       </View>
     </View>
+  </LinearGradient>
+</View>
 
-    <View style={{paddingHorizontal:5}}>
-                <LinearGradient
-                colors={['#420001', '#8B0000']}
-                style={{
-                  paddingHorizontal: 5,
-                  paddingVertical: 5,
-                  borderRadius: 24,
-                  marginBottom: 10,
-
-                }}
-              >
-                <View
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    borderRadius: 24,
-                    padding: 8,
-                    backdropFilter: 'blur(10px)', // optional for web, not supported in RN, can use react-native-blur
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: 4,
-                    }}
-                  >
-                    <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 15 }}>
-                      Royal Progress
-                    </Text>
-                    <View
-                      style={{
-                        backgroundColor: '#FFD700', // yellow-400
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        borderRadius: 999,
-                      }}
-                    >
-                      <Text style={{ color: '#420001', fontWeight: 'bold', fontSize: 8 }}>
-                        PREMIUM
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={{ marginBottom: 0 }}>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text style={{ color: '#ffffff', fontSize: 12 }}>Profile Completion</Text>
-                      <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 12 }}>
-                        100% Crown Jewels
-                      </Text>
-                    </View>
-
-                    <View
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        borderRadius: 999,
-                        height: 12,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <LinearGradient
-                        colors={['#FFD700', '#FFA500']} // yellow-400 to yellow-600
-                        style={{ height: '100%', borderRadius: 999, position: 'relative' }}
-                      >
-                        <View
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(255,255,255,0.2)',
-                            // animation for pulse not native, requires Animated API
-                          }}
-                        />
-                      </LinearGradient>
-                    </View>
-                  </View>
-
-                  {/* <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
-          ✨ Profile Perfection Achieved
-        </Text> */}
-                </View>
-              </LinearGradient>
-                </View>
 
                 {/*  New Connections Section */}
                 <Box
                   overflow="hidden"
-                  backgroundColor="#E5E7EB"
+                  backgroundColor="whitesmoke"
                   borderColor="black"
                   p={2}
                   borderRadius={20}
@@ -746,7 +754,7 @@ const Index = () => {
                 {/* last convo section  */}
                 <Box
                   overflow="hidden"
-                  backgroundColor="#E5E7EB"
+                  backgroundColor="whitesmoke"
                   borderColor="black"
                   padding={2}
                   borderRadius={20}
@@ -990,8 +998,8 @@ const styles = StyleSheet.create({
     padding: 10
   },
   profileImage: {
-    width: 60,
-    height: 60,
+    width: 50,
+    height: 50,
     borderRadius: 999,
     marginRight: 10,
     shadowColor: '#000',

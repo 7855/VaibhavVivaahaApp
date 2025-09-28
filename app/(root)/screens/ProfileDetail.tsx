@@ -413,7 +413,7 @@ const ProfileDetail = () => {
 
   return (
       <NativeBaseProvider>
-        <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: '#130057', marginBottom: 0, paddingBottom: 0, marginTop: 0 }}>
+        <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: '#420001', marginBottom: 0, paddingBottom: 0, marginTop: 0 }}>
 
 
         <Modal visible={isImageModalVisible} transparent={true} animationType="fade">
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
   //   borderRadius: 14,
   // },
   activeButton: {
-    backgroundColor: '#4F46E5', // Indigo-600
+    backgroundColor: 'gray', // Indigo-600
   },
   sentButton: {
     backgroundColor: '#10B981', // Green-500
@@ -1074,7 +1074,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   permissionButton: {
-    backgroundColor: '#1e40af',
+    backgroundColor: 'gray',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,

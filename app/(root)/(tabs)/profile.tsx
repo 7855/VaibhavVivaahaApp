@@ -288,7 +288,7 @@ const handlePickImage = async () => {
 
   return (
     <NativeBaseProvider>
-      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#130057', marginBottom: 0, paddingBottom: 0 }} >
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#420001', marginBottom: 0, paddingBottom: 0 }} >
         <View style={{}}>
           <View className="">
             <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
@@ -303,7 +303,7 @@ const handlePickImage = async () => {
                     <View style={{ position: 'relative' }}>
                       <Avatar
                         bg=""
-                        borderColor={'#9C27B0'}
+                        borderColor={'#FDD017'}
                         borderWidth={3}
                         size={65}
                         padding={0.5}
