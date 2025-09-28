@@ -8,14 +8,16 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"; 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Fontisto from "@expo/vector-icons/Fontisto";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-const PRIMARY_COLOR = "#130057";
-const SECONDARY_COLOR = "#F5F5F5";
+const PRIMARY_COLOR = "#420001";
+const SECONDARY_COLOR = "#FAFAFA";
 
 const CustomNavBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   return (
+  
     <View style={styles.container}>
       {state.routes.map((route : any, index : any) => {
         if (["_sitemap", "+not-found"].includes(route.name)) return null;
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-evenly",
     alignItems: "center",
-    backgroundColor: PRIMARY_COLOR,
+    backgroundColor: "#181818",
     width: "90%",
     alignSelf: "center",
     bottom: 25,

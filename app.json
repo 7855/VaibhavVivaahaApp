@@ -6,13 +6,8 @@
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/LotusLogo.jpeg",
+    "icon": "./assets/images/vaibhavsplash.jpeg",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/images/LotusLogo.jpeg",
-      "resizeMode": "contain",
-      "backgroundColor": "#0000FF"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -21,28 +16,16 @@
       "bundleIdentifier": "com.vaibhavvivaaha.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      },
-      "splash": {
-      "image": "./assets/images/LotusLogo.jpeg",
-      "resizeMode": "contain",
-      "backgroundColor": "#0000FF"
-    }
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/UMO1024x1024.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/UMO1024x1024.png"
       },
-      "googleServicesFile": "./android/app/google-services.json",
-      "package": "com.uravugal.matrimony",
+      "package": "com.vaibhavvivaaha.app",
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ],
-      "splash": {
-      "image": "./assets/images/LotusLogo.jpeg",
-      "resizeMode": "contain",
-      "backgroundColor": "#0000FF"
-    }
+      ]    
     },
     "web": {
       "bundler": "metro",
@@ -177,11 +160,11 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/LotusLogo.jpeg",
+          "image": "./assets/images/vaibhavsplash.jpeg",
           "resizeMode": "contain",
-          "backgroundColor": "blue",
+          "backgroundColor": "#420001",
           "dark": {
-            "backgroundColor": "blue"
+            "backgroundColor": "#420001"
           }
         }
       ],

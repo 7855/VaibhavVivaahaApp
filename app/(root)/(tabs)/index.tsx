@@ -17,11 +17,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // import Getstart from '../../getstart';
 import userApi from '../api/userApi';
 // import Getstart from '@/app/(root)/(main)';
-import { Bell, Heart } from 'lucide-react-native';
+import { Bell, Eye, Heart, Send, UserCheck } from 'lucide-react-native';
 import HappyStoryCard from '@/components/HappyStoryCard';
 import ProfileCompletionBar from '@/components/ProfileCompletionBar';
 import { useFocusEffect } from 'expo-router';
 import { usePushNotifications } from '@/usePushNotification';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // const router = router();
 
@@ -61,7 +62,7 @@ const Index = () => {
           console.error("Failed to fetch unread count", error);
         }
       };
-  
+
       fetchUnreadCount();
 
       return () => {
@@ -77,7 +78,8 @@ const Index = () => {
         const response = await userApi.getAllHappyStoriesByIsActive();
         // console.log('Happy Stories Data:', response.data.data);
         setHappyStories(response.data.data);
-      } catch (error) {21
+      } catch (error) {
+        21
         console.error('Error fetching happy storgetPies:', error);
       }
     };
@@ -93,7 +95,7 @@ const Index = () => {
         setUserPaid(isUser == 'PU' ? true : false);
         const response = await userApi.getProfileCompletion(userId);
         console.log('Percentage Data ===========>:', response.data.data.data);
-        if(response.data.data.data){
+        if (response.data.data.data) {
           setPercentage(response.data.data.data.percentage);
         }
       } catch (error) {
@@ -122,14 +124,14 @@ const Index = () => {
     const now = new Date();
     const midnight = new Date(now);
     midnight.setHours(24, 0, 0, 0); // Set to next midnight
-    
+
     const diff = midnight.getTime() - now.getTime();
-    
+
     // Calculate hours, minutes, seconds
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
+
     setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
   }, []);
 
@@ -242,145 +244,13 @@ const Index = () => {
     }
   };
 
-  // API CALLS Starts----------------------------------------------------------------------------------------------------------------
-  // Call API on page load:
-  // useEffect(() => {
-  //   if (!userIdValue) return;
-
-  //   const fetchRecommendation = async () => {
-  //     console.log("Calling recommendation API...");
-  //     try {
-  //       const response = await userApi.getDailyRecommendation(userIdValue);
-  //       const data = response?.data?.data;
-  //       setRecommendations(Array.isArray(data) ? data.slice(0, 7) : []);
-  //     } catch (error: any) {
-  //       console.error('Error fetching recommendations:', error);
-  //     }
-  //   };
-
-  //   const fetchNewConnection = async () => {
-  //     console.log("Calling recommendation API...");
-  //     if (!userIdValue) {
-  //       console.log('No userId available');
-  //       return;
-  //     }
-  //     try {
-  //       const response = await userApi.getNewConnections(userIdValue);
-  //       const data = response?.data?.data;
-  //       setNewConnection(Array.isArray(data) ? data.slice(0, 7) : []);
-  //     } catch (error: any) {
-  //       console.error('API call error:', error);
-  //       setNewConnection([]);
-  //     }
-  //   };
-
-  //   const fetchNearProfiles = async () => {
-  //     console.log("Calling recommendation API...");
-  //     if (!userIdValue || !location) {
-  //       console.log('No userId or location available');
-  //       return;
-  //     }
-  //     try {
-  //       const response = await userApi.getNearYouProfiles(userIdValue, location);
-  //       const data = response?.data?.data;
-  //       setNearYouProfile(Array.isArray(data) ? data.slice(0, 7) : []);
-  //     } catch (error: any) {
-  //       console.error('API call error:', error);
-  //       setNearYouProfile([]);
-  //     }
-  //   };
-
-  //   const getUserConnectionCount = async () => {
-  //     console.log("Calling recommendation API...");
-  //     if (!userIdValue && !location) {
-  //       console.log('No userId available');
-  //       return;
-  //     }
-  //     try {
-  //       const response = await userApi.userConnectionCount(userIdValue);
-  //       setUserConnectionCount(response.data?.data);
-  //     } catch (error: any) {
-  //       console.error('Error fetching connection count:', error);
-  //     }
-  //   };
-
-  //   fetchRecommendation();
-  //   fetchNewConnection();
-  //   fetchNearProfiles();
-  //   getUserConnectionCount();
-  // }, [userIdValue,location]);
-
-  // useEffect(() => {
-  //   if (!userIdValue || !casteId) return; // Wait until userId is available
-
-  // const fetchRecommendation = async () => {
-  //   console.log("Calling recommendation API...");
-  //   try {
-  //     const casteIdValue = parseInt(casteId);
-  //     const response = await userApi.getDailyRecommendation(casteIdValue,gender);
-  //     const data = response?.data?.data;
-  //     setRecommendations(Array.isArray(data) ? data.slice(0, 7) : []);
-  //   } catch (error: any) {
-  //     console.error('Error fetching recommendations:', error);
-  //   }
-  // };
-
-  // const fetchNewConnection = async () => {
-  //   console.log("Calling recommendation API...");
-  //   try {
-  //     const casteIdValue = parseInt(casteId);
-  //     const response = await userApi.getNewConnections(casteIdValue,gender);
-  //     const data = response?.data?.data;
-  //     setNewConnection(Array.isArray(data) ? data.slice(0, 7) : []);
-  //   } catch (error: any) {
-  //     console.error('API call error:', error);
-  //     setNewConnection([]);
-  //   }
-  // };
-
-  // const fetchNearProfiles = async () => {
-  //   if (!location) {
-  //     console.log('No userId or location available');
-  //     return;
-  //   }
-  //   console.log("Calling recommendation API...");
-  //   try {
-  //     const casteIdValue = parseInt(casteId);
-  //     const response = await userApi.getNearYouProfiles(casteIdValue,gender, location);
-  //     const data = response?.data?.data;
-  //     setNearYouProfile(Array.isArray(data) ? data.slice(0, 7) : []);
-  //   } catch (error: any) {
-  //     console.error('API call error:', error);
-  //     setNearYouProfile([]);
-  //   }
-  // };
-
-  // const getUserConnectionCount = async () => {
-  //   console.log("Calling recommendation API...");
-  //   try {
-  //     const response = await userApi.userConnectionCount(userIdValue);
-  //     setUserConnectionCount(response.data?.data);
-  //   } catch (error: any) {
-  //     console.error('Error fetching connection count:', error);
-  //   }
-  // };
-
-  // fetchRecommendation();
-  // fetchNewConnection();
-  // fetchNearProfiles();
-  // getUserConnectionCount();
-
-  // }, [userIdValue, location, casteId, gender]); // 👈 now waits until both are available
-
-
-  // API CALLS Ends----------------------------------------------------------------------------------------------------------------
   const { expoPushToken, notification } = usePushNotifications();
-  
+
   // Log token and notification data
   React.useEffect(() => {
     console.log('--- Push Notification Debug Info ---');
     console.log('Expo Push Token:', expoPushToken?.data || 'No token available');
-    
+
     if (notification) {
       console.log('Notification received:', JSON.stringify({
         title: notification.request.content.title,
@@ -392,7 +262,7 @@ const Index = () => {
       console.log('No notification data available');
     }
   }, [expoPushToken, notification]);
-  
+
   const data = notification ? JSON.stringify({
     title: notification.request.content.title,
     body: notification.request.content.body,
@@ -403,7 +273,7 @@ const Index = () => {
       {/* {!hasStarted || hasStarted == null ? ( */}
       {/* // <Getstart onStart={onStart} /> */}
       {/* ) : ( */}
-      <SafeAreaView edges={['right', 'left', 'top']}  style={{ backgroundColor: 'rgba(30,64,175,1.00)'}}>
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#FAF3E0' }}>
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
           <View style={{ marginTop: 12 }}>
             {/* <View style={styles.container}>
@@ -412,79 +282,89 @@ const Index = () => {
                </View> */}
             {/* ----------------------index page content  */}
 
-            <View style={{ height: 155 }}>
+            <View style={{ height: 100, marginHorizontal: 5 }}>
               {/* <View className=""> */}
-                <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
-                  {/* <TouchableOpacity
+              <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
+                {/* <TouchableOpacity
                       onPress={() => {
                         router.push({
                           pathname: '/screens/settings', 
                         });
                       }}
                     > */}
-                  <Image
-                    source={profileImage ? { uri: profileImage } :
-                      gender === 'M' ? require('../../../assets/images/avatarMen.png') :
-                        gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
-                          require('../../../assets/images/defaultAvatar.png')}
-                    style={styles.profileImage}
-                  />
-                  {/* </TouchableOpacity> */}
-                  <TextNative style={{ flex: 1, color: 'white' }}>
-                    <TextNative style={[styles.greeting, { color: 'white' }]}>
-                      Welcome, {'\n'}
-                    </TextNative>
-                    <View>
-                      <TextNative style={[styles.greetingName, { color: 'white', marginTop: 4 }]}>
-                        {firstName} {lastName}
-                      </TextNative>
-                    </View>
+                <Image
+                  source={profileImage ? { uri: profileImage } :
+                    gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                      gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                        require('../../../assets/images/defaultAvatar.png')}
+                  style={{...styles.profileImage, borderColor:'#FFD700', borderWidth:3}}
+                />
+                {/* </TouchableOpacity> */}
+                <TextNative style={{ flex: 1, color: '#fff' }}>
+                  <TextNative style={[styles.greeting, { color: '#FFD700' }]}>
+                    Welcome, {'\n'}
                   </TextNative>
-                  <TouchableOpacity onPress={() => router.push('/screens/NotificationScreen')}>
-                    <View style={styles.bellWrapper}>
-                      <Bell size={28} color="#F43F5E" />
-                      {unreadCount > 0 && (
-                        <View style={styles.badge}>
-                          <Text style={styles.badgeText}>
-                            {unreadCount > 9 ? '9+' : unreadCount}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </View>
+                  <View>
+                    <TextNative style={[styles.greetingName, { color: '#fff', marginTop: 4 }]}>
+                      {firstName} {lastName}
+                    </TextNative>
+                  </View>
+                </TextNative>
+                <TouchableOpacity onPress={() => router.push('/screens/NotificationScreen')}>
+                  <View style={styles.bellWrapper}>
+                    <Bell size={28} color="#F43F5E" />
+                    {unreadCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
 
-                <View style={{ marginBottom: 12, padding: 9 }}>
+              {/* <View style={{ marginBottom: 12, padding: 9 }}>
                   <ProfileCompletionBar percentage={percentage} isPremium={userPaid} />
-                </View>
+                </View> */}
               {/* </View> */}
+
+           
             </View>
 
             <Box alignItems="center">
               <Box
                 overflow="hidden"
-                borderColor="coolGray.200"
                 width="100%"
+                height="100%"
                 p={0}
                 m={0}
+                borderTopLeftRadius={30}
+                borderTopRightRadius={30}
+                borderWidth={1}
                 _dark={{
                   borderColor: 'coolGray.600',
                   backgroundColor: 'gray.700',
                 }}
                 _web={{
                   shadow: 2,
-                  borderWidth: 0,
+                  borderWidth: 1,
                 }}
                 _light={{
-                  backgroundColor: 'gray.50',
+                  backgroundColor: '#fff',
+                  borderColor: '#fff',
                 }}
-                borderTopLeftRadius={20}
-                borderTopRightRadius={20}
+                style={{
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
+                }}
               >
+             
+                 
+
+
                 {/* Four Boxes Section */}
-                <Box overflow="hidden" borderColor="coolGray.200" p={5} style={{ borderTopEndRadius: 20, borderTopStartRadius: 20 }}>
+                {/* <Box overflow="hidden" borderColor="coolGray.200" p={5} style={{ borderTopEndRadius: 20, borderTopStartRadius: 20 }}>
                   <HStack space={3} justifyContent="center">
-                    {/* Box 1 */}
                     <TouchableOpacity onPress={handleFollowersPress}>
                       <Center h="120" w="20" bg="blueGray" rounded="xl" >
                         <VStack alignItems="center" space={2}>
@@ -495,7 +375,6 @@ const Index = () => {
                       </Center>
                     </TouchableOpacity>
 
-                    {/* Box 2 */}
                     <TouchableOpacity onPress={handleFollowingPress}>
                       <Center h="120" w="20" bg="blueGray" rounded="xl" >
                         <VStack alignItems="center" space={2}>
@@ -506,7 +385,6 @@ const Index = () => {
                       </Center>
                     </TouchableOpacity>
 
-                    {/* Box 3 */}
                     <Center h="120" w="20" bg="blueGray" rounded="xl" >
                       <VStack alignItems="center" space={2}>
                         <Icon name="eye" size={35} color="#9C27B0" />
@@ -515,7 +393,6 @@ const Index = () => {
                       </VStack>
                     </Center>
 
-                    {/* Box 4 */}
                     <Center h="120" w="20" bg="blueGray" rounded="xl" >
                       <VStack alignItems="center" space={2}>
                         <Icon name="check-circle-o" size={35} color="#9C27B0" />
@@ -524,12 +401,253 @@ const Index = () => {
                       </VStack>
                     </Center>
                   </HStack>
-                </Box>
+                </Box> */}
+
+<View style={{ paddingHorizontal: 8, paddingVertical: 10 }}>
+      {/* Header */}
+      {/* <View style={{ marginBottom: 16 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1F2937' }}>
+          Your Matrimonial Journey
+        </Text>
+        <Text style={{ fontSize: 14, color: '#4B5563', marginTop: 2 }}>
+          ✨ Your path to finding your soulmate
+        </Text>
+      </View> */}
+
+      {/* Card */}
+      <View
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: 24,
+          paddingVertical: 20,
+          paddingHorizontal: 0,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 4,
+          borderWidth: 1,
+          borderColor: '#F3F4F6',
+        }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          {/* Hearts */}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <LinearGradient
+              colors={['#420001', '#8B0000']}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Heart stroke="#ffffff" width={20} height={20} />
+            </LinearGradient>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>247</Text>
+            <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
+              Hearts
+            </Text>
+          </View>
+
+          {/* Divider */}
+          <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+
+          {/* Proposals */}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <LinearGradient
+              colors={['#420001', '#8B0000']}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Send stroke="#ffffff" width={20} height={20} />
+            </LinearGradient>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>32</Text>
+            <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
+              Proposals
+            </Text>
+          </View>
+
+          <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+
+          {/* Admirers */}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <LinearGradient
+              colors={['#420001', '#8B0000']}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Eye stroke="#ffffff" width={20} height={20} />
+            </LinearGradient>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>156</Text>
+            <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
+              Admirers
+            </Text>
+          </View>
+
+          <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+
+          {/* Matches */}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <LinearGradient
+              colors={['#420001', '#8B0000']}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <UserCheck stroke="#ffffff" width={20} height={20} />
+            </LinearGradient>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>18</Text>
+            <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
+              Matches
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+
+    <View style={{paddingHorizontal:5}}>
+                <LinearGradient
+                colors={['#420001', '#8B0000']}
+                style={{
+                  paddingHorizontal: 5,
+                  paddingVertical: 5,
+                  borderRadius: 24,
+                  marginBottom: 10,
+
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    borderRadius: 24,
+                    padding: 8,
+                    backdropFilter: 'blur(10px)', // optional for web, not supported in RN, can use react-native-blur
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text style={{ color: '#FFD700', fontWeight: 'bold', fontSize: 15 }}>
+                      Royal Progress
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: '#FFD700', // yellow-400
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 999,
+                      }}
+                    >
+                      <Text style={{ color: '#420001', fontWeight: 'bold', fontSize: 8 }}>
+                        PREMIUM
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ marginBottom: 0 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text style={{ color: '#ffffff', fontSize: 12 }}>Profile Completion</Text>
+                      <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 12 }}>
+                        100% Crown Jewels
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        borderRadius: 999,
+                        height: 12,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <LinearGradient
+                        colors={['#FFD700', '#FFA500']} // yellow-400 to yellow-600
+                        style={{ height: '100%', borderRadius: 999, position: 'relative' }}
+                      >
+                        <View
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(255,255,255,0.2)',
+                            // animation for pulse not native, requires Animated API
+                          }}
+                        />
+                      </LinearGradient>
+                    </View>
+                  </View>
+
+                  {/* <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
+          ✨ Profile Perfection Achieved
+        </Text> */}
+                </View>
+              </LinearGradient>
+                </View>
 
                 {/*  New Connections Section */}
                 <Box
                   overflow="hidden"
-                  backgroundColor="blueGray.200"
+                  backgroundColor="#E5E7EB"
                   borderColor="black"
                   p={2}
                   borderRadius={20}
@@ -628,7 +746,7 @@ const Index = () => {
                 {/* last convo section  */}
                 <Box
                   overflow="hidden"
-                  backgroundColor="blueGray.200"
+                  backgroundColor="#E5E7EB"
                   borderColor="black"
                   padding={2}
                   borderRadius={20}
@@ -718,7 +836,7 @@ const Index = () => {
                   </View>
 
 
-       
+
 
                   {/* Horizontal Carousel */}
                   <FlatList
@@ -756,7 +874,7 @@ const Index = () => {
           </View>
         </ScrollView>
       </SafeAreaView>
- 
+
       {/* )} */}
 
     </NativeBaseProvider>
@@ -765,9 +883,9 @@ const Index = () => {
 
 const styles = StyleSheet.create({
   section: {
-    marginTop: 20,
-    paddingHorizontal: 12,
-    marginBottom: 100,
+    marginTop: 5,
+    paddingHorizontal: 0,
+    marginBottom: 80,
   },
   headerRow: {
     flexDirection: 'row',
@@ -783,11 +901,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#420001',
     marginLeft: 8,
   },
   viewAllText: {
-    color: '#EF4444',
+    color: '#E58E15',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -812,7 +930,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background for text
+    backgroundColor: 'rgba(66, 0, 1, 0.7)', // Semi-transparent primary color background for text
     paddingVertical: 5,
     alignItems: 'center',
     borderTopEndRadius: 10,
@@ -848,11 +966,11 @@ const styles = StyleSheet.create({
     // fontSize: 24, // Equivalent to text-xl
     marginTop: 10,
     marginBottom: 10,
-    color: 'rgba(30,64,175,1.00)'
+    color: '#420001',
   },
   sideLine: {
     height: 1,
-    backgroundColor: 'rgba(30,64,175,1.00)',
+    backgroundColor: '#420001',
     flex: 1, // Makes the line stretch to fill the available space
     // marginTop: 10,
   },
@@ -868,12 +986,13 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(30,64,175,1.00)',
+    backgroundColor: '#420001',
+    padding: 10
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 999,
     marginRight: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -897,7 +1016,7 @@ const styles = StyleSheet.create({
     fontSize: 23,
     marginBottom: 16,
     marginTop: 20,
-    color: '#1E40AF',
+    color: '#E58E15',
     fontWeight: 'bold',
   },
   bellWrapper: {

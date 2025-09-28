@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "UravugalMatrimony.app"
-               BlueprintName = "UravugalMatrimony"
-               ReferencedContainer = "container:UravugalMatrimony.xcodeproj">
+               BuildableName = "VaibhavVivaahaMatrimony.app"
+               BlueprintName = "VaibhavVivaahaMatrimony"
+               ReferencedContainer = "container:VaibhavVivaahaMatrimony.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "UravugalMatrimonyTests.xctest"
-               BlueprintName = "UravugalMatrimonyTests"
-               ReferencedContainer = "container:UravugalMatrimony.xcodeproj">
+               BuildableName = "VaibhavVivaahaMatrimonyTests.xctest"
+               BlueprintName = "VaibhavVivaahaMatrimonyTests"
+               ReferencedContainer = "container:VaibhavVivaahaMatrimony.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "UravugalMatrimony.app"
-            BlueprintName = "UravugalMatrimony"
-            ReferencedContainer = "container:UravugalMatrimony.xcodeproj">
+            BuildableName = "VaibhavVivaahaMatrimony.app"
+            BlueprintName = "VaibhavVivaahaMatrimony"
+            ReferencedContainer = "container:VaibhavVivaahaMatrimony.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "UravugalMatrimony.app"
-            BlueprintName = "UravugalMatrimony"
-            ReferencedContainer = "container:UravugalMatrimony.xcodeproj">
+            BuildableName = "VaibhavVivaahaMatrimony.app"
+            BlueprintName = "VaibhavVivaahaMatrimony"
+            ReferencedContainer = "container:VaibhavVivaahaMatrimony.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

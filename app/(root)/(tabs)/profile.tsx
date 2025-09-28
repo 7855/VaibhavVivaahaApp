@@ -297,43 +297,43 @@ const handlePickImage = async () => {
               ) : (
                 <Image source={require('../../../assets/images/avatar.png')} style={styles.profileImage} />
               )} */}
-            <View>
-            <HStack justifyContent="center" space={10}>
-            <TouchableOpacity onPress={handlePickImage}>
-  <View style={{ position: 'relative' }}>
-    <Avatar
-      bg=""
-      borderColor={'#9C27B0'}
-      borderWidth={3}
-      size={65}
-      padding={0.5}
-      source={
-        userDetails?.profileImage
-          ? { uri: userDetails.profileImage }
-          : gender === 'M'
-          ? require('../../../assets/images/avatarMen.png')
-          : gender === 'F'
-          ? require('../../../assets/images/avatarWomen.png')
-          : require('../../../assets/images/defaultAvatar.png')
-      }
-    />
-    <Icon
-      name="camera"
-      size={10}
-      color="#9C27B0"
-      style={{
-        position: 'absolute',
-        bottom: 3,
-        right: 3,
-        backgroundColor: 'white',
-        borderRadius: 50,
-        padding: 5,
-      }}
-    />
-  </View>
-</TouchableOpacity>
-            </HStack>
-          </View> 
+              <View>
+                <HStack justifyContent="center" space={10}>
+                  <TouchableOpacity onPress={handlePickImage}>
+                    <View style={{ position: 'relative' }}>
+                      <Avatar
+                        bg=""
+                        borderColor={'#9C27B0'}
+                        borderWidth={3}
+                        size={65}
+                        padding={0.5}
+                        source={
+                          userDetails?.profileImage
+                            ? { uri: userDetails.profileImage }
+                            : gender === 'M'
+                              ? require('../../../assets/images/avatarMen.png')
+                              : gender === 'F'
+                                ? require('../../../assets/images/avatarWomen.png')
+                                : require('../../../assets/images/defaultAvatar.png')
+                        }
+                      />
+                      <Icon
+                        name="camera"
+                        size={10}
+                        color="#9C27B0"
+                        style={{
+                          position: 'absolute',
+                          bottom: 3,
+                          right: 3,
+                          backgroundColor: 'white',
+                          borderRadius: 50,
+                          padding: 5,
+                        }}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                </HStack>
+              </View> 
               <TextNative style={{ flex: 1, color: 'white', marginStart: 12 }}>
                 <View>
                   <TextNative style={[styles.greetingName, { color: 'white' }]}>

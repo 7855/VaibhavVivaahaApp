@@ -1,4 +1,4 @@
-package com.uravugal.matrimony
+package com.vaibhavvivaaha.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
