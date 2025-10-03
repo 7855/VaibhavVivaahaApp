@@ -88,7 +88,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
       alignItems: 'center',
       paddingHorizontal: 20,
       paddingVertical: 40,
-      backgroundColor: '#130057',
+      backgroundColor: '#420001',
     }}>
       <View style={{ width: '100%', maxWidth: 400 }}>
         {/* Sacred Header */}
@@ -215,7 +215,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
           <Text style={{
             fontSize: 24,
             fontWeight: 'bold',
-            color: '#f5f5f5',
+            color: '#FFD700',
             marginBottom: 10,
             textAlign: 'center',
             textShadowColor: 'rgba(0, 0, 0, 0.3)',
@@ -606,7 +606,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                           fontWeight: 'bold',
                           marginLeft: 8,
                         }}>
-                          Change Uravugal PIN
+                          Change VVM PIN
                         </Text>
                       </View>
                     )}
@@ -668,11 +668,11 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
             <View style={{ flex: 1 }}>
               <Text style={{
                 fontSize: 14,
-                color: '#f5f5f5',
+                color: '#FFD700',
                 fontWeight: '500',
                 lineHeight: 20,
               }}>
-                <Text style={{ fontWeight: 'bold' }}>Uravugal Security:</Text> Choose a cherished PIN to safeguard the bond of your lifelong partnership.
+                <Text style={{ fontWeight: 'bold' }}>VVM Security:</Text> Choose a cherished PIN to safeguard the bond of your lifelong partnership.
               </Text>
             </View>
           </View>

@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { webSocketService } from '../services/webSocketService';
-import { NativeBaseProvider } from 'native-base';
+import { Avatar, NativeBaseProvider } from 'native-base';
 import { saveDeviceInfo } from '../../../utils/deviceInfo';
 
 interface LoginScreenProps {
@@ -102,7 +102,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
 
   return (
     <NativeBaseProvider>
-      <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+      <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -110,12 +110,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1 }}>
               <View style={{ position: 'absolute', top: 70, left:10, zIndex: 199 }}>
-                <View style={{ backgroundColor: '#fff', borderRadius: 999, padding: 0 }}>
+                <View style={{ backgroundColor: '#420001', borderRadius: 999, padding: 0 }}>
                   <TouchableOpacity 
                   onPress={() => router.back()}
                   style={{ padding: 5 }}
                 >
-                  <Icon name="arrow-back" size={24} color="#130057" />
+                  <Icon name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
                 </View>
               </View>
@@ -126,7 +126,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
               alignItems: 'center',
               paddingHorizontal: 20,
               paddingVertical: 40,
-              backgroundColor: '#130057'
+              backgroundColor: '#F5F5F5'
             }}>
               <View style={{ width: '100%', maxWidth: 400 }}>
                 {/* Elegant Header with Traditional Elements */}
@@ -172,13 +172,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
 
                       {/* Main Icon */}
                       <View style={{ position: 'relative', zIndex: 10 }}>
-                        <Icon name="favorite" size={40} color="#130057" />
-                        <Icon
+                        <Avatar size={59} source={require('/assets/images/LotusLogo.jpeg')} />
+                        {/* <Icon name="favorite" size={40} color="#130057" /> */}
+                        {/* <Icon
                           name="star"
                           size={24}
                           color="#130057"
                           style={{ position: 'absolute', top: -8, right: -4 }}
-                        />
+                        /> */}
                       </View>
 
                       {/* Sparkle Effects */}
@@ -221,17 +222,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                   <Text style={{
                     fontSize: 25,
                     fontWeight: 'bold',
-                    color: '#f5f5f5',
+                    color: '#420001',
                     marginBottom: 12,
                     textAlign: 'center',
-                    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                    textShadowOffset: { width: 0, height: 2 },
+                    // textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                    // textShadowOffset: { width: 0, height: 2 },
                     textShadowRadius: 4,
                   }}>
-                    Uravugal Matrimony
+                    Vaibhav Vivaaha Matrimony
                   </Text>
                   <Text style={{
-                    color: '#f5f5f5',
+                    // color: '#f5f5f5',
                     fontSize: 18,
                     fontWeight: '500',
                     textAlign: 'center',
@@ -280,7 +281,7 @@ Turning Matches Into Lasting Marriages
                       height: 32,
                       borderLeftWidth: 2,
                       borderTopWidth: 2,
-                      borderColor: 'rgba(19, 0, 87, 0.2)',
+                      borderColor: '#420001',
                       borderTopLeftRadius: 8,
                     }} />
                     <View style={{
@@ -291,7 +292,7 @@ Turning Matches Into Lasting Marriages
                       height: 32,
                       borderRightWidth: 2,
                       borderTopWidth: 2,
-                      borderColor: 'rgba(19, 0, 87, 0.2)',
+                      borderColor: '#420001',
                       borderTopRightRadius: 8,
                     }} />
                     <View style={{
@@ -302,7 +303,7 @@ Turning Matches Into Lasting Marriages
                       height: 32,
                       borderLeftWidth: 2,
                       borderBottomWidth: 2,
-                      borderColor: 'rgba(19, 0, 87, 0.2)',
+                      borderColor: '#420001',
                       borderBottomLeftRadius: 8,
                     }} />
                     <View style={{
@@ -313,7 +314,7 @@ Turning Matches Into Lasting Marriages
                       height: 32,
                       borderRightWidth: 2,
                       borderBottomWidth: 2,
-                      borderColor: 'rgba(19, 0, 87, 0.2)',
+                      borderColor: '#420001',
                       borderBottomRightRadius: 8,
                     }} />
 
@@ -328,7 +329,7 @@ Turning Matches Into Lasting Marriages
                             letterSpacing: 1,
                             textTransform: 'uppercase',
                           }}>
-                            Uravugal Contact Number
+                            Contact Number
                           </Text>
                           <View style={{ position: 'relative' }}>
                             <View style={{
@@ -398,7 +399,7 @@ Turning Matches Into Lasting Marriages
                             letterSpacing: 1,
                             textTransform: 'uppercase',
                           }}>
-                            Uravugal PIN
+                            PIN
                           </Text>
                           <View style={{ position: 'relative' }}>
                             <View style={{
@@ -468,7 +469,7 @@ Turning Matches Into Lasting Marriages
                          
                         >
                           <LinearGradient
-                            colors={isFormValid && !isLoading ? ['#130057', '#1a00a8'] : ['#cccccc', '#999999']}
+                            colors={isFormValid && !isLoading ? ['#420001', '#420001'] : ['#cccccc', '#999999']}
                             style={{
                               paddingVertical: 16,
                               paddingHorizontal: 24,
@@ -521,7 +522,7 @@ Turning Matches Into Lasting Marriages
                               marginLeft: 8,
                               textDecorationLine: 'underline',
                             }}>
-                              Forgotten Uravugal PIN?
+                              Forgotten PIN?
                             </Text>
                           </TouchableOpacity>
                         </View>

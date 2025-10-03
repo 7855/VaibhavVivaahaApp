@@ -264,6 +264,12 @@ deleteDevice:(requestBody)=>{
 createOrder:(amount)=>{
   return axiosClient.get(`/payments/createOrder/${amount}`)
 },
+getKeyValueByKey:(key)=>{
+  return axiosClient.get(`/keyValue/getKeyValueByKey/${key}`)
+},
+getProfileDetailByMemberId:(memberId,gender,casteId)=>{
+  return axiosClient.get(`/user/getProfileDetailByMemberId/${memberId}/${gender}/${casteId}`)
+}
 };
 
 export default userApi;

@@ -117,7 +117,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
       alignItems: 'center',
       paddingHorizontal: 20,
       paddingVertical: 40,
-      backgroundColor: '#130057',
+      backgroundColor: '#F5F5F5',
     }}>
       <View style={{ width: '100%', maxWidth: 400 }}>
         {/* Divine Header */}
@@ -161,7 +161,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               }} />
               
               {/* Message icon with divine aura */}
-              <Icon name="message" size={36} color="#130057" />
+              <Icon name="message" size={36} color="#420001" />
               
               {/* Floating divine elements */}
               <Icon 
@@ -204,17 +204,17 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
           <Text style={{
             fontSize: 28,
             fontWeight: 'bold',
-            color: '#f5f5f5',
+            color: '#420001',
             marginBottom: 12,
             textAlign: 'center',
-            textShadowColor: 'rgba(0, 0, 0, 0.3)',
-            textShadowOffset: { width: 0, height: 2 },
+            // textShadowColor: 'rgba(0, 0, 0, 0.3)',
+            // textShadowOffset: { width: 0, height: 2 },
             textShadowRadius: 4,
           }}>
-            Uravugal Verification
+            VVM Verification
           </Text>
           <Text style={{
-            color: '#f5f5f5',
+            // color: '#f5f5f5',
             fontSize: 16,
             fontWeight: '500',
             textAlign: 'center',
@@ -232,14 +232,14 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
             justifyContent: 'center',
             marginTop: 16,
           }}>
-            <Icon name="star" size={12} color="rgba(245, 245, 245, 0.4)" />
+            <Icon name="star" size={12} color="#420001" />
             <View style={{
               width: 64,
               height: 2,
-              backgroundColor: 'rgba(245, 245, 245, 0.3)',
+              backgroundColor: '#420001',
               marginHorizontal: 8,
             }} />
-            <Icon name="star" size={12} color="rgba(245, 245, 245, 0.4)" />
+            <Icon name="star" size={12} color="#420001" />
           </View>
         </View>
 
@@ -264,7 +264,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               height: 40,
               borderLeftWidth: 3,
               borderTopWidth: 3,
-              borderColor: 'rgba(19, 0, 87, 0.2)',
+              borderColor: '#420001',
               borderTopLeftRadius: 16,
             }} />
             <View style={{
@@ -275,7 +275,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               height: 40,
               borderRightWidth: 3,
               borderTopWidth: 3,
-              borderColor: 'rgba(19, 0, 87, 0.2)',
+              borderColor: '#420001',
               borderTopRightRadius: 16,
             }} />
             <View style={{
@@ -286,7 +286,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               height: 40,
               borderLeftWidth: 3,
               borderBottomWidth: 3,
-              borderColor: 'rgba(19, 0, 87, 0.2)',
+              borderColor: '#420001',
               borderBottomLeftRadius: 16,
             }} />
             <View style={{
@@ -297,7 +297,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               height: 40,
               borderRightWidth: 3,
               borderBottomWidth: 3,
-              borderColor: 'rgba(19, 0, 87, 0.2)',
+              borderColor: '#420001',
               borderBottomRightRadius: 16,
             }} />
             
@@ -341,7 +341,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
-                      Enter Sacred Code
+                      Enter 4 Digit Code
                     </Text>
                   </View>
                   <View style={{ 
@@ -394,7 +394,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                  
                 >
                   <LinearGradient
-                    colors={isFormValid && !isLoading ? ['#130057', '#1a00a8'] : ['#cccccc', '#999999']}
+                    colors={isFormValid && !isLoading ? ['#420001', '#420001'] : ['#cccccc', '#999999']}
                     style={{
                       paddingVertical: 16,
                       paddingHorizontal: 24,
@@ -511,7 +511,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
         <View style={{
           marginTop: 24,
           padding: 20,
-          backgroundColor: 'rgba(245, 245, 245, 0.1)',
+          backgroundColor: '#420001',
           borderRadius: 16,
           borderWidth: 1,
           borderColor: 'rgba(245, 245, 245, 0.2)',

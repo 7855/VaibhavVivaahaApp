@@ -6,9 +6,9 @@ export default function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(main)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="screens" />
+      <Stack.Screen name="(main)"  options={{ gestureEnabled: false }}/>
+      <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="screens" options={{ gestureEnabled: true }} />
     </Stack>
   );
 }

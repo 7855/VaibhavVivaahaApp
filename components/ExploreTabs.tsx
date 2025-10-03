@@ -120,81 +120,81 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
   const [selectedEducation, setSelectedEducation] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
 
-  // const educationOptions = [
-  //   { id: 1, label: "Doctor", value: "Doctor" },
-  //   { id: 2, label: "Engineer", value: "Engineer" },
-  //   { id: 3, label: "Teacher", value: "Teacher" },
-  //   { id: 4, label: "Lawyer", value: "Lawyer" },
-  //   { id: 5, label: "Accountant", value: "Accountant" },
-  //   { id: 6, label: "Nurse", value: "Nurse" },
-  //   { id: 7, label: "Software Developer", value: "Software Developer" },
-  //   { id: 8, label: "Civil Servant", value: "Civil Servant" },
-  //   { id: 9, label: "Farmer", value: "Farmer" },
-  //   { id: 10, label: "Entrepreneur", value: "Entrepreneur" },
-  //   { id: 11, label: "Architect", value: "Architect" },
-  //   { id: 12, label: "Journalist", value: "Journalist" },
-  //   { id: 13, label: "Pharmacist", value: "Pharmacist" },
-  //   { id: 14, label: "Chartered Accountant (CA)", value: "Chartered Accountant (CA)" },
-  //   { id: 15, label: "Researcher", value: "Researcher" },
-  //   { id: 16, label: "Scientist", value: "Scientist" },
-  //   { id: 17, label: "Designer", value: "Designer" },
-  //   { id: 18, label: "Human Resources (HR) Manager", value: "Human Resources (HR) Manager" },
-  //   { id: 19, label: "Marketing Manager", value: "Marketing Manager" },
-  //   { id: 20, label: "Sales Executive", value: "Sales Executive" },
-  //   { id: 21, label: "Graphic Designer", value: "Graphic Designer" },
-  //   { id: 22, label: "Web Developer", value: "Web Developer" },
-  //   { id: 23, label: "Data Analyst", value: "Data Analyst" },
-  //   { id: 24, label: "Business Analyst", value: "Business Analyst" },
-  //   { id: 25, label: "Consultant", value: "Consultant" },
-  //   { id: 26, label: "Banker", value: "Banker" },
-  //   { id: 27, label: "Pilot", value: "Pilot" },
-  //   { id: 28, label: "Air Hostess / Flight Attendant", value: "Air Hostess / Flight Attendant" },
-  //   { id: 29, label: "Police Officer", value: "Police Officer" },
-  //   { id: 30, label: "Firefighter", value: "Firefighter" },
-  //   { id: 31, label: "Chef", value: "Chef" },
-  //   { id: 32, label: "Hotel Manager", value: "Hotel Manager" },
-  //   { id: 33, label: "Artist", value: "Artist" },
-  //   { id: 34, label: "Musician", value: "Musician" },
-  //   { id: 35, label: "Actor/Actress", value: "Actor/Actress" },
-  //   { id: 36, label: "Photographer", value: "Photographer" },
-  //   { id: 37, label: "Event Planner", value: "Event Planner" },
-  //   { id: 38, label: "Fitness Trainer", value: "Fitness Trainer" },
-  //   { id: 39, label: "Social Worker", value: "Social Worker" },
-  //   { id: 40, label: "Psychologist", value: "Psychologist" },
-  //   { id: 41, label: "Librarian", value: "Librarian" },
-  //   { id: 42, label: "Translator", value: "Translator" },
-  //   { id: 43, label: "Interpreter", value: "Interpreter" },
-  //   { id: 44, label: "Content Writer", value: "Content Writer" },
-  //   { id: 45, label: "Copywriter", value: "Copywriter" },
-  //   { id: 46, label: "Digital Marketer", value: "Digital Marketer" },
-  //   { id: 47, label: "SEO Specialist", value: "SEO Specialist" },
-  //   { id: 48, label: "Public Relations (PR) Officer", value: "Public Relations (PR) Officer" },
-  //   { id: 49, label: "Real Estate Agent", value: "Real Estate Agent" },
-  //   { id: 50, label: "Retail Manager", value: "Retail Manager" },
-  //   { id: 51, label: "Logistics Manager", value: "Logistics Manager" },
-  //   { id: 52, label: "Supply Chain Manager", value: "Supply Chain Manager" },
-  //   { id: 53, label: "Operations Manager", value: "Operations Manager" },
-  //   { id: 54, label: "Project Manager", value: "Project Manager" },
-  //   { id: 55, label: "Quality Assurance (QA) Engineer", value: "Quality Assurance (QA) Engineer" },
-  //   { id: 56, label: "Network Administrator", value: "Network Administrator" },
-  //   { id: 57, label: "System Administrator", value: "System Administrator" },
-  //   { id: 58, label: "Graphic Illustrator", value: "Graphic Illustrator" },
-  //   { id: 59, label: "Animator", value: "Animator" },
-  //   { id: 60, label: "Video Editor", value: "Video Editor" },
-  //   { id: 61, label: "Data Scientist", value: "Data Scientist" },
-  //   { id: 62, label: "Machine Learning Engineer", value: "Machine Learning Engineer" },
-  //   { id: 63, label: "AI Specialist", value: "AI Specialist" },
-  //   { id: 64, label: "Blockchain Developer", value: "Blockchain Developer" },
-  //   { id: 65, label: "Cybersecurity Analyst", value: "Cybersecurity Analyst" },
-  //   { id: 66, label: "Ethical Hacker", value: "Ethical Hacker" },
-  //   { id: 67, label: "UX/UI Designer", value: "UX/UI Designer" },
-  //   { id: 68, label: "Content Strategist", value: "Content Strategist" },
-  //   { id: 69, label: "Social Media Manager", value: "Social Media Manager" },
-  //   { id: 70, label: "Customer Support Representative", value: "Customer Support Representative" },
-  //   { id: 71, label: "Call Center Agent", value: "Call Center Agent" },
-  //   { id: 72, label: "Receptionist", value: "Receptionist" },
-  //   { id: 73, label: "Administrator", value: "Administrator" }
-  // ];
+  const educationOptions = [
+    { id: 1, label: "Doctor", value: "Doctor" },
+    { id: 2, label: "Engineer", value: "Engineer" },
+    { id: 3, label: "Teacher", value: "Teacher" },
+    { id: 4, label: "Lawyer", value: "Lawyer" },
+    { id: 5, label: "Accountant", value: "Accountant" },
+    { id: 6, label: "Nurse", value: "Nurse" },
+    { id: 7, label: "Software Developer", value: "Software Developer" },
+    { id: 8, label: "Civil Servant", value: "Civil Servant" },
+    { id: 9, label: "Farmer", value: "Farmer" },
+    { id: 10, label: "Entrepreneur", value: "Entrepreneur" },
+    { id: 11, label: "Architect", value: "Architect" },
+    { id: 12, label: "Journalist", value: "Journalist" },
+    { id: 13, label: "Pharmacist", value: "Pharmacist" },
+    { id: 14, label: "Chartered Accountant (CA)", value: "Chartered Accountant (CA)" },
+    { id: 15, label: "Researcher", value: "Researcher" },
+    { id: 16, label: "Scientist", value: "Scientist" },
+    { id: 17, label: "Designer", value: "Designer" },
+    { id: 18, label: "Human Resources (HR) Manager", value: "Human Resources (HR) Manager" },
+    { id: 19, label: "Marketing Manager", value: "Marketing Manager" },
+    { id: 20, label: "Sales Executive", value: "Sales Executive" },
+    { id: 21, label: "Graphic Designer", value: "Graphic Designer" },
+    { id: 22, label: "Web Developer", value: "Web Developer" },
+    { id: 23, label: "Data Analyst", value: "Data Analyst" },
+    { id: 24, label: "Business Analyst", value: "Business Analyst" },
+    { id: 25, label: "Consultant", value: "Consultant" },
+    { id: 26, label: "Banker", value: "Banker" },
+    { id: 27, label: "Pilot", value: "Pilot" },
+    { id: 28, label: "Air Hostess / Flight Attendant", value: "Air Hostess / Flight Attendant" },
+    { id: 29, label: "Police Officer", value: "Police Officer" },
+    { id: 30, label: "Firefighter", value: "Firefighter" },
+    { id: 31, label: "Chef", value: "Chef" },
+    { id: 32, label: "Hotel Manager", value: "Hotel Manager" },
+    { id: 33, label: "Artist", value: "Artist" },
+    { id: 34, label: "Musician", value: "Musician" },
+    { id: 35, label: "Actor/Actress", value: "Actor/Actress" },
+    { id: 36, label: "Photographer", value: "Photographer" },
+    { id: 37, label: "Event Planner", value: "Event Planner" },
+    { id: 38, label: "Fitness Trainer", value: "Fitness Trainer" },
+    { id: 39, label: "Social Worker", value: "Social Worker" },
+    { id: 40, label: "Psychologist", value: "Psychologist" },
+    { id: 41, label: "Librarian", value: "Librarian" },
+    { id: 42, label: "Translator", value: "Translator" },
+    { id: 43, label: "Interpreter", value: "Interpreter" },
+    { id: 44, label: "Content Writer", value: "Content Writer" },
+    { id: 45, label: "Copywriter", value: "Copywriter" },
+    { id: 46, label: "Digital Marketer", value: "Digital Marketer" },
+    { id: 47, label: "SEO Specialist", value: "SEO Specialist" },
+    { id: 48, label: "Public Relations (PR) Officer", value: "Public Relations (PR) Officer" },
+    { id: 49, label: "Real Estate Agent", value: "Real Estate Agent" },
+    { id: 50, label: "Retail Manager", value: "Retail Manager" },
+    { id: 51, label: "Logistics Manager", value: "Logistics Manager" },
+    { id: 52, label: "Supply Chain Manager", value: "Supply Chain Manager" },
+    { id: 53, label: "Operations Manager", value: "Operations Manager" },
+    { id: 54, label: "Project Manager", value: "Project Manager" },
+    { id: 55, label: "Quality Assurance (QA) Engineer", value: "Quality Assurance (QA) Engineer" },
+    { id: 56, label: "Network Administrator", value: "Network Administrator" },
+    { id: 57, label: "System Administrator", value: "System Administrator" },
+    { id: 58, label: "Graphic Illustrator", value: "Graphic Illustrator" },
+    { id: 59, label: "Animator", value: "Animator" },
+    { id: 60, label: "Video Editor", value: "Video Editor" },
+    { id: 61, label: "Data Scientist", value: "Data Scientist" },
+    { id: 62, label: "Machine Learning Engineer", value: "Machine Learning Engineer" },
+    { id: 63, label: "AI Specialist", value: "AI Specialist" },
+    { id: 64, label: "Blockchain Developer", value: "Blockchain Developer" },
+    { id: 65, label: "Cybersecurity Analyst", value: "Cybersecurity Analyst" },
+    { id: 66, label: "Ethical Hacker", value: "Ethical Hacker" },
+    { id: 67, label: "UX/UI Designer", value: "UX/UI Designer" },
+    { id: 68, label: "Content Strategist", value: "Content Strategist" },
+    { id: 69, label: "Social Media Manager", value: "Social Media Manager" },
+    { id: 70, label: "Customer Support Representative", value: "Customer Support Representative" },
+    { id: 71, label: "Call Center Agent", value: "Call Center Agent" },
+    { id: 72, label: "Receptionist", value: "Receptionist" },
+    { id: 73, label: "Administrator", value: "Administrator" }
+  ];
 
 
   const cityOptions = [
@@ -242,20 +242,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
 
-      <View style={styles.scene} onTouchStart={() => setSwipeEnabled(!expanded)}>
+      <View style={styles.scene}>
         <View style={styles.accordionContainer}>
-          <Expandable duration={speed} expanded={expanded}>
-          <LinearGradient
-colors={[
-  'rgba(0, 8, 20, 1)',      
-  'rgba(0, 28, 67, 1)',     
-  'rgba(0, 73, 144, 1)',    
-  'rgba(0, 146, 214, 1)'    
-]}
-
-  locations={[0, 0.25, 0.5, 0.75, 1]}
-  style={styles.gradientBackground}
->
               <View
                 style={styles.content}
                 onTouchStart={() => setSwipeEnabled(false)}
@@ -264,7 +252,7 @@ colors={[
                 {/* Age Filter */}
                 <View style={styles.ageFilterContainer}>
                   <View style={styles.ageLabelContainer}>
-                    <Calendar size={20} color="#FFFFFF" />
+                    <Calendar size={20} color="#420001" />
                     <Text style={styles.ageLabelText}>Age Range</Text>
                   </View>
                   <View style={styles.ageInputContainer}>
@@ -275,8 +263,8 @@ colors={[
                         value={minAgeText} // store as string in state
                         onChangeText={(text) => setMinAgeText(text)} // don't parse here
                         keyboardType="numeric"
-                        placeholderTextColor="#FFFFFF"
-                        color="#FFFFFF"
+                        // placeholderTextColor="#FFFFFF"
+                        // color="#420001"
                       />
                     </View>
                     <View style={styles.ageInputWrapper}>
@@ -286,8 +274,8 @@ colors={[
                         value={maxAgeText} // store as string in state
                         onChangeText={(text) => setMaxAgeText(text)} // don't parse here
                         keyboardType="numeric"
-                        placeholderTextColor="#FFFFFF"
-                        color="#FFFFFF"
+                        // placeholderTextColor="#FFFFFF"
+                        // color="#FFFFFF"
                       />
                     </View>
                   </View>
@@ -316,7 +304,7 @@ colors={[
             </Box> */}
                 <View style={styles.salaryFilterContainer}>
                   <View style={styles.salaryLabelContainer}>
-                    <DollarSign size={20} color="#FFFFFF" />
+                    <DollarSign size={20} color="#420001" />
                     <Text style={styles.salaryLabelText}>Salary Range (LPA)</Text>
                   </View>
                   <View style={styles.salaryInputContainer}>
@@ -327,8 +315,8 @@ colors={[
                         value={minSalaryText} // store as string
                         onChangeText={setMinSalaryText} // don't parse here
                         keyboardType="numeric"
-                        placeholderTextColor="#FFFFFF"
-                        color="#FFFFFF"
+                        // placeholderTextColor="#FFFFFF"
+                        // color="#FFFFFF"
                       />
                     </View>
                     <View style={styles.salaryInputWrapper}>
@@ -338,8 +326,8 @@ colors={[
                         value={maxSalaryText}
                         onChangeText={setMaxSalaryText}
                         keyboardType="numeric"
-                        placeholderTextColor="#FFFFFF"
-                        color="#FFFFFF"
+                        // placeholderTextColor="#FFFFFF"
+                        // color="#FFFFFF"
                       />
                     </View>
                   </View>
@@ -349,7 +337,7 @@ colors={[
                   {/* <Text style={styles.title}>Filter Options</Text> */}
                   <View style={styles.educationInputContainer}>
                     <View style={styles.educationLabelContainer}>
-                      <Book size={20} color="#FFFFFF" />
+                      <Book size={20} color="#420001" />
                       <Text style={styles.educationLabelText}>City / District</Text>
                     </View>
                     <View style={styles.educationInputWrapper}>
@@ -423,13 +411,11 @@ colors={[
                 </TouchableOpacity>
 
               </View>
-            </LinearGradient>
-          </Expandable>
 
           {/* Accordion Header */}
 
         </View>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.header}
           onPress={() => {
             setExpanded(!expanded);
@@ -446,9 +432,9 @@ colors={[
           </View>
 
 
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
-        <View>
+        {/* <View>
           <FlatList
             data={profiles}
             keyExtractor={(_, index) => index.toString()}
@@ -477,7 +463,7 @@ colors={[
             )}
           />
 
-        </View>
+        </View> */}
       </View>
     </TouchableWithoutFeedback>
   );
@@ -696,7 +682,7 @@ const styles = StyleSheet.create({
   ageLabelText: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#420001',
   },
   ageInputContainer: {
     flexDirection: 'row',
@@ -726,7 +712,7 @@ const styles = StyleSheet.create({
   salaryLabelText: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#420001',
   },
   salaryInputContainer: {
     flexDirection: 'row',
@@ -996,7 +982,7 @@ const styles = StyleSheet.create({
   educationLabelText: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#420001',
   },
   educationInputWrapper: {
     flex: 1,

@@ -137,7 +137,7 @@ const ListChats = ({ allChats, onPress }) => {
 
   return (
     
-    <Box bg="gray" flex={1}>
+    <Box bg="gray" flex={1} style={{paddingBottom:100}}>
       {/* Top section - 30% */}
       <Box flex={1.5}>
         <HStack paddingLeft={4} paddingRight={4} marginTop={3} justifyContent="space-between" alignItems="center">
@@ -153,7 +153,7 @@ const ListChats = ({ allChats, onPress }) => {
       </Box>
   
       {/* Chat list section - 70% */}
-      <Box flex={8.8} bg="white">
+      <Box flex={8.8} bg="white" >
         <SwipeListView
           data={filteredData}
           renderItem={renderItem}

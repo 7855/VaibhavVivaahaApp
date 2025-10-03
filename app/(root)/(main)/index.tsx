@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     width: "100%",
-    backgroundColor: "rgba(30,64,175,0.9)",
+    backgroundColor: "#420001",
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 20,
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#fff",
+    color: "gold",
     textAlign: "center",
     marginBottom: 10,
   },

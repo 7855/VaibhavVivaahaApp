@@ -25,6 +25,7 @@ import { router } from "expo-router";
 import userApi from '../api/userApi';
 import { AntDesign } from '@expo/vector-icons';
 import RNDateTimePicker from "@react-native-community/datetimepicker";
+import { ArrowLeft, ArrowRight } from "lucide-react-native";
 type GetstartProps = {
   onStart: () => void;
 };
@@ -856,10 +857,10 @@ const employmentOptions = [
 
             </View>
             <View style={{ display: 'flex', alignItems: 'flex-end', marginRight: 25 }}>
-              <ButtonNB style={{ marginBottom: 50, marginTop: 0, width: '28%', borderRadius: 20, backgroundColor: '#130057' }} onPress={() => swiperRef.current?.scrollBy(1)}>
+              <ButtonNB style={{ marginBottom: 50, marginTop: 0, width: '28%', borderRadius: 20, backgroundColor: '#420001' }} onPress={() => swiperRef.current?.scrollBy(1)}>
                 <HStack space={2} alignItems="center">
                   <TextNB color="#fff" fontSize={15} fontWeight={'semibold'}>Next</TextNB>
-                  <AntDesign name="arrowright" size={20} color="#fff" fontWeight={'semibold'} />
+                  <ArrowRight size={20} color="#fff" fontWeight={'semibold'} />
                 </HStack>
               </ButtonNB>
             </View>
@@ -1001,12 +1002,12 @@ const employmentOptions = [
                 style={{
                   width: '28%',
                   borderRadius: 20,
-                  backgroundColor: '#130057',
+                  backgroundColor: '#420001',
                 }}
                 onPress={() => swiperRef.current?.scrollBy(-1)} // move to previous page
               >
                 <HStack space={1} alignItems="center">
-                  <AntDesign name="arrowleft" size={20} color="#fff" />
+                  <ArrowLeft size={20} color="#fff" />
                   <TextNB color="#fff" fontSize={15} fontWeight={'semibold'}>
                     Back
                   </TextNB>
@@ -1018,7 +1019,7 @@ const employmentOptions = [
                 style={{
                   width: '28%',
                   borderRadius: 20,
-                  backgroundColor: '#130057',
+                  backgroundColor: '#420001',
                 }}
                 onPress={() => handleFormSubmit()} // or change to submit handler
               >

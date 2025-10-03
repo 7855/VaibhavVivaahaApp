@@ -64,7 +64,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
       alignItems: 'center',
       paddingHorizontal: 20,
       paddingVertical: 40,
-      backgroundColor: '#130057',
+      backgroundColor: '#F5F5F5',
     }}>
       <View style={{ width: '100%', maxWidth: 400 }}>
         {/* Sacred Header */}
@@ -157,17 +157,17 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
           <Text style={{
             fontSize: 28,
             fontWeight: 'bold',
-            color: '#f5f5f5',
+            color: '#420001',
             marginBottom: 12,
             textAlign: 'center',
-            textShadowColor: 'rgba(0, 0, 0, 0.3)',
-            textShadowOffset: { width: 0, height: 2 },
+            // textShadowColor: 'rgba(0, 0, 0, 0.3)',
+            // textShadowOffset: { width: 0, height: 2 },
             textShadowRadius: 4,
           }}>
-            Uravugal PIN Recovery
+            VVM PIN Recovery
           </Text>
           <Text style={{
-            color: '#f5f5f5',
+            // color: '#f5f5f5',
             fontSize: 16,
             fontWeight: '500',
             textAlign: 'center',
@@ -186,13 +186,13 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
             <View style={{
               width: 32,
               height: 2,
-              backgroundColor: 'rgba(245, 245, 245, 0.3)',
+              backgroundColor: '#420001',
             }} />
-            <Icon name="spa" size={16} color="rgba(245, 245, 245, 0.4)" style={{ marginHorizontal: 12 }} />
+            <Icon name="spa" size={16} color="#420001" style={{ marginHorizontal: 12 }} />
             <View style={{
               width: 32,
               height: 2,
-              backgroundColor: 'rgba(245, 245, 245, 0.3)',
+              backgroundColor: '#420001',
             }} />
           </View>
         </View>
@@ -218,7 +218,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               height: 40,
               borderLeftWidth: 3,
               borderTopWidth: 3,
-              borderColor: 'rgba(19, 0, 87, 0.2)',
+              borderColor: '#420001',
               borderTopLeftRadius: 16,
             }} />
             <View style={{
@@ -229,7 +229,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               height: 40,
               borderRightWidth: 3,
               borderTopWidth: 3,
-              borderColor: 'rgba(19, 0, 87, 0.2)',
+              borderColor: '#420001',
               borderTopRightRadius: 16,
             }} />
             <View style={{
@@ -240,7 +240,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               height: 40,
               borderLeftWidth: 3,
               borderBottomWidth: 3,
-              borderColor: 'rgba(19, 0, 87, 0.2)',
+              borderColor: '#420001',
               borderBottomLeftRadius: 16,
             }} />
             <View style={{
@@ -251,7 +251,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               height: 40,
               borderRightWidth: 3,
               borderBottomWidth: 3,
-              borderColor: 'rgba(19, 0, 87, 0.2)',
+              borderColor: '#420001',
               borderBottomRightRadius: 16,
             }} />
             
@@ -291,7 +291,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
-                      Registered Uravugal Number
+                      Registered VVM Number
                     </Text>
                   </View>
                   <View style={{ position: 'relative' }}>
@@ -356,7 +356,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         color: '#f44336',
                         fontWeight: '500',
                       }}>
-                        Please enter a complete 10-digit uravugal number
+                        Please enter a complete 10-digit VVM number
                       </Text>
                     </View>
                   )}
@@ -369,7 +369,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                
                 >
                   <LinearGradient
-                    colors={isFormValid && !isLoading ? ['#130057', '#1a00a8'] : ['#cccccc', '#999999']}
+                    colors={isFormValid && !isLoading ? ['#420001', '#420001'] : ['#cccccc', '#999999']}
                     style={{
                       paddingVertical: 16,
                       paddingHorizontal: 24,
@@ -443,7 +443,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
         <View style={{
           marginTop: 24,
           padding: 20,
-          backgroundColor: 'rgba(245, 245, 245, 0.1)',
+          backgroundColor: '#420001',
           borderRadius: 16,
           borderWidth: 1,
           borderColor: 'rgba(245, 245, 245, 0.2)',
@@ -473,7 +473,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 fontWeight: '500',
                 lineHeight: 20,
               }}>
-                <Text style={{ fontWeight: 'bold' }}>Uravugal Assurance:</Text> We'll send a 4-digit verification code to your registered mobile number for secure access restoration.
+                <Text style={{ fontWeight: 'bold' }}>VVM Assurance:</Text> We'll send a 4-digit verification code to your registered mobile number for secure access restoration.
               </Text>
             </View>
           </View>

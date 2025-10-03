@@ -68,8 +68,10 @@ function ChatScreen() {
       try {
         // First check if we have cached premium status
         const cachedPremium = await AsyncStorage.getItem('isPremium');
-        if (cachedPremium !== null) {
-          setIsPremium(cachedPremium === 'true');
+        if (cachedPremium !== null && cachedPremium !== 'undefined') {
+          const isUserPremium = cachedPremium === 'true';
+          console.log('Using cached premium status::', isUserPremium);
+          setIsPremium(isUserPremium);
           setIsLoading(false);
           return;
         }
@@ -82,10 +84,11 @@ function ChatScreen() {
         }
 
         const response = await userApi.getUserPaidStatus(storedUserId);
-        if (response.data?.data?.isPremium !== undefined) {
-          setIsPremium(response.data.data.isPremium);
+        if (response.data?.data !== undefined) {
+          console.log('Premium status:---------?', response.data.data);
+          setIsPremium(response.data.data);
           // Cache the premium status
-          await AsyncStorage.setItem('isPremium', String(response.data.data.isPremium));
+          await AsyncStorage.setItem('isPremium', String(response.data.data));
         } else {
           setError('Failed to get premium status');
         }
@@ -717,7 +720,7 @@ function ChatScreen() {
           >
             {/* Header */}
             <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.push("/myChatList")}>
+              <TouchableOpacity onPress={() => router.back()}>
                 <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
               <View style={styles.headerContent}>
