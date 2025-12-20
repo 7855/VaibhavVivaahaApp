@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
     Text,
@@ -51,14 +51,13 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [minSalaryText, setMinSalaryText] = useState("0");
     const [maxSalaryText, setMaxSalaryText] = useState("20");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [occupation, setOccupation] = useState<any>(null);
-    const [occupationOptions, setOccupationOptions] = useState<string[]>([]);
+    const [education, setEducation] = useState<any>(null);
+    const [educationOptions, setEducationOptions] = useState<string[]>([]);
 
     const [height, setHeight] = useState('');
     const [age, setAge] = useState('');
     const [star, setStar] = useState('');
     const [dosham, setDosham] = useState('');
-    const [education, setEducation] = useState('');
     const [annualIncome, setAnnualIncome] = useState('');
     const [city, setCity] = useState('');
 
@@ -67,7 +66,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     // const [showHeightModal, setShowHeightModal] = useState(false);
     const [showProfileCreatedModal, setShowProfileCreatedModal] = useState(false);
     // const [showSubcasteModal, setShowSubcasteModal] = useState(false);
-    const [showOccupationModal, setShowOccupationModal] = useState(false);
+    const [showEducationModal, setShowEducationModal] = useState(false);
     const [showCityModal, setShowCityModal] = useState(false);
     const [showStarModal, setShowStarModal] = useState(false);
     const [showDoshamModal, setShowDoshamModal] = useState(false);
@@ -87,7 +86,6 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         age: [] as string[],
         star: [] as string[],
         dosham: [] as string[],
-        occupation: [] as string[],
         education: [] as string[],
         annualIncome: [] as string[],
         city: [] as string[],
@@ -101,15 +99,13 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         heightRange: '5\'4" - 6\'0"',
         profileCreatedBy: 'Any',
         subcaste: 'Any',
-        occupation: '',
+        education: '',
         city: '',
         star: '',
         dosham: '',
         annualIncomeFilter: '',
         jobSector: '',
-
     });
-
 
     const tabs = [
         { id: 'criteria', label: 'By Criteria' },
@@ -240,12 +236,18 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         // Check if user is premium
         const checkPremiumStatus = async () => {
             try {
-                // Replace with your actual API call
-                // const response = await userApi.checkPremiumStatus();
-                // setIsPremiumUser(response.isPremium);
-
-                // For testing
-                setIsPremiumUser(true); // Set to false to test premium features
+                const subscription = await AsyncStorage.getItem('subscription');
+                console.log('Subscription Data ===========>:', subscription);
+                if(subscription){
+                    const parsedSubscription = JSON.parse(subscription);
+                    if(parsedSubscription.advancedSearch == true && parsedSubscription.basicSearch == true){
+                        setIsPremiumUser(true);
+                    }else{
+                        setIsPremiumUser(false);
+                    }
+                }else{
+                    setIsPremiumUser(false);
+                }
             } catch (error) {
                 console.error('Error checking premium status:', error);
             }
@@ -261,66 +263,116 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         }));
     }, []);
 
-    // Fetch key-value pairs on component mount
+    // Fetch key-value pairs for dropdowns
     useEffect(() => {
         const fetchKeyValues = async () => {
-            // Fetch all required keys
-            const keys: (keyof typeof optionsMap)[] = ['occupation', 'city', 'height', 'age', 'star', 'dosham', 'annualIncomeFilter'];
-
+            const keys = ['education', 'city', 'height', 'age', 'star', 'dosham', 'annualIncomeFilter'];
+            
             for (const key of keys) {
                 try {
                     console.log(`Fetching ${key}...`);
-                    console.log('Making API call to:', `/keyValue/getKeyValueByKey/${key}`);
                     const response = await userApi.getKeyValueByKey(key);
-                    console.log(`${key} API Response:`, response.data);
+                    console.log(`${key} API Response:`, response);
 
-                    let value = response.data.data?.value;
+                    let value = response.data.data?.valueColumn || response.data.data?.value || response.data?.data;
+                    console.log(`${key} raw value:`, value);
 
                     // If value is a string that looks like a JSON array, parse it
-                    if (typeof value === 'string' && value.trim().startsWith('[')) {
+                    if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
                         try {
                             value = JSON.parse(value);
+                            console.log(`${key} parsed value:`, value);
                         } catch (e) {
                             console.error('Error parsing JSON:', e);
+                            continue; // Skip to next key if parsing fails
                         }
                     }
 
                     // Process the array based on its content type
-                    let arr = [];
+                    let processedArray: string[] = [];
+                    
                     if (Array.isArray(value)) {
-                        if (value.length > 0 && typeof value[0] === 'object') {
-                            // For array of objects with label (like age data)
-                            if (value[0].label) {
-                                arr = value.map(item => item.label);
+                        if (value.length > 0) {
+                            // Handle different response formats
+                            const firstItem = value[0];
+                            console.log(`First item of ${key}:`, firstItem);
+                            
+                            // For array of objects with name (education, star)
+                            if (firstItem.name) {
+                                processedArray = value.map((item: any) => item.name);
                             }
-                            // For array of objects with label/value (like city data)
-                            else if (value[0].value) {
-                                arr = value.map(item => item.label || item.value);
+                            // For array of objects with label/value (city)
+                            else if (firstItem.label && firstItem.value) {
+                                processedArray = value.map((item: any) => item.label);
                             }
-                            // For array of objects with name (like occupation data)
-                            else if (value[0].name) {
-                                arr = value.map(item => item.name);
+                            // For array of objects with from/to (age, annualIncomeFilter)
+                            else if (firstItem && typeof firstItem === 'object' && 'from' in firstItem && 'to' in firstItem) {
+                                processedArray = value.map((item: any) => {
+                                    if (item.label) return item.label;
+                                    if (item.from === null && item.to === null) return 'Any';
+                                    if (item.to === null) return `Above ${item.from} Yrs`;
+                                    return `${item.from} Yrs - ${item.to} Yrs`;
+                                });
                             }
-                        } else {
-                            // For simple string arrays
-                            arr = [...value];
+                            // For simple string arrays (height, dosham, education)
+                            else if (typeof firstItem === 'string') {
+                                processedArray = [...value];
+                            }
+                            // For array of objects with different structure
+                            else if (typeof firstItem === 'object') {
+                                // Try to extract a meaningful string from the object
+                                processedArray = value.map((item: any) => {
+                                    return item.name || item.label || item.value || JSON.stringify(item);
+                                });
+                            }
                         }
+                    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+                        // Handle case where value is a single object
+                        processedArray = [value.name || value.label || value.value || ''];
                     }
 
-                    console.log(`${key} processed array:`, arr);
+                    console.log(`${key} processed array:`, processedArray);
 
-                    setOptionsMap(prev => {
-                        const newMap = { ...prev, [key]: arr };
-                        console.log('Updated optionsMap:', newMap);
-                        return newMap;
-                    });
+                    // Update the options map with the processed array
+                    setOptionsMap(prev => ({
+                        ...prev,
+                        [key]: processedArray.length > 0 ? processedArray : prev[key as keyof typeof prev]
+                    }));
 
-                    if (key === 'occupation') {
-                        console.log('Setting occupation state with:==============>', arr);
-                        setOccupation(arr);
+                    // Special handling for education to maintain backward compatibility
+                    if (key === 'education' && processedArray.length > 0) {
+                        console.log("Raw education data:", processedArray);
+                        
+                        // Process education data to extract degree values
+                        const educationOptions = processedArray.map(item => {
+                            try {
+                                // If item is a string that looks like JSON, parse it
+                                if (typeof item === 'string' && (item.startsWith('{') || item.startsWith('['))) {
+                                    const parsed = JSON.parse(item);
+                                    return parsed.degree || parsed.name || item;
+                                }
+                                // If item is an object, try to get degree or name
+                                else if (typeof item === 'object' && item !== null) {
+                                    return item.degree || item.name || JSON.stringify(item);
+                                }
+                                return item;
+                            } catch (e) {
+                                console.error('Error parsing education item:', e);
+                                return item;
+                            }
+                        });
+                        
+                        console.log("Processed education options:", educationOptions);
+                        
+                        // Update both education state and optionsMap with processed data
+                        setEducation(educationOptions);
+                        setOptionsMap(prev => ({
+                            ...prev,
+                            education: educationOptions
+                        }));
                     }
                 } catch (error) {
-                    console.error(`Error fetching ${key}:`, error);
+                    console.error(`Error processing ${key}:`, error);
                 }
             }
         };
@@ -556,7 +608,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                             <View style={{ marginBottom: 35 }}>
 
                                 <View style={styles.filterRow}>
-                                    <Text style={styles.filterLabel}>Occupation  {!isPremiumUser && (
+                                    <Text style={styles.filterLabel}>Education  {!isPremiumUser && (
                                         <Text
                                             style={styles.lockIcon}
                                             onPress={() => setShowUpgradeModal(true)}
@@ -571,12 +623,12 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             if (!isPremiumUser) {
                                                 setShowUpgradeModal(true);
                                             } else {
-                                                setShowOccupationModal(true);
+                                                setShowEducationModal(true);
                                             }
                                         }}
                                     >
                                         <Text style={styles.dropdownText}>
-                                            {filters.occupation || 'Select Occupation'}
+                                            {filters.education || 'Select Education'}
                                         </Text>
                                         <ChevronDown size={16} color="#666" />
                                     </TouchableOpacity>
@@ -943,12 +995,15 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             /> */}
 
             <DropdownModal
-                visible={showOccupationModal}
-                onClose={() => setShowOccupationModal(false)}
-                options={optionsMap.occupation}
-                selectedValue={filters.occupation || ''}
-                onSelect={(value) => setFilters(prev => ({ ...prev, occupation: value }))}
-                title="Select Occupation"
+                visible={showEducationModal}
+                onClose={() => setShowEducationModal(false)}
+                options={optionsMap.education || []}
+                selectedValue={filters.education || ''}
+                onSelect={(value) => {
+                    console.log('Selected education:', value);
+                    setFilters(prev => ({ ...prev, education: value }));
+                }}
+                title="Select Education"
             />
 
             <DropdownModal

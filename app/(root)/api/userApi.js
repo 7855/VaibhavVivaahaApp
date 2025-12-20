@@ -269,7 +269,14 @@ getKeyValueByKey:(key)=>{
 },
 getProfileDetailByMemberId:(memberId,gender,casteId)=>{
   return axiosClient.get(`/user/getProfileDetailByMemberId/${memberId}/${gender}/${casteId}`)
+},
+getActiveUserSubscriptionByUserId:(userId)=>{
+  return axiosClient.get(`/userSubscriptions/getActiveUserSubscriptionByUserId/${userId}`)
+},
+updateSendRequestCount:(userId,subscriptionId,featureId)=>{
+  return axiosClient.get(`/userFeatureUsage/updateUsedCount/${userId}/${subscriptionId}/${featureId}`)
 }
+
 };
 
 export default userApi;

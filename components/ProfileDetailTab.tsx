@@ -172,7 +172,7 @@ const FirstRoute = ({
                   shadowRadius: 0,
                 }}
               >
-                <HStack justifyContent="space-between" alignItems="center" style={{marginBottom:10}}>
+                <HStack justifyContent="space-between" alignItems="center" style={{ marginBottom: 10 }}>
                   <TextBase fontSize="md" fontWeight="bold">Personal Details</TextBase>
                 </HStack>
 
@@ -192,7 +192,33 @@ const FirstRoute = ({
                         <View key={index}>
                           <TextBase marginBottom={2} fontWeight={500} fontSize={13}>{key}</TextBase>
 
-                          {isPremium ? (
+                          {normalizedKey === 'mobileNumber' && !isPremium ? (
+                            // 🔒 Non-premium & mobile field → Show lock
+                            <View
+                              style={{
+                                backgroundColor: '#FFD700',
+                                padding: 6,
+                                borderRadius: 6,
+                                alignItems: 'center',
+                                flexDirection: 'row',
+                                marginBottom: 8,
+                                width: '75%'
+                              }}
+                            >
+                              <FIcon name="lock" size={16} color="#1e40af" marginRight={4} />
+                              <Text
+                                style={{
+                                  color: '#1e40af',
+                                  fontWeight: 'bold',
+                                  fontSize: 12,
+                                  textAlign: 'center'
+                                }}
+                              >
+                                Only Premium Members can see
+                              </Text>
+                            </View>
+                          ) : (
+                            // ✅ Premium users OR non-premium for non-mobile fields
                             isHidden ? (
                               <View>
                                 <View
@@ -226,7 +252,9 @@ const FirstRoute = ({
                                     flexDirection: 'row',
                                     marginBottom: 8,
                                   }}
-                                  onPress={() => handlePermissionToggle(normalizedKey, permissionRequests[normalizedKey], data.userId)}
+                                  onPress={() =>
+                                    handlePermissionToggle(normalizedKey, permissionRequests[normalizedKey], data.userId)
+                                  }
                                 >
                                   <Text
                                     style={{
@@ -241,7 +269,6 @@ const FirstRoute = ({
                                     {permissionRequested ? 'Cancel Request' : 'Ask Permission'}
                                   </Text>
                                 </TouchableOpacity>
-
                               </View>
                             ) : (
                               <Input
@@ -256,35 +283,12 @@ const FirstRoute = ({
                                 _focus={{ borderWidth: 0, backgroundColor: 'transparent' }}
                               />
                             )
-                          ) : (
-                            <View
-                              style={{
-                                backgroundColor: '#FFD700',
-                                padding: 6,
-                                borderRadius: 6,
-                                alignItems: 'center',
-                                flexDirection: 'row',
-                                marginBottom: 8,
-                                width: '75%'
-                              }}
-                            >
-                              <FIcon name="lock" size={16} color="#1e40af" marginRight={4} />
-                              <Text
-                                style={{
-                                  color: '#1e40af',
-                                  fontWeight: 'bold',
-                                  fontSize: 12,
-                                  textAlign: 'center'
-                                }}
-                              >
-                                Only Premium Members can see
-                              </Text>
-                            </View>
                           )}
 
+
                           {index < Object.keys(data).length - 1 && (
-                              <Divider my={2} height={'0.5px'} bg="gray.700" />
-                            )}
+                            <Divider my={2} height={'0.5px'} bg="gray.700" />
+                          )}
                         </View>
                       );
                     })}

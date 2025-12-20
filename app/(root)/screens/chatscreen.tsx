@@ -66,32 +66,36 @@ function ChatScreen() {
   useEffect(() => {
     const checkPremiumStatus = async () => {
       try {
-        // First check if we have cached premium status
-        const cachedPremium = await AsyncStorage.getItem('isPremium');
-        if (cachedPremium !== null && cachedPremium !== 'undefined') {
-          const isUserPremium = cachedPremium === 'true';
-          console.log('Using cached premium status::', isUserPremium);
-          setIsPremium(isUserPremium);
-          setIsLoading(false);
-          return;
-        }
-
-        const storedUserId = await AsyncStorage.getItem('userId');
-        if (!storedUserId) {
-          setError('User ID not found');
-          setIsLoading(false);
-          return;
-        }
-
-        const response = await userApi.getUserPaidStatus(storedUserId);
-        if (response.data?.data !== undefined) {
-          console.log('Premium status:---------?', response.data.data);
-          setIsPremium(response.data.data);
-          // Cache the premium status
-          await AsyncStorage.setItem('isPremium', String(response.data.data));
+        const subscription = await AsyncStorage.getItem('subscription');
+        // console.log('Subscription Data ===========>:', subscription);
+        if (subscription) {
+          const parsedSubscription = JSON.parse(subscription);
+          if (parsedSubscription.sendMessages == true) {
+            setIsPremium(true);
+          } else {
+            setIsPremium(false);
+          }
         } else {
-          setError('Failed to get premium status');
+          try {
+            const localUserId = await AsyncStorage.getItem('userId');
+            if (localUserId) {
+              const decodedUserId = atob(localUserId);
+              const subscription = await userApi.getActiveUserSubscriptionByUserId(decodedUserId);
+              // console.log('Subscription response:------------------->', subscription.data.data.entitlements);
+              if(subscription.data.data?.entitlements) {
+                await AsyncStorage.setItem('subscription', JSON.stringify(subscription.data.data.entitlements));
+                if(subscription.data.data?.entitlements.sendMessages == true) {
+                  setIsPremium(true);
+                } else {
+                  setIsPremium(false);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching subscription:', error);
+          }
         }
+
       } catch (error) {
         console.error('Error checking premium status:', error);
         setError('Failed to check premium status');

@@ -18,23 +18,23 @@ const axiosClient = axios.create({
 
 axiosClient.interceptors.request.use(async config => {
   // Log detailed request info
-  console.log('🟢 API Request:', {
-    method: config.method,
-    url: config.url,
-    fullUrl: config.baseURL + config.url,
-    headers: config.headers,
-    data: config.data
-  });
+  // console.log('🟢 API Request:', {
+  //   method: config.method,
+  //   url: config.url,
+  //   fullUrl: config.baseURL + config.url,
+  //   headers: config.headers,
+  //   data: config.data
+  // });
 
   return config;
 });
 
 axiosClient.interceptors.response.use(
   response => {
-    console.log('🔵 API Response:', {
-      status: response.status,
-      data: response.data
-    });
+    // console.log('🔵 API Response:', {
+    //   status: response.status,
+    //   data: response.data
+    // });
     return response;
   },
   error => {

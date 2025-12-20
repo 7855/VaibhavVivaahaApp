@@ -1,14 +1,177 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Image, StyleSheet, Text as TextNative, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { View, Image, StyleSheet, Text as TextNative, ScrollView, TouchableOpacity, FlatList, Dimensions } from 'react-native';
 import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { NativeBaseProvider, Box, Stack, Heading, Text, HStack, Center, VStack } from 'native-base';
+import { NativeBaseProvider, Box, Stack, Heading, Text, HStack, Center, VStack, Skeleton } from 'native-base';
 // import ProfileSwiper from '@/components/tindercard';
 import icons from '@/constants/icons';
 import { Card } from 'react-native-elements';
 import SwiperProfile from '@/components/swiperprofile';
-import { MaterialIcons } from '@expo/vector-icons'; // Make sure to import icons from a library
+import { MaterialIcons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import IconMeterial from 'react-native-vector-icons/MaterialIcons';
+
+// Get screen dimensions
+const { width } = Dimensions.get('window');
+
+// Skeleton Loader Components
+const ProfileSkeleton = () => (
+  <View style={styles.skeletonContainer}>
+    <Skeleton h="40" rounded="md" />
+    <Skeleton.Text px="4" mt="4" />
+    <Skeleton h="6" w="70%" mt="2" alignSelf="center" />
+  </View>
+);
+
+const CardSkeleton = () => (
+  <View style={[styles.cardSkeleton, { width: width * 0.4 }]}>
+    <Skeleton h="120" rounded="md" />
+    <Skeleton.Text px="2" mt="2" />
+  </View>
+);
+
+const ProfileCardSkeleton = () => (
+  <View style={styles.profileCardSkeleton}>
+    <Skeleton h={180} roundedTop="md" />
+    <VStack p={3} space={2}>
+      <Skeleton h={5} w="70%" rounded="sm" />
+      <Skeleton h={4} w="50%" rounded="sm" />
+      <HStack space={2} mt={2}>
+        <Skeleton h={4} w={16} rounded="full" />
+        <Skeleton h={4} w={16} rounded="full" />
+      </HStack>
+      <HStack mt={2} justifyContent="space-between">
+        <Skeleton h={8} w={8} rounded="full" />
+        <Skeleton h={8} w={8} rounded="full" />
+      </HStack>
+    </VStack>
+  </View>
+);
+
+const ProfileCardSmallSkeleton = () => (
+  <View style={styles.profileCardSmallSkeleton}>
+    <Skeleton h={120} w={120} rounded="md" />
+    <VStack p={2} space={1}>
+      <Skeleton h={4} w="80%" rounded="sm" />
+      <Skeleton h={3} w="60%" rounded="sm" />
+      <HStack space={1} mt={1}>
+        <Skeleton h={3} w={12} rounded="full" />
+        <Skeleton h={3} w={12} rounded="full" />
+      </HStack>
+    </VStack>
+  </View>
+);
+
+const StatsSkeleton = () => (
+  <HStack space={4} justifyContent="center" my={4}>
+    {[1, 2, 3].map((item) => (
+      <Center key={item} h="120" w="20" bg="blueGray.100" rounded="xl" >
+        <VStack alignItems="center" space={2}>
+          <Skeleton size="10" rounded="full" />
+          <Skeleton.Text lines={1} px="2" />
+          <Skeleton h="6" w="40%" />
+        </VStack>
+      </Center>
+    ))}
+  </HStack>
+);
+
+const SectionSkeleton = ({ title = true, small = false }) => (
+  <Box mb={6} bg="white" p={4} borderRadius={12} mx={2}>
+    {title && <Skeleton h={6} w="40%" mb={4} />}
+    <ScrollView 
+      horizontal 
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingRight: 16 }}
+    >
+      {[1, 2, 3, 4].map((item) => (
+        small ? <ProfileCardSmallSkeleton key={item} /> : <ProfileCardSkeleton key={item} />
+      ))}
+    </ScrollView>
+  </Box>
+);
+
+const LoadingState = () => (
+  <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
+    <ScrollView>
+      {/* Header Skeleton */}
+      <HStack p={4} justifyContent="space-between" alignItems="center" bg="white">
+        <Skeleton h="8" w="40%" rounded="md" />
+        <HStack space={4}>
+          <Skeleton size="10" rounded="full" />
+          <Box>
+            <Skeleton size="10" rounded="full" />
+          </Box>
+        </HStack>
+      </HStack>
+      
+      {/* Profile Section Skeleton */}
+      <Box p={4} bg="white" mb={2}>
+        <HStack space={4} alignItems="center">
+          <Skeleton size="20" rounded="full" />
+          <VStack space={2} flex={1}>
+            <HStack alignItems="center" space={2}>
+              <Skeleton h="5" w="60%" rounded="sm" />
+              <Skeleton h="4" w="20%" rounded="full" />
+            </HStack>
+            <HStack space={2}>
+              <Skeleton h="4" w="30%" rounded="sm" />
+              <Skeleton h="4" w="30%" rounded="sm" />
+            </HStack>
+            <Skeleton h="4" w="50%" rounded="sm" />
+            
+            {/* Profile Completion Bar Skeleton */}
+            <Box mt={2}>
+              <HStack justifyContent="space-between" mb={1}>
+                <Skeleton h="3" w="30%" rounded="sm" />
+                <Skeleton h="3" w="15%" rounded="sm" />
+              </HStack>
+              <Skeleton h="2" w="100%" rounded="full" />
+            </Box>
+          </VStack>
+        </HStack>
+      </Box>
+      
+      {/* Stats Skeleton */}
+      <Box bg="white" py={4} mb={2}>
+        <StatsSkeleton />
+      </Box>
+      
+      {/* Daily Recommendations Section */}
+      <SectionSkeleton title={true} />
+      
+      {/* New Connections Section */}
+      <SectionSkeleton title={true} small={true} />
+      
+      {/* Near You Section */}
+      <SectionSkeleton title={true} small={true} />
+      
+      {/* Happy Stories Section */}
+      <Box bg="white" mt={2} py={4}>
+        <Box px={4} mb={3}>
+          <Skeleton h="6" w="50%" rounded="sm" />
+        </Box>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 8 }}
+        >
+          {[1, 2, 3].map((item) => (
+            <Box key={item} style={styles.happyStorySkeleton}>
+              <Skeleton h={120} w={200} rounded="md" />
+              <VStack p={3} space={1}>
+                <Skeleton h={4} w="70%" rounded="sm" />
+                <Skeleton h={3} w="50%" rounded="sm" />
+                <Skeleton h={3} w="60%" rounded="sm" mt={2} />
+              </VStack>
+            </Box>
+          ))}
+        </ScrollView>
+      </Box>
+      
+      <Box h={20} /> {/* Bottom padding */}
+    </ScrollView>
+  </SafeAreaView>
+);
 
 
 import { router, useNavigation } from 'expo-router';
@@ -28,6 +191,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const Index = () => {
   const [hasStarted, setHasStarted] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const navigation = useNavigation();
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [newConnection, setNewConnection] = useState<any[]>([]);
@@ -143,12 +307,31 @@ const Index = () => {
 
   useEffect(() => {
     const checkUserStatus = async () => {
+      setIsLoading(true);
       try {
         const userId = await AsyncStorage.getItem('userId');
         const started = await AsyncStorage.getItem('hasStarted');
         const firstName = await AsyncStorage.getItem('firstName');
         const lastName = await AsyncStorage.getItem('lastName');
-        const profileImage = await AsyncStorage.getItem('profileImage');
+        
+        // Get user subscription status
+        if (userId) {
+          try {
+            const decodedUserId = atob(userId);
+            const subscription = await userApi.getActiveUserSubscriptionByUserId(decodedUserId);
+            console.log('Subscription response:------------------->', subscription.data.data.subscriptionId);
+            if(subscription.data.data?.entitlements) {
+              await AsyncStorage.setItem('subscription', JSON.stringify(subscription.data.data.entitlements));
+              console.log('Subscription entitlements saved to AsyncStorage');
+            }
+            if(subscription.data.data.subscriptionId) {
+              await AsyncStorage.setItem('subscriptionId', JSON.stringify(subscription.data.data.subscriptionId));
+            }
+          } catch (error) {
+            console.error('Error fetching subscription:', error);
+          }
+        }
+        const profileImage = await AsyncStorage.getItem('profileImage');  
         console.log('Profile Image Data ===========>:', profileImage);
         const location = await AsyncStorage.getItem('location');
         const storedGender = await AsyncStorage.getItem('gender');
@@ -179,6 +362,11 @@ const Index = () => {
         setHasStarted(true);
         const casteIdValue = parseInt(casteId);
         console.log("🔥 Calling all APIs...");
+        
+        // Simulate loading for demo purposes
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 1500);
 
         const [rec, conn, near, count] = await Promise.all([
           userApi.getDailyRecommendation(casteIdValue, storedGender),
@@ -360,61 +548,8 @@ const Index = () => {
                   boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
                 }}
               >
-             
-                 
-
-
-                {/* Four Boxes Section */}
-                {/* <Box overflow="hidden" borderColor="coolGray.200" p={5} style={{ borderTopEndRadius: 20, borderTopStartRadius: 20 }}>
-                  <HStack space={3} justifyContent="center">
-                    <TouchableOpacity onPress={handleFollowersPress}>
-                      <Center h="120" w="20" bg="blueGray" rounded="xl" >
-                        <VStack alignItems="center" space={2}>
-                          <Icon name="heartbeat" size={35} color="#9C27B0" />
-                          <TextNative style={{ fontSize: 14, textAlign: 'center', flexWrap: 'wrap', fontWeight: '500' }}>Your Connection</TextNative>
-                          <Text color="" fontSize="xl" fontWeight="bold" style={{ fontSize: 18 }}>{userConnectionCount?.YourConnection}</Text>
-                        </VStack>
-                      </Center>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={handleFollowingPress}>
-                      <Center h="120" w="20" bg="blueGray" rounded="xl" >
-                        <VStack alignItems="center" space={2}>
-                          <Icon name="heart" size={35} color="#9C27B0" />
-                          <TextNative style={{ fontSize: 14, textAlign: 'center', flexWrap: 'wrap', fontWeight: '500' }}>Interest      Sent</TextNative>
-                          <Text color="" fontSize="xl" fontWeight="bold" style={{ fontSize: 18 }}>{userConnectionCount?.InterestSent}</Text>
-                        </VStack>
-                      </Center>
-                    </TouchableOpacity>
-
-                    <Center h="120" w="20" bg="blueGray" rounded="xl" >
-                      <VStack alignItems="center" space={2}>
-                        <Icon name="eye" size={35} color="#9C27B0" />
-                        <TextNative style={{ fontSize: 14, textAlign: 'center', flexWrap: 'wrap', fontWeight: '500' }}>Viewed        You</TextNative>
-                        <Text color="" fontSize="xl" fontWeight="bold" style={{ fontSize: 18 }}>{userConnectionCount?.viewCount}</Text>
-                      </VStack>
-                    </Center>
-
-                    <Center h="120" w="20" bg="blueGray" rounded="xl" >
-                      <VStack alignItems="center" space={2}>
-                        <Icon name="check-circle-o" size={35} color="#9C27B0" />
-                        <TextNative style={{ fontSize: 14, textAlign: 'center', flexWrap: 'wrap', fontWeight: '500' }}>Interest Accepted</TextNative>
-                        <Text color="" fontSize="xl" fontWeight="bold" style={{ fontSize: 18 }}>{userConnectionCount?.InterestAccepted}</Text>
-                      </VStack>
-                    </Center>
-                  </HStack>
-                </Box> */}
 
 <View style={{ paddingHorizontal: 8, paddingVertical: 10 }}>
-      {/* Header */}
-      {/* <View style={{ marginBottom: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1F2937' }}>
-          Your Matrimonial Journey
-        </Text>
-        <Text style={{ fontSize: 14, color: '#4B5563', marginTop: 2 }}>
-          ✨ Your path to finding your soulmate
-        </Text>
-      </View> */}
 
       {/* Card */}
       <LinearGradient
@@ -690,23 +825,32 @@ const Index = () => {
                     </TouchableOpacity>
 
                     <Center ml={1} mb={2}>
-                      <SwiperProfile users={newConnection} onUserPress={(userId: any) => {
-                        router.push({
-                          pathname: '/screens/ProfileDetail',
-                          params: { userId: userId }
-                        });
-                      }} />
+                      {hasStarted === null || isLoading ? (
+                        <Box flexDirection="row" px={4} py={2}>
+                          {[1, 2, 3].map((item) => (
+                            <ProfileCardSmallSkeleton key={item} />
+                          ))}
+                        </Box>
+                      ) : (
+                        <SwiperProfile users={newConnection} onUserPress={(userId: any) => {
+                          router.push({
+                            pathname: '/screens/ProfileDetail',
+                            params: { userId: userId }
+                          });
+                        }} />
+                      )}
                     </Center>
                   </VStack>
                 </Box>
-                {/* </TouchableOpacity> */}
 
-                {/* Daily Recommendation Section  */}
+                {/* Daily Recommendations Section */}
                 <Box
                   overflow="hidden"
+                  backgroundColor="whitesmoke"
                   borderColor="black"
                   p={2}
                   borderRadius={20}
+                  m={1}
                 >
                   <VStack space={3}>
                     <TouchableOpacity
@@ -715,7 +859,7 @@ const Index = () => {
                           pathname: '/screens/listProfile',
                           params: {
                             type: 'dailyRecommendations',
-                            title: 'Daily Recommendations0'
+                            title: 'Daily Recommendations'
                           }
                         });
                       }}
@@ -732,21 +876,82 @@ const Index = () => {
                             </Text>
                           </HStack>
                         </VStack>
-
-                        <Text fontSize="sm" color={'blue'} fontWeight="normal">View All
-                          {/* <Icon name="chevron-right" size={15} color="green" />                      */}
-                        </Text>
-                        {/* <Icon name="chevron-circle-right" size={35} color="green" /> */}
+                        <Icon name="chevron-circle-right" size={30} color="green" />
                       </HStack>
                     </TouchableOpacity>
 
                     <Center marginLeft={1} marginBottom={2}>
-                      <SwiperProfile users={recommendations} onUserPress={(userId: any) => {
+                      {isLoading ? (
+                        <Box flexDirection="row" px={4} py={2}>
+                          {[1, 2, 3].map((item) => (
+                            <ProfileCardSmallSkeleton key={item} />
+                          ))}
+                        </Box>
+                      ) : (
+                        <SwiperProfile users={recommendations} onUserPress={(userId: any) => {
+                          router.push({
+                            pathname: '/screens/ProfileDetail',
+                            params: { userId: userId }
+                          });
+                        }} />
+                      )}
+                    </Center>
+                  </VStack>
+                </Box>
+
+                {/* Near You Section */}
+                {/* Near You Section */}
+                <Box
+                  overflow="hidden"
+                  backgroundColor="whitesmoke"
+                  borderColor="black"
+                  p={2}
+                  borderRadius={20}
+                  m={1}
+                >
+                  <VStack space={3}>
+                    <TouchableOpacity
+                      onPress={() => {
                         router.push({
-                          pathname: '/screens/ProfileDetail',
-                          params: { userId: userId }
+                          pathname: '/screens/listProfile',
+                          params: {
+                            type: 'nearYou',
+                            title: 'Profiles Near You'
+                          }
                         });
-                      }} />
+                      }}
+                    >
+                      <HStack justifyContent="space-between" alignItems="center">
+                        <VStack>
+                          <Text fontSize="md" fontWeight="semibold">
+                            Near You
+                          </Text>
+                          <HStack alignItems="center" space={1}>
+                            <Icon name="map-marker" size={15} color="green" />
+                            <Text fontSize="xs">
+                              Discover profiles in your area
+                            </Text>
+                          </HStack>
+                        </VStack>
+                        <Icon name="chevron-circle-right" size={30} color="green" />
+                      </HStack>
+                    </TouchableOpacity>
+
+                    <Center marginLeft={1} marginBottom={2}>
+                      {isLoading ? (
+                        <Box flexDirection="row" px={4} py={2}>
+                          {[1, 2, 3].map((item) => (
+                            <ProfileCardSmallSkeleton key={item} />
+                          ))}
+                        </Box>
+                      ) : (
+                        <SwiperProfile users={nearYouProfile} onUserPress={(userId: any) => {
+                          router.push({
+                            pathname: '/screens/ProfileDetail',
+                            params: { userId: userId }
+                          });
+                        }} />
+                      )}
                     </Center>
                   </VStack>
                 </Box>
@@ -890,6 +1095,65 @@ const Index = () => {
 };
 
 const styles = StyleSheet.create({
+  skeletonContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 8,
+    width: width * 0.7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardSkeleton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profileCardSkeleton: {
+    width: 200,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  profileCardSmallSkeleton: {
+    width: 140,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  happyStorySkeleton: {
+    width: 200,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
   section: {
     marginTop: 5,
     paddingHorizontal: 0,

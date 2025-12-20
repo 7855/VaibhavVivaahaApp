@@ -37,6 +37,7 @@ const ProfileDetail = () => {
   const [isShortlisted, setIsShortlisted] = useState(false);
   const [isPremiumValue, setIsPremiumValue] = useState(false);
   const [hiddenFeildsValue, setHiddenFeildsValue] = useState<any>([]);
+  const [ subscriptionId, setSubscriptionId] = useState<any>(null);
 
   const [interestStatus, setInterestStatus] = useState('');
 
@@ -235,11 +236,6 @@ const ProfileDetail = () => {
       const hiddenFeilds = hiddenFeildsResp.data.data;
       // console.log("Hidden Feilds Data ===========>", hiddenFeilds);
 
-      const isPremium = await AsyncStorage.getItem('isUser');
-      // console.log("isPremium----------------------->", isPremium);
-
-      setIsPremiumValue(isPremium == 'PU' ? true : false);
-      
       if (hiddenFeilds?.length > 0) {
         const fieldNames = hiddenFeilds.map((item: any) => item.fieldName);
         setHiddenFeildsValue(fieldNames);
@@ -247,7 +243,10 @@ const ProfileDetail = () => {
         // console.log("Hidden Feilds Data =valueeeeeeee==========>", hiddenFeildsValue); // log the actual value before setting state
       }
       
-      
+      // const isPremium = await AsyncStorage.getItem('isUser');
+      // console.log("isPremium----------------------->", isPremium);
+
+      // setIsPremiumValue(isPremium == 'PU' ? true : false);
 
       // console.log('Fetching details for userId:', userId);
       const response = await userApi.getProfileDetailByUserId(userId);
@@ -262,6 +261,50 @@ const ProfileDetail = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const checkPremiumStatus = async () => {
+      try {
+        const subscription = await AsyncStorage.getItem('subscription');
+        // console.log('Subscription Data ===========>:', subscription);
+        if (subscription) {
+          const parsedSubscription = JSON.parse(subscription);
+          console.log("parsedSubscription.viewPersonalInfo", parsedSubscription);
+          setSubscriptionId(parsedSubscription.subscriptionId);
+          
+          if (parsedSubscription.viewPersonalInfo == true) {
+            setIsPremiumValue(true);
+          } else {
+            setIsPremiumValue(false);
+          }
+        } else {
+          try {
+            const localUserId = await AsyncStorage.getItem('userId');
+            if (localUserId) {
+              const decodedUserId = atob(localUserId);
+              const subscription = await userApi.getActiveUserSubscriptionByUserId(decodedUserId);
+              // console.log('Subscription response:------------------->', subscription.data.data.entitlements);
+              if(subscription.data.data?.entitlements) {
+                await AsyncStorage.setItem('subscription', JSON.stringify(subscription.data.data.entitlements));
+                if(subscription.data.data?.entitlements.viewPersonalInfo == true) {
+                  setIsPremiumValue(true);
+                } else {
+                  setIsPremiumValue(false);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching subscription:', error);
+          }
+        }
+
+      } catch (error) {
+        console.error('Error checking premium status:', error);
+      } 
+    };
+
+    checkPremiumStatus();
+  }, []);
 
   const handleLike = async () => {
     // console.log("currentUserId===================================>", currentUserId);
@@ -324,22 +367,79 @@ const ProfileDetail = () => {
     try {
       console.log("interestStatus===================================>", interestStatus);
 
-      // Allow sending request if status is NONE, empty string, or null
-      if (interestStatus === 'NONE' || interestStatus === '' || interestStatus === null) {
-        await userApi.sendInterestRequest(currentUserId, parsedUserId);
-        setInterestStatus('PENDING');
-        setIsSender(true);
-        console.log("isSender=========1==========================>", isSender);
-        console.log('New interest request sent successfully');
-      } else if (interestStatus === 'REJECTED') {
-        console.log('Cannot send request - request was previously rejected');
-      } else if (interestStatus === 'PENDING') {
-        console.log('Cannot send request - request is already pending');
-      } else if (interestStatus === 'APPROVED') {
-        console.log('Cannot send request - request is already approved');
-      } else {
-        console.log('Unknown status:', interestStatus);
+      if(isPremiumValue == true) {
+       
+        try {
+          const userId = await AsyncStorage.getItem('userId'); 
+          const subscriptionId = await AsyncStorage.getItem('subscriptionId'); 
+          if(userId && subscriptionId){
+            const decodedUserId = atob(userId);
+            const updateSendRequestCount = await userApi.updateSendRequestCount(decodedUserId, subscriptionId, 4);
+            console.log("updateSendRequestCount===================================>", updateSendRequestCount.data);
+
+            if(updateSendRequestCount.data.code == 200){
+            // if (interestStatus === 'NONE' || interestStatus === '' || interestStatus === null) {
+            //   await userApi.sendInterestRequest(currentUserId, parsedUserId);
+            //   setInterestStatus('PENDING');
+            //   setIsSender(true);
+            // }
+            }else if(updateSendRequestCount.data.code == 401){
+              Alert.alert(
+                'Request Limit Exceeded',
+                'You have reached the limit of requests. Please upgrade to Plan to send interest',
+                [
+                  {
+                    text: 'Cancel',
+                    style: 'cancel'
+                  },
+                  {
+                    text: 'Upgrade',
+                    onPress: () => {
+                      router.push('/(root)/screens/PremiumTab');
+                    }
+                  }
+                ]
+              );
+            }else{
+              Alert.alert(
+                'Something Went Wrong',
+                'Please try again later',
+                [
+                  {
+                    text: 'OK',
+                    style: 'cancel'
+                  }
+                ]
+              );
+            }
+          
+          }
+        } catch (error) {
+          console.error('Error updating send request count:', error);
+        }
+      }else{
+        Alert.alert(
+          'Premium Required',
+          'You need to upgrade to premium to send interest',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Upgrade',
+              onPress: () => {
+                router.push('/(root)/screens/PremiumTab');
+              }
+            }
+          ]
+        );
       }
+        
+      
+
+      // Allow sending request if status is NONE, empty string, or null
+
     } catch (error) {
       console.error('Error sending interest request:', error);
     }
@@ -567,14 +667,7 @@ const ProfileDetail = () => {
                             return;
                           }
 
-                          // Check if user is premium before showing any alert
-                          const userId = await AsyncStorage.getItem('userId');
-                          const response = await userApi.getUserPaidStatus(userId);
-                          const isPremium = response.data.data.isPremium;
-                          console.log("isPremiumValue----------------------->", isPremium);
-                          setIsPremiumValue(isPremium);
-                          console.log("isPremiumValue----------------------->", isPremiumValue);
-                          if (!isPremium) {
+                          if (!isPremiumValue) {
                             // Show Premium Required alert for non-premium users
                             Alert.alert(
                               'Premium Required',

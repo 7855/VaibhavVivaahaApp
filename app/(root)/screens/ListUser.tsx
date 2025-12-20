@@ -13,7 +13,7 @@ import userApi from '../api/userApi';
 import { Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 import { router } from 'expo-router';
 
 interface ShortlistedProfile {

@@ -81,6 +81,7 @@
     "react-native-reanimated-animated-accordion": "^0.3.0",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.16.0",
+    "react-native-skeleton-content": "^1.0.28",
     "react-native-snap-carousel": "^4.0.0-beta.6",
     "react-native-stack": "^1.0.0-alpha11",
     "react-native-svg": "15.12.1",

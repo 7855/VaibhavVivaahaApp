@@ -43,13 +43,13 @@ const ListChats = ({ allChats, onPress }) => {
     }
   }, [allChats]);
 
-  if (isLoading) {
-    return (
-      <Box bg="white" flex="1" justifyContent="center" alignItems="center">
-        <NBText>Loading chats...</NBText>
-      </Box>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <Box bg="white" flex="1" justifyContent="center" alignItems="center">
+  //       <NBText>Loading chats...</NBText>
+  //     </Box>
+  //   );
+  // }
 
   const closeRow = (rowMap, rowKey) => {
     if (rowMap[rowKey]) {

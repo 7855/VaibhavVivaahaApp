@@ -62,8 +62,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
               await AsyncStorage.setItem('location', response.data.data.location)
               await AsyncStorage.setItem('casteId', response.data.data.casteId.toString());
               await AsyncStorage.setItem('isUser', response.data.data.isUser);
-              await AsyncStorage.setItem('hasStarted', 'true')
-              
+              await AsyncStorage.setItem('hasStarted', 'true')     
               // Initialize WebSocket connection if not already connected
               try {
                   if (!webSocketService.socket) {
