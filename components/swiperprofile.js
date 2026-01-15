@@ -40,7 +40,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginVertical: 4,
     textAlign: 'center',
-    lineHeight:17
+    lineHeight:17,
+    paddingHorizontal:1
   },
   nearyouImage: {
     height: 150,

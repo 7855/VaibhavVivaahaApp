@@ -11,12 +11,13 @@ import {
     Keyboard,
     TouchableWithoutFeedback,
     Modal,
+    ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Box, CheckIcon, Divider, FlatList, HStack, Radio, Select, Stack, Switch } from "native-base";
 import { TabView, TabBar } from "react-native-tab-view";
 import Expandable from "react-native-reanimated-animated-accordion";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import RangeSlider from "rn-range-slider";
 import { Dropdown } from "react-native-element-dropdown";
 import DropdownComponent from "../../../components/DropdownComponent";
@@ -26,7 +27,7 @@ import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Book, Calendar, DollarSign, Briefcase, ChevronDown, ChevronRight } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import { useSubscription } from '../contexts/subscriptionContext';
 // Custom Components for Slider
 const Thumb = () => <View style={styles.thumb} />;
 const Rail = () => <View style={styles.rail} />;
@@ -42,6 +43,20 @@ const Label = ({ text }: { text: number }) => (
 interface SearchProps {
     setSwipeEnabled: (enabled: boolean) => void;
 }
+interface Filter {
+    id: number;
+    filterKey: string;
+    filterValue: string;
+}
+interface SavedSearch {
+    id: number;
+    userId: number;
+    searchName: string;
+    isActive: string;
+    createdAt: string;
+    updatedAt: string;
+    filters: Filter[];
+}
 
 const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [profiles, setProfiles] = useState<any>(null);
@@ -53,6 +68,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [education, setEducation] = useState<any>(null);
     const [educationOptions, setEducationOptions] = useState<string[]>([]);
+    const { subscriptionData } = useSubscription();
 
     const [height, setHeight] = useState('');
     const [age, setAge] = useState('');
@@ -67,13 +83,30 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [showProfileCreatedModal, setShowProfileCreatedModal] = useState(false);
     // const [showSubcasteModal, setShowSubcasteModal] = useState(false);
     const [showEducationModal, setShowEducationModal] = useState(false);
-    const [showCityModal, setShowCityModal] = useState(false);
+    // const [showCityModal, setShowCityModal] = useState(false);
     const [showStarModal, setShowStarModal] = useState(false);
     const [showDoshamModal, setShowDoshamModal] = useState(false);
     const [showIncomeModal, setShowIncomeModal] = useState(false);
     const [isPremiumUser, setIsPremiumUser] = useState(false);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [showJobSectorModal, setShowJobSectorModal] = useState(false);
+    const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+    const [loading, setLoading] = useState(true);
+    // Add this effect to fetch saved searches
+    const [incomeRanges, setIncomeRanges] = useState<Array<{
+        id: number;
+        from: number | null;
+        to: number | null;
+        amount: string;
+    }>>([
+        { id: 1, from: 100000, to: 400000, amount: "1 lakh - 4 lakhs" },
+        { id: 2, from: 400000, to: 800000, amount: "4 lakhs - 8 lakhs" },
+        { id: 3, from: 800000, to: 1200000, amount: "8 lakh - 12 lakhs" },
+        { id: 4, from: 1200000, to: 1600000, amount: "12 lakh - 16 lakhs" },
+        { id: 5, from: 1600000, to: 2000000, amount: "16 lakh - 20 lakhs" },
+        { id: 6, from: 2000000, to: null, amount: "above 20 lakhs" },
+        { id: 7, from: null, to: null, amount: "Any" }
+    ]);
     const [expandedSections, setExpandedSections] = useState({
         basic: true,
         religious: true,
@@ -90,13 +123,12 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         annualIncome: [] as string[],
         city: [] as string[],
         annualIncomeFilter: [] as string[],
-        jobSector: ['Government', 'Private', 'Self Employment', 'Any'],
+        jobSector: [] as string[],
 
     });
 
     const [filters, setFilters] = useState({
         ageRange: '28 Yrs - 32 Yrs',
-        heightRange: '5\'4" - 6\'0"',
         profileCreatedBy: 'Any',
         subcaste: 'Any',
         education: '',
@@ -105,30 +137,29 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         dosham: '',
         annualIncomeFilter: '',
         jobSector: '',
+        degree: '',
     });
 
     const tabs = [
         { id: 'criteria', label: 'By Criteria' },
         { id: 'profile', label: 'By Profile ID' },
-        // { id: 'saved', label: 'Saved Search' },
+        { id: 'saved', label: 'Saved Search' },
     ];
 
     // Age options will be loaded from the API
-    const heightOptions = optionsMap.height;
     const profileCreatedOptions = ['Any', 'Parents', 'Self', 'Relatives', 'Guardian'];
-    const subcasteOptions = ['Any', 'Brahmin', 'Kshatriya', 'Vaishya', 'Other'];
 
     const gatherSearchData = async () => {
         // Parse age range (format: "28 Yrs - 32 Yrs")
         const keys = ['gender', 'casteId', 'userId'];
         const values = await AsyncStorage.multiGet(keys);
-      
+
         const userData = Object.fromEntries(values);
-      
+
         if (!userData.gender || !userData.casteId || !userData.userId) {
-          throw new Error('User data not found in AsyncStorage');
+            throw new Error('User data not found in AsyncStorage');
         }
-      
+
         console.log('User data ---------->:', userData);
 
         const [minAge, maxAge] = filters.ageRange
@@ -136,27 +167,35 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 .split(' - ')
                 .map(s => s.split(' ')[0])
             : ['28', '32']; // Default values if not set
-    
+
         // Parse income range (format: "5 Lacs - 20 Lacs")
-        const [minAnnualIncome, maxAnnualIncome] = filters.annualIncomeFilter
-            ? filters.annualIncomeFilter
-                .split(' - ')
-                .map(s => {
-                    const value = parseFloat(s) * 100000; // Convert lacs to actual number
-                    return Math.floor(value).toString();
-                })
-            : ['500000', '2000000']; // Default values if not set
-    
+        let minAnnualIncome: string | null = null;
+        let maxAnnualIncome: string | null = null;
+        if (filters.annualIncomeFilter) {
+            // Find the matching income range from the fetched data
+            const selectedRange = incomeRanges.find(range =>
+                range.amount?.toLowerCase() === filters.annualIncomeFilter.toLowerCase()
+            );
+            if (selectedRange) {
+                minAnnualIncome = selectedRange.from?.toString() ?? null;
+                maxAnnualIncome = selectedRange.to?.toString() ?? null;
+            }
+        }
+
         // Map job sector to employedAt format
         const getEmployedAt = () => {
-            if (!filters.jobSector) return 'PRIVATE';
+            if (!filters.jobSector) return null;
             const sector = filters.jobSector.toLowerCase();
-            if (sector.includes('government')) return 'GOVT';
+
+            if (sector.includes('govt')) return 'GOVT';
             if (sector.includes('private')) return 'PRIVATE';
             if (sector.includes('self')) return 'SELF';
-            return 'PRIVATE';
+            if (sector.includes('no job')) return 'UNEMPLOYED';  // Changed from 'NOJOB' to match your API
+            if (sector.includes('any job') || sector === 'any') return 'ANY';
+
+            return 'ANY';  // Default to 'ANY' instead of 'Any' for consistency
         };
-    
+
         const searchData = {
             minAge,
             maxAge,
@@ -171,22 +210,50 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             dosham: filters.dosham || 'Any',
             star: filters.star || 'Any',
             profilesWithHoroscope: horoscopeOnly ? 'Y' : 'N',
-            userId: atob(userData.userId) // Default value, replace with actual user ID
+            userId: atob(userData.userId), // Default value, replace with actual user ID
+            degree: filters.education || 'Any',
         };
-    
+
         // Log the search data in a readable format
         console.log('=== Search Filters ===');
         console.log(JSON.stringify(searchData, null, 2));
         console.log('======================');
-    
+
         return searchData;
     };
 
-    
+    useEffect(() => {
+        const fetchSavedSearches = async () => {
+            try {
+                const userId = await AsyncStorage.getItem('userId');
+                if (!userId) return;
+
+                const decodedUserId = atob(userId);
+                const response = await userApi.getAllUserSavedSearches(decodedUserId);
+                console.log("response.data====>", response.data);
+
+
+                if (response.data.code === 200) {
+                    setSavedSearches(response.data.data || []);
+                }
+            } catch (error) {
+                console.error('Error fetching saved searches:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        if (activeTab === 'saved') {
+            fetchSavedSearches();
+        }
+    }, [activeTab]);
+
+
 
     const handleSearch = async () => {
         const searchData = await gatherSearchData();
-        console.log('Search Data:', JSON.stringify(searchData, null, 2));
+        // console.log('Search Data:', JSON.stringify(searchData, null, 2));
+        // console.log("searchData.minAnnualIncome ", searchData.minAnnualIncome);
+
 
         try {
             // Format the request body according to API requirements
@@ -197,31 +264,37 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 maxAnnualIncome: searchData.maxAnnualIncome || null, // Default value
                 occupation: searchData.occupation == 'Any' ? null : searchData.occupation,
                 location: searchData.location == 'Any' ? null : searchData.location,
-                employedAt: searchData.employedAt || 'PRIVATE', // Default value
+                employedAt: searchData.employedAt || null, // Default value
                 profileImageStatus: searchData.profileImageStatus || 'N',
                 casteId: searchData.casteId || null, // Default value, you might want to get this from your filters
                 gender: searchData.gender || null, // Default value, you might want to get this from your filters
                 dosham: searchData.dosham == 'Any' ? null : searchData.dosham,
                 star: searchData.star == 'Any' ? null : searchData.star,
                 profilesWithHoroscope: searchData.profilesWithHoroscope || 'N',
-                userId: searchData.userId || null // You need to get this from your auth context or state
+                userId: searchData.userId || null, // You need to get this from your auth context or state
+                degree: searchData.degree || null
             };
 
             // console.log('Sending request:', JSON.stringify(requestBody, null, 2));
 
             // Call the API
+            // console.log("called this");
+
             const response = await userApi.filterUsers(requestBody);
             // console.log('Search results:', response.data.data);
 
             // Navigate to search results with the data
-            if(response.data.code == 200){
-            router.push({
-                pathname: '/(root)/screens/SearchResult',
-                params: { searchResults: JSON.stringify(response.data.data) }
-            });
-            }else if(response.data.code == 404){
+            if (response.data.code == 200) {
+                router.push({
+                    pathname: '/(root)/screens/SearchResult',
+                    params: {
+                        searchResults: JSON.stringify(response.data.data),
+                        searchCriteria: JSON.stringify(requestBody)
+                    }
+                });
+            } else if (response.data.code == 404) {
                 Alert.alert('No profiles found matching your search criteria');
-            }else{
+            } else {
                 Alert.alert('Something Went Wrong. Please try again.');
             }
 
@@ -233,28 +306,199 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     };
 
     useEffect(() => {
-        // Check if user is premium
-        const checkPremiumStatus = async () => {
-            try {
-                const subscription = await AsyncStorage.getItem('subscription');
-                console.log('Subscription Data ===========>:', subscription);
-                if(subscription){
-                    const parsedSubscription = JSON.parse(subscription);
-                    if(parsedSubscription.advancedSearch == true && parsedSubscription.basicSearch == true){
-                        setIsPremiumUser(true);
-                    }else{
-                        setIsPremiumUser(false);
+        if (subscriptionData && subscriptionData.entitlements) {
+            // console.log("subscriptionData======>", subscriptionData);
+            // console.log("subscriptionData.entitlements:", subscriptionData.entitlements);
+
+            const hasPremiumAccess =
+                subscriptionData.entitlements.advSearch === true &&
+                subscriptionData.entitlements.basicSearch === true;
+
+            // console.log("hasPremiumAccess ===>", hasPremiumAccess);
+            setIsPremiumUser(hasPremiumAccess);
+        } else {
+            // console.log("No subscription data or entitlements found");
+            setIsPremiumUser(false);
+        }
+        // console.log("hasPremiumAccess ===>", isPremiumUser);
+
+    }, [subscriptionData]);
+
+
+    const handleUseSearch = async (savedSearch: SavedSearch) => {
+        // Create a mapping of filter keys to your state keys
+
+        // console.log("isPremiumUser", isPremiumUser);
+
+
+        // Check if search contains premium features
+        const hasPremiumFeatures = savedSearch.filters.some(filter =>
+            ['Star', 'Dosham', 'profilesWithHoroscope', 'Education'].includes(filter.filterKey)
+        );
+        if (hasPremiumFeatures && !isPremiumUser) {
+            Alert.alert(
+                'Premium Feature',
+                'This search includes premium features. Please upgrade to premium to use this search.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Upgrade Now',
+                        onPress: () => router.push('/')
                     }
-                }else{
-                    setIsPremiumUser(false);
-                }
-            } catch (error) {
-                console.error('Error checking premium status:', error);
-            }
+                ]
+            );
+            return;
+        }
+
+        const filterKeyMap: Record<string, string> = {
+            'age': 'ageRange',
+            'annual income': 'annualIncomeFilter',
+            'dosham': 'dosham',
+            'degree': 'degree',
+            'education': 'education',
+            'star': 'star',
+            'city': 'city',
+            'job sector': 'jobSector',
+            'profileswithhoroscope': 'horoscopeOnly',
+            'profileimagestatus': 'photoOnly'
         };
 
-        checkPremiumStatus();
-    }, []);
+        // Initialize with default values
+        const updatedFilters = {
+            ageRange: '28 Yrs - 32 Yrs',
+            profileCreatedBy: 'Any',
+            education: '',
+            city: '',
+            star: '',
+            dosham: '',
+            annualIncomeFilter: '',
+            jobSector: '',
+            degree: '',
+        };
+
+        // Initialize state for toggles
+        let newHoroscopeOnly = false;
+        let newPhotoOnly = false;
+
+        // Apply saved filters
+        savedSearch.filters.forEach(filter => {
+            const key = filter.filterKey.toLowerCase();
+            const value = filter.filterValue;
+
+            // Handle age range
+            if (key === 'age') {
+                updatedFilters.ageRange = value;
+            }
+            // Handle annual income
+            // In the saved search handling section, update the annual income case:
+            else if (key === 'annual income') {
+                const [minStr, maxStr] = value.split(' - ').map(s => s === 'null' ? null : s);
+
+                // Find the matching range in incomeRanges
+                const matchedRange = incomeRanges.find(range => {
+                    const rangeMin = range.from?.toString() || 'null';
+                    const rangeMax = range.to?.toString() || 'null';
+                    return rangeMin === minStr && rangeMax === maxStr;
+                });
+
+                if (matchedRange) {
+                    updatedFilters.annualIncomeFilter = matchedRange.amount;
+                } else {
+                    // Fallback: If no exact match found, try to find the closest match
+                    if (minStr === '2000000' && (maxStr === 'null' || maxStr === null)) {
+                        updatedFilters.annualIncomeFilter = 'above 20 lakhs';
+                    } else if (minStr === 'null' && maxStr === 'null') {
+                        updatedFilters.annualIncomeFilter = 'Any';
+                    } else {
+                        // For custom ranges, format them nicely
+                        const formatLakhs = (num: string) => {
+                            const numValue = parseInt(num);
+                            return numValue >= 100000 ? `${numValue / 100000} lakh${numValue !== 100000 ? 's' : ''}` : num;
+                        };
+
+                        if (maxStr === 'null') {
+                            updatedFilters.annualIncomeFilter = `above ${formatLakhs(minStr)}`;
+                        } else {
+                            updatedFilters.annualIncomeFilter = `${formatLakhs(minStr)} - ${formatLakhs(maxStr)}`;
+                        }
+                    }
+                }
+            }
+            // Handle profiles with horoscope (exact match)
+            else if (key === 'profileswithhoroscope') {
+                newHoroscopeOnly = value === 'Y';
+            }
+            // Handle profile with photos (exact match)
+            else if (key === 'profileimagestatus') {
+                newPhotoOnly = value === 'Y';
+            }
+            // Handle other filters
+            else if (key in filterKeyMap) {
+                const stateKey = filterKeyMap[key] as keyof typeof updatedFilters;
+                if (stateKey in updatedFilters) {
+                    updatedFilters[stateKey] = value;
+                }
+            }
+        });
+
+        // Update all filters at once
+        setFilters(updatedFilters);
+
+        // Update the toggle states
+        if (newHoroscopeOnly !== horoscopeOnly) {
+            setHoroscopeOnly(newHoroscopeOnly);
+        }
+        if (newPhotoOnly !== photoOnly) {
+            setPhotoOnly(newPhotoOnly);
+        }
+
+        // Switch to criteria tab
+        setActiveTab('criteria');
+
+        // Show success message
+        Alert.alert('Search Loaded', `Loaded search: ${savedSearch.searchName}`);
+    };
+
+    const handleDelete = async (searchId: number) => {
+        try {
+            // Show confirmation dialog
+            Alert.alert(
+                'Delete Saved Search',
+                'Are you sure you want to delete this saved search?',
+                [
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                    },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                // Call your API to mark the search as inactive
+                                const response = await userApi.inActiveSavedSearch(searchId);
+
+                                if (response.data.code === 200) {
+                                    // Remove the search from the local state
+                                    setSavedSearches(prev => prev.filter(search => search.id !== searchId));
+
+                                    // Show success message
+                                    Alert.alert('Success', 'Search deleted successfully');
+                                } else {
+                                    throw new Error(response.data.message || 'Failed to delete search');
+                                }
+                            } catch (error) {
+                                console.error('Error deleting search:', error);
+                                Alert.alert('Error', 'Failed to delete search. Please try again.');
+                            }
+                        },
+                    },
+                ]
+            );
+        } catch (error) {
+            console.error('Error showing delete confirmation:', error);
+        }
+    };
 
     const toggleSection = useCallback((section: 'basic' | 'religious' | 'job') => {
         setExpandedSections(prev => ({
@@ -266,8 +510,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     // Fetch key-value pairs for dropdowns
     useEffect(() => {
         const fetchKeyValues = async () => {
-            const keys = ['education', 'city', 'height', 'age', 'star', 'dosham', 'annualIncomeFilter'];
-            
+            const keys = ['education', 'city', 'height', 'age', 'star', 'dosham', 'annualIncome', 'employingIn'];
+
             for (const key of keys) {
                 try {
                     console.log(`Fetching ${key}...`);
@@ -278,6 +522,55 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     console.log(`${key} raw value:`, value);
 
                     // If value is a string that looks like a JSON array, parse it
+                    // Add this inside the fetchKeyValues function, after processing other keys
+                    if (key === 'employingIn') {
+                        // console.log("Processing employingIn data:", value);
+
+                        // Process the employingIn data to extract job sector options
+                        let jobSectorOptions: string[] = [];
+
+                        try {
+                            // If value is a string, parse it as JSON
+                            const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
+
+                            if (Array.isArray(parsedValue)) {
+                                jobSectorOptions = parsedValue
+                                    .filter((item: any) => item && item.label) // Filter out invalid items
+                                    .map((item: any) => item.label); // Extract label for display
+                            }
+
+                            console.log("Processed job sector options:", jobSectorOptions);
+
+                            // Update the jobSector state and optionsMap
+                            if (jobSectorOptions.length > 0) {
+                                setOptionsMap(prev => ({
+                                    ...prev,
+                                    jobSector: jobSectorOptions
+                                }));
+                            }
+                        } catch (error) {
+                            console.error('Error processing employingIn data:', error);
+                        }
+                    }
+
+                    if (key === 'annualIncome') {
+                        try {
+                            const ranges = Array.isArray(value) ? value : JSON.parse(value as string);
+                            if (Array.isArray(ranges) && ranges.length > 0) {
+                                setIncomeRanges(ranges);
+                                // Update optionsMap with the amount values
+                                const incomeOptions = ranges.map(range => range.amount || '');
+                                setOptionsMap(prev => ({
+                                    ...prev,
+                                    annualIncome: incomeOptions
+                                }));
+                            }
+                        } catch (error) {
+                            console.error('Error processing annual income data:', error);
+                        }
+                    }
+
+
                     if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
                         try {
                             value = JSON.parse(value);
@@ -290,13 +583,13 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
                     // Process the array based on its content type
                     let processedArray: string[] = [];
-                    
+
                     if (Array.isArray(value)) {
                         if (value.length > 0) {
                             // Handle different response formats
                             const firstItem = value[0];
                             console.log(`First item of ${key}:`, firstItem);
-                            
+
                             // For array of objects with name (education, star)
                             if (firstItem.name) {
                                 processedArray = value.map((item: any) => item.name);
@@ -305,7 +598,15 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                             else if (firstItem.label && firstItem.value) {
                                 processedArray = value.map((item: any) => item.label);
                             }
-                            // For array of objects with from/to (age, annualIncomeFilter)
+                            // For array of objects with displayValue (height)
+                            else if (firstItem.displayValue) {
+                                processedArray = value.map((item: any) => item.displayValue);
+                            }
+                            else if (firstItem.amount) {
+                                processedArray = value.map((item: any) => item.amount);
+                            }
+
+                            // For array of objects with from/to (age, other numeric ranges)
                             else if (firstItem && typeof firstItem === 'object' && 'from' in firstItem && 'to' in firstItem) {
                                 processedArray = value.map((item: any) => {
                                     if (item.label) return item.label;
@@ -314,13 +615,12 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     return `${item.from} Yrs - ${item.to} Yrs`;
                                 });
                             }
-                            // For simple string arrays (height, dosham, education)
+                            // For simple string arrays (dosham, education)
                             else if (typeof firstItem === 'string') {
                                 processedArray = [...value];
                             }
                             // For array of objects with different structure
                             else if (typeof firstItem === 'object') {
-                                // Try to extract a meaningful string from the object
                                 processedArray = value.map((item: any) => {
                                     return item.name || item.label || item.value || JSON.stringify(item);
                                 });
@@ -342,7 +642,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     // Special handling for education to maintain backward compatibility
                     if (key === 'education' && processedArray.length > 0) {
                         console.log("Raw education data:", processedArray);
-                        
+
                         // Process education data to extract degree values
                         const educationOptions = processedArray.map(item => {
                             try {
@@ -361,9 +661,9 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 return item;
                             }
                         });
-                        
+
                         console.log("Processed education options:", educationOptions);
-                        
+
                         // Update both education state and optionsMap with processed data
                         setEducation(educationOptions);
                         setOptionsMap(prev => ({
@@ -386,26 +686,26 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 Alert.alert('Error', 'Please enter a profile ID');
                 return;
             }
-    
+
             const casteId = await AsyncStorage.getItem('casteId');
             const gender = await AsyncStorage.getItem('gender');
 
             if (!casteId && !gender) {
                 throw new Error('User data not found');
             }
-    
+
             console.log('Profile ID:', profileId);
             console.log('Gender:', gender);
             console.log('Caste ID:', casteId);
-            
-            
+
+
             const response = await userApi.getProfileDetailByMemberId(profileId, gender == 'M' ? 'F' : 'M', casteId);
-            
+
             if (response.data && response.data.status === 'SUCCESS') {
                 // Navigate to search results with the profile data
                 router.push({
                     pathname: '/(root)/screens/SearchResult',
-                    params: { 
+                    params: {
                         searchResults: JSON.stringify([response.data.data]) // Wrap in array to match expected format
                     }
                 });
@@ -497,26 +797,106 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             );
         }
 
-        // if (activeTab === 'saved') {
-        //     return (
-        //         <View style={styles.cardContainer}>
-        //             <View style={styles.filterCard}>
-        //                 <Text style={styles.sectionHeader}>Saved Searches</Text>
-        //                 <View style={styles.emptyStateContainer}>
-        //                     <Text style={styles.emptyStateText}>No saved searches yet</Text>
-        //                     <Text style={styles.emptyStateSubtext}>
-        //                         Save your searches to quickly access them later
-        //                     </Text>
-        //                 </View>
-        //             </View>
-        //         </View>
-        //     );
-        // }
+        if (activeTab === 'saved') {
+            return (
+                <ScrollView style={{ flex: 1, padding: 5, backgroundColor: '#F9FAFB' }}>
+                    {/* <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
+                        Saved Searches
+                    </Text> */}
+
+                    {loading ? (
+                        <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 24 }} />
+                    ) : savedSearches.length > 0 ? (
+                        savedSearches.map((search) => (
+                            <View key={search.id} style={styles.savedSearchCard}>
+                                <View style={styles.searchHeader}>
+                                    <View style={styles.titleContainer}>
+                                        <Text
+                                            style={styles.searchName}
+                                            numberOfLines={1}
+                                            ellipsizeMode="tail"
+                                        >
+                                            {search.searchName}
+                                        </Text>
+                                        <Text style={styles.searchDate}>
+                                            {new Date(search.createdAt).toLocaleDateString()}
+                                        </Text>
+                                    </View>
+
+                                    <View style={styles.actionsContainer}>
+                                        <TouchableOpacity
+                                            onPress={() => handleUseSearch(search)}
+                                            style={[styles.actionButton, styles.searchButton]}
+                                        >
+                                            <Feather name="search" size={16} color="#4F46E5" />
+                                            <Text style={[styles.actionButtonText, { color: '#4F46E5' }]}>
+                                                Use
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            onPress={() => handleDelete(search.id)}
+                                            style={[styles.actionButton, styles.deleteButton]}
+                                        >
+                                            <Feather name="trash-2" size={16} color="#EF4444" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                <View style={styles.filtersContainer}>
+                                    {search.filters.map((filter) => (
+                                        <View key={filter.id} style={styles.filterChip}>
+                                            <Feather name="filter" size={12} color="#6B7280" />
+                                            <Text style={styles.filterText} numberOfLines={1}>
+                                                {filter.filterKey}: {filter.filterValue}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.emptyStateContainer}>
+                            <Feather name="search" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
+                            <Text style={styles.emptyStateText}>No saved searches yet</Text>
+                            <Text style={styles.emptyStateSubtext}>
+                                Save your searches to quickly access them later
+                            </Text>
+                        </View>
+                    )}
+                </ScrollView>
+            );
+        }
 
         // Default tab (criteria)
         return (
             <View style={styles.cardContainer}>
+                <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={() => {
+                        // Reset all filters to default values
+                        setFilters({
+                            ageRange: '28 Yrs - 32 Yrs',
+                            profileCreatedBy: 'Any',
+                            subcaste: 'Any',
+                            education: '',
+                            city: '',
+                            star: '',
+                            dosham: '',
+                            annualIncomeFilter: '',
+                            jobSector: '',
+                            degree: '',
+                        });
+                        // Reset toggle switches
+                        setPhotoOnly(false);
+                        setHoroscopeOnly(false);
+                    }}
+                >
+                    <Feather name="x-circle" size={16} color="#666" />
+                    <Text style={styles.clearButtonText}>Clear</Text>
+                </TouchableOpacity>
                 <View style={styles.filterCard}>
+
                     <TouchableOpacity
                         style={styles.sectionHeaderContainer}
                         onPress={() => toggleSection('basic')}
@@ -647,7 +1027,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     </TouchableOpacity>
                                 </View>
 
-                                <View style={{ ...styles.filterRow }}>
+                                {/* <View style={{ ...styles.filterRow }}>
                                     <Text style={styles.filterLabel}>
                                         City / District
                                         {!isPremiumUser && (
@@ -674,7 +1054,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                         </Text>
                                         <ChevronDown size={16} color="#666" />
                                     </TouchableOpacity>
-                                </View>
+                                </View> */}
                                 <View style={styles.filterRow}>
                                     <Text style={styles.filterLabel}>Job Sector</Text>
                                     <TouchableOpacity
@@ -768,32 +1148,32 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 </View>
 
                                 <View style={{ ...styles.filterRow }}>
-    <Text style={styles.filterLabel}>
-        Profile with Horoscope only
-        {!isPremiumUser && (
-            <Text
-                style={styles.lockIcon}
-                onPress={() => setShowUpgradeModal(true)}
-            >
-                {' '}🔒
-            </Text>
-        )}
-    </Text>
-    <Switch
-        size="sm"
-        value={horoscopeOnly}
-        onValueChange={(value) => {
-            if (!isPremiumUser) {
-                setShowUpgradeModal(true);
-            } else {
-                setHoroscopeOnly(value);
-            }
-        }}
-        disabled={!isPremiumUser}
-        trackColor={{ false: "#767577", true: "#420001" }}
-        thumbColor={horoscopeOnly ? "#f5dd4b" : "#f4f3f4"}
-    />
-</View>
+                                    <Text style={styles.filterLabel}>
+                                        Profile with Horoscope only
+                                        {!isPremiumUser && (
+                                            <Text
+                                                style={styles.lockIcon}
+                                                onPress={() => setShowUpgradeModal(true)}
+                                            >
+                                                {' '}🔒
+                                            </Text>
+                                        )}
+                                    </Text>
+                                    <Switch
+                                        size="sm"
+                                        value={horoscopeOnly}
+                                        onValueChange={(value) => {
+                                            if (!isPremiumUser) {
+                                                setShowUpgradeModal(true);
+                                            } else {
+                                                setHoroscopeOnly(value);
+                                            }
+                                        }}
+                                        disabled={!isPremiumUser}
+                                        trackColor={{ false: "#767577", true: "#420001" }}
+                                        thumbColor={horoscopeOnly ? "#f5dd4b" : "#f4f3f4"}
+                                    />
+                                </View>
                             </View>
 
                         )}
@@ -883,12 +1263,10 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         };
 
         try {
-            console.log("request==================================>", request);
 
             const response = await userApi.filterUsers(request);
             const rawData = response.data.data;
             setProfiles(response.data.data);
-            console.log("rawData=======================>", rawData);
             handleDropdownClose();
         } catch (error: any) {
             console.error('API call error:', error);
@@ -945,15 +1323,15 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 </View> */}
             </ScrollView>
 
-            <View style={styles.searchButtonContainer}>
-                <TouchableOpacity onPress={activeTab === 'profile' ? handleProfileIdSearch : handleSearch} style={styles.searchButtonWrapper}>
+            <View style={styles.basesearchButtonContainer}>
+                <TouchableOpacity onPress={activeTab === 'profile' ? handleProfileIdSearch : handleSearch} style={styles.basesearchButtonWrapper}>
                     <LinearGradient
                         colors={['#420001', '#8B0000', '#420001']}
-                        style={styles.searchButton}
+                        style={styles.basesearchButton}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                     >
-                        <Text style={styles.searchButtonText}>Search</Text>
+                        <Text style={styles.basesearchButtonText}>Search</Text>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
@@ -1006,14 +1384,14 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 title="Select Education"
             />
 
-            <DropdownModal
+            {/* <DropdownModal
                 visible={showCityModal}
                 onClose={() => setShowCityModal(false)}
                 options={optionsMap.city}
                 selectedValue={filters.city || ''}
                 onSelect={(value) => setFilters(prev => ({ ...prev, city: value }))}
                 title="Select City / District"
-            />
+            /> */}
 
             <DropdownModal
                 visible={showStarModal}
@@ -1036,7 +1414,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             <DropdownModal
                 visible={showIncomeModal}
                 onClose={() => setShowIncomeModal(false)}
-                options={optionsMap.annualIncomeFilter}
+                options={optionsMap.annualIncome}
                 selectedValue={filters.annualIncomeFilter}
                 onSelect={(value) => setFilters(prev => ({ ...prev, annualIncomeFilter: value }))}
                 title="Select Annual Income"
@@ -1773,21 +2151,21 @@ const styles = StyleSheet.create({
         color: '#999',
         fontSize: 14,
     },
-    emptyStateContainer: {
-        alignItems: 'center',
-        paddingVertical: 40,
-    },
-    emptyStateText: {
-        color: '#666',
-        fontSize: 16,
-        fontWeight: '500',
-        marginBottom: 8,
-    },
-    emptyStateSubtext: {
-        color: '#999',
-        fontSize: 14,
-        textAlign: 'center',
-    },
+    // emptyStateContainer: {
+    //     alignItems: 'center',
+    //     paddingVertical: 40,
+    // },
+    // emptyStateText: {
+    //     color: '#666',
+    //     fontSize: 16,
+    //     fontWeight: '500',
+    //     marginBottom: 8,
+    // },
+    // emptyStateSubtext: {
+    //     color: '#999',
+    //     fontSize: 14,
+    //     textAlign: 'center',
+    // },
     matchesContainer: {
         paddingHorizontal: 20,
         paddingVertical: 20,
@@ -1815,9 +2193,10 @@ const styles = StyleSheet.create({
         width: '50%'
     },
     searchButton: {
-        paddingVertical: 13,
-        paddingHorizontal: 10,
-        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E0E7FF',
+        backgroundColor: '#EEF2FF',
+        paddingHorizontal: 8,
     },
     searchButtonText: {
         color: 'white',
@@ -1904,5 +2283,141 @@ const styles = StyleSheet.create({
     lockIcon: {
         color: '#FF9800',
         fontSize: 20,
+    },
+    savedSearchCard: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+        width: '100%',
+    },
+    searchHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+        width: '100%',
+    },
+    searchName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        marginBottom: 2,
+    },
+    searchDate: {
+        fontSize: 12,
+        color: '#6B7280',
+    },
+    filterChip: {
+        backgroundColor: '#F3F4F6',
+        borderRadius: 16,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        marginRight: 8,
+        marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        maxWidth: '100%',
+    },
+    filterText: {
+        fontSize: 12,
+        color: '#4B5563',
+        marginLeft: 4,
+        maxWidth: '90%',
+    },
+    filtersContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginTop: 8,
+    },
+    emptyStateContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    emptyStateText: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#6B7280',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    emptyStateSubtext: {
+        fontSize: 14,
+        color: '#9CA3AF',
+        textAlign: 'center',
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 6,
+        borderRadius: 6,
+        minWidth: 40,
+        height: 32,
+    },
+    actionButtonText: {
+        marginLeft: 4,
+        fontSize: 12,
+        color: '#4F46E5',
+        fontWeight: '500',
+    },
+    deleteButton: {
+        borderWidth: 1,
+        borderColor: '#FEE2E2',
+        backgroundColor: '#FEF2F2',
+        marginLeft: 8,
+    },
+    actionsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    titleContainer: {
+        flex: 1,
+        marginRight: 8,
+    },
+    basesearchButtonContainer: {
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+        paddingBottom: 70,
+        flexDirection: 'row',
+        justifyContent: 'center'
+    },
+    basesearchButtonWrapper: {
+        borderRadius: 25,
+        overflow: 'hidden',
+        width: '50%'
+    },
+    basesearchButton: {
+        paddingVertical: 13,
+        paddingHorizontal: 10,
+        alignItems: 'center',
+    },
+    basesearchButtonText: {
+        color: 'white',
+        fontSize: 15,
+        fontWeight: 'bold',
+    },
+    clearButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: 'transparent',
+    },
+    clearButtonText: {
+        color: '#666',
+        fontSize: 14,
+        fontWeight: '500',
+        marginLeft: 4,
     },
 });

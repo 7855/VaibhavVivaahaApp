@@ -275,6 +275,18 @@ getActiveUserSubscriptionByUserId:(userId)=>{
 },
 updateSendRequestCount:(userId,subscriptionId,featureId)=>{
   return axiosClient.get(`/userFeatureUsage/updateUsedCount/${userId}/${subscriptionId}/${featureId}`)
+},
+getAllKeyValues:()=>{
+  return axiosClient.get(`/keyValue/getAllKeyValues`)
+},
+getAllUserSavedSearches:(userId)=>{
+  return axiosClient.get(`/savedSearches/getUserSavedSearches/${userId}`)
+},
+inActiveSavedSearch:(userId)=>{
+  return axiosClient.put(`/savedSearches/inActiveSavedSearch/${userId}`)
+},
+createOrUpdateSavedSearch:(requestBody)=>{
+  return axiosClient.post(`/savedSearches/createOrUpdateSavedSearch`, requestBody)
 }
 
 };

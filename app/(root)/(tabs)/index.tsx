@@ -180,12 +180,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // import Getstart from '../../getstart';
 import userApi from '../api/userApi';
 // import Getstart from '@/app/(root)/(main)';
-import { Bell, Eye, Heart, Send, UserCheck } from 'lucide-react-native';
+import { ArrowRight, Award, Bell, Crown, Eye, Heart, Send, User, UserCheck } from 'lucide-react-native';
 import HappyStoryCard from '@/components/HappyStoryCard';
 import ProfileCompletionBar from '@/components/ProfileCompletionBar';
 import { useFocusEffect } from 'expo-router';
 import { usePushNotifications } from '@/usePushNotification';
 import { LinearGradient } from 'expo-linear-gradient';
+import { loadUserSubscription } from '../services/masterService';
+import { useSubscription } from '../contexts/subscriptionContext';
 
 // const router = router();
 
@@ -209,6 +211,10 @@ const Index = () => {
   const [percentage, setPercentage] = useState<number>(0);
   const [userPaid, setUserPaid] = useState<any>(false);
   const [timeLeft, setTimeLeft] = useState('');
+const { subscriptionData = {}, setSubscription } = useSubscription() || {};
+  const [userTier, setUserTier] = useState<string | null>(null);
+
+
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
@@ -319,7 +325,13 @@ const Index = () => {
           try {
             const decodedUserId = atob(userId);
             const subscription = await userApi.getActiveUserSubscriptionByUserId(decodedUserId);
-            console.log('Subscription response:------------------->', subscription.data.data.subscriptionId);
+            const wholeSubscriptionData = subscription;
+            if(subscription.data.data){
+              setUserTier(subscription.data.data.planCode);
+            }
+            // console.log("Tier ===>",subscription.data.data.planCode);
+            
+            // console.log('Subscription response:------------------->', subscription.data.data);
             if(subscription.data.data?.entitlements) {
               await AsyncStorage.setItem('subscription', JSON.stringify(subscription.data.data.entitlements));
               console.log('Subscription entitlements saved to AsyncStorage');
@@ -375,6 +387,8 @@ const Index = () => {
           userApi.userConnectionCount(userId),
         ]);
 
+        // console.log("ec.data?.data?.slice(0, 7)=>",rec.data?.data?.slice(0, 7));
+        
         setRecommendations(rec.data?.data?.slice(0, 7) || []);
         setNewConnection(conn.data?.data?.slice(0, 7) || []);
         setNearYouProfile(near.data?.data?.slice(0, 7) || []);
@@ -389,6 +403,20 @@ const Index = () => {
 
     checkUserStatus();
   }, []);
+
+useEffect(() => {
+  const initSubscription = async () => {
+    const raw = await AsyncStorage.getItem("userId");
+    if (!raw) return;
+
+    const userId = atob(raw);
+    await loadUserSubscription(userId, setSubscription);
+    console.log("subscriptionData==>",subscriptionData);
+    
+  };
+
+  initSubscription();
+}, []);
 
 
   // const onStart = async () => {
@@ -434,6 +462,72 @@ const Index = () => {
 
   const { expoPushToken, notification } = usePushNotifications();
 
+const getTierStyle = (tier: any) => {
+  const baseStyle = {
+    icon: null as React.ReactNode,
+    background: '',
+    textColor: '',
+    gradient: [] as string[],
+    borderColor: '',
+  };
+
+  const tierUpper = tier?.toUpperCase() || 'FREE';
+
+  
+  switch (tierUpper) {
+case 'PLATINUM':
+  return {
+    ...baseStyle,
+    icon: <Crown size={16} color="#E5E4E2" />, // Platinum metallic color
+    background: 'rgba(229, 228, 226, 0.2)', // Light platinum background
+    textColor: '#E5E4E2', // Platinum text color
+    gradient: ['#E5E4E2', '#C0C0C0'], // Platinum gradient
+    borderColor: '#E5E4E2', // Platinum border
+    name: 'Platinum'
+  };
+    case 'GOLD':
+      return {
+        ...baseStyle,
+        icon: <Award size={16} color="#FFD700" />,
+        background: 'rgba(255, 215, 0, 0.2)',
+        textColor: '#FFD700',
+        gradient: ['#FFD700', '#FFA500'],
+        borderColor: '#FFD700',
+        name: 'Gold'
+      };
+    case 'SILVER':
+      return {
+        ...baseStyle,
+        icon: <Award size={16} color="#E0E0E0" />,
+        background: 'rgba(224, 224, 224, 0.2)',
+        textColor: '#E0E0E0',
+        gradient: ['#E0E0E0', '#A0A0A0'],
+        borderColor: '#E0E0E0',
+        name: 'Silver'
+      };
+    case 'BRONZE':
+      return {
+        ...baseStyle,
+        icon: <Award size={16} color="#CD7F32" />,
+        background: 'rgba(205, 127, 50, 0.2)',
+        textColor: '#CD7F32',
+        gradient: ['#CD7F32', '#8B4513'],
+        borderColor: '#CD7F32',
+        name: 'Bronze'
+      };
+    default: // FREE
+      return {
+        ...baseStyle,
+        icon: <User size={16} color="#4A90E2" />,
+        background: 'rgba(74, 144, 226, 0.2)',
+        textColor: '#2DD4BF',
+        gradient: ['#4A90E2', '#1E3A8A'],
+        borderColor: '#4A90E2',
+        name: 'Free'
+      };
+  }
+};
+const tierStyle = getTierStyle(userTier);
   // Log token and notification data
   React.useEffect(() => {
     console.log('--- Push Notification Debug Info ---');
@@ -473,34 +567,66 @@ const Index = () => {
             {/* ----------------------index page content  */}
 
             <View style={{ height: 90, marginHorizontal: 5 }}>
-              {/* <View className=""> */}
               <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
-                {/* <TouchableOpacity
-                      onPress={() => {
-                        router.push({
-                          pathname: '/screens/settings', 
-                        });
-                      }}
-                    > */}
                 <Image
                   source={profileImage ? { uri: profileImage } :
                     gender === 'M' ? require('../../../assets/images/avatarMen.png') :
                       gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
                         require('../../../assets/images/defaultAvatar.png')}
-                  style={{...styles.profileImage, borderColor:'#FFD700', borderWidth:1}}
+                  style={{ ...styles.profileImage, borderWidth: 2 }}
                 />
-                {/* </TouchableOpacity> */}
-                <TextNative style={{ flex: 1, color: '#fff' }}>
-                  <TextNative style={[styles.greeting, { color: '#FFD700' }]}>
-                    Welcome, {'\n'}
-                  </TextNative>
-                  <View>
-                    <TextNative style={[styles.greetingName, { color: '#fff', marginTop: 4 }]}>
+
+                <View style={{ flex: 1, marginLeft: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <TextNative style={[styles.greeting, { color: '#FFD700' }]}>
+                      Welcome,{' '}
+                    </TextNative>
+
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <TextNative style={[styles.greetingName, { color: '#fff' }]}>
                       {firstName} {lastName}
                     </TextNative>
+
                   </View>
-                </TextNative>
-                <TouchableOpacity onPress={() => router.push('/screens/NotificationScreen')}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                    <View style={[styles.tierDisplay, { backgroundColor: tierStyle.background, marginRight: 0 }]}>
+                      <View style={[styles.tierIcon, { backgroundColor: '#2D3748' }]}>
+                        {tierStyle.name === 'Platinum' ? (
+                          <Crown size={16} strokeWidth={2.5} color={tierStyle.textColor} />
+                        ) : tierStyle.name === 'Gold' ? (
+                          <Award size={16} strokeWidth={2.5} color={tierStyle.textColor} />
+                        ) : tierStyle.name === 'Silver' ? (
+                          <Award size={16} strokeWidth={2.5} color={tierStyle.textColor} />
+                        ) : tierStyle.name === 'Bronze' ? (
+                          <Award size={16} strokeWidth={2.5} color={tierStyle.textColor} />
+                        ) : (
+                          <User size={16} strokeWidth={2.5} color={tierStyle.textColor} />
+                        )}
+                      </View>
+                      <Text style={[styles.tierTitle, { color: tierStyle.textColor }]}>
+                        {tierStyle.name} Member
+                      </Text>
+                      {tierStyle.name === 'Free' && (
+                        <TouchableOpacity 
+                          onPress={() => router.push('/(root)/screens/PremiumTab')}
+                          style={[styles.upgradeButton, { backgroundColor: '#FFD700' }]}
+                        >
+                          <Text style={styles.upgradeText}>Upgrade Plan</Text>
+                          <ArrowRight size={14} color="#000" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                  </View>
+
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => router.push('/screens/NotificationScreen')}
+                  style={{ marginLeft: 'auto' }}
+                >
                   <View style={styles.bellWrapper}>
                     <Bell size={28} color="#F43F5E" />
                     {unreadCount > 0 && (
@@ -513,13 +639,6 @@ const Index = () => {
                   </View>
                 </TouchableOpacity>
               </View>
-
-              {/* <View style={{ marginBottom: 12, padding: 9 }}>
-                  <ProfileCompletionBar percentage={percentage} isPremium={userPaid} />
-                </View> */}
-              {/* </View> */}
-
-           
             </View>
 
             <Box alignItems="center">
@@ -957,7 +1076,7 @@ const Index = () => {
                 </Box>
 
                 {/* last convo section  */}
-                <Box
+                {/* <Box
                   overflow="hidden"
                   backgroundColor="whitesmoke"
                   borderColor="black"
@@ -1000,7 +1119,7 @@ const Index = () => {
                       }} />
                     </Center>
                   </VStack>
-                </Box>
+                </Box> */}
 
                 <Box
                   width="100%"
@@ -1259,13 +1378,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#420001',
-    padding: 10
+    padding: 7
   },
   profileImage: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     borderRadius: 999,
-    marginRight: 10,
+    marginRight: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -1280,7 +1399,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   greetingName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
   },
   title: {
@@ -1327,6 +1446,87 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
+  tierContainer: {
+    marginTop: 2,
+  },
+tierDisplay: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderRadius: 16,
+  backgroundColor: 'rgba(45, 55, 72, 0.5)', // Semi-transparent dark background
+  alignSelf: 'flex-start',
+  padding: 0,
+  paddingRight: 0,
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+},
+  tierGradient: {
+    borderRadius: 16,
+    padding: 1, // For border
+  },
+  tierContent: {
+    backgroundColor: '#1E1E1E', // Dark background for gradient to show
+    borderRadius: 15,
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+tierIcon: {
+  width: 24,
+  height: 24,
+  borderRadius: 12,
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: 8,
+  backgroundColor: '#2D3748', // A dark gray that works well with all colors
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 2,
+  elevation: 2,
+},
+  tierTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  freeTierContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  freeTierBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    marginRight: 8,
+  },
+  freeTierText: {
+    color: '#A0A0A0',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+upgradeButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingVertical: 2,
+  paddingHorizontal: 5,
+  borderRadius: 12,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.3,
+  shadowRadius: 3,
+  elevation: 3,
+  marginLeft:4
+},
+upgradeText: {
+  color: '#000',
+  fontSize: 11,
+  fontWeight: '700',
+  marginRight: 4,
+},
+
 });
 
 export default Index;

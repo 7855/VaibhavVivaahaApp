@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, SetStateAction } from "react";
 import {
   View,
   Image,
@@ -12,6 +12,7 @@ import {
   Alert,
   Modal
 } from "react-native";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Swiper from "react-native-swiper";
 import { Box, Input, NativeBaseProvider, Text as TextNB, Button as ButtonNB, HStack, Checkbox, FlatList } from "native-base";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -26,15 +27,37 @@ import userApi from '../api/userApi';
 import { AntDesign } from '@expo/vector-icons';
 import RNDateTimePicker from "@react-native-community/datetimepicker";
 import { ArrowLeft, ArrowRight } from "lucide-react-native";
+import { loadMasterData } from "../services/masterService";
+import { useMasterData } from "../contexts/MasterDataContext";
 type GetstartProps = {
   onStart: () => void;
 };
 
 type CasteOption = {
-  key: string;
+  id: string;
   value: string;
   label: string;
+  code: string;
 };
+interface FormErrors {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  mobile?: string;
+  occupation?: string;
+  fatherName?: string;
+  fatherOccupation?: string;
+  motherName?: string;
+  motherOccupation?: string;
+  jobPlace?: string;
+  currentAddress?: string;
+  nativePlace?: string;
+  pin?: string;
+  confirmPin?: string;
+  income?: string;
+  educationInDetail?: string
+  // Add other error fields as needed
+}
 
 export default function SignUp({ onStart }: GetstartProps) {
   const [open, setOpen] = useState(false);
@@ -47,6 +70,10 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [education, setEducation] = useState('');
   const [occupation, setOccupation] = useState('');
   const [caste, setCaste] = useState('');
+  const { state: masterData, setMasterData } = useMasterData();
+  const [educationOptions, setEducationOptions] = useState<Array<{ id: string, value: string }>>([]);
+  const [incomeOptions, setIncomeOptions] = useState<Array<{ id: string, value: string, label: string }>>([]);
+  const [employmentOptions, setEmploymentOptions] = useState<Array<{ id: string, value: string, label: string }>>([]);
   const [allCaste, setAllCaste] = useState<any[]>([]);
   const [fatherOccupation, setFatherOccupation] = React.useState("");
   const [motherOccupation, setMotherOccupation] = React.useState("");
@@ -57,12 +84,7 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [casteList, setCasteList] = useState<CasteOption[]>([]);
   const [income, setIncome] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('');
-const employmentOptions = [
-  { label: 'Government', value: 'GOVT' },
-  { label: 'Private', value: 'PRIVATE' },
-  { label: 'Self Employment', value: 'SELF' },
-  // { label: 'Unemployed', value: 'unemployed' }
-];
+  // employmentOptions is now managed by the masterData effect
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [age, setAge] = useState('');
@@ -75,59 +97,139 @@ const employmentOptions = [
   const [currentAddress, setCurrentAddress] = useState('');
   const swiperRef = useRef<Swiper>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [educationInDetail, setEducationInDetail] = useState('');
+  const [tempDate, setTempDate] = useState<Date>(new Date()); // Spinner value
+  const onlyAlphabets = (text: string) => text.replace(/[^A-Za-z\s]/g, '');
+  const onlyNumbers = (text: string) => text.replace(/[^0-9]/g, '');
+  const noSpecialChars = (text: string) => text.replace(/[^A-Za-z0-9\s]/g, '');
+  const onlyAlphanumeric = (text: string) => text.replace(/[^A-Za-z0-9\s]/g, '');
+  const isValidEmail = (email: string) => {
+    // Allows alphanumeric, ., _, -, + before @
+    // Followed by @
+    // Then alphanumeric and . for domain
+    // Must have at least one . after @
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+  };
+  const [errors, setErrors] = useState<FormErrors>({});
 
+const validateFormData = () => {
+  const fieldLabels: Record<string, string> = {
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    dob: 'Date of Birth',
+    gender: 'Gender',
+    caste: 'Caste',
+    mobile: 'Mobile Number',
+    age: 'Age',
+    email: 'Email',
+    education: 'Education',
+    occupation: 'Occupation',
+    employmentStatus: 'Employment Status',
+    nativePlace: 'Native Place',
+    income: 'Income',
+    fatherName: 'Father\'s Name',
+    fatherOccupation: 'Father\'s Occupation',
+    motherName: 'Mother\'s Name',
+    motherOccupation: 'Mother\'s Occupation',
+    jobPlace: 'Job Place',
+    currentAddress: 'Current Address',
+    pin: 'PIN',
+    confirmPin: 'Confirm PIN',
+    educationInDetail: 'Education in Detail'
+  };
 
+  const formData: any = {
+    firstName,
+    lastName,
+    dob,
+    gender: selectedGender,
+    caste,
+    mobile,
+    age,
+    email,
+    education,
+    occupation,
+    employmentStatus,
+    nativePlace,
+    income,
+    fatherName,
+    fatherOccupation,
+    motherName,
+    motherOccupation,
+    jobPlace,
+    currentAddress,
+    pin,
+    confirmPin,
+    educationInDetail
+  };
 
-  const validateFormData = () => {
-    const formData: any = {
-      firstName,
-      lastName,
-      dob,
-      gender: selectedGender,
-      caste,
-      mobile,
-      age,
-      email,
-      education,
-      occupation,
-      employmentStatus,
-      nativePlace,
-      income,
-      fatherName,
-      fatherOccupation,
-      motherName,
-      motherOccupation,
-      jobPlace,
-      currentAddress,
-      pin,
-      confirmPin,
-    };
+  const requiredFields = Object.keys(formData);
 
-    const requiredFields = Object.keys(formData);
-
-    const missingFields = requiredFields.filter(
+  const missingFields = requiredFields
+    .filter(
       (field) =>
         formData[field] === null ||
         formData[field] === undefined ||
         formData[field].toString().trim() === ""
+    )
+    .map(field => fieldLabels[field] || field); // Map field names to labels
+
+  if (missingFields.length > 0) {
+    Alert.alert(
+      "Missing Fields",
+      `Please fill in the following required fields:\n\n• ${missingFields.join("\n• ")}`
     );
+    return false;
+  }
 
-    if (missingFields.length > 0) {
-      Alert.alert(
-        "Missing Fields",
-        `Please fill all required fields: ${missingFields.join(", ")}`
-      );
-      return false;
+  if (formData.pin !== formData.confirmPin) {
+    Alert.alert("Validation Error", "PIN and Confirm PIN do not match!");
+    return false;
+  }
+
+  return true;
+};
+
+useEffect(() => {
+  if (!Object.keys(masterData || {}).length) {
+    loadMasterData(setMasterData);
+  }
+}, []);
+
+  // Update dropdown options when masterData changes
+  useEffect(() => {
+    if (masterData) {
+      // Update education options
+      if (masterData.education) {
+        const eduOptions = masterData.education.map((edu: any) => ({
+          id: edu.id.toString(),
+          value: edu.degree
+        }));
+        setEducationOptions(eduOptions);
+      }
+
+      // Update income options
+      if (masterData.annualIncomes) {
+        const incOptions = masterData.annualIncomes.map((income: any) => ({
+          id: income.id.toString(),
+          value: income.amount,
+          label: income.amount
+        }));
+        setIncomeOptions(incOptions);
+      }
+
+      // Update employment options
+      if (masterData.employingIn) {
+        const empOptions = masterData.employingIn.map((emp: any) => ({
+          id: emp.value,
+          value: emp.value,
+          label: emp.label || emp.value
+        }));
+        console.log("Employment options:", empOptions);
+        setEmploymentOptions(empOptions);
+      }
     }
-
-    if (formData.pin !== formData.confirmPin) {
-      Alert.alert("Validation Error", "PIN and Confirm PIN do not match!");
-      return false;
-    }
-
-    return true;
-  };
-
+  }, [masterData]);
 
   useEffect(() => {
     const fetchCasteList = async () => {
@@ -137,18 +239,19 @@ const employmentOptions = [
         if (response.data && response.data.data) {
           console.log("response.data.data", response.data.data);
 
-          // Filter only active castes
+          // Filter only active castes and format for CustomModalPicker
           const activeCastes = response.data.data.filter((caste: any) => caste.isActive === 'Y');
           setAllCaste(activeCastes);
-          // Add a placeholder option
+
+          // Format for CustomModalPicker
           const casteOptions = activeCastes.map((caste: any) => ({
-            key: caste.id.toString(),
-            value: caste.casteCode,
+            id: caste.id.toString(),
+            value: caste.casteName,
             label: caste.casteName,
+            code: caste.casteCode
           }));
 
           console.log("casteOptions==================================>", casteOptions);
-
           setCasteList(casteOptions);
         }
       } catch (error) {
@@ -167,14 +270,14 @@ const employmentOptions = [
   const handleFormSubmit = async () => {
     // Validate all fields first
     if (!validateFormData()) return;
-  
+
     // Find the selected caste data
     const selectedCasteData = allCaste.find((item: any) => item.casteCode === caste);
     if (!selectedCasteData) {
       Alert.alert("No caste selected", "Please select a valid caste.");
       return;
     }
-  
+
     // Prepare the payload
     const payload = {
       firstName,
@@ -199,12 +302,12 @@ const employmentOptions = [
       age,
       email,
     };
-  
+
     console.log("payload=====================>", payload);
-  
+
     try {
       const response = await userApi.createUser(payload);
-  
+
       if (response.data?.code === 401) {
         Alert.alert("Error", "Given Mobile Number Already Registered.");
       } else if (response.data?.code === 200) {
@@ -222,7 +325,7 @@ const employmentOptions = [
       Alert.alert("Error", "Failed to create account. Please try again.");
     }
   };
-  
+
 
 
   console.log("RNDatePicker module:", NativeModules.RNDatePicker);
@@ -231,218 +334,6 @@ const employmentOptions = [
     { label: 'Male', value: 'male' },
     { label: 'Female', value: 'female' }
   ];
-
-  const occupationList = [
-    { id: 1, name: "Doctor" },
-    { id: 2, name: "Engineer" },
-    { id: 3, name: "Teacher" },
-    { id: 4, name: "Lawyer" },
-    { id: 5, name: "Accountant" },
-    { id: 6, name: "Nurse" },
-    { id: 7, name: "Software Developer" },
-    { id: 8, name: "Civil Servant" },
-    { id: 9, name: "Farmer" },
-    { id: 10, name: "Entrepreneur" },
-    { id: 11, name: "Architect" },
-    { id: 12, name: "Journalist" },
-    { id: 13, name: "Pharmacist" },
-    { id: 14, name: "Chartered Accountant (CA)" },
-    { id: 15, name: "Researcher" },
-    { id: 16, name: "Scientist" },
-    { id: 17, name: "Designer" },
-    { id: 18, name: "Human Resources (HR) Manager" },
-    { id: 19, name: "Marketing Manager" },
-    { id: 20, name: "Sales Executive" },
-    { id: 21, name: "Graphic Designer" },
-    { id: 22, name: "Web Developer" },
-    { id: 23, name: "Data Analyst" },
-    { id: 24, name: "Business Analyst" },
-    { id: 25, name: "Consultant" },
-    { id: 26, name: "Banker" },
-    { id: 27, name: "Pilot" },
-    { id: 28, name: "Air Hostess / Flight Attendant" },
-    { id: 29, name: "Police Officer" },
-    { id: 30, name: "Firefighter" },
-    { id: 31, name: "Chef" },
-    { id: 32, name: "Hotel Manager" },
-    { id: 33, name: "Artist" },
-    { id: 34, name: "Musician" },
-    { id: 35, name: "Actor/Actress" },
-    { id: 36, name: "Photographer" },
-    { id: 37, name: "Event Planner" },
-    { id: 38, name: "Fitness Trainer" },
-    { id: 39, name: "Social Worker" },
-    { id: 40, name: "Psychologist" },
-    { id: 41, name: "Librarian" },
-    { id: 42, name: "Translator" },
-    { id: 43, name: "Interpreter" },
-    { id: 44, name: "Content Writer" },
-    { id: 45, name: "Copywriter" },
-    { id: 46, name: "Digital Marketer" },
-    { id: 47, name: "SEO Specialist" },
-    { id: 48, name: "Public Relations (PR) Officer" },
-    { id: 49, name: "Real Estate Agent" },
-    { id: 50, name: "Retail Manager" },
-    { id: 51, name: "Logistics Manager" },
-    { id: 52, name: "Supply Chain Manager" },
-    { id: 53, name: "Operations Manager" },
-    { id: 54, name: "Project Manager" },
-    { id: 55, name: "Quality Assurance (QA) Engineer" },
-    { id: 56, name: "Network Administrator" },
-    { id: 57, name: "System Administrator" },
-    { id: 58, name: "Graphic Illustrator" },
-    { id: 59, name: "Animator" },
-    { id: 60, name: "Video Editor" },
-    { id: 61, name: "Data Scientist" },
-    { id: 62, name: "Machine Learning Engineer" },
-    { id: 63, name: "AI Specialist" },
-    { id: 64, name: "Blockchain Developer" },
-    { id: 65, name: "Cybersecurity Analyst" },
-    { id: 66, name: "Ethical Hacker" },
-    { id: 67, name: "UX/UI Designer" },
-    { id: 68, name: "Content Strategist" },
-    { id: 69, name: "Social Media Manager" },
-    { id: 70, name: "Customer Support Representative" },
-    { id: 71, name: "Call Center Agent" },
-    { id: 72, name: "Receptionist" },
-    { id: 73, name: "Administrator" }
-  ];
-
-  const educationList = [
-    {
-      "id": 1,
-      "degree": "Bachelor of Arts (BA)"
-    },
-    {
-      "id": 2,
-      "degree": "Bachelor of Science (BSc)"
-    },
-    {
-      "id": 3,
-      "degree": "Bachelor of Commerce (BCom)"
-    },
-    {
-      "id": 4,
-      "degree": "Bachelor of Engineering (BE)"
-    },
-    {
-      "id": 5,
-      "degree": "Bachelor of Technology (BTech)"
-    },
-    {
-      "id": 6,
-      "degree": "Bachelor of Business Administration (BBA)"
-    },
-    {
-      "id": 7,
-      "degree": "Bachelor of Computer Applications (BCA)"
-    },
-    {
-      "id": 8,
-      "degree": "Bachelor of Education (BEd)"
-    },
-    {
-      "id": 9,
-      "degree": "Bachelor of Pharmacy (BPharm)"
-    },
-    {
-      "id": 10,
-      "degree": "Bachelor of Architecture (BArch)"
-    },
-    {
-      "id": 11,
-      "degree": "Master of Arts (MA)"
-    },
-    {
-      "id": 12,
-      "degree": "Master of Science (MSc)"
-    },
-    {
-      "id": 13,
-      "degree": "Master of Commerce (MCom)"
-    },
-    {
-      "id": 14,
-      "degree": "Master of Business Administration (MBA)"
-    },
-    {
-      "id": 15,
-      "degree": "Master of Computer Applications (MCA)"
-    },
-    {
-      "id": 16,
-      "degree": "Master of Technology (MTech)"
-    },
-    {
-      "id": 17,
-      "degree": "Master of Engineering (ME)"
-    },
-    {
-      "id": 18,
-      "degree": "Master of Education (MEd)"
-    },
-    {
-      "id": 19,
-      "degree": "Doctor of Philosophy (PhD)"
-    },
-    {
-      "id": 20,
-      "degree": "Doctor of Medicine (MD)"
-    }
-  ]
-
-  const jobPlaceList = [
-    { id: 1, name: 'Chennai' },
-    { id: 2, name: 'Bengaluru' },
-    { id: 3, name: 'Hyderabad' },
-    { id: 4, name: 'Mumbai' },
-    { id: 5, name: 'Kolkata' },
-    { id: 6, name: 'Pune' },
-    { id: 7, name: 'Coimbatore' },
-    { id: 8, name: 'Madurai' },
-    { id: 9, name: 'Delhi' },
-    { id: 10, name: 'Ahmedabad' },
-  ];
-
-  const occupationData = occupationList.map((item) => ({
-    key: item.id.toString(),
-    value: item.name,
-  }));
-
-  const educationData = educationList.map((item) => ({
-    key: item.id.toString(),
-    value: item.degree,
-  }));
-
-  const jobPlaceData = jobPlaceList.map((item) => ({
-    key: item.id.toString(),
-    value: item.name,
-  }));
-
-  const annualIncomes = [
-    100000,
-    200000,
-    300000,
-    400000,
-    500000,
-    600000,
-    700000,
-    800000,
-    900000,
-    1000000,
-    1200000,
-    1400000,
-    1600000,
-    1800000,
-    2000000
-  ];
-
-  const incomeOptions = annualIncomes.map(amount => ({
-    key: amount.toString(),
-    value: amount.toString(),
-    label: `₹${amount.toLocaleString()}`
-  }));
-
 
   // Handler to toggle selection
   const handleSelect = (value: string) => {
@@ -462,6 +353,16 @@ const employmentOptions = [
   const handleDateChange = (event: any, selectedDate: Date | undefined) => {
     setOpen(false);
     if (selectedDate) {
+      const computedAge = calculateAge(selectedDate);
+
+      // 🚫 Underage validation
+      if (computedAge < 18) {
+        Alert.alert(
+          "Age Restriction",
+          "You must be at least 18 years old to register."
+        );
+        return; // ❗ Do NOT update DOB or age
+      }
       setDate(selectedDate);
       setDob(selectedDate);
       // Format the date for display
@@ -469,6 +370,34 @@ const employmentOptions = [
       setDobDisplay(formattedDate);
     }
   };
+
+  const calculateAge = (dob: any) => {
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const onDateConfirm = () => {
+    const computedAge = calculateAge(tempDate);
+
+    if (computedAge < 18) {
+      Alert.alert("Age Restriction", "You must be at least 18 years old to register.");
+      return;   // ❌ do not update anything
+    }
+
+    setDate(tempDate);
+    setAge(computedAge.toString());
+    setDob(tempDate);
+    setDobDisplay(moment(tempDate).format("DD MMM YYYY"));
+    setShowDatePicker(false);
+  };
+
+
 
   const amberColor = "#F59E0B";
 
@@ -570,6 +499,7 @@ const employmentOptions = [
     <NativeBaseProvider>
       <Swiper showsPagination={false} ref={swiperRef} loop={false} scrollEnabled={false} removeClippedSubviews={false}>
         {/* Page 2 - Input */}
+
         <View style={{ flex: 1 }}>
           <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'whitesmoke', marginBottom: 0, paddingBottom: 0, height: '100%' }} >
             {/* <ScrollView
@@ -578,241 +508,429 @@ const employmentOptions = [
               keyboardDismissMode="on-drag"
             > */}
             {/* <ScrollView> */}
-            <View style={{ padding: 15 }}>
+            <KeyboardAwareScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                padding: 15,
+                paddingBottom: 0 // Reduced from 180
+              }}
+              enableOnAndroid={true}
+              enableAutomaticScroll={Platform.OS === 'ios'} // Auto-scroll only on iOS
+              extraScrollHeight={Platform.OS === 'ios' ? 30 : 0} // Only add extra space on iOS
+              keyboardOpeningTime={0} // Faster keyboard handling
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              enableResetScrollToCoords={false} // Prevents unwanted scrolling
+            >
+              {/* Your form fields go here */}
+              <View style={{ marginBottom: 0 }}>
 
-              <HStack space={2} width="100%">
-                <Box flex={1}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">First Name</TextNB>
-                  <Box width="100%">
+
+                <HStack space={2} width="100%">
+                  {/* First Name Field */}
+                  <Box flex={1} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      First Name
+                    </TextNB>
                     <TextInput
                       placeholder="Enter First Name"
-                      onChangeText={setFirstName}
-                      defaultValue={firstName}
-                      style={styles.input}
+                      value={firstName}
+                      onChangeText={(t) => {
+                        setFirstName(onlyAlphabets(t));
+                        if (errors.firstName) {
+                          setErrors(prev => ({ ...prev, firstName: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!firstName.trim()) {
+                          setErrors(prev => ({ ...prev, firstName: 'First name is required' }));
+                        } else if (firstName.trim().length < 2) {
+                          setErrors(prev => ({ ...prev, firstName: 'First name is too short' }));
+                        }
+                      }}
+                      style={[styles.input, errors.firstName && styles.inputError]}
                     />
+                    {errors.firstName ? (
+                      <TextNB style={styles.error}>{errors.firstName}</TextNB>
+                    ) : (
+                      <TextNB style={styles.hiddenError}> </TextNB>
+                    )}
                   </Box>
-                </Box>
-                <Box flex={1}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">Last Name</TextNB>
-                  <Box width="100%">
+
+                  {/* Last Name Field */}
+                  <Box flex={1} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      Last Name
+                    </TextNB>
                     <TextInput
                       placeholder="Enter Last Name"
-                      onChangeText={setLastName}
-                      defaultValue={lastName}
-                      style={styles.input}
+                      value={lastName}
+                      onChangeText={(t) => {
+                        setLastName(onlyAlphabets(t));
+                        if (errors.lastName) {
+                          setErrors(prev => ({ ...prev, lastName: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!lastName.trim()) {
+                          setErrors(prev => ({ ...prev, lastName: 'Last name is required' }));
+                        } else if (lastName.trim().length < 2) {
+                          setErrors(prev => ({ ...prev, lastName: 'Last name is too short' }));
+                        }
+                      }}
+                      style={[styles.input, errors.lastName && styles.inputError]}
                     />
+                    {errors.lastName ? (
+                      <TextNB style={styles.error}>{errors.lastName}</TextNB>
+                    ) : (
+                      <TextNB style={styles.hiddenError}> </TextNB>
+                    )}
                   </Box>
-                </Box>
-              </HStack>
+                </HStack>
 
-            {/* DOB with Date Picker */}
-            <HStack space={8} width="100%">
-  {/* DOB */}
-  <Box flex={1} >
-    <TextNB 
-      color="#130057" 
-      fontSize={13} 
-      marginBottom={1} 
-      fontWeight="bold"
-    >
-      Date of Birth <TextNB color="red">*</TextNB>
-    </TextNB>
+                {/* DOB with Date Picker */}
+                <HStack space={8} width="100%" marginBottom={3}>
+                  {/* DOB */}
+                  <Box flex={1} style={styles.inputContainer}>
+                    <TextNB
+                      color="#130057"
+                      fontSize={13}
+                      marginBottom={1}
+                      fontWeight="bold"
+                    >
+                      Date of Birth <TextNB color="red">*</TextNB>
+                    </TextNB>
 
-    {/* Custom Styled Date Input */}
-    <TouchableOpacity
-      onPress={() => setShowDatePicker(true)}
-      style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between",borderWidth:1 }]}
-    >
-      <TextNB color={date ? "#000" : "#999"} fontSize={14}>
-        {date ? date.toDateString() : "Select Date"}
-      </TextNB>
-      <Ionicons name="calendar" size={18} color="#FFB300" />
-    </TouchableOpacity>
+                    {/* Custom Styled Date Input */}
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(true)}
+                      style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1 }]}
+                    >
+                      <TextNB color={date ? "#000" : "#000"}>
+                        {date ? dobDisplay : "Select Date"}
+                      </TextNB>
 
-    {/* Modal Picker */}
-   {/* Modal Picker */}
-   <Modal visible={showDatePicker} transparent animationType="fade">
-  <View
-    style={{
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.5)",
-    }}
-  >
-    {/* Card wrapper */}
-    <View
-      style={{
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        width: "85%",
-        overflow: "hidden", // important for spinner visibility
-      }}
-    >
-      {/* Picker container without backgroundColor */}
-      <View
-        style={{
-          padding: 20,
-          alignItems: "center",
-          height: 300,
-          justifyContent: "center",
-        }}
-      >
-        <RNDateTimePicker
-          value={date || new Date()}
-          mode="date"
-          display="spinner"
-          textColor="#130057"
-          themeVariant="dark"
-          style={{ backgroundColor:'#fff' }}
-          onChange={(event, selectedDate) => {
-            if (event.type === "set" && selectedDate) {
-              handleDateChange(event, selectedDate);
-            }
-            setShowDatePicker(false);
-          }}
-        />
-      </View>
+                      <Ionicons name="calendar" size={18} color="#FFB300" />
+                    </TouchableOpacity>
 
-      {/* Footer button */}
-      <View
-        style={{
-          backgroundColor: "#fff",
-          paddingVertical: 10,
-          alignItems: "center",
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => setShowDatePicker(false)}
-          style={{
-            backgroundColor: "#130057",
-            paddingVertical: 10,
-            paddingHorizontal: 25,
-            borderRadius: 8,
-          }}
-        >
-          <TextNB color="#fff" fontWeight="bold">Close</TextNB>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
+                    {/* Modal Picker */}
+                    <Modal visible={showDatePicker} transparent animationType="fade">
+                      <View
+                        style={{
+                          flex: 1,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: "rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        {/* Card wrapper */}
+                        <View
+                          style={{
+                            backgroundColor: "#fff",
+                            borderRadius: 12,
+                            width: "85%",
+                            overflow: "hidden", // important for spinner visibility
+                          }}
+                        >
+                          {/* Picker container without backgroundColor */}
+                          <View
+                            style={{
+                              padding: 0,
+                              alignItems: "center",
+                              height: 250,
+                              justifyContent: "center",
+                            }}
+                          >
+                            <RNDateTimePicker
+                              value={date || new Date()}
+                              mode="date"
+                              display="spinner"
+                              textColor="#130057"
+                              themeVariant="dark"
+                              style={{ backgroundColor: '#fff' }}
+                              onChange={(event, selectedDate) => {
+                                if (selectedDate) {
+                                  setTempDate(selectedDate);   // only store temp value
+                                }
+                              }}
+                            />
+                          </View>
+
+                          {/* Footer button */}
+                          <View
+                            style={{
+                              backgroundColor: "#fff",
+                              paddingVertical: 10,
+                              alignItems: "center",
+                            }}
+                          >
+                            <TouchableOpacity
+                              onPress={onDateConfirm}
+                              style={{
+                                backgroundColor: "#130057",
+                                paddingVertical: 10,
+                                paddingHorizontal: 15,
+                                borderRadius: 8,
+                              }}
+                            >
+                              <TextNB color="#fff" fontWeight="bold">Confirm</TextNB>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    </Modal>
 
 
-  </Box>
+                  </Box>
 
-  {/* Gender */}
-  <Box flex={1}>
-    <TextNB color="#130057" fontSize={13} marginBottom={3} fontWeight="bold">
-      Gender
-    </TextNB>
-    <Box alignItems="flex-start" width="100%">
-      <HStack space={4} alignItems="start">
-        {genderOptions.map((option) => (
-          <HStack key={option.value} space={2} alignItems="start">
-            <Checkbox
-              value={option.value}
-              isChecked={selectedGender === option.value}
-              onChange={() => setSelectedGender(option.value)}
-              size="sm"
-              colorScheme="black"
-              _checked={{
-                bg: "#130057",
-                borderColor: "#130057",
-              }}
-            />
-            <TextNB fontSize="sm" color="black">
-              {option.label}
-            </TextNB>
-          </HStack>
-        ))}
-      </HStack>
-    </Box>
-  </Box>
-</HStack>
+                  {/* Gender */}
+                  <Box flex={1} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={3} fontWeight="bold">
+                      Gender
+                    </TextNB>
+                    <Box alignItems="flex-start" width="100%">
+                      <HStack space={4} alignItems="start">
+                        {genderOptions.map((option) => (
+                          <HStack key={option.value} space={2} alignItems="start">
+                            <Checkbox
+                              value={option.value}
+                              isChecked={selectedGender === option.value}
+                              onChange={() => setSelectedGender(option.value)}
+                              size="sm"
+                              colorScheme="black"
+                              _checked={{
+                                bg: "#130057",
+                                borderColor: "#130057",
+                              }}
+                            />
+                            <TextNB fontSize="sm" color="black">
+                              {option.label}
+                            </TextNB>
+                          </HStack>
+                        ))}
+                      </HStack>
+                    </Box>
+                  </Box>
+                </HStack>
 
 
 
-              {/* Caste */}
-              <CustomModalPicker
-                label="Caste"
-                placeholder="Select Caste"
-                data={casteList}
-                selected={caste}
-                onSelect={(val) => setCaste(val)}
-              />
-
-
-
-              {/* Mobile Number - 10 digits only */}
-              <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">Mobile Number</TextNB>
-              <Box alignItems="center" width="100%">
-                <TextInput
-                  placeholder="Enter Mobile Number"
-                  keyboardType="numeric"
-                  maxLength={10}
-                  onChangeText={(text) => {
-                    const numericText = text.replace(/[^0-9]/g, "");
-                    setMobile(numericText);
+                {/* Caste */}
+                <CustomModalPicker
+                  label="Caste"
+                  placeholder="Select Caste"
+                  data={casteList}
+                  selected={caste}
+                  onSelect={(val) => {
+                    const selectedCaste = casteList.find(c => c.id === val);
+                    setCaste(selectedCaste?.code || '');
                   }}
-                  style={styles.input}
                 />
-              </Box>
 
-              {/* Age and Email */}
-              <HStack space={2} width="100%">
-                <Box flex={0.3}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">Age</TextNB>
-                  <Box width="100%">
+
+
+                {/* Mobile Number - 10 digits only */}
+                <Box style={styles.inputContainer}>
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    Mobile Number
+                  </TextNB>
+                  <TextInput
+                    placeholder="Enter Mobile Number"
+                    value={mobile}
+                    onChangeText={(t) => {
+                      setMobile(onlyNumbers(t));
+                      if (errors.mobile) {
+                        setErrors(prev => ({ ...prev, mobile: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!mobile) {
+                        setErrors(prev => ({ ...prev, mobile: 'Mobile number is required' }));
+                      } else if (mobile.length !== 10) {
+                        setErrors(prev => ({ ...prev, mobile: 'Mobile number must be 10 digits' }));
+                      }
+                    }}
+                    style={[styles.input, errors.mobile && styles.inputError]}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                  />
+                  {errors.mobile ? (
+                    <TextNB style={styles.error}>{errors.mobile}</TextNB>
+                  ) : (
+                    <TextNB style={styles.hiddenError}> </TextNB>
+                  )}
+                </Box>
+
+                {/* Age and Email */}
+                {/* Age and Email */}
+                <HStack space={2} width="100%">
+                  {/* Age Field */}
+                  <Box flex={0.3} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      Age
+                    </TextNB>
                     <TextInput
-                      placeholder="Enter Age"
+                      placeholder=""
                       keyboardType="numeric"
                       maxLength={3}
+                      value={age}
                       onChangeText={setAge}
-                      defaultValue={age}
-                      style={styles.input}
+                      style={[styles.input, { backgroundColor: "#f1f1f1" }]}
+                      editable={false}
                     />
+                    <TextNB style={styles.hiddenError}> </TextNB>
                   </Box>
-                </Box>
-                <Box flex={0.7}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">Email</TextNB>
-                  <Box width="100%">
+
+                  {/* Email Field */}
+                  <Box flex={0.7} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      Email
+                    </TextNB>
                     <TextInput
                       placeholder="Enter Email"
+                      value={email}
+                      onChangeText={(t) => {
+                        setEmail(t);
+                        if (errors.email) {
+                          setErrors(prev => ({ ...prev, email: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!email) {
+                          setErrors(prev => ({ ...prev, email: 'Email is required' }));
+                        } else if (!isValidEmail(email)) {
+                          setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
+                        }
+                      }}
+                      style={[styles.input, errors.email && styles.inputError]}
                       keyboardType="email-address"
-                      onChangeText={setEmail}
-                      defaultValue={email}
-                      style={styles.input}
+                      autoCapitalize="none"
                     />
+                    {errors.email ? (
+                      <TextNB style={styles.error}>{errors.email}</TextNB>
+                    ) : (
+                      <TextNB style={styles.hiddenError}> </TextNB>
+                    )}
                   </Box>
+                </HStack>
+
+                {/* 7. Education (single-line) */}
+                <CustomModalPicker
+                  label="Education"
+                  placeholder="Select Your Education"
+                  data={educationOptions}
+                  selected={education}
+                  onSelect={(val) => setEducation(val)}
+                />
+
+                {/* Occupation Field */}
+                <Box style={styles.inputContainer}>
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    Occupation
+                  </TextNB>
+                  <TextInput
+                    placeholder="Enter Your Occupation"
+                    value={occupation}
+                    onChangeText={(t) => {
+                      setOccupation(onlyAlphabets(t));
+                      if (errors.occupation) {
+                        setErrors(prev => ({ ...prev, occupation: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!occupation.trim()) {
+                        setErrors(prev => ({
+                          ...prev,
+                          occupation: 'Occupation is required'
+                        }));
+                      }
+                    }}
+                    style={[styles.input, errors.occupation && styles.inputError]}
+                  />
+                  {errors.occupation ? (
+                    <TextNB style={styles.error}>{errors.occupation}</TextNB>
+                  ) : (
+                    <TextNB style={styles.hiddenError}> </TextNB>
+                  )}
                 </Box>
-              </HStack>
 
-              {/* 7. Education (single-line) */}
-<CustomModalPicker
-  label="Education"
-  placeholder="Select Your Education"
-  data={educationData}
-  selected={education}
-  onSelect={(val) => setEducation(val)}
-/>
+                {/* Education In Detail Field */}
+                <Box style={styles.inputContainer}>
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    Education in Detail
+                  </TextNB>
+                  <TextInput
+                    placeholder="Enter Your Education in Detail"
+                    multiline
+                    numberOfLines={3}
+                    value={educationInDetail}
+                    onChangeText={(t) => {
+                      setEducationInDetail(onlyAlphanumeric(t));
+                      if (errors.educationInDetail) {
+                        setErrors(prev => ({ ...prev, educationInDetail: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!educationInDetail.trim()) {
+                        setErrors(prev => ({
+                          ...prev,
+                          educationInDetail: 'Education details are required'
+                        }));
+                      }
+                    }}
+                    style={[
+                      styles.input,
+                      styles.textArea,
+                      errors.educationInDetail && styles.inputError
+                    ]}
+                    textAlignVertical="top"
+                  />
+                  {errors.educationInDetail ? (
+                    <TextNB style={styles.error}>{errors.educationInDetail}</TextNB>
+                  ) : (
+                    <TextNB style={styles.hiddenError}> </TextNB>
+                  )}
+                </Box>
+              </View>
+            </KeyboardAwareScrollView>
+            <View style={{ display: 'flex', alignItems: 'flex-end', marginRight: 25 }}>
+              <ButtonNB style={{ marginBottom: 60, marginTop: 0, width: '26%', borderRadius: 20, backgroundColor: '#420001' }} onPress={() => swiperRef.current?.scrollBy(1)}>
+                <HStack space={2} alignItems="center">
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>Next</TextNB>
+                  <ArrowRight size={20} color="#fff" fontWeight={'semibold'} />
+                </HStack>
+              </ButtonNB>
+            </View>
+            {/* </ScrollView> */}
+          </SafeAreaView>
+        </View>
 
-
-
-              {/* 9. Occupation (single-line) */}
-<CustomModalPicker
-  label="Occupation"
-  placeholder="Select Your Occupation"
-  data={occupationData}
-  selected={occupation}
-  onSelect={(val) => setOccupation(val)}
-/>
-
-
-
+        {/* Page 3 */}
+        <View style={{ flex: 1 }}>
+          <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'smokewhite', marginBottom: 0, paddingBottom: 0, height: '100%' }} >
+            {/* <ScrollView
+              contentContainerStyle={{ flexGrow: 1 }}
+              keyboardShouldPersistTaps="always"
+              keyboardDismissMode="on-drag"
+            > */}
+            <KeyboardAwareScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{
+                padding: 15,
+                paddingBottom: 0 // Reduced from 180
+              }}
+              enableOnAndroid={true}
+              enableAutomaticScroll={Platform.OS === 'ios'} // Auto-scroll only on iOS
+              extraScrollHeight={Platform.OS === 'ios' ? -50 : 0} // Only add extra space on iOS
+              keyboardOpeningTime={0} // Faster keyboard handling
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              enableResetScrollToCoords={false} // Prevents unwanted scrolling
+            >
+            <View >
 
               {/* 8. Employed In (multiline) */}
-              <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+              <TextNB color="#130057" fontSize={13} marginBottom={2} fontWeight="bold">
                 Employing In
               </TextNB>
               <Box alignItems="flex-start" width="100%" marginBottom={4}>
@@ -838,169 +956,328 @@ const employmentOptions = [
                 </HStack>
               </Box>
 
-
-
-              {/* 19. Native Place (multiline) */}
-              <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
-                Native Place
-              </TextNB>
-              <Box alignItems="center" width="100%">
-                <TextInput
-                  placeholder="Enter Your Native Place"
-                  multiline
-                  numberOfLines={3}
-                  onChangeText={setNativePlace}
-                  defaultValue={nativePlace}
-                  style={styles.input}
-                />
-              </Box>
-
-            </View>
-            <View style={{ display: 'flex', alignItems: 'flex-end', marginRight: 25 }}>
-              <ButtonNB style={{ marginBottom: 50, marginTop: 0, width: '28%', borderRadius: 20, backgroundColor: '#420001' }} onPress={() => swiperRef.current?.scrollBy(1)}>
-                <HStack space={2} alignItems="center">
-                  <TextNB color="#fff" fontSize={15} fontWeight={'semibold'}>Next</TextNB>
-                  <ArrowRight size={20} color="#fff" fontWeight={'semibold'} />
-                </HStack>
-              </ButtonNB>
-            </View>
-            {/* </ScrollView> */}
-          </SafeAreaView>
-        </View>
-
-        {/* Page 3 */}
-        <View style={{ flex: 1 }}>
-          <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'smokewhite', marginBottom: 0, paddingBottom: 0, height: '100%' }} >
-            {/* <ScrollView
-              contentContainerStyle={{ flexGrow: 1 }}
-              keyboardShouldPersistTaps="always"
-              keyboardDismissMode="on-drag"
-            > */}
-            <View style={{ padding: 15 }}>
-
               {/* 11. Income (annual CTC) (multiline) */}
+              {/* <Box style={styles.inputContainer}> */}
               <CustomModalPicker
                 label="Annual Income"
                 placeholder="Select Your Annual Income"
                 data={incomeOptions}
                 selected={income}
-                onSelect={(val) => setIncome(val)}
+                onSelect={(val) => {
+                  setIncome(val);
+                  if (errors.income) {
+                    setErrors(prev => ({ ...prev, income: '' }));
+                  }
+                }}
               />
 
+              {/* Father's Name and Occupation */}
+              <HStack space={2} width="100%">
+                {/* Father's Name */}
+                <Box flex={0.5} style={styles.inputContainer}>
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    Father's Name
+                  </TextNB>
+                  <TextInput
+                    placeholder="Enter Father's Name"
+                    value={fatherName}
+                    onChangeText={(t) => {
+                      setFatherName(onlyAlphabets(t));
+                      if (errors.fatherName) {
+                        setErrors(prev => ({ ...prev, fatherName: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!fatherName.trim()) {
+                        setErrors(prev => ({
+                          ...prev,
+                          fatherName: "Father's name is required"
+                        }));
+                      }
+                    }}
+                    style={[styles.input, errors.fatherName && styles.inputError]}
+                  />
+                  {errors.fatherName ? (
+                    <TextNB style={styles.error}>{errors.fatherName}</TextNB>
+                  ) : (
+                    <TextNB style={styles.hiddenError}> </TextNB>
+                  )}
+                </Box>
 
-              {/* Father's Name */}
-              <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">Father's Name</TextNB>
-              <Box alignItems="center" width="100%">
-                <TextInput
-                  placeholder="Enter Father's Name"
-                  onChangeText={setFatherName}
-                  defaultValue={fatherName}
-                  style={styles.input}
-                />
-              </Box>
-
-              {/* Father's Occupation */}
-           
-              <CustomModalPicker
-                label="Father's Occupation"
-                placeholder="Select Father's Occupation"
-                data={occupationData}
-                selected={fatherOccupation}
-                onSelect={(val) => setFatherOccupation(val)}
-              />
-
-              {/* Mother's Name */}
-              <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">Mother's Name</TextNB>
-              <Box alignItems="center" width="100%">
-                <TextInput
-                  placeholder="Enter Mother's Name"
-                  onChangeText={setMotherName}
-                  defaultValue={motherName}
-                  style={styles.input}
-                />
-              </Box>
-
-
-
-              {/* Mother's Occupation */}
-              <CustomModalPicker
-                label="Mother's Occupation"
-                placeholder="Select Mother's Occupation"
-                data={occupationData}
-                selected={motherOccupation}
-                onSelect={(val) => setMotherOccupation(val)}
-              />
-
-              {/* 10. Job Place (multiline) */}
-              <CustomModalPicker
-                label="Job Place"
-                placeholder="Select Job Place"
-                data={jobPlaceData}
-                selected={jobPlace}
-                onSelect={(val) => setJobPlace(val)}
-              />
-
-
-              {/* 21. Current Address (multiline) */}
-              <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">Current Address</TextNB>
-              <Box alignItems="center" width="100%">
-                <TextInput
-                  placeholder="Enter Your Current Address"
-                  multiline
-                  numberOfLines={3}
-                  onChangeText={setCurrentAddress}
-                  defaultValue={currentAddress}
-                  style={styles.input}
-                />
-              </Box>
+                  {/* Father's Occupation */}
+                  <Box flex={1} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      Father's Occupation
+                    </TextNB>
+                    <TextInput
+                      placeholder="Enter Occupation"
+                      value={fatherOccupation}
+                      onChangeText={(t) => {
+                        setFatherOccupation(onlyAlphanumeric(t));
+                        if (errors.fatherOccupation) {
+                          setErrors(prev => ({ ...prev, fatherOccupation: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!fatherOccupation.trim()) {
+                          setErrors(prev => ({ ...prev, fatherOccupation: "Occupation is required" }));
+                        }
+                      }}
+                      style={[styles.input, errors.fatherOccupation && styles.inputError]}
+                    />
+                    {errors.fatherOccupation && <TextNB style={styles.error}>{errors.fatherOccupation}</TextNB>}
+                  </Box>
+                </HStack>
 
 
+                {/* Mother's Name and Occupation */}
+                <HStack space={2} width="100%">
+                  {/* Mother's Name */}
+                  <Box flex={0.5} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      Mother's Name
+                    </TextNB>
+                    <TextInput
+                      placeholder="Enter Mother's Name"
+                      value={motherName}
+                      onChangeText={(t) => {
+                        setMotherName(onlyAlphabets(t));
+                        if (errors.motherName) {
+                          setErrors(prev => ({ ...prev, motherName: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!motherName.trim()) {
+                          setErrors(prev => ({
+                            ...prev,
+                            motherName: "Mother's name is required"
+                          }));
+                        }
+                      }}
+                      style={[styles.input, errors.motherName && styles.inputError]}
+                    />
+                    {errors.motherName ? (
+                      <TextNB style={styles.error}>{errors.motherName}</TextNB>
+                    ) : (
+                      <TextNB style={styles.hiddenError}> </TextNB>
+                    )}
+                  </Box>
+
+                  {/* Mother's Occupation */}
+                  <Box flex={1} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      Mother's Occupation
+                    </TextNB>
+                    <TextInput
+                      placeholder="Enter Occupation"
+                      value={motherOccupation}
+                      onChangeText={(t) => {
+                        setMotherOccupation(onlyAlphanumeric(t));
+                        if (errors.motherOccupation) {
+                          setErrors(prev => ({ ...prev, motherOccupation: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!motherOccupation.trim()) {
+                          setErrors(prev => ({ ...prev, motherOccupation: "Occupation is required" }));
+                        }
+                      }}
+                      style={[styles.input, errors.motherOccupation && styles.inputError]}
+                    />
+                    {errors.motherOccupation && <TextNB style={styles.error}>{errors.motherOccupation}</TextNB>}
+                  </Box>
+                </HStack>
+
+               <Box style={styles.inputContainer}>
+  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+    Job Place
+  </TextNB>
+  <TextInput
+    placeholder="Enter Job Place"
+    value={jobPlace}
+    onChangeText={(t) => {
+      setJobPlace(onlyAlphabets(t));
+      if (errors.jobPlace) {
+        setErrors(prev => ({ ...prev, jobPlace: '' }));
+      }
+    }}
+    onBlur={() => {
+      if (!jobPlace.trim()) {
+        setErrors(prev => ({ ...prev, jobPlace: 'Job place is required' }));
+      }
+    }}
+    style={[styles.input, errors.jobPlace && styles.inputError]}
+  />
+  {errors.jobPlace ? (
+    <TextNB style={styles.error}>{errors.jobPlace}</TextNB>
+  ) : (
+    <TextNB style={styles.hiddenError}> </TextNB>
+  )}
+</Box>
+
+
+                {/* 21. Current Address (multiline) */}
+                <Box style={styles.inputContainer}>
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    Current Address
+                  </TextNB>
+                  <TextInput
+                    placeholder="Enter Your Current Address"
+                    value={currentAddress}
+                    multiline
+                    numberOfLines={3}
+                    onChangeText={(t) => {
+                      setCurrentAddress(t);
+                      if (errors.currentAddress) {
+                        setErrors(prev => ({ ...prev, currentAddress: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!currentAddress.trim()) {
+                        setErrors(prev => ({
+                          ...prev,
+                          currentAddress: 'Current address is required'
+                        }));
+                      }
+                    }}
+                    style={[
+                      styles.input,
+                      styles.textArea,
+                      errors.currentAddress && styles.inputError
+                    ]}
+                    textAlignVertical="top"
+                  />
+                  {errors.currentAddress ? (
+                    <TextNB style={styles.error}>{errors.currentAddress}</TextNB>
+                  ) : (
+                    <TextNB style={styles.hiddenError}> </TextNB>
+                  )}
+                </Box>
+
+                {/* 19. Native Place (multiline) */}
+               <Box style={styles.inputContainer}>
+  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+    Native Place
+  </TextNB>
+  <TextInput
+    placeholder="Enter Native Place"
+    value={nativePlace}
+    onChangeText={(t) => {
+      setNativePlace(onlyAlphabets(t));
+      if (errors.nativePlace) {
+        setErrors(prev => ({ ...prev, nativePlace: '' }));
+      }
+    }}
+    onBlur={() => {
+      if (!nativePlace.trim()) {
+        setErrors(prev => ({ ...prev, nativePlace: 'Native place is required' }));
+      }
+    }}
+    style={[styles.input, errors.nativePlace && styles.inputError]}
+  />
+  {errors.nativePlace ? (
+    <TextNB style={styles.error}>{errors.nativePlace}</TextNB>
+  ) : (
+    <TextNB style={styles.hiddenError}> </TextNB>
+  )}
+</Box>
 
               {/* 12. PIN and Confirm PIN */}
               <HStack space={2} width="100%">
-                <Box flex={1}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">PIN</TextNB>
-                  <Box width="100%">
-                    <TextInput
-                      placeholder="Enter PIN"
-                      keyboardType="numeric"
-                      secureTextEntry
-                      onChangeText={setPin}
-                      defaultValue={pin}
-                      style={styles.input}
-                    />
-                  </Box>
+                {/* PIN */}
+                <Box flex={0.5} style={styles.inputContainer}>
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    PIN
+                  </TextNB>
+                  <TextInput
+                    placeholder="Enter 4-digit PIN"
+                    value={pin}
+                    keyboardType="numeric"
+                    maxLength={4}
+                    secureTextEntry
+                    onChangeText={(t) => {
+                      setPin(onlyNumbers(t));
+                      if (errors.pin) {
+                        setErrors(prev => ({ ...prev, pin: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!pin) {
+                        setErrors(prev => ({
+                          ...prev,
+                          pin: 'PIN is required'
+                        }));
+                      } else if (pin.length !== 4) {
+                        setErrors(prev => ({
+                          ...prev,
+                          pin: 'PIN must be 4 digits'
+                        }));
+                      }
+                    }}
+                    style={[styles.input, errors.pin && styles.inputError]}
+                  />
+                  {errors.pin ? (
+                    <TextNB style={styles.error}>{errors.pin}</TextNB>
+                  ) : (
+                    <TextNB style={styles.hiddenError}> </TextNB>
+                  )}
                 </Box>
-                <Box flex={1}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">Confirm PIN</TextNB>
-                  <Box width="100%">
-                    <TextInput
-                      placeholder="Confirm PIN"
-                      keyboardType="numeric"
-                      secureTextEntry
-                      onChangeText={setConfirmPin}
-                      defaultValue={confirmPin}
-                      style={styles.input}
-                    />
-                  </Box>
+
+                {/* Confirm PIN */}
+                <Box flex={0.5} style={styles.inputContainer}>
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    Confirm PIN
+                  </TextNB>
+                  <TextInput
+                    placeholder="Confirm 4-digit PIN"
+                    value={confirmPin}
+                    keyboardType="numeric"
+                    maxLength={4}
+                    secureTextEntry
+                    onChangeText={(t) => {
+                      setConfirmPin(onlyNumbers(t));
+                      if (errors.confirmPin) {
+                        setErrors(prev => ({ ...prev, confirmPin: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!confirmPin) {
+                        setErrors(prev => ({
+                          ...prev,
+                          confirmPin: 'Please confirm your PIN'
+                        }));
+                      } else if (confirmPin !== pin) {
+                        setErrors(prev => ({
+                          ...prev,
+                          confirmPin: 'PINs do not match'
+                        }));
+                      }
+                    }}
+                    style={[styles.input, errors.confirmPin && styles.inputError]}
+                  />
+                  {errors.confirmPin ? (
+                    <TextNB style={styles.error}>{errors.confirmPin}</TextNB>
+                  ) : (
+                    <TextNB style={styles.hiddenError}> </TextNB>
+                  )}
                 </Box>
               </HStack>
             </View>
-
+</KeyboardAwareScrollView>
             <View
               style={{
                 display: 'flex',
                 flexDirection: 'row',
                 justifyContent: 'space-between',
-                paddingHorizontal: 25,
-                marginTop: 20,
-                marginBottom: 50,
+                paddingHorizontal: 15,
+                marginTop: 0,
+                marginBottom: 65,
               }}
             >
               {/* Back Button */}
               <ButtonNB
                 style={{
-                  width: '28%',
+                  width: '26%',
                   borderRadius: 20,
                   backgroundColor: '#420001',
                 }}
@@ -1008,7 +1285,7 @@ const employmentOptions = [
               >
                 <HStack space={1} alignItems="center">
                   <ArrowLeft size={20} color="#fff" />
-                  <TextNB color="#fff" fontSize={15} fontWeight={'semibold'}>
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>
                     Back
                   </TextNB>
                 </HStack>
@@ -1017,14 +1294,14 @@ const employmentOptions = [
               {/* Submit or Next Button */}
               <ButtonNB
                 style={{
-                  width: '28%',
+                  width: '26%',
                   borderRadius: 20,
                   backgroundColor: '#420001',
                 }}
                 onPress={() => handleFormSubmit()} // or change to submit handler
               >
                 <HStack space={1} alignItems="center">
-                  <TextNB color="#fff" fontSize={15} fontWeight={'semibold'}>
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>
                     Submit
                   </TextNB>
                   {/* <AntDesign name="arrowright" size={20} color="rgba(30,64,175,1.00)" /> */}
@@ -1129,14 +1406,14 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 40,
-    // margin: 12,
     borderWidth: 1,
     padding: 10,
     width: '100%',
     borderRadius: 10,
     borderColor: 'black',
-    // color: '#',
-    marginBottom: 12,
+  },
+  inputContainer: {
+    marginBottom: 0,
   },
   dateinput: {
     height: 40,
@@ -1214,6 +1491,25 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: "#ddd",
+  },
+  inputError: {
+    borderColor: 'red',
+  },
+  error: {
+    color: 'red',
+    fontSize: 10,
+    height: 18,  // Fixed height for error message
+    textAlign: 'left',
+    paddingLeft: 2,
+    marginTop: 0,
+  },
+  hiddenError: {
+    height: 18,  // Same as error height
+    opacity: 0,  // Make it invisible
+  },
+  textArea: {
+    textAlignVertical: 'top',
+    paddingTop: 10,
   },
 });
 

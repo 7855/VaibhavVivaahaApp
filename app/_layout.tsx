@@ -6,7 +6,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { AlertNotificationRoot } from 'react-native-alert-notification';
 import { AuthProvider } from './(root)/contexts/AuthContext';
-
+import { MasterProvider } from './(root)/contexts/MasterDataContext';
+import { SubscriptionProvider } from './(root)/contexts/subscriptionContext';
+// ... other imports
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
@@ -30,14 +32,18 @@ export default function RootLayout() {
     return null;
   }
 
-  return (
+return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <AlertNotificationRoot>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }} />
-        </AlertNotificationRoot>
-      </AuthProvider>
+      <MasterProvider>
+        <SubscriptionProvider>
+          <AuthProvider>
+            <AlertNotificationRoot>
+              <StatusBar style="auto" />
+              <Stack screenOptions={{ headerShown: false }} />
+            </AlertNotificationRoot>
+          </AuthProvider>
+        </SubscriptionProvider>
+      </MasterProvider>
     </SafeAreaProvider>
   );
 }
