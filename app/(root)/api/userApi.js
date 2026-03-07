@@ -228,6 +228,9 @@ const userApi = {
   getAllActivePremiumFeatures:()=>
     axiosClient.get(`/premiumFeatures/getAllActiveFeatures`),
 
+  getProfileDetailWithIntractionStatus:(viewedUser,profileUserId)=>
+    axiosClient.get(`/user/getProfileDetailWithIntractionStatus/${viewedUser}/${profileUserId}`),
+
 // userApi.js
 updateProfileImage: (formData) => {
   return axiosClient.post('/user/updateProfileImage', formData, {
@@ -287,6 +290,9 @@ inActiveSavedSearch:(userId)=>{
 },
 createOrUpdateSavedSearch:(requestBody)=>{
   return axiosClient.post(`/savedSearches/createOrUpdateSavedSearch`, requestBody)
+},
+starMatching:(requestBody)=>{
+  return axiosClient.post(`/matching/porutham`,requestBody)
 }
 
 };

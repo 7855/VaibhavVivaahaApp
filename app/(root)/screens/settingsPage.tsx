@@ -17,6 +17,7 @@ import {
   FontAwesome5,
 } from '@expo/vector-icons';
 import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
+
 // import AntDesign from '@expo/vector-icons/AntDesign';
 
 import { router } from 'expo-router';
@@ -156,6 +157,13 @@ const SettingsPage: React.FC = () => {
         </View>
         Community Settings
       </Text> */}
+<SettingItem
+  icon={<MaterialIcons name="stars" size={20} color="#6c5ce7" />}
+  title="Star Match"
+  subtitle="Check horoscope compatibility"
+  onPress={() => router.push('/(root)/screens/StarMatch')}
+  rightElement={<MaterialIcons name="chevron-right" size={24} color="#9ca3af" />}
+/>
       <SettingItem
         icon={<Ionicons name="people" size={20} color="#e11d48" />}
         title="Your Connections"

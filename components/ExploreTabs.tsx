@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     width: '49%',
-    marginBottom: 40, // Allow space for overlap + content
+    marginBottom: 10, // Allow space for overlap + content
     height:280
   },
   card: {

@@ -439,8 +439,8 @@ const SecondRoute = ({
               _pressed={{ opacity: 0.5 }}
             >
               <HStack alignItems="center" space={2}>
-                <Ionicons name="add-circle" size={24} color="white" />
-                <Text color="white">Add Photo</Text>
+                <Ionicons name="add-circle" size={24}  />
+                <Text>Add Photo</Text>
               </HStack>
             </Pressable>
           </HStack>
@@ -452,7 +452,7 @@ const SecondRoute = ({
             renderItem={renderItem}
             ListEmptyComponent={
               <Center flex={1} mt={40}>
-                <Text color="white" fontSize="md">
+                <Text  fontSize="md">
                   You have not updated images
                 </Text>
               </Center>
@@ -714,8 +714,8 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
               _pressed={{ opacity: 0.5 }}
             >
               <HStack alignItems="center" space={2}>
-                <Ionicons name="add-circle" size={24} color="white" />
-                <Text color="white">{horoscopeImage ? 'Update Horoscope' : 'Add Horoscope'}</Text>
+                <Ionicons name="add-circle" size={24}  />
+                <Text >{horoscopeImage ? 'Update Horoscope' : 'Add Horoscope'}</Text>
               </HStack>
             </Pressable>
           </HStack>
@@ -729,7 +729,7 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
                 resizeMode="contain"
               />
             ) : (
-              <Text mt={40} color="white">
+              <Text mt={40}>
                 No horoscope image available
               </Text>
             )}
@@ -748,11 +748,19 @@ const routes = [
 interface ProfileDetailTabProps {
   personalDetail: any;
   refreshProfile: () => void;
+  initialTabIndex?: number;
 }
 
-const Tabs = ({ personalDetail, refreshProfile }: ProfileDetailTabProps) => {
+const Tabs = ({ personalDetail, refreshProfile, initialTabIndex = 0 }: ProfileDetailTabProps) => {
   const layout = useWindowDimensions();
   const [index, setIndex] = React.useState(0);
+
+  // Update tab index when initialTabIndex changes
+  React.useEffect(() => {
+    if (initialTabIndex !== undefined && initialTabIndex >= 0 && initialTabIndex < routes.length) {
+      setIndex(initialTabIndex);
+    }
+  }, [initialTabIndex]);
 
 
 

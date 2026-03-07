@@ -32,7 +32,7 @@ export class WebSocketService {
 
     this.userId = userId;
     this.userId = atob(this.userId)
-    const url = `ws://172.20.10.2:9100/ws/user-status?userId=${this.userId}`;
+    const url = `ws://172.20.10.7:9100/ws/user-status?userId=${this.userId}`;
     this.socket = new WebSocket(url);
     console.log("socket connection ==============>",this.socket);
     

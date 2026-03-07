@@ -217,122 +217,133 @@ export default function ResultsScreen() {
     }
   };
 
-  const handleSaveSearch = async () => {
-    try {
-      Alert.prompt(
-        'Save Search',
-        'Enter a name for this search:',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Save',
-            onPress: async (searchName: any) => {
-              if (!searchName || searchName.trim() === '') {
-                Alert.alert('Error', 'Please enter a name for your search');
-                return;
+const handleSaveSearch = async () => {
+  try {
+    Alert.prompt(
+      'Save Search',
+      'Enter a name for this search:',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Save',
+          onPress: async (searchName: any) => {
+            if (!searchName || searchName.trim() === '') {
+              Alert.alert('Error', 'Please enter a name for your search');
+              return;
+            }
+            try {
+              const searchData = await gatherSearchData();
+              const userIdRaw = await AsyncStorage.getItem('userId');
+
+              if (!userIdRaw) {
+                throw new Error('User not found');
               }
-              try {
-                const searchData = await gatherSearchData();
-                const userIdRaw = await AsyncStorage.getItem('userId');
+              const userId = atob(userIdRaw);
+              
+              // Format filters array
+              const filters = [];
+              
+              // Add age filter if available
+              if (searchData.minAge || searchData.maxAge) {
+                filters.push({
+                  filterKey: 'Age',
+                  filterValue: `${searchData.minAge || 18} - ${searchData.maxAge || 60}`
+                });
+              }
 
-                if (!userIdRaw) {
-                  throw new Error('User not found');
-                }
-                const userId = atob(userIdRaw);
-                const filters = [];
-                // Always include basic filters
-                if (searchData.minAge || searchData.maxAge) {
-                  filters.push({
-                    filterKey: 'Age',
-                    filterValue: `${searchData.minAge || 0} - ${searchData.maxAge || 0}`
-                  });
-                }
-                if (searchData.minAnnualIncome || searchData.maxAnnualIncome) {
-                  filters.push({
-                    filterKey: 'Annual Income',
-                    filterValue: `${searchData.minAnnualIncome || 0} - ${searchData.maxAnnualIncome || 0}`
-                  });
-                }
-                // For premium users, include all filters
-                const isPremium = await checkUserSubscription(); // Implement this function
+              // Add income filter if available
+              if (searchData.minAnnualIncome || searchData.maxAnnualIncome) {
+                filters.push({
+                  filterKey: 'Annual Income',
+                  filterValue: `${searchData.minAnnualIncome || 0} - ${searchData.maxAnnualIncome || 0}`
+                });
+              }
 
-                if (isPremium) {
-                  console.log("searchData1", searchData);
+              // Add other filters
+              if (searchData.dosham) {
+                filters.push({
+                  filterKey: 'Dosham',
+                  filterValue: Array.isArray(searchData.dosham) ? searchData.dosham : [searchData.dosham]
+                });
+              }
 
-                  // Add all premium filters
-                  if (searchData.dosham) {
-                    filters.push({
-                      filterKey: 'Dosham',
-                      filterValue: searchData.dosham
-                    });
-                  }
-                  if (searchData.star) {
-                    filters.push({
-                      filterKey: 'Star',
-                      filterValue: searchData.star
-                    });
-                  }
-                  if (searchData.degree) {
-                    filters.push({
-                      filterKey: 'Education',
-                      filterValue: searchData.degree
-                    });
-                  }
-                  // Add Job Sector filter
-                  if (searchData.jobSector && searchData.jobSector !== 'Any') {
-                    filters.push({
-                      filterKey: 'Job Sector',
-                      filterValue: searchData.jobSector
-                    });
-                  }
+              if (searchData.star) {
+                filters.push({
+                  filterKey: 'Star',
+                  filterValue: Array.isArray(searchData.star) ? searchData.star : [searchData.star]
+                });
+              }
 
-                  if (searchData.profileImageStatus) {
-                    filters.push({
-                      filterKey: 'profileImageStatus1',
-                      filterValue: searchData.profileImageStatus
-                    });
-                  }
-                  if (searchData.profilesWithHoroscope) {
-                    filters.push({
-                      filterKey: 'profilesWithHoroscope',
-                      filterValue: searchData.profilesWithHoroscope
-                    });
-                  }
-                }
-                const requestBody = {
+              console.log("searchData.degree===>",searchData.degree);
+              
+              if (searchData.degree) {
+                filters.push({
+                  filterKey: 'Education',
+                  filterValue: Array.isArray(searchData.degree) ? searchData.degree : [searchData.degree]
+                });
+              }
+
+              if (searchData.jobSector) {
+                filters.push({
+                  filterKey: 'Job Sector',
+                  filterValue: Array.isArray(searchData.jobSector) ? searchData.jobSector : [searchData.jobSector]
+                });
+              }
+
+              if (searchData.profileImageStatus) {
+                filters.push({
+                  filterKey: 'profileImageStatus1',
+                  filterValue: searchData.profileImageStatus
+                });
+              }
+
+              if (searchData.profilesWithHoroscope) {
+                filters.push({
+                  filterKey: 'profilesWithHoroscope',
+                  filterValue: searchData.profilesWithHoroscope
+                });
+              }
+
+              // Construct the request body
+              const requestBody = {
+                data: {
                   userId: parseInt(userId),
                   searchName: searchName.trim(),
                   filters: filters,
-                  isPremiumSearch: isPremium
-                };
-
-                console.log('requestBody', requestBody.filters);
-                const response = await userApi.createOrUpdateSavedSearch(requestBody);
-
-                if (response.data.code === 200) {
-                  Alert.alert('Success', 'Search saved successfully!');
-                } else {
-                  throw new Error(response.data.message || 'Failed to save search');
+                  isPremiumSearch: {
+                    isPremiumUser: isPremiumUser
+                  }
                 }
-              } catch (error) {
-                console.error('Error saving search:', error);
-                Alert.alert('Error', error.message || 'Failed to save search. Please try again.');
+              };
+
+              console.log('Saving search with data:', JSON.stringify(requestBody, null, 2));
+              
+              const response = await userApi.createOrUpdateSavedSearch(requestBody);
+
+              if (response.data.code === 200) {
+                Alert.alert('Success', 'Search saved successfully!');
+              } else {
+                throw new Error(response.data.message || 'Failed to save search');
               }
+            } catch (error) {
+              console.error('Error saving search:', error);
+              Alert.alert('Error', error.message || 'Failed to save search. Please try again.');
             }
           }
-        ],
-        'plain-text',
-        '',
-        'My Search'
-      );
-    } catch (error) {
-      console.error('Error showing save dialog:', error);
-      Alert.alert('Error', 'Failed to initiate save. Please try again.');
-    }
-  };
+        }
+      ],
+      'plain-text',
+      '',
+      'My Search'
+    );
+  } catch (error) {
+    console.error('Error showing save dialog:', error);
+    Alert.alert('Error', 'Failed to initiate save. Please try again.');
+  }
+};
 
   return (
 
@@ -388,41 +399,15 @@ export default function ResultsScreen() {
 
             <View style={styles.profileInfo}>
 
-              {profile.subscriptionTag !== 'FREE' && (
-                <View
-                  style={[
-                    styles.tierBadge,
-                    profile.subscriptionTag === 'PLATINUM' && styles.platinumBadge,
-                    profile.subscriptionTag === 'GOLD' && styles.goldBadge,
-                    profile.subscriptionTag === 'SILVER' && styles.silverBadge,
-                    (profile.subscriptionTag === 'BRONZE' || !profile.subscriptionTag) && styles.bronzeBadge,
-                  ]}
-                >
-                  {profile.subscriptionTag === 'PLATINUM' && (
-                    <MaterialIcons name="stars" size={13} color="#555" style={styles.badgeIcon} />
-                  )}
-                  {profile.subscriptionTag === 'GOLD' && (
-                    <MaterialIcons name="star" size={13} color="#5E4200" style={styles.badgeIcon} />
-                  )}
-                  {profile.subscriptionTag === 'SILVER' && (
-                    <MaterialIcons name="star-half" size={13} color="#555" style={styles.badgeIcon} />
-                  )}
-                  {profile.subscriptionTag === 'BRONZE' && (
-                    <MaterialIcons name="star-border" size={13} color="#fff" style={styles.badgeIcon} />
-                  )}
-                  <Text
-                    style={[
-                      styles.tierBadgeText,
-                      (profile.subscriptionTag === 'GOLD' || profile.subscriptionTag === 'SILVER' || profile.subscriptionTag === 'PLATINUM')
-                        ? styles.lightText
-                        : styles.darkText
-                    ]}
-                  >
-                    {profile.subscriptionTag}
-                  </Text>
-                </View>
-              )}
-              <Text style={styles.profileName}>{profile.name}wjowoiejoweowhewoiejoiw</Text>
+         {profile.subscriptionTag === 'PLATINUM' && (
+  <View style={[styles.tierBadge, styles.platinumBadge]}>
+    <MaterialIcons name="stars" size={13} color="#555" style={styles.badgeIcon} />
+    <Text style={[styles.tierBadgeText, styles.darkText]}>
+      {profile.subscriptionTag}
+    </Text>
+  </View>
+)}
+              <Text style={styles.profileName}>{profile.name}</Text>
               <View style={styles.profileDetails}>
                 <Text style={styles.detailText}>{profile.age} years</Text>
                 <Text style={styles.detailSeparator}>•</Text>
@@ -698,7 +683,8 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   darkText: {
-    color: '#fff',
+    color: '#420001',
+    fontSize:10
   },
   badgeIcon: {
     marginRight: 4,

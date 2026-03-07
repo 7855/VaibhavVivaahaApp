@@ -7,13 +7,15 @@ import { NativeBaseProvider, Text, HStack, Avatar } from 'native-base';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Tabs from '@/components/tabs';
 import userApi from '@/app/(root)/api/userApi';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 
 
 const ProfileScreen = () => {
+  const params = useLocalSearchParams();
+  const initialTabIndex = params.tabIndex ? Number(params.tabIndex) : 0;
 
   
   const [userDetails, setUserDetails] = useState<any>(null);
@@ -418,7 +420,11 @@ const handlePickImage = async () => {
 
         <View  style={{height:'100%', backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopEndRadius: 30 }}>
 
-          <Tabs personalDetail={finalData} refreshProfile={refreshProfile} />
+          <Tabs 
+  personalDetail={finalData} 
+  refreshProfile={refreshProfile} 
+  initialTabIndex={initialTabIndex}
+/>
         </View>
       </SafeAreaView>
     </NativeBaseProvider>

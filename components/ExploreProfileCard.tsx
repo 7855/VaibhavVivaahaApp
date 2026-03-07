@@ -27,7 +27,7 @@ const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({ imageUrl, name,
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    height: 280, // Fixed height for consistent appearance
+    height: 250, // Fixed height for consistent appearance
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 5,
@@ -43,17 +43,17 @@ const styles = StyleSheet.create({
     height: '100%', // Ensure image covers the full height
   },
   gradient: {
-    padding: 12,
+    padding: 6,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   nameAge: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
   },
   job: {
     color: '#ccc',
-    fontSize: 14,
+    fontSize: 13,
     marginTop: 4,
   },
 });

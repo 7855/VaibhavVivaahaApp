@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const styles = StyleSheet.create({
   containerProfle: {
     paddingHorizontal: 12,
-    paddingTop: 16,
+    paddingTop: 10,
   },
   rowProfile: {
     justifyContent: 'space-between',
@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     width: '49%',
-    marginBottom: 40, 
+    marginBottom: 10, 
     height:280
   },
   heading: {
@@ -164,7 +164,7 @@ type Profile = {
 
   return (
     <NativeBaseProvider>
-      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#130057', flex: 1 }}>
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#F5F5F5', flex: 1 }}>
         {/* <View style={styles.headingContainer}>
           <Text style={styles.heading}>{getHeading()}</Text>
         </View> */}

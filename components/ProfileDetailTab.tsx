@@ -10,6 +10,7 @@ import FIcon from '@expo/vector-icons/Feather'
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionsheetBackdrop } from './ActionSheet';
+import { LinearGradient } from 'expo-linear-gradient';
 
 
 const FirstRoute = ({
@@ -256,18 +257,31 @@ const FirstRoute = ({
                                     handlePermissionToggle(normalizedKey, permissionRequests[normalizedKey], data.userId)
                                   }
                                 >
-                                  <Text
-                                    style={{
-                                      backgroundColor: '#ffe0e0',
-                                      padding: 10,
-                                      borderRadius: 6,
-                                      color: '#b91c1c',
-                                      fontWeight: 'bold',
-                                      fontSize: 12,
-                                    }}
-                                  >
-                                    {permissionRequested ? 'Cancel Request' : 'Ask Permission'}
-                                  </Text>
+                                    <LinearGradient
+                                      colors={['#6c5ce7', '#a29bfe']}
+                                      style={{
+                                        padding: 10,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: 12,
+
+                                      }}
+                                      start={{ x: 0, y: 0 }}
+                                      end={{ x: 1, y: 0 }}
+                                    >
+
+                                      <Text
+                                        style={{
+                                          borderRadius: 6,
+                                          fontWeight: 'bold',
+                                          fontSize: 12,
+                                        }}
+                                      >
+                                        {permissionRequested ? 'Cancel Request' : 'Click to Ask Permission'}
+                                      </Text>
+                                    </LinearGradient>
+
                                 </TouchableOpacity>
                               </View>
                             ) : (
@@ -615,18 +629,31 @@ const SecondRoute = ({
                                         : handleHoroscopePermissionRequest();
                                     }}
                                   >
-                                    <Text
+                                    <LinearGradient
+                                      colors={['#6c5ce7', '#a29bfe']}
                                       style={{
-                                        backgroundColor: '#ffe0e0',
                                         padding: 10,
-                                        borderRadius: 6,
-                                        color: '#b91c1c',
-                                        fontWeight: 'bold',
-                                        fontSize: 12,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: 12,
+
                                       }}
+                                      start={{ x: 0, y: 0 }}
+                                      end={{ x: 1, y: 0 }}
                                     >
-                                      {horoscopePermission ? 'Cancel Request' : 'Ask Permission'}
-                                    </Text>
+
+                                      <Text
+                                        style={{
+                                          borderRadius: 6,
+                                          fontWeight: 'bold',
+                                          fontSize: 12,
+                                        }}
+                                      >
+                                        {horoscopePermission ? 'Cancel Request' : 'Click to Ask Permission'}
+                                      </Text>
+                                    </LinearGradient>
+                                   
                                   </TouchableOpacity>
 
                                 </View>

@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
+import { LinearGradient } from 'expo-linear-gradient';
 
 
 
@@ -30,34 +31,15 @@ const ProfileDetail = () => {
   const [isSender, setIsSender] = useState(false);
   const [isImageModalVisible, setImageModalVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
-  const [isGalleryLoading, setIsGalleryLoading] = useState(false);
-  const [hasLiked, setHasLiked] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [isShortlisted, setIsShortlisted] = useState(false);
   const [isPremiumValue, setIsPremiumValue] = useState(false);
   const [hiddenFeildsValue, setHiddenFeildsValue] = useState<any>([]);
   const [ subscriptionId, setSubscriptionId] = useState<any>(null);
-
-  const [interestStatus, setInterestStatus] = useState('');
+const [isLiked, setIsLiked] = useState(false);
+const [isShortlisted, setIsShortlisted] = useState(false);
+const [interestStatus, setInterestStatus] = useState('NONE');
 
   useEffect(() => {
-    const fetchUserId = async () => {
-      try {
-        const userIdValue = await AsyncStorage.getItem('userId');
-        if (userIdValue && userId) {
-          // const decodedUserId = atob(userIdValue);
-          userApi.checkIfShortlisted(userIdValue, userId).then((response: any) => {
-            // API response has a nested structure: {data: {data: boolean}}
-            const isShortlisted = response?.data?.data || false;
-            setIsShortlisted(isShortlisted);
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching user ID:', error);
-      }
-    };
-
     const fetchViewedProfile = async () => {
       try {
         const userIdValue = await AsyncStorage.getItem('userId');
@@ -69,7 +51,7 @@ const ProfileDetail = () => {
         console.error('Error fetching user ID:', error);
       }
     };
-    fetchUserId();
+    // fetchUserId();
     fetchViewedProfile();
   }, [userId]);
   
@@ -157,8 +139,6 @@ const ProfileDetail = () => {
 
     // Check if current user has already liked this profile
 
-
-
     const result = [
       {
         section: "PersonalDetail",
@@ -212,19 +192,11 @@ const ProfileDetail = () => {
   };
 
   useEffect(() => {
-    if (currentUserId && userId) {
-      const parsedUserId = Array.isArray(userId) ? userId[0] : userId;
-      checkLikeStatus(currentUserId, parsedUserId);
-      checkInterestStatus(currentUserId, parsedUserId);
-    }
-  }, [currentUserId, userId]);
-
-
-  useEffect(() => {
     if (userId) {
       setUserDetailId(userId);
       console.log("userId============================>", userId);
       fetchUserDetails(userId);
+      fetchProfileDetail();
 
     }
   }, [userId]);
@@ -239,28 +211,60 @@ const ProfileDetail = () => {
       if (hiddenFeilds?.length > 0) {
         const fieldNames = hiddenFeilds.map((item: any) => item.fieldName);
         setHiddenFeildsValue(fieldNames);
-      
-        // console.log("Hidden Feilds Data =valueeeeeeee==========>", hiddenFeildsValue); // log the actual value before setting state
       }
-      
-      // const isPremium = await AsyncStorage.getItem('isUser');
-      // console.log("isPremium----------------------->", isPremium);
 
-      // setIsPremiumValue(isPremium == 'PU' ? true : false);
-
-      // console.log('Fetching details for userId:', userId);
-      const response = await userApi.getProfileDetailByUserId(userId);
-      const rawData = response.data.data;
-      setUserDetails(rawData);
-      const formattedData = formatUserDetails(rawData);
-      setPersonalDetail(formattedData);
-      // console.log("userDetails===>", formattedData);
     } catch (error) {
       console.error('Error fetching user details:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchProfileDetail = async () => {
+  try {
+     setLoading(true);
+      const hiddenFeildsResp = await userApi.getHiddenFieldsByUserId(userId);
+      const hiddenFeilds = hiddenFeildsResp.data.data;
+      // console.log("Hidden Feilds Data ===========>", hiddenFeilds);
+
+      if (hiddenFeilds?.length > 0) {
+        const fieldNames = hiddenFeilds.map((item: any) => item.fieldName);
+        setHiddenFeildsValue(fieldNames);
+      
+        // console.log("Hidden Feilds Data =valueeeeeeee==========>", hiddenFeildsValue); // log the actual value before setting state
+      }
+    const userIdValue = await AsyncStorage.getItem('userId');
+
+    const response = await userApi.getProfileDetailWithIntractionStatus(userIdValue,userId);
+    const { profile, interactionStatus } = response.data.data;
+    // Update profile data
+    setUserDetails(profile);
+     const formattedData = formatUserDetails(profile);
+      setPersonalDetail(formattedData);
+    // setPersonalDetail(profile.userDetail?.[0] || {});
+    setUserDetailId(profile.userId);
+
+    // Update interaction statuses from the single API response
+    if (interactionStatus) {
+      setInterestStatus(interactionStatus.interest?.status || 'NONE');
+      setIsLiked(interactionStatus.liked || false);
+      setIsShortlisted(interactionStatus.shortlisted || false);
+      
+      // Update isSender based on who sent the interest
+      setIsSender(interactionStatus.interest?.sentBy === 'VIEWER');
+    }
+
+    // Handle gallery images if needed
+    if (profile.galleryImages) {
+      setGalleryImages(profile.galleryImages);
+    }
+
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -314,7 +318,7 @@ const ProfileDetail = () => {
 
     const parsedUserId = Array.isArray(userId) ? userId[0] : userId;
 
-    if (hasLiked) {
+    if (isLiked) {
       // Show confirmation for reverting like
       Alert.alert(
         'Revert Like',
@@ -334,7 +338,7 @@ const ProfileDetail = () => {
                 };
 
                 await userApi.deleteLike(currentUserId, parsedUserId);
-                setHasLiked(false);
+                setIsLiked(false);
                 console.log('Like reverted successfully');
               } catch (error) {
                 console.error('Error reverting like:', error);
@@ -351,7 +355,7 @@ const ProfileDetail = () => {
         };
 
         await userApi.createUserLike(likeRequest);
-        setHasLiked(true);
+        setIsLiked(true);
         console.log('Like sent successfully');
       } catch (error) {
         console.error('Error creating like:', error);
@@ -378,11 +382,11 @@ const ProfileDetail = () => {
             console.log("updateSendRequestCount===================================>", updateSendRequestCount.data);
 
             if(updateSendRequestCount.data.code == 200){
-            // if (interestStatus === 'NONE' || interestStatus === '' || interestStatus === null) {
-            //   await userApi.sendInterestRequest(currentUserId, parsedUserId);
-            //   setInterestStatus('PENDING');
-            //   setIsSender(true);
-            // }
+            if (interestStatus === 'NONE' || interestStatus === '' || interestStatus === null) {
+              await userApi.sendInterestRequest(currentUserId, parsedUserId);
+              setInterestStatus('PENDING');
+              setIsSender(true);
+            }
             }else if(updateSendRequestCount.data.code == 401){
               Alert.alert(
                 'Request Limit Exceeded',
@@ -444,62 +448,6 @@ const ProfileDetail = () => {
       console.error('Error sending interest request:', error);
     }
   };
-  const checkInterestStatus = async (senderId: string, receiverId: string) => {
-    try {
-      const response = await userApi.checkInterestStatus(senderId, receiverId);
-      const status = response.data?.data || {};
-      console.log("🔵 Interest Status Response:", response.data);
-
-      // Decode the senderId and compare with reqReceivedBy
-      const decodedSenderId = atob(senderId);
-      console.log("🔵 Decoded Sender ID:", decodedSenderId);
-
-      // Handle case where status is null or undefined
-      const isCurrentSender = status?.reqSendedBy ? 
-        parseInt(decodedSenderId) === parseInt(status.reqSendedBy) : 
-        false;
-
-      console.log("🔵 Is Current Sender:", isCurrentSender);
-      
-      // Store the sender/receiver status
-      setIsSender(isCurrentSender); 
-
-      // Handle case where status is null or undefined
-      const statusValue = status?.status || 'NONE';
-      setInterestStatus(statusValue);
-
-      // Update UI based on status
-      if (statusValue === 'PENDING') {
-        console.log('Interest request is pending');
-      } else if (status.status === 'APPROVED') {
-        console.log('Interest request accepted');
-      } else if (status.status === 'REJECTED') {
-        console.log('Interest request rejected');
-      }
-    } catch (error) {
-      console.error('Error checking interest status:', error);
-      setInterestStatus('');
-    }
-  };
-  const checkLikeStatus = async (likedBy: any, likedTo: any) => {
-    try {
-      const response = await userApi.checkIfLiked(likedBy, likedTo);
-      console.log("🔵 API Response:", response.data);
-
-      const result = response.data.data;
-
-      // Set hasLiked = true only if result is true; otherwise false
-      setHasLiked(result === true);
-      console.log("✅ Has Liked Before:", result === true);
-
-    } catch (error) {
-      console.error('Error checking like status:', error);
-      setHasLiked(false); // fallback to false if any error occurs
-    }
-  };
-
-  // Add removeUserLike to userApi
-  // userApi.deleteLike()
 
   if (loading) {
     return (
@@ -604,9 +552,16 @@ const ProfileDetail = () => {
                             }
                           }}
                         >
+                            <LinearGradient
+    colors={['#6c5ce7', '#a29bfe']}
+    style={styles.starMatchButtonGradient}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 0 }}
+  >
                           <Text style={styles.permissionButtonText}>
-                            {permissionRequests.profileImage ? 'Cancel Request' : 'Ask Permission'}
+                            {permissionRequests.profileImage ? 'Cancel Request' : 'Click to Ask Permission'}
                           </Text>
+                            </LinearGradient>
                         </TouchableOpacity>
                       </BlurView>
                     </ImageBackground>
@@ -622,9 +577,9 @@ const ProfileDetail = () => {
                         onPress={handleLike}
                       >
                         <FontAwesome
-                          name={hasLiked ? "thumbs-up" : "thumbs-o-up"}
+                          name={isLiked ? "thumbs-up" : "thumbs-o-up"}
                           size={20}
-                          color={hasLiked ? "red" : "gray"}
+                          color={isLiked ? "red" : "gray"}
                         />
                       </TouchableOpacity>
 
@@ -722,8 +677,8 @@ const ProfileDetail = () => {
                                       // Proceed with shortlisting for premium users
                                       const encodedId = btoa(decodedUserId);
                                       await userApi.insertShortlistedProfile({
-                                        encodedId,
-                                        userId
+                                        shortlistedBy: decodedUserId,
+                                        shortlistedUserId:userId
                                       });
 
                                       Toast.show({
@@ -817,18 +772,7 @@ const ProfileDetail = () => {
                     </View>
                   </View>
 
-                  {/* Height Card */}
-                  <View style={styles.cardright}>
-                    <View style={styles.cardRow}>
-                      <Ruler size={16} color="#7C3AED" />
-                      <View style={styles.cardTextBlock}>
-                        <Text style={styles.cardLabel}>Height</Text>
-                        <Text style={styles.cardValue}>
-                          {userDetails?.userDetail?.[0]?.height}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+                 
 
                   {/* Occupation */}
                   {userDetails?.userDetail?.[0]?.occupation && (
@@ -848,23 +792,23 @@ const ProfileDetail = () => {
                       </View>
                     </View>
                   )}
-
-                  {/* Annual Income */}
-                  {/* {userDetails?.userDetail?.[0]?.annualIncome && (
-      <View style={[styles.cardright, styles.cardFull]}>
-        <View style={styles.cardRow}>
-          <DollarSign size={16} color="#059669" />
-          <View style={styles.cardTextBlock}>
-            <Text style={styles.cardLabel}>Annual Income</Text>
-            <Text style={styles.cardValue}>
-              {userDetails.userDetail[0].annualIncome}
-            </Text>
-          </View>
-        </View>
-      </View>
-    )} */}
-
-
+                </View>
+                 {/* Height Card */}
+                <View style={styles.cardright}>
+                  <TouchableOpacity
+                    style={styles.starMatchButton}
+                    onPress={() => router.push('/(root)/screens/StarMatch')}
+                  >
+                    <LinearGradient
+                      colors={['#6c5ce7', '#a29bfe']}
+                      style={styles.starMatchButtonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      <MaterialIcons name="stars" size={20} color="#fff" />
+                      <Text style={styles.buttonText}>Check Star Match</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.buttonRow}>
                   {/* Interest Button */}
@@ -904,12 +848,6 @@ const ProfileDetail = () => {
                       })()}
                     </Text>
                   </TouchableOpacity>
-
-                  {/* Chat Button */}
-                  {/* <TouchableOpacity style={styles.chatButton}>
-    <MessageCircle size={16} color="#4B5563" />
-    <Text style={[styles.buttonText, { color: '#4B5563' }]}>Chat</Text>
-  </TouchableOpacity> */}
                 </View>
 
 
@@ -1072,7 +1010,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: '#10B981', // green
   },
 
@@ -1108,24 +1046,6 @@ const styles = StyleSheet.create({
   sentButton: {
     backgroundColor: '#10B981', // Green-500
   },
-  // chatButton: {
-  //   flex: 1,
-  //   flexDirection: 'row',
-  //   alignItems: 'center',
-  //   justifyContent: 'center',
-  //   paddingVertical: 10,
-  //   paddingHorizontal: 12,
-  //   backgroundColor: '#fff',
-  //   borderRadius: 14,
-  //   borderWidth: 1,
-  //   borderColor: '#E5E7EB',
-  // },
-  // buttonText: {
-  //   fontSize: 14,
-  //   fontWeight: '600',
-  //   marginLeft: 6,
-  //   color: '#fff',
-  // },
   iconOverlay: {
     position: 'absolute',
     bottom: 10,
@@ -1143,17 +1063,6 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 20,
   },
-  // modalOverlay: {
-  //   flex: 1,
-  //   backgroundColor: 'rgba(0,0,0,0.9)',
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  // },
-
-  // fullscreenImage: {
-  //   width: '100%',
-  //   height: '100%',
-  // },
   restrictedOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -1182,7 +1091,23 @@ const styles = StyleSheet.create({
   //   height: 150,
   //   borderRadius: 10,
   // },
-
+starMatchButton: {
+  marginTop: 10,
+  borderRadius: 12,
+  overflow: 'hidden',
+},
+starMatchButtonGradient: {
+  padding: 10,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+starMatchButtonText: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: '600',
+  marginLeft: 8,
+}
 });
 
 export default ProfileDetail

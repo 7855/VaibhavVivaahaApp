@@ -359,7 +359,7 @@ const ReceivedTab = () => {
         )}
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No received interests found</Text>
+            <Text style={styles.emptyStateText}>No Interests Found</Text>
           </View>
         )}
       />
@@ -396,7 +396,7 @@ const SentTab = () => {
         if (response.data.code === 200) {
           setData(response.data.data);
         } else {
-          setError('Failed to load sent data');
+          setError('No Interest Sent Record Found');
         }
       } catch (error) {
         setError('Error loading sent data');
@@ -1015,7 +1015,7 @@ const RequestsTab = () => {
               ListEmptyComponent={() => (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>
-                    No received interests found
+                    No Interests Found
                   </Text>
                 </View>
               )}
@@ -1046,7 +1046,7 @@ const RequestsTab = () => {
             ) : (
               <View style={{ padding: 20 }}>
                 <Text style={{ textAlign: 'center', color: '#6B7280', fontSize: 16 }}>
-                  No received interests found
+                  No Interests Found
                 </Text>
               </View>
             )}
@@ -1095,7 +1095,7 @@ const ShortlistedTab = () => {
         if (response.data.code === 200) {
           setData(response.data.data);
         } else {
-          setError('Failed to load shortlisted data');
+          setError('No Shortlisted Record Found');
         }
       } catch (error) {
         setError('Error loading shortlisted data');
@@ -1194,16 +1194,16 @@ const MailBox = () => {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'received', title: 'Received' },
-    { key: 'sent', title: 'Sent' },
-    { key: 'request', title: 'Request' },
-    { key: 'shortlisted', title: 'Shortlisted' }
+    { key: 'sent', title: 'Sent By You' },
+    { key: 'request', title: 'Permissions' },
+    // { key: 'shortlisted', title: 'Shortlisted' }
   ]);
 
   const renderScene = SceneMap({
     received: ReceivedTab,
     sent: SentTab,
     request: RequestsTab,
-    shortlisted: ShortlistedTab
+    // shortlisted: ShortlistedTab
   });
 
   return (
@@ -1291,7 +1291,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor:'#fff'
   },
   filterIconContainer: {
     position: 'absolute',
@@ -1387,12 +1387,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   tabBar: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   indicator: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#420001',
     height: 2,
   },
   // matchCard: {
@@ -1497,7 +1497,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   filterButton: {
-    padding: 10,
+    padding: 12,
     borderRadius: 8,
     backgroundColor: '#f5f5f5',
     elevation: 2,
@@ -1505,20 +1505,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
-    // width: '48%',
+    width: '31%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#420001',
   },
   filterButtonTextActive: {
     color: '#fff',
   },
   filterButtonText: {
     color: '#333',
-    fontSize: 12,
-    // fontWeight: '// 500',
+    fontSize: 13.5,
+    fontWeight: '600',
   },
   titleRow: {
     flexDirection: 'row',
@@ -1573,7 +1573,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterButtonActiveReq: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#420001',
   },
   filterButtonTextReq: {
     color: '#333',

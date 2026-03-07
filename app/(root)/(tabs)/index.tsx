@@ -9,6 +9,15 @@ import SwiperProfile from '@/components/swiperprofile';
 import { MaterialIcons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import IconMeterial from 'react-native-vector-icons/MaterialIcons';
+import ProfileCompletionWidget from '../../../components/ProfileCompletionBar';
+import QuiclAction from '../../../components/QuickAction';
+
+interface ConnectionCount {
+  Matches?: number;
+  Hearts?: number;
+  Admirers?: number;
+  Proposals?: number;
+}
 
 // Get screen dimensions
 const { width } = Dimensions.get('window');
@@ -188,6 +197,8 @@ import { usePushNotifications } from '@/usePushNotification';
 import { LinearGradient } from 'expo-linear-gradient';
 import { loadUserSubscription } from '../services/masterService';
 import { useSubscription } from '../contexts/subscriptionContext';
+import QuickAction from '../../../components/QuickAction';
+import FooterMessage from '@/components/FooterMessage';
 
 // const router = router();
 
@@ -198,7 +209,7 @@ const Index = () => {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [newConnection, setNewConnection] = useState<any[]>([]);
   const [nearYouProfile, setNearYouProfile] = useState<any[]>([]);
-  const [userConnectionCount, setUserConnectionCount] = useState<any[]>([]);
+  const [userConnectionCount, setUserConnectionCount] = useState<ConnectionCount[]>([]);
   const [firstName, setFirstName] = useState<string>('');
   const [lastName, setLastName] = useState<string>('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -386,13 +397,15 @@ const { subscriptionData = {}, setSubscription } = useSubscription() || {};
           userApi.getNearYouProfiles(casteIdValue, storedGender, location),
           userApi.userConnectionCount(userId),
         ]);
+        console.log("Matches",userConnectionCount);
+        
 
         // console.log("ec.data?.data?.slice(0, 7)=>",rec.data?.data?.slice(0, 7));
         
         setRecommendations(rec.data?.data?.slice(0, 7) || []);
         setNewConnection(conn.data?.data?.slice(0, 7) || []);
         setNearYouProfile(near.data?.data?.slice(0, 7) || []);
-        setUserConnectionCount(count.data?.data);
+        setUserConnectionCount(count.data?.data || []);
         const unreadCount = await userApi.getUnreadNotificationCount(userId);
         setUnreadCount(unreadCount.data?.data);
       } catch (error) {
@@ -490,7 +503,7 @@ case 'PLATINUM':
         ...baseStyle,
         icon: <Award size={16} color="#FFD700" />,
         background: 'rgba(255, 215, 0, 0.2)',
-        textColor: '#FFD700',
+        textColor: 'userConnectionCount#FFD700',
         gradient: ['#FFD700', '#FFA500'],
         borderColor: '#FFD700',
         name: 'Gold'
@@ -715,7 +728,7 @@ const tierStyle = getTierStyle(userTier);
         >
           <Heart stroke="#ffffff" width={20} height={20} />
         </LinearGradient>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>247</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{userConnectionCount.Matches}</Text>
         <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
           Hearts
         </Text>
@@ -744,7 +757,7 @@ const tierStyle = getTierStyle(userTier);
         >
           <Send stroke="#ffffff" width={20} height={20} />
         </LinearGradient>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>32</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{userConnectionCount.Proposals}</Text>
         <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
           Proposals
         </Text>
@@ -772,7 +785,7 @@ const tierStyle = getTierStyle(userTier);
         >
           <Eye stroke="#ffffff" width={20} height={20} />
         </LinearGradient>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>156</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{userConnectionCount.Admirers}</Text>
         <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
           Admirers
         </Text>
@@ -800,7 +813,7 @@ const tierStyle = getTierStyle(userTier);
         >
           <UserCheck stroke="#ffffff" width={20} height={20} />
         </LinearGradient>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>18</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{userConnectionCount.Matches}</Text>
         <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
           Matches
         </Text>
@@ -809,7 +822,11 @@ const tierStyle = getTierStyle(userTier);
   </LinearGradient>
     </View>
 
-    <View style={{ paddingHorizontal: 5 ,  // 🔥 Box shadow
+<View>
+    <ProfileCompletionWidget />
+
+</View>
+    {/* <View style={{ paddingHorizontal: 5 ,  
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.1,
@@ -902,8 +919,8 @@ const tierStyle = getTierStyle(userTier);
         </Text>
       </View>
     </View>
-  </LinearGradient>
-</View>
+  </LinearGradient> */}
+{/* </View> */}
 
 
                 {/*  New Connections Section */}
@@ -1121,33 +1138,38 @@ const tierStyle = getTierStyle(userTier);
                   </VStack>
                 </Box> */}
 
+                <View>
+                  <QuickAction />
+                </View>
+
                 <Box
                   width="100%"
                   style={{
-                    height: 200,
+                    height: 150,
                     marginVertical: 10,
                     marginTop: 10,
                     padding: 5,
-                    marginBottom: 20
+                    marginBottom: 25
                   }}
                 >
                   <Image
-                    source={require('../../../assets/images/homeBanner2.png')}
+                    source={require('../../../assets/images/homebanner.webp')}
                     style={{
                       width: '100%',
                       height: '100%',
                       resizeMode: 'cover',
-                      borderRadius: 10
+                      borderRadius: 10,
+                      objectFit:'cover'
+        
                     }}
                   />
                 </Box>
 
-                <View style={styles.section}>
-                  {/* Header */}
+
+                {/* <View style={styles.section}>
                   <View style={{ paddingHorizontal: 7, marginBottom: 15 }}>
                     <HStack justifyContent="space-between" alignItems="center">
                       <VStack>
-                        {/* Title Row with Hearts */}
                         <HStack alignItems="center" space={2}>
                           <Heart size={20} color="#EF4444" />
                           <Text fontSize="lg" fontWeight="semibold" color="#1f2937">
@@ -1158,7 +1180,6 @@ const tierStyle = getTierStyle(userTier);
 
                         </HStack>
 
-                        {/* Countdown Row */}
                         <HStack alignItems="center" space={1} mt={1}>
                           <Text fontSize="xs" color="gray">Every love story is beautiful, but ours is our favorite.</Text>
                         </HStack>
@@ -1170,7 +1191,6 @@ const tierStyle = getTierStyle(userTier);
 
 
 
-                  {/* Horizontal Carousel */}
                   <FlatList
                     data={happyStories}
                     keyExtractor={(item) => item.happystoryId}
@@ -1200,6 +1220,9 @@ const tierStyle = getTierStyle(userTier);
                     )}
                   />
 
+                </View> */}
+                <View style={{ flex: 1, marginBottom: 70 }}>
+                  <FooterMessage />
                 </View>
               </Box>
             </Box>
@@ -1394,12 +1417,12 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   greeting: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     fontStyle: 'italic',
   },
   greetingName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
   },
   title: {
@@ -1489,6 +1512,7 @@ tierIcon: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.4,
+    marginEnd:5
   },
   freeTierContainer: {
     flexDirection: 'row',

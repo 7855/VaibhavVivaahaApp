@@ -16,6 +16,7 @@ import {
   MenuProvider,
 } from 'react-native-popup-menu';
 import { SelectList } from 'react-native-dropdown-select-list';
+import { useSubscription } from '../contexts/subscriptionContext';
 // Remove this import since we're not using Checkbox anymore
 interface Message {
   id: string;
@@ -62,50 +63,28 @@ function ChatScreen() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState('');
   const [isShortlisted, setIsShortlisted] = useState(false);
+  const { subscriptionData } = useSubscription();
 
-  useEffect(() => {
-    const checkPremiumStatus = async () => {
-      try {
-        const subscription = await AsyncStorage.getItem('subscription');
-        // console.log('Subscription Data ===========>:', subscription);
-        if (subscription) {
-          const parsedSubscription = JSON.parse(subscription);
-          if (parsedSubscription.sendMessages == true) {
-            setIsPremium(true);
+      useEffect(() => {
+          if (subscriptionData && subscriptionData.entitlements) {
+              // console.log("subscriptionData======>", subscriptionData);
+              // console.log("subscriptionData.entitlements:", subscriptionData.entitlements);
+  
+              const hasPremiumAccess =
+                  subscriptionData.entitlements.advSearch === true &&
+                  subscriptionData.entitlements.basicSearch === true;
+  
+              // console.log("hasPremiumAccess ===>", hasPremiumAccess);
+              setIsPremium(hasPremiumAccess);
           } else {
-            setIsPremium(false);
+              // console.log("No subscription data or entitlements found");
+              setIsPremium(false);
           }
-        } else {
-          try {
-            const localUserId = await AsyncStorage.getItem('userId');
-            if (localUserId) {
-              const decodedUserId = atob(localUserId);
-              const subscription = await userApi.getActiveUserSubscriptionByUserId(decodedUserId);
-              // console.log('Subscription response:------------------->', subscription.data.data.entitlements);
-              if(subscription.data.data?.entitlements) {
-                await AsyncStorage.setItem('subscription', JSON.stringify(subscription.data.data.entitlements));
-                if(subscription.data.data?.entitlements.sendMessages == true) {
-                  setIsPremium(true);
-                } else {
-                  setIsPremium(false);
-                }
-              }
-            }
-          } catch (error) {
-            console.error('Error fetching subscription:', error);
-          }
-        }
+          // console.log("hasPremiumAccess ===>", isPremiumUser);
+  setIsLoading(false)
+      }, [subscriptionData]);
 
-      } catch (error) {
-        console.error('Error checking premium status:', error);
-        setError('Failed to check premium status');
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    checkPremiumStatus();
-  }, []);
 
   useEffect(() => {
     const checkShortlistedStatus = async () => {
@@ -734,7 +713,8 @@ function ChatScreen() {
                   resizeMode="cover"
                 />
                 <View style={styles.headerTextContainer}>
-                  <Text style={styles.headerTitle}>{otherUserName}</Text>
+                  <Text style={styles.headerTitle} numberOfLines={1}
+  ellipsizeMode="tail">{otherUserName}1</Text>
                   {!isBlockedByOtherUser && (
                     isOtherUserOnline ? (
                       <Text style={styles.lastSeen}>Online</Text>
@@ -1048,11 +1028,13 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#fff',
     marginTop: 4,
     marginBottom: 2,
+    // flex: 1, // Takes up available space
+    // overflow: 'hidden', 
   },
   lastSeen: {
     fontSize: 12,
