@@ -5,132 +5,133 @@ import NotificationFilterComponent from '../../../components/NotificationFilter'
 import NotificationCard from '../../../components/NotificationCard';
 import { Notification, NotificationFilter } from '../../../components/notification';
 import userApi from '../api/userApi';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserData } from '../contexts/UserDataContext';
 
 const NotificationScreen: React.FC = () => {
-//   const mockNotifications: Notification[] = [
-//     {
-//       id: '1',
-//       type: 'like',
-//       title: 'New Like Received',
-//       message: 'Priya liked your profile and wants to connect with you.',
-//       timestamp: new Date(Date.now() - 5 * 60 * 1000),
-//       isRead: false,
-//       avatar: 'https://images.pexels.com/photos/1382731/pexels-photo-1382731.jpeg',
-//       userName: 'Priya Sharma',
-//       userAge: 26,
-//       userLocation: 'Mumbai',
-//     },
-//     {
-//       id: '2',
-//       type: 'profile_view',
-//       title: 'Profile View',
-//       message: 'Rahul viewed your profile today.',
-//       timestamp: new Date(Date.now() - 30 * 60 * 1000),
-//       isRead: false,
-//       avatar: 'https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg',
-//       userName: 'Rahul Patel',
-//       userAge: 29,
-//       userLocation: 'Delhi',
-//     },
-//     {
-//       id: '3',
-//       type: 'match',
-//       title: 'New Match Found!',
-//       message: 'You and Anjali have been matched based on your preferences.',
-//       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-//       isRead: false,
-//       avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg',
-//       userName: 'Anjali Gupta',
-//       userAge: 24,
-//       userLocation: 'Bangalore',
-//     },
-//     {
-//       id: '4',
-//       type: 'message',
-//       title: 'New Message',
-//       message: 'Vikram sent you a message: "Hi! I found your profile interesting..."',
-//       timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-//       isRead: true,
-//       avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg',
-//       userName: 'Vikram Singh',
-//       userAge: 31,
-//       userLocation: 'Pune',
-//     },
-//     {
-//       id: '5',
-//       type: 'interest',
-//       title: 'Interest Expressed',
-//       message: 'Kavya expressed interest in your profile.',
-//       timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-//       isRead: true,
-//       avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg',
-//       userName: 'Kavya Reddy',
-//       userAge: 27,
-//       userLocation: 'Hyderabad',
-//     },
-//     {
-//       id: '6',
-//       type: 'shortlist',
-//       title: 'Added to Shortlist',
-//       message: 'Arjun added you to their shortlist.',
-//       timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-//       isRead: true,
-//       avatar: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg',
-//       userName: 'Arjun Kumar',
-//       userAge: 28,
-//       userLocation: 'Chennai',
-//     },
-//     {
-//       id: '7',
-//       type: 'profile_view',
-//       title: 'Profile View',
-//       message: 'Neha viewed your profile.',
-//       timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
-//       isRead: true,
-//       avatar: 'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg',
-//       userName: 'Neha Agarwal',
-//       userAge: 25,
-//       userLocation: 'Kolkata',
-//     },
-//     {
-//       id: '8',
-//       type: 'like',
-//       title: 'New Like Received',
-//       message: 'Sanjay liked your profile.',
-//       timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-//       isRead: true,
-//       avatar: 'https://images.pexels.com/photos/1310522/pexels-photo-1310522.jpeg',
-//       userName: 'Sanjay Mehta',
-//       userAge: 30,
-//       userLocation: 'Ahmedabad',
-//     },
-//   ];
+  const { userData } = useUserData();
+  //   const mockNotifications: Notification[] = [
+  //     {
+  //       id: '1',
+  //       type: 'like',
+  //       title: 'New Like Received',
+  //       message: 'Priya liked your profile and wants to connect with you.',
+  //       timestamp: new Date(Date.now() - 5 * 60 * 1000),
+  //       isRead: false,
+  //       avatar: 'https://images.pexels.com/photos/1382731/pexels-photo-1382731.jpeg',
+  //       userName: 'Priya Sharma',
+  //       userAge: 26,
+  //       userLocation: 'Mumbai',
+  //     },
+  //     {
+  //       id: '2',
+  //       type: 'profile_view',
+  //       title: 'Profile View',
+  //       message: 'Rahul viewed your profile today.',
+  //       timestamp: new Date(Date.now() - 30 * 60 * 1000),
+  //       isRead: false,
+  //       avatar: 'https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg',
+  //       userName: 'Rahul Patel',
+  //       userAge: 29,
+  //       userLocation: 'Delhi',
+  //     },
+  //     {
+  //       id: '3',
+  //       type: 'match',
+  //       title: 'New Match Found!',
+  //       message: 'You and Anjali have been matched based on your preferences.',
+  //       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+  //       isRead: false,
+  //       avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg',
+  //       userName: 'Anjali Gupta',
+  //       userAge: 24,
+  //       userLocation: 'Bangalore',
+  //     },
+  //     {
+  //       id: '4',
+  //       type: 'message',
+  //       title: 'New Message',
+  //       message: 'Vikram sent you a message: "Hi! I found your profile interesting..."',
+  //       timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+  //       isRead: true,
+  //       avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg',
+  //       userName: 'Vikram Singh',
+  //       userAge: 31,
+  //       userLocation: 'Pune',
+  //     },
+  //     {
+  //       id: '5',
+  //       type: 'interest',
+  //       title: 'Interest Expressed',
+  //       message: 'Kavya expressed interest in your profile.',
+  //       timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+  //       isRead: true,
+  //       avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg',
+  //       userName: 'Kavya Reddy',
+  //       userAge: 27,
+  //       userLocation: 'Hyderabad',
+  //     },
+  //     {
+  //       id: '6',
+  //       type: 'shortlist',
+  //       title: 'Added to Shortlist',
+  //       message: 'Arjun added you to their shortlist.',
+  //       timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
+  //       isRead: true,
+  //       avatar: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg',
+  //       userName: 'Arjun Kumar',
+  //       userAge: 28,
+  //       userLocation: 'Chennai',
+  //     },
+  //     {
+  //       id: '7',
+  //       type: 'profile_view',
+  //       title: 'Profile View',
+  //       message: 'Neha viewed your profile.',
+  //       timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
+  //       isRead: true,
+  //       avatar: 'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg',
+  //       userName: 'Neha Agarwal',
+  //       userAge: 25,
+  //       userLocation: 'Kolkata',
+  //     },
+  //     {
+  //       id: '8',
+  //       type: 'like',
+  //       title: 'New Like Received',
+  //       message: 'Sanjay liked your profile.',
+  //       timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
+  //       isRead: true,
+  //       avatar: 'https://images.pexels.com/photos/1310522/pexels-photo-1310522.jpeg',
+  //       userName: 'Sanjay Mehta',
+  //       userAge: 30,
+  //       userLocation: 'Ahmedabad',
+  //     },
+  //   ];
 
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const userId = await AsyncStorage.getItem('userId');
-        console.log("userId ===========================>",userId);
+        const userId = userData.userId;
+        console.log("userId ===========================>", userId);
         const response = await userApi.getAllNotifications(userId);
         const rawData = response?.data?.data || [];
         // console.log("rawData ===========================>",rawData);
-        
-        const formattedData = rawData.map((item: any) => ({
-            id: item.notificationId, // use the correct key
-            type: item.notificationCategory,
-            title: item.title,
-            message: item.message,
-            timestamp: new Date(item.timestamp),
-            isRead: item.isRead == 'Y' ? true : false,
-            avatar: item.avatar,
-            userName: item.userName,
-            userAge: item.userAge,
-            userLocation: item.userLocation,
-          }));
 
-          console.log("formattedData ===========================>",formattedData);
-          
+        const formattedData = rawData.map((item: any) => ({
+          id: item.notificationId, // use the correct key
+          type: item.notificationCategory,
+          title: item.title,
+          message: item.message,
+          timestamp: new Date(item.timestamp),
+          isRead: item.isRead == 'Y' ? true : false,
+          avatar: item.avatar,
+          userName: item.userName,
+          userAge: item.userAge,
+          userLocation: item.userLocation,
+        }));
+
+        console.log("formattedData ===========================>", formattedData);
+
         setNotifications(formattedData);
       } catch (error) {
         console.error('Error fetching notifications:', error);
@@ -144,7 +145,7 @@ const NotificationScreen: React.FC = () => {
 
   const handleClearAllNotifications = async () => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
+      const userId = userData.userId;
       await userApi.deleteAllNotificationsByReceiverId(userId);
       setNotifications([]);
     } catch (error) {
@@ -154,7 +155,7 @@ const NotificationScreen: React.FC = () => {
 
   const handleMarkAllAsRead = async () => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
+      const userId = userData.userId;
       await userApi.markAllAsReadByReceiverId(userId);
       const updatedNotifications = notifications.map(n => ({
         ...n,
@@ -189,14 +190,14 @@ const NotificationScreen: React.FC = () => {
     });
     return counts;
   }, [notifications]);
-  
+
 
   const unreadCount = notifications.filter((n) => n.isRead === false).length;
 
   const handleMarkAsRead = async (id: string) => {
     try {
-        console.log("handleMarkAsRead ===========================>",id);
-      const userId = await AsyncStorage.getItem('userId');
+      console.log("handleMarkAsRead ===========================>", id);
+      const userId = userData.userId;
       const notification = notifications.find(n => n.id === id);
       if (notification) {
         await userApi.markAsRead(notification.id, userId);
@@ -223,7 +224,7 @@ const NotificationScreen: React.FC = () => {
 
   const handleClearAll = async () => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
+      const userId = userData.userId;
       await userApi.deleteAllNotificationsByReceiverId(userId);
       setNotifications([]);
     } catch (error) {
@@ -262,13 +263,13 @@ const NotificationScreen: React.FC = () => {
           </View>
         )}
         renderItem={({ item }) => (
-            <View style={{paddingHorizontal: 8}}>
+          <View style={{ paddingHorizontal: 8 }}>
 
-          <NotificationCard
-            notification={item}
-            onMarkAsRead={handleMarkAsRead}
-            onDelete={handleDelete}
-          />
+            <NotificationCard
+              notification={item}
+              onMarkAsRead={handleMarkAsRead}
+              onDelete={handleDelete}
+            />
           </View>
         )}
         contentContainerStyle={styles.content}
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#130001',
     marginBottom: 4,
   },
   emptyMessage: {

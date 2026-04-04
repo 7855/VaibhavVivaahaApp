@@ -3,17 +3,17 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import { Heart, Calendar, Sparkles, Quote, Gem } from 'lucide-react-native';
 
 const HappyStoryCard = ({
-  coupleNames,
-  story,
-  marriageDate,
-  partner1Image,
-  partner2Image
+    coupleNames,
+    story,
+    marriageDate,
+    partner1Image,
+    partner2Image
 }: {
-  coupleNames: string;
-  story: string;
-  marriageDate: string;
-  partner1Image: string;
-  partner2Image: string;
+    coupleNames: string;
+    story: string;
+    marriageDate: string;
+    partner1Image: string;
+    partner2Image: string;
 }) => {
     const [partner1Name, partner2Name] = coupleNames.split(' & ');
 
@@ -22,7 +22,7 @@ const HappyStoryCard = ({
             {/* Sparkle top right */}
 
             <View style={styles.gemIconPosition}>
-            <Gem size={17} color="#FFFFFF" style={styles.gemIcon} />
+                <Gem size={17} color="#DADADA" style={styles.gemIcon} />
             </View>
             <Sparkles size={20} color="#f43f5e" style={styles.sparkleIcon} />
 
@@ -33,21 +33,21 @@ const HappyStoryCard = ({
                 {/* Avatar side */}
                 <View style={styles.avatarWrapper}>
                     {/* <View style={styles.avatarCircle}> */}
-                        <View style={styles.avatarGroup}>
-                            <View style={[styles.avatar, { backgroundColor: '#f43f5e' }]}>
-                                {/* <Text style={styles.avatarText}>{coupleNames[0]?.[0] || 'A'}</Text> */}
-                                <Image source={{ uri: partner1Image }} style={styles.avatarImage} />
-                            </View>
-                            <View style={[styles.avatar, { backgroundColor: '#ec4899' }]}>
-                                {/* <Text style={styles.avatarText}>{coupleNames[1]?.[0] || 'B'}</Text> */}
-                                <Image source={{ uri: partner2Image }} style={styles.avatarImage} />
-                            </View>
+                    <View style={styles.avatarGroup}>
+                        <View style={[styles.avatar, { backgroundColor: '#f43f5e' }]}>
+                            {/* <Text style={styles.avatarText}>{coupleNames[0]?.[0] || 'A'}</Text> */}
+                            <Image source={partner1Image ? { uri: partner1Image } : require('../assets/images/defaultAvatar.png')} style={styles.avatarImage} />
                         </View>
+                        <View style={[styles.avatar, { backgroundColor: '#ec4899' }]}>
+                            {/* <Text style={styles.avatarText}>{coupleNames[1]?.[0] || 'B'}</Text> */}
+                            <Image source={partner2Image ? { uri: partner2Image } : require('../assets/images/defaultAvatar.png')} style={styles.avatarImage} />
+                        </View>
+                    </View>
                     {/* </View> */}
 
                     {/* Heart icon */}
                     <View style={styles.heartPulse}>
-                        <Heart size={12} color="white" fill="white" />
+                        <Heart size={12} color="#DADADA" fill="#DADADA" />
                     </View>
 
                     {/* Badge */}
@@ -104,28 +104,28 @@ const HappyStoryCard = ({
                 </View>
 
                 <View style={styles.ratingRow}>
-                                        {/* Rating & Label Row */}
+                    {/* Rating & Label Row */}
                     <View style={styles.ratingRow}>
-                    <View style={styles.heartsRow}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Heart
-                  key={i}
-                  size={12}
-                  color={i < 5 ? '#ef4444' : '#d1d5db'}
-                  fill={i < 5 ? '#ef4444' : 'none'}
-                />
-              ))}
-              <Text style={styles.matchText}>Perfect Match</Text>
-            </View>
-           
-        
+                        <View style={styles.heartsRow}>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <Heart
+                                    key={i}
+                                    size={12}
+                                    color={i < 5 ? '#ef4444' : '#d1d5db'}
+                                    fill={i < 5 ? '#ef4444' : 'none'}
+                                />
+                            ))}
+                            <Text style={styles.matchText}>Perfect Match</Text>
+                        </View>
+
+
                     </View>
-                    
+
                 </View>
                 <View style={styles.inspiringRow}>
-              <Sparkles size={12} color="#facc15" />
-              <Text style={styles.inspiringText}>Inspiring</Text>
-            </View>
+                    <Sparkles size={12} color="#facc15" />
+                    <Text style={styles.inspiringText}>Inspiring</Text>
+                </View>
             </View>
         </View>
     );
@@ -142,15 +142,15 @@ const styles = StyleSheet.create({
         width: 250,
         marginHorizontal: 8,
         marginBottom: 16,
-      },
-      
+    },
+
     sparkleIcon: {
         position: 'absolute',
         top: 6,
         right: 6,
         opacity: 0.25,
     },
-    gemIcon:{
+    gemIcon: {
         // position: 'absolute',
         // top: 6,
         // right: 6,
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         elevation: 3,
     },
-    gemIconPosition:{
+    gemIconPosition: {
         position: 'absolute',
         top: 6,
         right: 6,
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     },
     badgeText: {
         fontSize: 10,
-        color: '#fff',
+        color: '#DADADA',
         fontWeight: '500',
     },
     textWrapper: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#1f2937',
+        color: '#130001',
         marginBottom: 4,
     },
     dateRow: {
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     },
     matchText: {
         fontSize: 11,
-        color: '#4b5563',
+        color: '#130001',
         marginLeft: 6,
     },
     inspiringRow: {
@@ -302,4 +302,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default HappyStoryCard;
+export default React.memo(HappyStoryCard);

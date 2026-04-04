@@ -43,7 +43,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
               pin: pin
           }
           const response = await userApi.login(request)
-          console.log('Login response:', response.data)
+          // console.log('Login response:', response.data)
           if(response.data.code === 200){
               // Store only non-null values
               await AsyncStorage.setItem('userId', response.data.data.userId)
@@ -53,7 +53,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
               if (response.data.data.profileImage) {
                   await AsyncStorage.setItem('profileImage', response.data.data.profileImage)
               }
-              console.log("response.data.data.isUser===================>",response.data.data.isUser);
+              // console.log("response.data.data.isUser===================>",response.data.data.isUser);
               
               
               await AsyncStorage.setItem('firstName', response.data.data.firstName)
@@ -66,7 +66,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
               // Initialize WebSocket connection if not already connected
               try {
                   if (!webSocketService.socket) {
-                      console.log('No existing WebSocket connection, creating new one...');
+                      // console.log('No existing WebSocket connection, creating new one...');
                       await webSocketService.connect(response.data.data.userId);
                   } else {
                       console.log('WebSocket connection already exists');
@@ -114,7 +114,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                   onPress={() => router.back()}
                   style={{ padding: 5 }}
                 >
-                  <Icon name="arrow-back" size={24} color="#fff" />
+                  <Icon name="arrow-back" size={24} color="#DADADA" />
                 </TouchableOpacity>
                 </View>
               </View>
@@ -484,7 +484,7 @@ Turning Matches Into Lasting Marriages
                             {isLoading ? (
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Text style={{
-                                  color: 'white',
+                                  color: '#DADADA',
                                   fontSize: 18,
                                   fontWeight: 'bold',
                                   marginLeft: 12,
@@ -496,7 +496,7 @@ Turning Matches Into Lasting Marriages
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Icon name="favorite" size={20} color="white" />
                                 <Text style={{
-                                  color: 'white',
+                                  color: '#DADADA',
                                   fontSize: 18,
                                   fontWeight: 'bold',
                                   marginLeft: 8,

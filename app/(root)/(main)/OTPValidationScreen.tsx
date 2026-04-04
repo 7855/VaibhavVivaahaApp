@@ -410,7 +410,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                     {isLoading ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{
-                          color: 'white',
+                          color: '#DADADA',
                           fontSize: 18,
                           fontWeight: 'bold',
                           marginLeft: 12,
@@ -422,7 +422,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="auto-awesome" size={20} color="white" />
                         <Text style={{
-                          color: 'white',
+                          color: '#DADADA',
                           fontSize: 18,
                           fontWeight: 'bold',
                           marginLeft: 8,

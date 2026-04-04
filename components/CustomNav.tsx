@@ -17,9 +17,9 @@ const SECONDARY_COLOR = "#F5F5F5";
 
 const CustomNavBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   return (
-  
+
     <View style={styles.container}>
-      {state.routes.map((route : any, index : any) => {
+      {state.routes.map((route: any, index: any) => {
         if (["_sitemap", "+not-found"].includes(route.name)) return null;
 
         const { options } = descriptors[route.key];
@@ -27,11 +27,11 @@ const CustomNavBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
           options.tabBarLabel !== undefined
             ? options.tabBarLabel
             : options.title !== undefined
-            ? options.title
-            : route.name;
+              ? options.title
+              : route.name;
 
         const isFocused = state.index === index;
-        console.log("isFocused-============>", isFocused);
+        // console.log("isFocused-============>", isFocused);
 
         const onPress = () => {
           const event = navigation.emit({
@@ -51,12 +51,13 @@ const CustomNavBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
 
         return (
           <AnimatedTouchableOpacity
-            layout={LinearTransition.springify().mass(2).damping(20).stiffness(200)}
+            layout={LinearTransition.duration(150)}
             key={route.key}
             onPress={onPress}
             style={[
               styles.tabItem,
-              { backgroundColor: isFocused ? SECONDARY_COLOR : "transparent" 
+              {
+                backgroundColor: isFocused ? SECONDARY_COLOR : "transparent"
                 // opacity: isFocused ? 1 : 0.7, 
                 // zIndex: isFocused ? 10 : 0,
               },
@@ -70,7 +71,7 @@ const CustomNavBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
               //   exiting={FadeOut.duration(300)}
               //   style={styles.text}
               // >
-                // {label as string}
+              // {label as string}
               // </Animated.Text>
             )}
           </AnimatedTouchableOpacity>

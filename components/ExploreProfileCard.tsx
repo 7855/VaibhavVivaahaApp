@@ -7,12 +7,16 @@ interface ExploreProfileCardProps {
   age: number;
   job: string;
   location: string;
+  gender?: string;
 }
 
-const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({ imageUrl, name, age, job, location }) => {
+const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({ imageUrl, name, age, job, location, gender }) => {
   return (
     <View style={styles.card}>
-      <ImageBackground source={{ uri: imageUrl }} style={styles.image} imageStyle={styles.imageStyle}>
+      <ImageBackground source={imageUrl ? { uri: imageUrl } :
+        gender === 'M' ? require('../assets/images/avatarMen.png') :
+          gender === 'F' ? require('../assets/images/avatarWomen.png') :
+            require('../assets/images/defaultAvatar.png')} style={styles.image} imageStyle={styles.imageStyle}>
         <View style={styles.gradient}>
           <Text style={styles.nameAge}>{name}, {age}</Text>
           <Text style={styles.job}>{job}</Text>
@@ -47,7 +51,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   nameAge: {
-    color: '#fff',
+    color: '#DADADA',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -58,4 +62,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ExploreProfileCard;
+export default React.memo(ExploreProfileCard);

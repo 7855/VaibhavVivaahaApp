@@ -55,9 +55,9 @@ export default {
         if (storedUserId) {
           setUserId(storedUserId);
           setIsOnline(true);
-          console.log('User is online:---------------------->', storedUserId);
+          // console.log('User is online:---------------------->', storedUserId);
           userApi.lastSeen(storedUserId);
-          console.log('User is online:---------------------->', storedUserId);
+          // console.log('User is online:---------------------->', storedUserId);
           webSocketService.connect(storedUserId);
         }
       } catch (error) {
@@ -181,9 +181,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedUserId) {
         setUserId(storedUserId);
         setIsOnline(true);
-        console.log('User is online:---------------------->', storedUserId);
+        // console.log('User is online:---------------------->', storedUserId);
         userApi.lastSeen(storedUserId);
-        console.log('User is online:---------------------->', storedUserId);
+        // console.log('User is online:---------------------->', storedUserId);
         webSocketService.connect(storedUserId);
       }
     } catch (error) {

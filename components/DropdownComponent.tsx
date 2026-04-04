@@ -41,7 +41,7 @@ const DropdownComponent: React.FC<Props> = ({ data = [], onSelect }) => {
           <Ionicons
             name={"chevron-down"}
             size={24}
-            color="white"
+            color="#DADADA"
           />
         </View>
       </TouchableOpacity>
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     maxHeight: '75%',
     width:'100%',
     backgroundColor: 'white',
-    color:'black'
+    color:'#130001'
   },
   selector: {
     flexDirection: 'row',
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   },
   selectorText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#DADADA',
   },
 });
 

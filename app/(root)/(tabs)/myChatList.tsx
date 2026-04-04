@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
 import ChatList from '@/components/listchats';
 import { router, useFocusEffect } from 'expo-router';
 import userApi from '../api/userApi';
-import { NativeBaseProvider } from 'native-base';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Skeleton, HStack, VStack, Box } from 'native-base';
+import { useUserData } from '../contexts/UserDataContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ChatItem {
@@ -18,8 +17,47 @@ interface ChatItem {
   otherUserId: string;
 }
 
+// Skeleton matching chat list item layout (55px avatar, name, message, time)
+const ChatItemSkeleton = () => (
+  <Box pl={4} pr={5} py={3} borderBottomWidth={0.3} borderColor="coolGray.200">
+    <HStack alignItems="center" space={3}>
+      <Skeleton size="55px" rounded="full" />
+      <VStack flex={1} space={2}>
+        <Skeleton h={4} w="45%" rounded="sm" />
+        <Skeleton h={3} w="75%" rounded="sm" />
+        <Skeleton h={3} w="50%" rounded="sm" />
+      </VStack>
+      <VStack space={2} alignItems="flex-end">
+        <Skeleton h={3} w={12} rounded="sm" />
+        <Skeleton size={6} rounded="full" />
+      </VStack>
+    </HStack>
+  </Box>
+);
+
+const ChatListSkeleton = () => (
+  <Box bg="white" flex={1}>
+    {/* Header skeleton */}
+    <HStack px={4} mt={3} mb={2} alignItems="center">
+      <Skeleton size={7} rounded="full" />
+      <Skeleton h={5} w="40%" rounded="sm" ml={2} />
+    </HStack>
+    {/* Search bar skeleton */}
+    <Box px={3} mt={1} mb={2}>
+      <Skeleton h={10} rounded="lg" />
+    </Box>
+    {/* Chat items */}
+    {Array.from({ length: 6 }).map((_, i) => (
+      <ChatItemSkeleton key={i} />
+    ))}
+  </Box>
+);
+
 const MyChatList = () => {
+  const { userData } = useUserData();
   const [chatList, setChatList] = useState<ChatItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const dataLoadedRef = useRef(false);
 
   const handleChatPress = (item: ChatItem) => {
     router.push({
@@ -35,14 +73,16 @@ const MyChatList = () => {
 
   useFocusEffect(
     useCallback(() => {
+      // Skip if data already loaded (avoid re-fetch on every tab switch)
+      if (dataLoadedRef.current) return;
+
       const fetchUserDetail = async () => {
         try {
-          const storedUserId = await AsyncStorage.getItem('userId');
-          if (!storedUserId) return;
-  
-          const decodedUserId = atob(storedUserId); // Assuming it's base64 encoded
+          if (!userData.userId) return;
+
+          const decodedUserId = userData.decodedUserId;
           const response = await userApi.userChatList(decodedUserId);
-  
+
           const rawData = response?.data?.data || [];
           const formattedChats = rawData.map((chat: any) => ({
             id: chat.conversationId.toString(),
@@ -60,27 +100,32 @@ const MyChatList = () => {
             unreadCount: chat.unreadMessageCount
           }));
           setChatList(formattedChats);
+          dataLoadedRef.current = true;
         } catch (error: any) {
           console.error('API call error:', error);
+        } finally {
+          setIsLoading(false);
         }
       };
-  
+
       fetchUserDetail();
-  
-      return () => {};
-    }, [])
+
+      return () => { };
+    }, [userData.userId])
   );
-  
+
 
   return (
-    <NativeBaseProvider>
-      <SafeAreaView  edges={["top"]} style={{ flex: 1 , backgroundColor:'#F5F5F5'}}>
-        <ChatList 
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+      {isLoading ? (
+        <ChatListSkeleton />
+      ) : (
+        <ChatList
           allChats={chatList}
           onPress={handleChatPress}
         />
-      </SafeAreaView>
-    </NativeBaseProvider>
+      )}
+    </SafeAreaView>
   );
 };
 

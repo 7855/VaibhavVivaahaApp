@@ -59,7 +59,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
   useEffect(() => {
     const getRandomUsers = async () => {
       try {
-        const response = await userApi.getRandomUsers("F",1);
+        const response = await userApi.getRandomUsers("F", 1);
         const rawData = response.data.data;
         setProfiles(response.data.data);
         // console.log("rawData=======================>", rawData);
@@ -73,10 +73,10 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
   const handleFindPress = async () => {
     // console.log("minSalary=======================>", minSalaryText);
     // console.log("maxSalary=======================>", maxSalaryText);
-    
+
     const parsedMinSalary = parseInt(minSalaryText);
     const parsedMaxSalary = parseInt(maxSalaryText);
-    
+
     const request = {
       minAge: parseInt(minAgeText),
       maxAge: parseInt(maxAgeText),
@@ -92,7 +92,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
     try {
       console.log("request==================================>", request);
-      
+
       const response = await userApi.filterUsers(request);
       const rawData = response.data.data;
       setProfiles(response.data.data);
@@ -244,47 +244,47 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
       <View style={styles.scene}>
         <View style={styles.accordionContainer}>
-              <View
-                style={styles.content}
-                onTouchStart={() => setSwipeEnabled(false)}
-                onTouchEnd={() => setSwipeEnabled(true)}
-              >
-                {/* Age Filter */}
-                <View style={styles.ageFilterContainer}>
-                  <View style={styles.ageLabelContainer}>
-                    <Calendar size={20} color="#420001" />
-                    <Text style={styles.ageLabelText}>Age Range</Text>
-                  </View>
-                  <View style={styles.ageInputContainer}>
-                    <View style={styles.ageInputWrapper}>
-                      <TextInput
-                        style={styles.ageInput}
-                        placeholder="Min Age"
-                        value={minAgeText} // store as string in state
-                        onChangeText={(text) => setMinAgeText(text)} // don't parse here
-                        keyboardType="numeric"
-                        // placeholderTextColor="#FFFFFF"
-                        // color="#420001"
-                      />
-                    </View>
-                    <View style={styles.ageInputWrapper}>
-                      <TextInput
-                        style={styles.ageInput}
-                        placeholder="Max Age"
-                        value={maxAgeText} // store as string in state
-                        onChangeText={(text) => setMaxAgeText(text)} // don't parse here
-                        keyboardType="numeric"
-                        // placeholderTextColor="#FFFFFF"
-                        // color="#FFFFFF"
-                      />
-                    </View>
-                  </View>
+          <View
+            style={styles.content}
+            onTouchStart={() => setSwipeEnabled(false)}
+            onTouchEnd={() => setSwipeEnabled(true)}
+          >
+            {/* Age Filter */}
+            <View style={styles.ageFilterContainer}>
+              <View style={styles.ageLabelContainer}>
+                <Calendar size={20} color="#420001" />
+                <Text style={styles.ageLabelText}>Age Range</Text>
+              </View>
+              <View style={styles.ageInputContainer}>
+                <View style={styles.ageInputWrapper}>
+                  <TextInput
+                    style={styles.ageInput}
+                    placeholder="Min Age"
+                    value={minAgeText} // store as string in state
+                    onChangeText={(text) => setMinAgeText(text)} // don't parse here
+                    keyboardType="numeric"
+                  // placeholderTextColor="#FFFFFF"
+                  // color="#420001"
+                  />
                 </View>
+                <View style={styles.ageInputWrapper}>
+                  <TextInput
+                    style={styles.ageInput}
+                    placeholder="Max Age"
+                    value={maxAgeText} // store as string in state
+                    onChangeText={(text) => setMaxAgeText(text)} // don't parse here
+                    keyboardType="numeric"
+                  // placeholderTextColor="#FFFFFF"
+                  // color="#FFFFFF"
+                  />
+                </View>
+              </View>
+            </View>
 
 
-                {/* Salary Range */}
-                {/* Salary Range Slider */}
-                {/* <Box alignItems="start" w="100%" mt={4}>
+            {/* Salary Range */}
+            {/* Salary Range Slider */}
+            {/* <Box alignItems="start" w="100%" mt={4}>
               <Text style={styles.sliderLabel}>
                 Salary: {minSalary} - {maxSalary} LPA
               </Text>
@@ -302,46 +302,46 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 onValueChanged={handleSalaryChange}
               />
             </Box> */}
-                <View style={styles.salaryFilterContainer}>
-                  <View style={styles.salaryLabelContainer}>
-                    <DollarSign size={20} color="#420001" />
-                    <Text style={styles.salaryLabelText}>Salary Range (LPA)</Text>
-                  </View>
-                  <View style={styles.salaryInputContainer}>
-                    <View style={styles.salaryInputWrapper}>
-                      <TextInput
-                        style={styles.salaryInput}
-                        placeholder="Min Salary"
-                        value={minSalaryText} // store as string
-                        onChangeText={setMinSalaryText} // don't parse here
-                        keyboardType="numeric"
-                        // placeholderTextColor="#FFFFFF"
-                        // color="#FFFFFF"
-                      />
-                    </View>
-                    <View style={styles.salaryInputWrapper}>
-                      <TextInput
-                        style={styles.salaryInput}
-                        placeholder="Max Salary"
-                        value={maxSalaryText}
-                        onChangeText={setMaxSalaryText}
-                        keyboardType="numeric"
-                        // placeholderTextColor="#FFFFFF"
-                        // color="#FFFFFF"
-                      />
-                    </View>
-                  </View>
+            <View style={styles.salaryFilterContainer}>
+              <View style={styles.salaryLabelContainer}>
+                <DollarSign size={20} color="#420001" />
+                <Text style={styles.salaryLabelText}>Salary Range (LPA)</Text>
+              </View>
+              <View style={styles.salaryInputContainer}>
+                <View style={styles.salaryInputWrapper}>
+                  <TextInput
+                    style={styles.salaryInput}
+                    placeholder="Min Salary"
+                    value={minSalaryText} // store as string
+                    onChangeText={setMinSalaryText} // don't parse here
+                    keyboardType="numeric"
+                  // placeholderTextColor="#FFFFFF"
+                  // color="#FFFFFF"
+                  />
                 </View>
+                <View style={styles.salaryInputWrapper}>
+                  <TextInput
+                    style={styles.salaryInput}
+                    placeholder="Max Salary"
+                    value={maxSalaryText}
+                    onChangeText={setMaxSalaryText}
+                    keyboardType="numeric"
+                  // placeholderTextColor="#FFFFFF"
+                  // color="#FFFFFF"
+                  />
+                </View>
+              </View>
+            </View>
 
-                <View style={styles.container}>
-                  {/* <Text style={styles.title}>Filter Options</Text> */}
-                  <View style={styles.educationInputContainer}>
-                    <View style={styles.educationLabelContainer}>
-                      <Book size={20} color="#420001" />
-                      <Text style={styles.educationLabelText}>City / District</Text>
-                    </View>
-                    <View style={styles.educationInputWrapper}>
-                      {/* <TextInput
+            <View style={styles.container}>
+              {/* <Text style={styles.title}>Filter Options</Text> */}
+              <View style={styles.educationInputContainer}>
+                <View style={styles.educationLabelContainer}>
+                  <Book size={20} color="#420001" />
+                  <Text style={styles.educationLabelText}>City / District</Text>
+                </View>
+                <View style={styles.educationInputWrapper}>
+                  {/* <TextInput
                   style={styles.educationInput}
                   placeholder="Education"
                   value={selectedEducation}
@@ -349,68 +349,68 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                   onPressIn={() => setIsDropdownOpen(true)}
                   placeholderTextColor="#808080"
                 /> */}
-                      <DropdownComponent
-                        data={cityOptions}
-                        onSelect={(item) => setSelectedCity(item.label)}
+                  <DropdownComponent
+                    data={cityOptions}
+                    onSelect={(item) => setSelectedCity(item.label)}
 
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.jobsect}>
-
-                    <View style={styles.jobSectorLabelContainer}>
-                      <Briefcase size={20} color="#FFFFFF" />
-                      <Text style={styles.title}>Job Sector</Text>
-                    </View>
-                    {/* Radio Button Group */}
-                    <Radio.Group
-                      name="myRadioGroup"
-                      accessibilityLabel="favorite number"
-                      value={value}
-                      onChange={nextValue => setValue(nextValue)}
-                    >
-                      <Stack
-                        direction={{
-                          base: 'row',  // Stack vertically on small screens
-                        }}
-                        alignItems={{
-                          base: 'flex-start', // Align to the start of the column on small screens
-                        }}
-                        space={6}              // Add space between radio buttons
-                        w="100%"                // Set width to 75%
-                      >
-                        <Radio value="one" >
-                          <Text style={{ fontSize: 15, color: "#FFFFFF" }}>Government</Text>
-                        </Radio>
-                        <Radio value="two" >
-                          <Text style={{ fontSize: 15, color: "#FFFFFF" }}>Private</Text>
-                        </Radio>
-                      </Stack>
-                    </Radio.Group>
-                  </View>
-
-                  <View>
-                    <HStack alignItems="center" space={2} marginTop={2}>
-                      <Text style={styles.profileWphototext}>Profile with photos only</Text>
-                      <Switch size="sm" value={photoOnly} onValueChange={setPhotoOnly} />
-                    </HStack>
-                  </View>
+                  />
                 </View>
-
-                {/* Find Button */}
-                <TouchableOpacity
-                  style={styles.findButton}
-                  onPress={() => {
-                    handleFindPress();
-                    setExpanded(!expanded);
-                    setSwipeEnabled(!expanded);
-                  }}
-                >
-                  <Text style={styles.buttonText}>Find Your Partner</Text>
-                </TouchableOpacity>
-
               </View>
+
+              <View style={styles.jobsect}>
+
+                <View style={styles.jobSectorLabelContainer}>
+                  <Briefcase size={20} color="#DADADA" />
+                  <Text style={styles.title}>Job Sector</Text>
+                </View>
+                {/* Radio Button Group */}
+                <Radio.Group
+                  name="myRadioGroup"
+                  accessibilityLabel="favorite number"
+                  value={value}
+                  onChange={nextValue => setValue(nextValue)}
+                >
+                  <Stack
+                    direction={{
+                      base: 'row',  // Stack vertically on small screens
+                    }}
+                    alignItems={{
+                      base: 'flex-start', // Align to the start of the column on small screens
+                    }}
+                    space={6}              // Add space between radio buttons
+                    w="100%"                // Set width to 75%
+                  >
+                    <Radio value="one" >
+                      <Text style={{ fontSize: 15, color: "#DADADA" }}>Government</Text>
+                    </Radio>
+                    <Radio value="two" >
+                      <Text style={{ fontSize: 15, color: "#DADADA" }}>Private</Text>
+                    </Radio>
+                  </Stack>
+                </Radio.Group>
+              </View>
+
+              <View>
+                <HStack alignItems="center" space={2} marginTop={2}>
+                  <Text style={styles.profileWphototext}>Profile with photos only</Text>
+                  <Switch size="sm" value={photoOnly} onValueChange={setPhotoOnly} />
+                </HStack>
+              </View>
+            </View>
+
+            {/* Find Button */}
+            <TouchableOpacity
+              style={styles.findButton}
+              onPress={() => {
+                handleFindPress();
+                setExpanded(!expanded);
+                setSwipeEnabled(!expanded);
+              }}
+            >
+              <Text style={styles.buttonText}>Find Your Partner</Text>
+            </TouchableOpacity>
+
+          </View>
 
           {/* Accordion Header */}
 
@@ -489,7 +489,7 @@ const FindPartner = () => {
       console.error('Error fetching all matches:', error);
     }
   };
-  
+
   const fetchNewlyAdded = async (casteId: number, gender: string) => {
     try {
       const response = await userApi.getNewConnections(casteId, gender);
@@ -498,29 +498,29 @@ const FindPartner = () => {
       console.error('Error fetching newly added:', error);
     }
   };
-  
+
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const storedGender = await AsyncStorage.getItem('gender');
         const casteId = await AsyncStorage.getItem('casteId');
-  
+
         if (!storedGender || !casteId) {
           console.warn("Gender or casteId missing");
           return;
         }
-  
+
         await fetchAllMatches(parseInt(casteId), storedGender);
         await fetchNewlyAdded(parseInt(casteId), storedGender);
       } catch (error) {
         console.error('Error in fetchData:', error);
       }
     };
-  
+
     fetchData();
   }, []);
-  
+
 
   const renderScene = ({ route }: { route: { key: string; title: string } }) => {
     const data = route.key === 'all' ? allMatches : newlyAdded;
@@ -532,6 +532,10 @@ const FindPartner = () => {
           numColumns={2}
           contentContainerStyle={styles.containerProfle}
           columnWrapperStyle={styles.rowProfile}
+          windowSize={5}
+          initialNumToRender={6}
+          maxToRenderPerBatch={4}
+          removeClippedSubviews={true}
           renderItem={({ item }) => (
             <View style={styles.cardWrapper}>
               <TouchableOpacity
@@ -568,7 +572,7 @@ const FindPartner = () => {
     <TabView
       navigationState={{ index, routes }}
       renderScene={renderScene}
-      style={{marginTop:25}}
+      style={{ marginTop: 25 }}
       renderTabBar={props => (
         <TabBar
           {...props}
@@ -660,11 +664,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   tabLabelTab: {
-    color: '#fff',
+    color: '#DADADA',
     fontSize: 16,
     fontWeight: '500',
   },
-  sceneTab:{
+  sceneTab: {
     backgroundColor: "#FFFFFF",
     marginTop: 0,
     flex: 1,
@@ -698,7 +702,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#333',
+    color: '#130001',
   },
   salaryFilterContainer: {
     marginTop: 16,
@@ -728,7 +732,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#333',
+    color: '#130001',
   },
   // tabBarTab: {
   //   backgroundColor: '#fff',
@@ -765,7 +769,7 @@ const styles = StyleSheet.create({
   profileWphototext: {
     fontSize: 15,
     fontWeight: 'bold',
-    color:"#FFFFFF"
+    color: "#DADADA"
   },
   tabBar: {
     backgroundColor: "#F5F5F5",
@@ -805,7 +809,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOpacity: 0.07,
     overflow: "hidden",
-    
+
   },
   header: {
     backgroundColor: "#130057",
@@ -813,17 +817,17 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomLeftRadius: '100%',
     borderBottomRightRadius: '100%',
-    flexDirection: "row", 
+    flexDirection: "row",
     justifyContent: "space-evenly",
     alignItems: "center",
-    borderTopWidth:2,
-    borderColor:"#FFFFFF",
-    width:'65%',
-    alignSelf:'center',
+    borderTopWidth: 2,
+    borderColor: "#FFFFFF",
+    width: '65%',
+    alignSelf: 'center',
     marginBottom: 5
   },
   headerText: {
-    color: "white",
+    color: "#DADADA",
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -850,7 +854,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   sliderLabel: {
-    color: "white",
+    color: "#DADADA",
     fontSize: 14,
     fontWeight: "bold",
     marginBottom: 5,
@@ -885,7 +889,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   labelText: {
-    color: "white",
+    color: "#DADADA",
     fontSize: 12,
   },
   notch: {
@@ -895,7 +899,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   container: { padding: 5, paddingLeft: 0 },
-  title: { fontSize: 15, fontWeight: "bold" ,color:"#FFFFFF"},
+  title: { fontSize: 15, fontWeight: "bold", color: "#DADADA" },
   dropdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -913,7 +917,7 @@ const styles = StyleSheet.create({
   },
   jobsect: {
     marginTop: 20,
-    marginBottom:6
+    marginBottom: 6
   },
   containerProfle: {
     paddingHorizontal: 12,
@@ -926,7 +930,7 @@ const styles = StyleSheet.create({
   cardWrapper: {
     width: '49%',
     marginBottom: 10, // Allow space for overlap + content
-    height:280
+    height: 280
   },
   card: {
     backgroundColor: '#fff',
@@ -977,7 +981,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom:10
+    marginBottom: 10
   },
   educationLabelText: {
     fontSize: 15,
@@ -994,6 +998,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#333',
+    color: '#130001',
   },
 });

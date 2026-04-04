@@ -321,7 +321,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               defaultOption={{ key: value, value: value }}
               boxStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
               dropdownStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
-              inputStyles={{ fontSize: 14, color: '#1F2937' }}
+              inputStyles={{ fontSize: 14, color: '#130001' }}
             />
           </Box>
         );
@@ -342,7 +342,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               defaultOption={{ key: value, value: value }}
               boxStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
               dropdownStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
-              inputStyles={{ fontSize: 14, color: '#1F2937' }}
+              inputStyles={{ fontSize: 14, color: '#130001' }}
             />
           </Box>
         );
@@ -363,7 +363,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               defaultOption={{ key: value, value: value }}
               boxStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
               dropdownStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
-              inputStyles={{ fontSize: 14, color: '#1F2937' }}
+              inputStyles={{ fontSize: 14, color: '#130001' }}
             />
           </Box>
         );
@@ -384,7 +384,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               defaultOption={{ key: value, value: value }}
               boxStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
               dropdownStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
-              inputStyles={{ fontSize: 14, color: '#1F2937' }}
+              inputStyles={{ fontSize: 14, color: '#130001' }}
             />
           </Box>
         );
@@ -708,7 +708,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   onPress={handleSubmit}
                   bg="primary.500"
                   borderRadius="lg"
-                  _text={{ color: "white" }}
+                  _text={{ color: "#DADADA" }}
                   _pressed={{ bg: "primary.600" }}
                 >
                   Save Changes
@@ -758,12 +758,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     height: 48,
     fontSize: 14,
-    color: '#1F2937',
+    color: '#130001',
     backgroundColor: '#fff',
   },
   inputText: {
     fontSize: 14,
-    color: '#1F2937',
+    color: '#130001',
   },
   dropdownBox: {
     borderWidth: 1,
@@ -772,6 +772,6 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     fontSize: 14,
-    color: '#1F2937',
+    color: '#130001',
   },
 });

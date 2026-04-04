@@ -14,7 +14,7 @@ import {
     ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
-import { Box, CheckIcon, Divider, FlatList, HStack, Radio, Select, Stack, Switch } from "native-base";
+import { Box, CheckIcon, Divider, FlatList, HStack, Radio, Select, Skeleton, Stack, Switch, VStack } from "native-base";
 import { TabView, TabBar } from "react-native-tab-view";
 import Expandable from "react-native-reanimated-animated-accordion";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -24,7 +24,7 @@ import DropdownComponent from "../../../components/DropdownComponent";
 import ExploreProfileCard from "../../../components/ExploreProfileCard";
 import userApi from "@/app/(root)/api/userApi";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useUserData } from '../contexts/UserDataContext';
 import { Book, Calendar, DollarSign, Briefcase, ChevronDown, ChevronRight } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSubscription } from '../contexts/subscriptionContext';
@@ -63,19 +63,20 @@ interface SavedSearch {
 }
 
 type Filters = {
-  ageRange: string;
-  profileCreatedBy: string;
-  subcaste: string;
-  education: string[];
-  city: string;
-  star: string[];
-  dosham: string[];
-  annualIncomeFilter: string;
-  jobSector: string[];
-  degree: string[];  // Changed from string to string[]
+    ageRange: string;
+    profileCreatedBy: string;
+    subcaste: string;
+    education: string[];
+    city: string;
+    star: string[];
+    dosham: string[];
+    annualIncomeFilter: string;
+    jobSector: string[];
+    degree: string[];  // Changed from string to string[]
 };
 
 const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
+    const { userData } = useUserData();
     const [profiles, setProfiles] = useState<any>(null);
     const [expanded, setExpanded] = useState(false);
     const [minAgeText, setMinAgeText] = useState("18");
@@ -110,9 +111,9 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
     const [loading, setLoading] = useState(true);
     const [fromAge, setFromAge] = useState(18);
-  const [toAge, setToAge] = useState(60);
-const [fromIncome, setFromIncome] = useState(0);
-const [toIncome, setToIncome] = useState(100);
+    const [toAge, setToAge] = useState(60);
+    const [fromIncome, setFromIncome] = useState(0);
+    const [toIncome, setToIncome] = useState(100);
     // Add this effect to fetch saved searches
     const [incomeRanges, setIncomeRanges] = useState<Array<{
         id: number;
@@ -127,7 +128,7 @@ const [toIncome, setToIncome] = useState(100);
     });
     const [profileId, setProfileId] = useState<string>('');
 
-    
+
 
     const [optionsMap, setOptionsMap] = useState({
         height: [] as string[],
@@ -146,7 +147,7 @@ const [toIncome, setToIncome] = useState(100);
         ageRange: '',
         profileCreatedBy: 'Any',
         subcaste: 'Any',
-        education: [] as string[],        
+        education: [] as string[],
         city: '',
         star: [] as string[],
         dosham: [] as string[],
@@ -164,83 +165,79 @@ const [toIncome, setToIncome] = useState(100);
     // Age options will be loaded from the API
     const profileCreatedOptions = ['Any', 'Parents', 'Self', 'Relatives', 'Guardian'];
 
-  const gatherSearchData = async () => {
-    console.log("filters==>", filters);
-    
-    const keys = ['gender', 'casteId', 'userId'];
-    const values = await AsyncStorage.multiGet(keys);
-    const userData = Object.fromEntries(values);
+    const gatherSearchData = async () => {
+        console.log("filters==>", filters);
 
-    if (!userData.gender || !userData.casteId || !userData.userId) {
-        throw new Error('User data not found in AsyncStorage');
-    }
+        if (!userData.gender || !userData.casteId || !userData.userId) {
+            throw new Error('User data not found');
+        }
 
-    // Parse age range (format: "18 Yrs - 57 Yrs")
-    const [minAge, maxAge] = filters.ageRange
-        ? filters.ageRange
-            .split(' - ')
-            .map(s => s.split(' ')[0])
-        : ['28', '32'];
+        // Parse age range (format: "18 Yrs - 57 Yrs")
+        const [minAge, maxAge] = filters.ageRange
+            ? filters.ageRange
+                .split(' - ')
+                .map(s => s.split(' ')[0])
+            : ['28', '32'];
 
-    // Parse income range (format: "2 Lakhs - 9 Lakhs")
-    let minAnnualIncome: string | null = null;
-    let maxAnnualIncome: string | null = null;
-    if (filters.annualIncomeFilter) {
-        const [min, max] = filters.annualIncomeFilter
-            .split(' - ')
-            .map(s => parseFloat(s.split(' ')[0]));
-        minAnnualIncome = (min * 100000).toString();
-        maxAnnualIncome = (max * 100000).toString();
-    }
+        // Parse income range (format: "2 Lakhs - 9 Lakhs")
+        let minAnnualIncome: string | null = null;
+        let maxAnnualIncome: string | null = null;
+        if (filters.annualIncomeFilter) {
+            const [min, max] = filters.annualIncomeFilter
+                .split(' - ')
+                .map(s => parseFloat(s.split(' ')[0]));
+            minAnnualIncome = (min * 100000).toString();
+            maxAnnualIncome = (max * 100000).toString();
+        }
 
-    // Map job sector to employedAt format
-    const getEmployedAt = () => {
-        if (!filters.jobSector || filters.jobSector.length === 0) return null;
-        return filters.jobSector.map(sector => {
-            const s = sector.toLowerCase();
-            if (s.includes('govt')) return 'GOVT';
-            if (s.includes('private')) return 'PRIVATE';
-            if (s.includes('no job')) return 'UNEMPLOYED';
-            if (s.includes('self')) return 'SELF';
-            return 'OTHER';
-        });
+        // Map job sector to employedAt format
+        const getEmployedAt = () => {
+            if (!filters.jobSector || filters.jobSector.length === 0) return null;
+            return filters.jobSector.map(sector => {
+                const s = sector.toLowerCase();
+                if (s.includes('govt')) return 'GOVT';
+                if (s.includes('private')) return 'PRIVATE';
+                if (s.includes('no job')) return 'UNEMPLOYED';
+                if (s.includes('self')) return 'SELF';
+                return 'OTHER';
+            });
+        };
+
+        const searchData = {
+            minAge,
+            maxAge,
+            minAnnualIncome,
+            maxAnnualIncome,
+            occupation: null,
+            location: filters.city || null,
+            employedAt: getEmployedAt(),
+            degree: filters.education.length > 0 ? filters.education : null,
+            star: filters.star.length > 0 ? filters.star : null,
+            dosham: filters.dosham.length > 0 ? filters.dosham : null,
+            profileImageStatus: 'Y', // or based on your filter
+            profilesWithHoroscope: 'N', // or based on your filter
+            casteId: userData.casteId,
+            gender: userData.gender === 'M' ? 'F' : 'M',
+            userId: atob(userData.userId),
+        };
+
+        console.log('=== Search Data ===');
+        console.log(JSON.stringify(searchData, null, 2));
+        console.log('===================');
+
+        return searchData;
     };
 
-    const searchData = {
-        minAge,
-        maxAge,
-        minAnnualIncome,
-        maxAnnualIncome,
-        occupation: null,
-        location: filters.city || null,
-        employedAt: getEmployedAt(),
-        degree: filters.education.length > 0 ? filters.education : null,
-        star: filters.star.length > 0 ? filters.star : null,
-        dosham: filters.dosham.length > 0 ? filters.dosham : null,
-        profileImageStatus: 'Y', // or based on your filter
-        profilesWithHoroscope: 'N', // or based on your filter
-        casteId: userData.casteId,
-        gender: userData.gender === 'M' ? 'F' : 'M',
-        userId: atob(userData.userId),
-    };
-
-    console.log('=== Search Data ===');
-    console.log(JSON.stringify(searchData, null, 2));
-    console.log('===================');
-
-    return searchData;
-};
-    
 
     useEffect(() => {
         const fetchSavedSearches = async () => {
             try {
-                const userId = await AsyncStorage.getItem('userId');
+                const userId = userData.userId;
                 if (!userId) return;
 
                 const decodedUserId = atob(userId);
                 const response = await userApi.getAllUserSavedSearches(decodedUserId);
-                console.log("response.data====>", response.data);
+                // console.log("response.data====>", response.data);
 
 
                 if (response.data.code === 200) {
@@ -544,7 +541,7 @@ const [toIncome, setToIncome] = useState(100);
                 try {
                     console.log(`Fetching ${key}...`);
                     const response = await userApi.getKeyValueByKey(key);
-                    console.log(`${key} API Response:`, response);
+                    // console.log(`${key} API Response:`, response);
 
                     let value = response.data.data?.valueColumn || response.data.data?.value || response.data?.data;
                     console.log(`${key} raw value:`, value);
@@ -715,8 +712,8 @@ const [toIncome, setToIncome] = useState(100);
                 return;
             }
 
-            const casteId = await AsyncStorage.getItem('casteId');
-            const gender = await AsyncStorage.getItem('gender');
+            const casteId = userData.casteId;
+            const gender = userData.gender;
 
             if (!casteId && !gender) {
                 throw new Error('User data not found');
@@ -954,18 +951,18 @@ const [toIncome, setToIncome] = useState(100);
                                     </TouchableOpacity>
                                 </View> */}
 
-<View style={styles.filterRow}>
-  <Text style={styles.filterLabel}>Age</Text>
-  <TouchableOpacity
-    style={styles.dropdownButton}
-    onPress={() => setShowAgeModal(true)}
-  >
-    <Text style={styles.dropdownText}>
-      {filters.ageRange || 'Select Age Range'}
-    </Text>
-    <ChevronDown size={16} color="#666" />
-  </TouchableOpacity>
-</View>
+                                <View style={styles.filterRow}>
+                                    <Text style={styles.filterLabel}>Age</Text>
+                                    <TouchableOpacity
+                                        style={styles.dropdownButton}
+                                        onPress={() => setShowAgeModal(true)}
+                                    >
+                                        <Text style={styles.dropdownText}>
+                                            {filters.ageRange || 'Select Age Range'}
+                                        </Text>
+                                        <ChevronDown size={16} color="#666" />
+                                    </TouchableOpacity>
+                                </View>
 
                                 {/* <View style={styles.filterRow}>
                                     <Text style={styles.filterLabel}>Height</Text>
@@ -1054,60 +1051,60 @@ const [toIncome, setToIncome] = useState(100);
                                         <ChevronDown size={16} color="#666" />
                                     </TouchableOpacity>
                                 </View> */}
-<View style={styles.filterRow}>
-  <View style={styles.singleRowContainer}>
-    <View style={styles.labelContainer1}>
-      <Text style={styles.filterLabel}>Education</Text>
-      {!isPremiumUser && (
-        <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
-          <Text style={styles.lockIcon}>🔒</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+                                <View style={styles.filterRow}>
+                                    <View style={styles.singleRowContainer}>
+                                        <View style={styles.labelContainer1}>
+                                            <Text style={styles.filterLabel}>Education</Text>
+                                            {!isPremiumUser && (
+                                                <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
+                                                    <Text style={styles.lockIcon}>🔒</Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
 
-    {optionsMap.education && optionsMap.education.length > 0 ? (
-      isPremiumUser ? (
-        <View style={styles.dropdownContainer}>
-          <MultiSelectDropdown
-            options={optionsMap.education}
-            selectedValues={Array.isArray(filters.education) ? filters.education : []}
-            onSelect={(values) =>
-              setFilters(prev => ({
-                ...prev,
-                education: values,
-              }))
-            }
-            placeholder="Select"
-          />
-        </View>
-      ) : (
-        <TouchableOpacity
-          style={styles.dropdownDisabled}
-          onPress={() => setShowUpgradeModal(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.disabledText}>Select</Text>
-          <Text style={styles.lockIcon}>🔒</Text>
-        </TouchableOpacity>
-      )
-    ) : (
-      <Text>Loading...</Text>
-    )}
-  </View>
-</View>
+                                        {optionsMap.education && optionsMap.education.length > 0 ? (
+                                            isPremiumUser ? (
+                                                <View style={styles.dropdownContainer}>
+                                                    <MultiSelectDropdown
+                                                        options={optionsMap.education}
+                                                        selectedValues={Array.isArray(filters.education) ? filters.education : []}
+                                                        onSelect={(values) =>
+                                                            setFilters(prev => ({
+                                                                ...prev,
+                                                                education: values,
+                                                            }))
+                                                        }
+                                                        placeholder="Select"
+                                                    />
+                                                </View>
+                                            ) : (
+                                                <TouchableOpacity
+                                                    style={styles.dropdownDisabled}
+                                                    onPress={() => setShowUpgradeModal(true)}
+                                                    activeOpacity={0.8}
+                                                >
+                                                    <Text style={styles.disabledText}>Select</Text>
+                                                    <Text style={styles.lockIcon}>🔒</Text>
+                                                </TouchableOpacity>
+                                            )
+                                        ) : (
+                                            <Text>Loading...</Text>
+                                        )}
+                                    </View>
+                                </View>
 
 
                                 <View style={styles.filterRow}>
                                     <Text style={styles.filterLabel}>Annual Income</Text>
-                                   <TouchableOpacity
-  style={styles.filterButton}
-  onPress={() => setShowIncomeModal(true)}
->
-  <Text style={styles.filterButtonText}>
-    {filters.annualIncomeFilter || 'Select Income Range'}
-  </Text>
-  <ChevronDown size={16} color="#666" />
-</TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.filterButton}
+                                        onPress={() => setShowIncomeModal(true)}
+                                    >
+                                        <Text style={styles.filterButtonText}>
+                                            {filters.annualIncomeFilter || 'Select Income Range'}
+                                        </Text>
+                                        <ChevronDown size={16} color="#666" />
+                                    </TouchableOpacity>
                                 </View>
 
                                 {/* <View style={{ ...styles.filterRow }}>
@@ -1138,32 +1135,32 @@ const [toIncome, setToIncome] = useState(100);
                                         <ChevronDown size={16} color="#666" />
                                     </TouchableOpacity>
                                 </View> */}
-                              {/* Job Sector Multi-Select Dropdown */}
-<View style={styles.filterRow}>
-  <View style={styles.singleRowContainer}>
-    <View style={styles.labelContainer1}>
-      <Text style={styles.filterLabel}>Job Sector</Text>
-    </View>
+                                {/* Job Sector Multi-Select Dropdown */}
+                                <View style={styles.filterRow}>
+                                    <View style={styles.singleRowContainer}>
+                                        <View style={styles.labelContainer1}>
+                                            <Text style={styles.filterLabel}>Job Sector</Text>
+                                        </View>
 
-    {optionsMap.jobSector && optionsMap.jobSector.length > 0 ? (
-      <View style={styles.dropdownContainer}>
-        <MultiSelectDropdown
-          options={optionsMap.jobSector}
-          selectedValues={Array.isArray(filters.jobSector) ? filters.jobSector : []}
-          onSelect={(values) =>
-            setFilters(prev => ({
-              ...prev,
-              jobSector: values,
-            }))
-          }
-          placeholder="Select"
-        />
-      </View>
-    ) : (
-      <Text>Loading...</Text>
-    )}
-  </View>
-</View>
+                                        {optionsMap.jobSector && optionsMap.jobSector.length > 0 ? (
+                                            <View style={styles.dropdownContainer}>
+                                                <MultiSelectDropdown
+                                                    options={optionsMap.jobSector}
+                                                    selectedValues={Array.isArray(filters.jobSector) ? filters.jobSector : []}
+                                                    onSelect={(values) =>
+                                                        setFilters(prev => ({
+                                                            ...prev,
+                                                            jobSector: values,
+                                                        }))
+                                                    }
+                                                    placeholder="Select"
+                                                />
+                                            </View>
+                                        ) : (
+                                            <Text>Loading...</Text>
+                                        )}
+                                    </View>
+                                </View>
 
 
                             </View>
@@ -1187,90 +1184,90 @@ const [toIncome, setToIncome] = useState(100);
                         {expandedSections.religious && (
                             <View style={{ marginBottom: 35 }}>
                                 {/* Star Multi-Select Dropdown */}
-<View style={styles.filterRow}>
-  <View style={styles.singleRowContainer}>
-    <View style={styles.labelContainer1}>
-      <Text style={styles.filterLabel}>Star</Text>
-      {!isPremiumUser && (
-        <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
-          <Text style={styles.lockIcon}>🔒</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+                                <View style={styles.filterRow}>
+                                    <View style={styles.singleRowContainer}>
+                                        <View style={styles.labelContainer1}>
+                                            <Text style={styles.filterLabel}>Star</Text>
+                                            {!isPremiumUser && (
+                                                <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
+                                                    <Text style={styles.lockIcon}>🔒</Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
 
-    {optionsMap.star && optionsMap.star.length > 0 ? (
-      isPremiumUser ? (
-        <View style={styles.dropdownContainer}>
-          <MultiSelectDropdown
-            options={optionsMap.star}
-            selectedValues={Array.isArray(filters.star) ? filters.star : []}
-            onSelect={(values) =>
-              setFilters(prev => ({
-                ...prev,
-                star: values,
-              }))
-            }
-            placeholder="Select"
-          />
-        </View>
-      ) : (
-        <TouchableOpacity
-          style={styles.dropdownDisabled}
-          onPress={() => setShowUpgradeModal(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.disabledText}>Select</Text>
-          <Text style={styles.lockIcon}>🔒</Text>
-        </TouchableOpacity>
-      )
-    ) : (
-      <Text>Loading...</Text>
-    )}
-  </View>
-</View>
+                                        {optionsMap.star && optionsMap.star.length > 0 ? (
+                                            isPremiumUser ? (
+                                                <View style={styles.dropdownContainer}>
+                                                    <MultiSelectDropdown
+                                                        options={optionsMap.star}
+                                                        selectedValues={Array.isArray(filters.star) ? filters.star : []}
+                                                        onSelect={(values) =>
+                                                            setFilters(prev => ({
+                                                                ...prev,
+                                                                star: values,
+                                                            }))
+                                                        }
+                                                        placeholder="Select"
+                                                    />
+                                                </View>
+                                            ) : (
+                                                <TouchableOpacity
+                                                    style={styles.dropdownDisabled}
+                                                    onPress={() => setShowUpgradeModal(true)}
+                                                    activeOpacity={0.8}
+                                                >
+                                                    <Text style={styles.disabledText}>Select</Text>
+                                                    <Text style={styles.lockIcon}>🔒</Text>
+                                                </TouchableOpacity>
+                                            )
+                                        ) : (
+                                            <Text>Loading...</Text>
+                                        )}
+                                    </View>
+                                </View>
 
-{/* Dosham Multi-Select Dropdown */}
-<View style={styles.filterRow}>
-  <View style={styles.singleRowContainer}>
-    <View style={styles.labelContainer1}>
-      <Text style={styles.filterLabel}>Dosham</Text>
-      {!isPremiumUser && (
-        <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
-          <Text style={styles.lockIcon}>🔒</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+                                {/* Dosham Multi-Select Dropdown */}
+                                <View style={styles.filterRow}>
+                                    <View style={styles.singleRowContainer}>
+                                        <View style={styles.labelContainer1}>
+                                            <Text style={styles.filterLabel}>Dosham</Text>
+                                            {!isPremiumUser && (
+                                                <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
+                                                    <Text style={styles.lockIcon}>🔒</Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
 
-    {optionsMap.dosham && optionsMap.dosham.length > 0 ? (
-      isPremiumUser ? (
-        <View style={styles.dropdownContainer}>
-          <MultiSelectDropdown
-            options={optionsMap.dosham}
-            selectedValues={Array.isArray(filters.dosham) ? filters.dosham : []}
-            onSelect={(values) =>
-              setFilters(prev => ({
-                ...prev,
-                dosham: values,
-              }))
-            }
-            placeholder="Select"
-          />
-        </View>
-      ) : (
-        <TouchableOpacity
-          style={styles.dropdownDisabled}
-          onPress={() => setShowUpgradeModal(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.disabledText}>Select</Text>
-          <Text style={styles.lockIcon}>🔒</Text>
-        </TouchableOpacity>
-      )
-    ) : (
-      <Text>Loading...</Text>
-    )}
-  </View>
-</View>
+                                        {optionsMap.dosham && optionsMap.dosham.length > 0 ? (
+                                            isPremiumUser ? (
+                                                <View style={styles.dropdownContainer}>
+                                                    <MultiSelectDropdown
+                                                        options={optionsMap.dosham}
+                                                        selectedValues={Array.isArray(filters.dosham) ? filters.dosham : []}
+                                                        onSelect={(values) =>
+                                                            setFilters(prev => ({
+                                                                ...prev,
+                                                                dosham: values,
+                                                            }))
+                                                        }
+                                                        placeholder="Select"
+                                                    />
+                                                </View>
+                                            ) : (
+                                                <TouchableOpacity
+                                                    style={styles.dropdownDisabled}
+                                                    onPress={() => setShowUpgradeModal(true)}
+                                                    activeOpacity={0.8}
+                                                >
+                                                    <Text style={styles.disabledText}>Select</Text>
+                                                    <Text style={styles.lockIcon}>🔒</Text>
+                                                </TouchableOpacity>
+                                            )
+                                        ) : (
+                                            <Text>Loading...</Text>
+                                        )}
+                                    </View>
+                                </View>
 
                                 <View style={{ ...styles.filterRow }}>
                                     <Text style={styles.filterLabel}>
@@ -1481,28 +1478,28 @@ const [toIncome, setToIncome] = useState(100);
                 title="Select Height Range"
             /> */}
 
-<RangeSelectorModal
-  visible={showAgeModal}
-  onClose={() => {
-    // Reset to the last applied values
-    setShowAgeModal(false);
-  }}
-  title="Select Age Range"
-  min={18}
-  max={60}
-  unit=" Yrs"
-  initialFrom={fromAge}
-  initialTo={toAge}
-  onApply={(from, to) => {
-    setFromAge(from);
-    setToAge(to);
-    setFilters(prev => ({
-      ...prev,
-      ageRange: from === to ? `${from} Yrs` : `${from} Yrs - ${to} Yrs`
-    }));
-    setShowAgeModal(false);
-  }}
-/>
+            <RangeSelectorModal
+                visible={showAgeModal}
+                onClose={() => {
+                    // Reset to the last applied values
+                    setShowAgeModal(false);
+                }}
+                title="Select Age Range"
+                min={18}
+                max={60}
+                unit=" Yrs"
+                initialFrom={fromAge}
+                initialTo={toAge}
+                onApply={(from, to) => {
+                    setFromAge(from);
+                    setToAge(to);
+                    setFilters(prev => ({
+                        ...prev,
+                        ageRange: from === to ? `${from} Yrs` : `${from} Yrs - ${to} Yrs`
+                    }));
+                    setShowAgeModal(false);
+                }}
+            />
 
             <DropdownModal
                 visible={showProfileCreatedModal}
@@ -1570,35 +1567,35 @@ const [toIncome, setToIncome] = useState(100);
                 title="Select Annual Income"
             /> */}
 
-<RangeSelectorModal
-  visible={showIncomeModal}
-  onClose={() => {
-    setShowIncomeModal(false);
-  }}
-  title="Select Annual Income Range"
-  min={0}
-  max={99}
-  step={1}
-  unit="L"
-  initialFrom={fromIncome}
-  initialTo={toIncome}
-  formatValue={(val) => {
-    if (val === 0) return '0';
-    if (val === 99) return '100+';
-    return val.toString();
-  }}
-  onApply={(from, to) => {
-    setFromIncome(from);
-    setToIncome(to);
-    setFilters(prev => ({
-      ...prev,
-      annualIncomeFilter: from === to 
-        ? (from === 0 ? '0' : from === 99 ? '100L+' : `${from}L`)
-        : `${from} Lakhs - ${to} Lakhs`
-    }));
-    setShowIncomeModal(false);
-  }}
-/>
+            <RangeSelectorModal
+                visible={showIncomeModal}
+                onClose={() => {
+                    setShowIncomeModal(false);
+                }}
+                title="Select Annual Income Range"
+                min={0}
+                max={99}
+                step={1}
+                unit="L"
+                initialFrom={fromIncome}
+                initialTo={toIncome}
+                formatValue={(val) => {
+                    if (val === 0) return '0';
+                    if (val === 99) return '100+';
+                    return val.toString();
+                }}
+                onApply={(from, to) => {
+                    setFromIncome(from);
+                    setToIncome(to);
+                    setFilters(prev => ({
+                        ...prev,
+                        annualIncomeFilter: from === to
+                            ? (from === 0 ? '0' : from === 99 ? '100L+' : `${from}L`)
+                            : `${from} Lakhs - ${to} Lakhs`
+                    }));
+                    setShowIncomeModal(false);
+                }}
+            />
 
             <DropdownModal
                 visible={showJobSectorModal}
@@ -1615,7 +1612,46 @@ const [toIncome, setToIncome] = useState(100);
 };
 
 // Find Partner Tab
+// Skeleton matching ExploreProfileCard (250h, 2-col grid, image with text overlay)
+const ExploreCardSkeleton = () => (
+    <View style={{ flex: 1, margin: 4 }}>
+        <View style={{
+            width: '100%',
+            height: 250,
+            borderRadius: 16,
+            overflow: 'hidden',
+            position: 'relative' as const,
+        }}>
+            <Skeleton h="100%" w="100%" rounded="none" />
+            <View style={{
+                position: 'absolute' as const,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                padding: 6,
+            }}>
+                <Skeleton h={4} w="70%" rounded="sm" startColor="gray.400" endColor="gray.500" mb={1} />
+                <Skeleton h={3} w="50%" rounded="sm" startColor="gray.400" endColor="gray.500" mb={1} />
+                <Skeleton h={3} w="60%" rounded="sm" startColor="gray.400" endColor="gray.500" />
+            </View>
+        </View>
+    </View>
+);
+
+const ExploreGridSkeleton = () => (
+    <View style={{ padding: 8 }}>
+        {Array.from({ length: 3 }).map((_, rowIdx) => (
+            <View key={rowIdx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8 }}>
+                <ExploreCardSkeleton />
+                <ExploreCardSkeleton />
+            </View>
+        ))}
+    </View>
+);
+
 const FindPartner = () => {
+    const { userData } = useUserData();
     const [index, setIndex] = useState(0);
     const [routes] = useState([
         { key: 'all', title: 'All Matches' },
@@ -1648,8 +1684,8 @@ const FindPartner = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const storedGender = await AsyncStorage.getItem('gender');
-                const casteId = await AsyncStorage.getItem('casteId');
+                const storedGender = userData.gender;
+                const casteId = userData.casteId;
 
                 if (!storedGender || !casteId) {
                     console.warn("Gender or casteId missing");
@@ -1660,6 +1696,8 @@ const FindPartner = () => {
                 await fetchNewlyAdded(parseInt(casteId), storedGender);
             } catch (error) {
                 console.error('Error in fetchData:', error);
+            } finally {
+                setLoading(false);
             }
         };
 
@@ -1669,6 +1707,15 @@ const FindPartner = () => {
 
     const renderScene = ({ route }: { route: { key: string; title: string } }) => {
         const data = route.key === 'all' ? allMatches : newlyAdded;
+
+        if (loading) {
+            return (
+                <View style={[styles.sceneTab]}>
+                    <ExploreGridSkeleton />
+                </View>
+            );
+        }
+
         return (
             <View style={[styles.sceneTab]}>
                 <FlatList
@@ -1693,6 +1740,7 @@ const FindPartner = () => {
                                     age={item.age}
                                     job={item.userDetail?.[0]?.occupation || ''}
                                     location={item.location}
+                                    gender={item.gender}
                                 />
                             </TouchableOpacity>
                         </View>
@@ -1822,7 +1870,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     tabLabelTab: {
-        color: '#fff',
+        color: '#DADADA',
         fontSize: 16,
         fontWeight: '500',
     },
@@ -1860,7 +1908,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 16,
-        color: '#333',
+        color: '#130001',
     },
     salaryFilterContainer: {
         marginTop: 16,
@@ -1890,7 +1938,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 16,
-        color: '#333',
+        color: '#130001',
     },
     // tabBarTab: {
     //   backgroundColor: '#fff',
@@ -1985,7 +2033,7 @@ const styles = StyleSheet.create({
         marginBottom: 5
     },
     headerText: {
-        color: "white",
+        color: "#DADADA",
         fontSize: 16,
         fontWeight: "bold",
     },
@@ -2012,7 +2060,7 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
     sliderLabel: {
-        color: "white",
+        color: "#DADADA",
         fontSize: 14,
         fontWeight: "bold",
         marginBottom: 5,
@@ -2047,7 +2095,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     labelText: {
-        color: "white",
+        color: "#DADADA",
         fontSize: 12,
     },
     notch: {
@@ -2156,7 +2204,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 16,
-        color: '#333',
+        color: '#130001',
     },
 
     //   -----------------------------------------------------------------------new 
@@ -2166,7 +2214,7 @@ const styles = StyleSheet.create({
         marginTop: 20
     },
     headerTitle: {
-        color: 'white',
+        color: '#DADADA',
         fontSize: 24,
         fontWeight: 'bold',
         textAlign: 'center',
@@ -2243,7 +2291,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     filterLabel: {
-        color: '#333',
+        color: '#130001',
         fontSize: 16,
         fontWeight: '500',
         flex: 1,
@@ -2261,7 +2309,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     dropdownText: {
-        color: '#333',
+        color: '#130001',
         fontSize: 14,
         fontWeight: '500',
     },
@@ -2310,7 +2358,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     inputLabel: {
-        color: '#333',
+        color: '#130001',
         fontSize: 16,
         fontWeight: '500',
         marginBottom: 8,
@@ -2325,7 +2373,7 @@ const styles = StyleSheet.create({
     },
     input: {
         fontSize: 16,
-        color: '#333',
+        color: '#130001',
     },
     inputPlaceholder: {
         color: '#999',
@@ -2379,7 +2427,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
     },
     searchButtonText: {
-        color: 'white',
+        color: '#DADADA',
         fontSize: 15,
         fontWeight: 'bold',
     },
@@ -2415,10 +2463,10 @@ const styles = StyleSheet.create({
     },
     modalOptionText: {
         fontSize: 16,
-        color: '#333',
+        color: '#130001',
     },
     selectedOptionText: {
-        color: 'white',
+        color: '#DADADA',
         fontWeight: '600',
     },
     modalCloseButton: {
@@ -2450,11 +2498,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#f0f0f0',
     },
     upgradeButtonText: {
-        color: 'white',
+        color: '#DADADA',
         fontWeight: 'bold',
     },
     cancelButtonText: {
-        color: '#333',
+        color: '#130001',
     },
     sectionTitle: {
         fontSize: 18,
@@ -2506,7 +2554,7 @@ const styles = StyleSheet.create({
     },
     filterText: {
         fontSize: 12,
-        color: '#4B5563',
+        color: '#130001',
         marginLeft: 4,
         maxWidth: '90%',
     },
@@ -2582,7 +2630,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     basesearchButtonText: {
-        color: 'white',
+        color: '#DADADA',
         fontSize: 15,
         fontWeight: 'bold',
     },
@@ -2599,108 +2647,108 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         marginLeft: 4,
-},
-
-  centeredModalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 20,
-  },
-  centeredModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalTitleAge: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  closeButton: {
-    color: '#420001',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  applyButton: {
-    backgroundColor: '#420001',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  // Add this to your StyleSheet in SearchTabs.tsx
-filterButton: {
-  flex: 1,
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  borderWidth: 1,
-  borderColor: '#ddd',
-  borderRadius: 8,
-  paddingVertical: 10,
-  paddingHorizontal: 12,
-  backgroundColor: '#fff',
-},
-filterButtonText: {
-  fontSize: 14,
-  color: '#333',
-},
-singleRowContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  width: '100%',
-},
-labelContainer1: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  minWidth: 100, // Adjust as needed
-},
-dropdownContainer: {
-  flex: 1,
-  marginLeft: 10, // Add some spacing between label and dropdown
-},
-dropdownDisabled: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  borderWidth: 1,
-  borderColor: '#e0e0e0',
-  borderRadius: 8,
-  paddingVertical: 10,
-  paddingHorizontal: 12,
-  backgroundColor: '#f7f7f7',
-  minWidth: 150, // Adjust as needed
-  marginLeft: 10, // Match the margin of the dropdown
-},
-disabledText: {
-  color: '#999',
-  fontSize: 14,
-},
+
+    centeredModalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        padding: 20,
+    },
+    centeredModalContent: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 20,
+        width: '90%',
+        maxWidth: 400,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    modalTitleAge: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#130001',
+    },
+    closeButton: {
+        color: '#420001',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    applyButton: {
+        backgroundColor: '#420001',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 20,
+        alignItems: 'center',
+    },
+    applyButtonText: {
+        color: '#DADADA',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    // Add this to your StyleSheet in SearchTabs.tsx
+    filterButton: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: '#fff',
+    },
+    filterButtonText: {
+        fontSize: 14,
+        color: '#130001',
+    },
+    singleRowContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+    labelContainer1: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        minWidth: 100, // Adjust as needed
+    },
+    dropdownContainer: {
+        flex: 1,
+        marginLeft: 10, // Add some spacing between label and dropdown
+    },
+    dropdownDisabled: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: '#f7f7f7',
+        minWidth: 150, // Adjust as needed
+        marginLeft: 10, // Match the margin of the dropdown
+    },
+    disabledText: {
+        color: '#999',
+        fontSize: 14,
+    },
 });

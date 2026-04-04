@@ -1,27 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { Tabs } from "expo-router";
+import React, { useCallback, useState } from 'react';
+import { Tabs, useFocusEffect } from "expo-router";
 import { View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserData } from '../contexts/UserDataContext';
 import CustomNavBar from "../../../components/CustomNav";
 
 const TabsLayout = () => {
+  const { userData } = useUserData();
   const [hasStarted, setHasStarted] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    const checkStarted = async () => {
-      try {
-        const started = await AsyncStorage.getItem('hasStarted');
-        setHasStarted(started === 'true');
-      } catch (error) {
-        console.error('Error checking hasStarted:', error);
-        setHasStarted(false);
-      }
-    };
-
-    checkStarted();
-    const interval = setInterval(checkStarted, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      // Use userData.hasStarted from context
+      setHasStarted(userData.hasStarted === 'true');
+    }, [userData.hasStarted])
+  );
 
   if (hasStarted === null) {
     return <View style={{ flex: 1 }} />;

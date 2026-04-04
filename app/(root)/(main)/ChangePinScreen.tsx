@@ -43,7 +43,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
       };
 
       const response = await userApi.changePin(requestBody);
-      console.log('Change PIN response:', response.data);
+      // console.log('Change PIN response:', response.data);
 
       if (response.data.code === 200) {
         setIsLoading(false);
@@ -589,7 +589,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                     {isLoading ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{
-                          color: 'white',
+                          color: '#DADADA',
                           fontSize: 18,
                           fontWeight: 'bold',
                           marginLeft: 12,
@@ -601,7 +601,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="star" size={20} color="white" />
                         <Text style={{
-                          color: 'white',
+                          color: '#DADADA',
                           fontSize: 18,
                           fontWeight: 'bold',
                           marginLeft: 8,

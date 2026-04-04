@@ -1365,13 +1365,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#fff",
+    color: "#DADADA",
     textAlign: "center",
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: "#fff",
+    color: "#DADADA",
     textAlign: "center",
     marginBottom: 30,
   },
@@ -1394,12 +1394,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center', // Center the text vertically
   },
   buttonText: {
-    color: 'white', // Text color is white
+    color: '#DADADA', // Text color is white
     fontSize: 16, // Adjust font size as needed
     fontWeight: 'medium', // Optional: Make the text bold
   },
   linkText: {
-    color: "#fff",
+    color: "#DADADA",
     fontSize: 16,
     textDecorationLine: "underline",
     fontStyle: "italic",

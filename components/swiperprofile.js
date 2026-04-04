@@ -12,7 +12,7 @@ const styles = StyleSheet.create({
     paddingRight: 0, // Remove right padding
   },
   card: {
-    width:'100%',
+    width: '100%',
     margin: 5,
     padding: 0,
     borderWidth: 0, // Remove card border
@@ -35,13 +35,13 @@ const styles = StyleSheet.create({
 
   },
   userText: {
-    color: 'white',
+    color: '#DADADA',
     fontSize: 11,
     fontWeight: 'bold',
     marginVertical: 4,
     textAlign: 'center',
-    lineHeight:17,
-    paddingHorizontal:1
+    lineHeight: 17,
+    paddingHorizontal: 1
   },
   nearyouImage: {
     height: 150,
@@ -57,7 +57,10 @@ const SwiperProfile = ({ users, onUserPress }) => {
     <TouchableOpacity onPress={() => handleCardPress(item.userId)}>
       <Card containerStyle={[styles.card, { borderRadius: 8 }]}>
         <View style={styles.user}>
-          <Image style={styles.nearyouImage} source={{ uri: item.profileImage }} />
+          <Image style={styles.nearyouImage} source={item.profileImage ? { uri: item.profileImage } :
+            item.gender === 'M' ? require('../assets/images/avatarMen.png') :
+              item.gender === 'F' ? require('../assets/images/avatarWomen.png') :
+                require('../assets/images/defaultAvatar.png')} />
           <View style={[styles.textOverlay, { borderRadius: 8 }]}>
             <Text style={styles.userText}>{item.firstName} {item.lastName} , {item.age} , {item.location}</Text>
           </View>
@@ -91,4 +94,4 @@ const SwiperProfile = ({ users, onUserPress }) => {
   );
 };
 
-export default SwiperProfile;
+export default React.memo(SwiperProfile);

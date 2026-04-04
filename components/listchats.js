@@ -78,7 +78,7 @@ const ListChats = ({ allChats, onPress }) => {
       <Pressable onPress={() => onPress(item)} _dark={{ bg: 'coolGray.800' }} _light={{ bg: 'white' }}>
         <Box pl="4" pr="5" py="2" pt="4" borderBottomWidth="0.3" borderColor="coolGray.200" _dark={{ borderColor: 'coolGray.700' }}>
           <HStack alignItems="center" space={3}>
-            <Avatar size="55px" source={{ uri: item.profileImage }} />
+            <Avatar size="55px" source={item.profileImage ? { uri: item.profileImage } : require('../assets/images/defaultAvatar.png')} />
             <VStack className='h-full'  width={'58%'} >
               <NBText color="coolGray.800" _dark={{ color: 'warmGray.50' }} bold>
                 {item.otherUserName}
@@ -103,7 +103,7 @@ const ListChats = ({ allChats, onPress }) => {
                   alignItems="center"
                   justifyContent="center"
                 >
-                  <NBText className='' color="white" fontSize="10">
+                  <NBText className='' color="#DADADA" fontSize="10">
                     {item.unreadCount}
                   </NBText>
                 </Box>
@@ -125,8 +125,8 @@ const ListChats = ({ allChats, onPress }) => {
         _pressed={{ opacity: 0.5 }}
       >
         <VStack alignItems="center" space={2}>
-          <Icon name="trash" color="white" size={12} />
-          <NBText color="white" fontSize={12} fontWeight="medium">
+          <Icon name="trash" color="#DADADA" size={12} />
+          <NBText color="#DADADA" fontSize={12} fontWeight="medium">
             Delete
           </NBText>
         </VStack>

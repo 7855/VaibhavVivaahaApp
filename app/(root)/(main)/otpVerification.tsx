@@ -75,7 +75,7 @@ const OtpVerification = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={27} color="#000" />
+          <Icon name="arrow-left" size={27} color="#130001" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
 
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     marginTop: 50,
   },
   continueText: {
-    color: '#fff',
+    color: '#DADADA',
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',

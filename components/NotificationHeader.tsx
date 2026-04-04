@@ -44,7 +44,7 @@ const NotificationHeader: React.FC<NotificationHeaderProps> = ({
           </TouchableOpacity>
         )}
         <TouchableOpacity onPress={onClearAll} style={styles.clearButton}>
-          <Trash2 size={14} color="#4B5563" />
+          <Trash2 size={14} color="#130001" />
           <Text style={styles.clearText}>Clear</Text>
         </TouchableOpacity>
         {/* <TouchableOpacity style={styles.settingsButton}>
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color: 'white',
+    color: '#DADADA',
     fontSize: 10,
     fontWeight: '600',
   },
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#130001',
   },
   subtitle: {
     fontSize: 12,
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 12,
-    color: '#4B5563',
+    color: '#130001',
     fontWeight: '500',
     marginLeft: 4,
   },

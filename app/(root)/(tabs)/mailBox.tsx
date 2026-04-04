@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserData } from '../contexts/UserDataContext';
+import { useSubscription } from '../contexts/subscriptionContext';
 import {
   View,
   Text,
@@ -18,7 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { NativeBaseProvider, Center, Stack, VStack, Image as NBImage, Text as NBText, Divider } from 'native-base';
+import { Center, Stack, VStack, Image as NBImage, Text as NBText, Divider, Skeleton, HStack as NBHStack } from 'native-base';
 import { Image as ImageNative } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import EvilIcons from 'react-native-vector-icons/EvilIcons';
@@ -44,6 +45,101 @@ import {
   MenuProvider,
 } from 'react-native-popup-menu';
 
+// Skeleton loader matching matchCard layout (260h image card with overlay text)
+const MailboxCardSkeleton = () => (
+  <View style={{
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginVertical: 10,
+    marginHorizontal: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    overflow: 'hidden',
+  }}>
+    <View style={{ height: 260, borderRadius: 16, overflow: 'hidden', position: 'relative' }}>
+      <Skeleton h="100%" w="100%" rounded="none" />
+      {/* Overlay text area at bottom */}
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        padding: 16,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+      }}>
+        <View style={{ maxWidth: '70%' }}>
+          <Skeleton h={5} w={180} rounded="sm" startColor="gray.400" endColor="gray.500" mb={2} />
+          <Skeleton h={3.5} w={220} rounded="sm" startColor="gray.400" endColor="gray.500" />
+        </View>
+        <NBHStack space={2}>
+          <Skeleton size={8} rounded="full" startColor="gray.400" endColor="gray.500" />
+          <Skeleton size={8} rounded="full" startColor="gray.400" endColor="gray.500" />
+        </NBHStack>
+      </View>
+    </View>
+  </View>
+);
+
+const MailboxLoadingSkeleton = ({ count = 3 }: { count?: number }) => (
+  <ScrollView>
+    {Array.from({ length: count }).map((_, i) => (
+      <MailboxCardSkeleton key={i} />
+    ))}
+  </ScrollView>
+);
+
+// Skeleton for Request cards (profile image + details)
+const RequestCardSkeleton = () => (
+  <View style={{
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  }}>
+    <NBHStack space={3} alignItems="center">
+      <Skeleton size={12} rounded="full" />
+      <VStack flex={1} space={2}>
+        <Skeleton h={4} w="60%" rounded="sm" />
+        <Skeleton h={3} w="30%" rounded="sm" />
+        <NBHStack space={1} alignItems="center">
+          <Skeleton size={2} rounded="full" />
+          <Skeleton h={3} w="25%" rounded="sm" />
+        </NBHStack>
+      </VStack>
+      <VStack alignItems="flex-end" space={1}>
+        <Skeleton h={3} w={14} rounded="sm" />
+        <Skeleton h={3} w={10} rounded="sm" />
+      </VStack>
+    </NBHStack>
+    <View style={{ marginTop: 12, flexDirection: 'row', gap: 8 }}>
+      <Skeleton h={3.5} w={20} rounded="sm" />
+      <Skeleton h={3.5} w={20} rounded="sm" />
+      <Skeleton h={3.5} w={20} rounded="sm" />
+      <Skeleton h={3.5} w={20} rounded="sm" />
+    </View>
+  </View>
+);
+
+const RequestLoadingSkeleton = ({ count = 4 }: { count?: number }) => (
+  <ScrollView>
+    {Array.from({ length: count }).map((_, i) => (
+      <RequestCardSkeleton key={i} />
+    ))}
+  </ScrollView>
+);
+
 interface ReceivedProfile {
   userId: number;
   firstName: string;
@@ -62,26 +158,19 @@ interface ReceivedProfile {
 
 
 const ReceivedTab = () => {
+  const { userData } = useUserData();
   const [error, setError] = useState<string | null>(null);
+  const { subscriptionData } = useSubscription();
   const [isPremium, setIsPremium] = useState(false);
-  const [premiumCheckLoading, setPremiumCheckLoading] = useState(false);
 
-  const checkPremiumStatus = async () => {
-    try {
-      setPremiumCheckLoading(true);
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
-        setError('User ID not found');
-        return;
-      }
-      const response = await userApi.getUserPaidStatus(userId);
-      setIsPremium(response.data.isPaid);
-    } catch (err) {
-      setError('Failed to check premium status');
-    } finally {
-      setPremiumCheckLoading(false);
+  useEffect(() => {
+    if (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free') {
+      // Bronze, Silver, Gold, Platinum are premium plans
+      setIsPremium(true);
+    } else {
+      setIsPremium(false);
     }
-  };
+  }, [subscriptionData]);
 
   const LoadingScreen = () => (
     <View style={styles.loadingContainer}>
@@ -93,7 +182,7 @@ const ReceivedTab = () => {
   );
 
   const PremiumRequiredScreen = () => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.premiumContainer}
       onPress={() => router.replace('/(root)/screens/PremiumTab')}
     >
@@ -113,9 +202,7 @@ const ReceivedTab = () => {
     </TouchableOpacity>
   );
 
-  useEffect(() => {
-    checkPremiumStatus();
-  }, []);
+
 
 
 
@@ -124,13 +211,16 @@ const ReceivedTab = () => {
   // const [error, setError] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<'pending' | 'accepted' | 'rejected'>('pending');
 
-  const getStatusCounts = () => ({
+  const statusCounts = useMemo(() => ({
     pending: data.filter(item => item.status === 'pending').length,
     accepted: data.filter(item => item.status === 'accepted').length,
     rejected: data.filter(item => item.status === 'rejected').length,
-  });
+  }), [data]);
 
-  const filteredData = data.filter(item => item.status === selectedFilter);
+  const filteredData = useMemo(() =>
+    data.filter(item => item.status === selectedFilter),
+    [data, selectedFilter]
+  );
 
   const handleAccept = async (item: ReceivedProfile) => {
     try {
@@ -155,11 +245,11 @@ const ReceivedTab = () => {
       await userApi.updateInterestRequestStatus(item.interestId, 'APPROVED');
 
       // Refresh data by fetching latest profiles
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
+      if (!userData.userId) {
         setError('User ID not found');
         return;
       }
+      const userId = userData.userId;
 
       const [pendingResponse, acceptedResponse, rejectedResponse] = await Promise.all([
         userApi.getPendingReceivedProfiles(userId),
@@ -195,11 +285,11 @@ const ReceivedTab = () => {
       await userApi.updateInterestRequestStatus(item.interestId, 'REJECTED');
 
       // Refresh data by fetching latest profiles
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
+      if (!userData.userId) {
         setError('User ID not found');
         return;
       }
+      const userId = userData.userId;
 
       const [pendingResponse, acceptedResponse, rejectedResponse] = await Promise.all([
         userApi.getPendingReceivedProfiles(userId),
@@ -234,11 +324,11 @@ const ReceivedTab = () => {
     const loadReceivedData = async () => {
       try {
         setLoading(true);
-        const userId = await AsyncStorage.getItem('userId');
-        if (!userId) {
+        if (!userData.userId) {
           setError('User ID not found');
           return;
         }
+        const userId = userData.userId;
 
         const [pendingResponse, acceptedResponse, rejectedResponse] = await Promise.all([
           userApi.getPendingReceivedProfiles(userId),
@@ -263,7 +353,7 @@ const ReceivedTab = () => {
 
         const combinedProfiles = [...pendingProfiles, ...acceptedProfiles, ...rejectedProfiles];
 
-        console.log('Combined profiles with status:', combinedProfiles);
+        // console.log('Combined profiles with status:', combinedProfiles);
 
         setData(combinedProfiles);
         setError(null);
@@ -276,14 +366,10 @@ const ReceivedTab = () => {
     };
 
     loadReceivedData();
-  }, [selectedFilter]);
+  }, []);
 
   if (loading) {
-    return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>Loading...</Text>
-      </View>
-    );
+    return <MailboxLoadingSkeleton count={3} />;
   }
 
   if (error) {
@@ -304,7 +390,7 @@ const ReceivedTab = () => {
             onPress={() => setSelectedFilter(filter as any)}
           >
             <Text style={[styles.filterButtonText, selectedFilter === filter && styles.filterButtonTextActive]}>
-              {filter.charAt(0).toUpperCase() + filter.slice(1)} ({getStatusCounts()[filter as 'pending' | 'accepted' | 'rejected']})
+              {filter.charAt(0).toUpperCase() + filter.slice(1)} ({statusCounts[filter as 'pending' | 'accepted' | 'rejected']})
             </Text>
           </TouchableOpacity>
         ))}
@@ -313,13 +399,17 @@ const ReceivedTab = () => {
       <FlatList
         data={filteredData}
         keyExtractor={(item) => item.userId.toString()}
+        windowSize={5}
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        removeClippedSubviews={true}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.matchCard}
             onPress={() => router.push(`/screens/ProfileDetail?userId=${item.userId}`)}
           >
             <ImageBackground
-              source={{ uri: item.profileImage }}
+              source={item.profileImage ? { uri: item.profileImage } : require('../../../assets/images/defaultAvatar.png')}
               style={styles.imageBackground}
               imageStyle={styles.image}
             >
@@ -363,13 +453,14 @@ const ReceivedTab = () => {
           </View>
         )}
       />
-   
-    <View style={{ marginBottom:90}}></View>
+
+      <View style={{ marginBottom: 90 }}></View>
     </View>
   );
 };
 
 const SentTab = () => {
+  const { userData } = useUserData();
   const [data, setData] = useState<ReceivedProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -387,11 +478,11 @@ const SentTab = () => {
   useEffect(() => {
     const loadSentData = async () => {
       try {
-        const userId = await AsyncStorage.getItem('userId');
-        if (!userId) {
+        if (!userData.userId) {
           setError('User ID not found');
           return;
         }
+        const userId = userData.userId;
         const response = await userApi.getSentMailbox(userId);
         if (response.data.code === 200) {
           setData(response.data.data);
@@ -409,11 +500,7 @@ const SentTab = () => {
   }, []);
 
   if (loading) {
-    return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>Loading...</Text>
-      </View>
-    );
+    return <MailboxLoadingSkeleton count={3} />;
   }
 
   if (error) {
@@ -428,11 +515,15 @@ const SentTab = () => {
     <FlatList
       data={data}
       keyExtractor={(item) => item.userId.toString()}
+      windowSize={5}
+      initialNumToRender={6}
+      maxToRenderPerBatch={4}
+      removeClippedSubviews={true}
       renderItem={({ item }) => (
         <View style={styles.matchCard}>
           <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${item.userId}`)}>
             <ImageBackground
-              source={{ uri: item.profileImage }}
+              source={item.profileImage ? { uri: item.profileImage } : require('../../../assets/images/defaultAvatar.png')}
               style={styles.imageBackground}
               imageStyle={styles.image}
             >
@@ -470,6 +561,7 @@ const SentTab = () => {
 };
 
 const RequestsTab = () => {
+  const { userData } = useUserData();
   const [data, setData] = useState<any[]>([]);
   const [wholeReceivedData, setWholeReceivedData] = useState<any[]>([]);
   const [receivedData, setreceivedData] = useState<any[]>([]);
@@ -487,11 +579,11 @@ const RequestsTab = () => {
       await userApi.updateInterestRequestStatus(item.interestId, 'APPROVED');
 
       // Refresh data
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
+      if (!userData.userId) {
         setError('User ID not found');
         return;
       }
+      const userId = userData.userId;
 
       const [sentResponse, receivedResponse] = await Promise.all([
         userApi.getSentMailbox(userId),
@@ -527,11 +619,11 @@ const RequestsTab = () => {
       }
 
       // Refresh data
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
+      if (!userData.userId) {
         setError('User ID not found');
         return;
       }
+      const userId = userData.userId;
 
       const [sentResponse, receivedResponse] = await Promise.all([
         userApi.getSentMailbox(userId),
@@ -564,11 +656,11 @@ const RequestsTab = () => {
     const loadRequestsData = async () => {
       try {
         setLoading(true);
-        const userId = await AsyncStorage.getItem('userId');
-        if (!userId) {
+        if (!userData.userId) {
           setError('User ID not found');
           return;
         }
+        const userId = userData.userId;
 
         // Fetch both sent and received profiles
         // const [sentResponse, receivedResponse] = await Promise.all([
@@ -584,14 +676,14 @@ const RequestsTab = () => {
         const sentProfiles = sentResponse.data?.data || []
           ;
 
-        console.log("sentProfiles===========================>", sentProfiles);
+        // console.log("sentProfiles===========================>", sentProfiles);
         // const sentProfiles = (sentResponse.data?.data || []).map((item: any) => ({
         //   ...item,
         //   isSent: true,
         // }));
         const receivedProfiles = receivedResponse.data?.data || [];
         // const receivedProfiles = (receivedResponse.data?.data || []).map((item: any) => ({
-        console.log("receivedProfiles===========================>", receivedProfiles);
+        // console.log("receivedProfiles===========================>", receivedProfiles);
         //   ...item,
         //   isSent: false,
         // }));
@@ -613,7 +705,7 @@ const RequestsTab = () => {
 
 
     loadRequestsData();
-  }, [selectedFilter]);
+  }, []);
 
   const handlePrintSelected = (newState: {
     profilePhoto?: boolean;
@@ -666,17 +758,13 @@ const RequestsTab = () => {
     if (horoscope) selectedOptions.push("Horoscope");
     if (mobileNumber) selectedOptions.push("Mobile Number");
 
-    console.log("Selected Filters:", selectedOptions);
+    // console.log("Selected Filters:", selectedOptions);
     Alert.alert("Selected Filters", selectedOptions.join(', ') || "None");
   };
 
 
   if (loading) {
-    return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>Loading...</Text>
-      </View>
-    );
+    return <RequestLoadingSkeleton count={4} />;
   }
 
   if (error) {
@@ -741,7 +829,7 @@ const RequestsTab = () => {
     return (
       <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${request.requestedTo}`)} style={styles.requestCard}>
         <View style={styles.cardHeader}>
-          <ImageNative source={{ uri: request.profileImage }} style={styles.profileImageRequestCard} />
+          <ImageNative source={request.profileImage ? { uri: request.profileImage } : require('../../../assets/images/defaultAvatar.png')} style={styles.profileImageRequestCard} />
           <View style={styles.headerInfo}>
             <Text style={styles.nameRequestCard}>
               {request.firstname} {request.lastname}
@@ -961,11 +1049,15 @@ const RequestsTab = () => {
             <FlatList
               data={receivedData}
               keyExtractor={(item: any) => item.requestId.toString()}
+              windowSize={5}
+              initialNumToRender={6}
+              maxToRenderPerBatch={4}
+              removeClippedSubviews={true}
               renderItem={({ item }) => (
                 <View style={styles.matchCard}>
                   <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${item.requestedBy}`)}>
                     <ImageBackground
-                      source={{ uri: item.profileImage }}
+                      source={item.profileImage ? { uri: item.profileImage } : require('../../../assets/images/defaultAvatar.png')}
                       style={styles.imageBackground}
                       imageStyle={styles.image}
                     >
@@ -1059,6 +1151,7 @@ const RequestsTab = () => {
 };
 
 const ShortlistedTab = () => {
+  const { userData } = useUserData();
   const [data, setData] = useState<ReceivedProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1067,12 +1160,11 @@ const ShortlistedTab = () => {
     try {
       await userApi.deleteShortlistedProfile(shortlistedId);
       // Refresh data after successful removal
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
+      if (!userData.userId) {
         setError('User ID not found');
         return;
       }
-      const response = await userApi.getShortlistedMailbox(userId);
+      const response = await userApi.getShortlistedMailbox(userData.userId);
       if (response.data.code === 200) {
         setData(response.data.data);
       } else {
@@ -1086,12 +1178,11 @@ const ShortlistedTab = () => {
   useEffect(() => {
     const loadShortlistedData = async () => {
       try {
-        const userId = await AsyncStorage.getItem('userId');
-        if (!userId) {
+        if (!userData.userId) {
           setError('User ID not found');
           return;
         }
-        const response = await userApi.getShortlistedMailbox(userId);
+        const response = await userApi.getShortlistedMailbox(userData.userId);
         if (response.data.code === 200) {
           setData(response.data.data);
         } else {
@@ -1109,9 +1200,20 @@ const ShortlistedTab = () => {
 
   if (loading) {
     return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>Loading...</Text>
-      </View>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
+          <ScrollView style={{ padding: 16 }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <NBHStack key={i} space={3} alignItems="center" py={3} borderBottomWidth={1} borderColor="gray.200">
+                <Skeleton size={12} rounded="full" />
+                <VStack flex={1} space={2}>
+                  <Skeleton h={4} w="50%" rounded="sm" />
+                  <Skeleton h={3} w="80%" rounded="sm" />
+                </VStack>
+                <Skeleton size={10} rounded="full" />
+              </NBHStack>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
     );
   }
 
@@ -1124,7 +1226,6 @@ const ShortlistedTab = () => {
   }
 
   return (
-    <NativeBaseProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
         <ScrollView className='mb-3'>
           <View className='ml-5 mt-2 mb-2'>
@@ -1139,9 +1240,9 @@ const ShortlistedTab = () => {
                     {/* Profile Picture */}
                     <Center shadow={3}>
                       <NBImage
-                        source={{
+                        source={member.profileImage ? {
                           uri: member.profileImage,
-                        }}
+                        } : require('../../../assets/images/defaultAvatar.png')}
                         alt="Img"
                         size="50px"
                         borderRadius="full"
@@ -1185,7 +1286,6 @@ const ShortlistedTab = () => {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </NativeBaseProvider>
   );
 };
 
@@ -1207,28 +1307,26 @@ const MailBox = () => {
   });
 
   return (
-    <NativeBaseProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F5F5' }} edges={['top', 'left', 'right']}>
-        <View style={styles.container}>
-          <TabView
-            navigationState={{ index, routes }}
-            renderScene={renderScene}
-            onIndexChange={setIndex}
-            initialLayout={{ width: layout.width }}
-            renderTabBar={props => (
-              <TabBar
-                {...props}
-                style={styles.tabBar}
-                indicatorStyle={styles.indicator}
-                activeColor="#000"
-                inactiveColor="#888"
-                tabStyle={styles.tabStyle}
-              />
-            )}
-          />
-        </View>
-      </SafeAreaView>
-    </NativeBaseProvider>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F5F5' }} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        <TabView
+          navigationState={{ index, routes }}
+          renderScene={renderScene}
+          onIndexChange={setIndex}
+          initialLayout={{ width: layout.width }}
+          renderTabBar={props => (
+            <TabBar
+              {...props}
+              style={styles.tabBar}
+              indicatorStyle={styles.indicator}
+              activeColor="#000"
+              inactiveColor="#888"
+              tabStyle={styles.tabStyle}
+            />
+          )}
+        />
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -1291,7 +1389,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor:'#fff'
+    backgroundColor: '#fff'
   },
   filterIconContainer: {
     position: 'absolute',

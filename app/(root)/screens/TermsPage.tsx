@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: '#130001',
   },
   subtitle: {
     fontSize: 13,
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#130001',
   },
   sectionContent: {
     paddingLeft: 40,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   sectionText: {
     fontSize: 14,
-    color: '#4b5563',
+    color: '#130001',
   },
   footer: {
     backgroundColor: '#f3f4f6',

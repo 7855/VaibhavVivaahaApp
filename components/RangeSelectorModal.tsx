@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#130001',
   },
   closeButton: {
     color: '#420001',
@@ -193,10 +193,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   picker: {
-    color: '#000',
+    color: '#130001',
   },
   pickerItem: {
-    color: '#000',
+    color: '#130001',
   },
   applyButton: {
     backgroundColor: '#420001',
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyButtonText: {
-    color: 'white',
+    color: '#DADADA',
     fontWeight: '600',
     fontSize: 16,
   },

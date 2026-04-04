@@ -5,7 +5,7 @@ import { router, useLocalSearchParams, useNavigation, useRouter } from 'expo-rou
 import { Box, NativeBaseProvider, Pressable, Toast } from 'native-base';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import userApi from '../api/userApi';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserData } from '../contexts/UserDataContext';
 import base64 from 'react-native-base64';
 
 import {
@@ -36,6 +36,7 @@ interface ChatScreenParams {
 }
 
 function ChatScreen() {
+  const { userData } = useUserData();
   const router = useRouter();
   const navigation = useNavigation();
   const route = useLocalSearchParams();
@@ -65,33 +66,31 @@ function ChatScreen() {
   const [isShortlisted, setIsShortlisted] = useState(false);
   const { subscriptionData } = useSubscription();
 
-      useEffect(() => {
-          if (subscriptionData && subscriptionData.entitlements) {
-              // console.log("subscriptionData======>", subscriptionData);
-              // console.log("subscriptionData.entitlements:", subscriptionData.entitlements);
-  
-              const hasPremiumAccess =
-                  subscriptionData.entitlements.advSearch === true &&
-                  subscriptionData.entitlements.basicSearch === true;
-  
-              // console.log("hasPremiumAccess ===>", hasPremiumAccess);
-              setIsPremium(hasPremiumAccess);
-          } else {
-              // console.log("No subscription data or entitlements found");
-              setIsPremium(false);
-          }
-          // console.log("hasPremiumAccess ===>", isPremiumUser);
-  setIsLoading(false)
-      }, [subscriptionData]);
+  useEffect(() => {
+    if (subscriptionData && subscriptionData.entitlements) {
+      // console.log("subscriptionData======>", subscriptionData);
+      // console.log("subscriptionData.entitlements:", subscriptionData.entitlements);
+
+      const hasPremiumAccess =
+        subscriptionData.entitlements.advSearch === true &&
+        subscriptionData.entitlements.basicSearch === true;
+
+      // console.log("hasPremiumAccess ===>", hasPremiumAccess);
+      setIsPremium(hasPremiumAccess);
+    } else {
+      // console.log("No subscription data or entitlements found");
+      setIsPremium(false);
+    }
+    // console.log("hasPremiumAccess ===>", isPremiumUser);
+    setIsLoading(false)
+  }, [subscriptionData]);
 
 
 
   useEffect(() => {
     const checkShortlistedStatus = async () => {
       try {
-        const storedUserId = await AsyncStorage.getItem('userId');
-
-        const response = await userApi.checkIfShortlisted(storedUserId, otherUserId);
+        const response = await userApi.checkIfShortlisted(userData.userId, otherUserId);
         setIsShortlisted(response.data.data); // Access the nested data property
       } catch (error) {
         console.error('Error checking shortlisted status:', error);
@@ -135,16 +134,14 @@ function ChatScreen() {
 
       if (confirm) {
         try {
-          // Get the current user's ID from AsyncStorage
-          const storedUserId = await AsyncStorage.getItem('userId');
-          if (!storedUserId) {
+          // Get the current user's ID from context
+          if (!userData.userId) {
             Alert.alert('Error', 'User ID not found. Please try again.');
             return;
           }
 
-          // Prepare the request body
           const requestBody = {
-            blockedByUserId: storedUserId, // Convert to base64
+            blockedByUserId: userData.userId, // Convert to base64
             blockedUserId: parseInt(otherUserId)
           };
 
@@ -198,8 +195,8 @@ function ChatScreen() {
         Alert.alert('Error', 'User IDs not available');
         return;
       }
-      const storedUserId = await AsyncStorage.getItem('userId');
-      const decodedUserId = base64.decode(storedUserId);
+      const storedUserId = userData.userId;
+      const decodedUserId = userData.decodedUserId;
 
       await userApi.insertShortlistedProfile({
         shortlistedBy: parseInt(decodedUserId),
@@ -221,7 +218,7 @@ function ChatScreen() {
         Alert.alert('Error', 'User IDs not available');
         return;
       }
-      const storedUserId = await AsyncStorage.getItem('userId');
+      const storedUserId = userData.userId;
 
       await userApi.deleteShortlistedProfileByUsers(storedUserId, parseInt(otherUserId));
       setIsShortlisted(false);
@@ -243,7 +240,7 @@ function ChatScreen() {
 
     try {
       // Get the current user's ID from AsyncStorage
-      const storedUserId = await AsyncStorage.getItem('userId');
+      const storedUserId = userData.userId;
       if (!storedUserId) {
         Alert.alert('Error', 'User ID not found. Please try again.');
         return;
@@ -274,7 +271,7 @@ function ChatScreen() {
 
   useEffect(() => {
     const checkBlockedStatus = async () => {
-      const storedUserId = await AsyncStorage.getItem('userId');
+      const storedUserId = userData.userId;
       if (storedUserId) {
         const checkBlocked = await userApi.checkBlockedByBlockedId(
           storedUserId,
@@ -371,10 +368,9 @@ function ChatScreen() {
   useEffect(() => {
     const loadUserId = async () => {
       try {
-        const storedUserId = await AsyncStorage.getItem('userId');
-        const myProfile = await AsyncStorage.getItem('profileImage');
-        if (myProfile) {
-          setMyProfile(myProfile);
+        const storedUserId = userData.userId;
+        if (userData.profileImage) {
+          setMyProfile(userData.profileImage);
         }
         if (storedUserId) {
           // Decode the base64 encoded userId
@@ -385,7 +381,7 @@ function ChatScreen() {
 
           if (conversationId) {
             const resp = await userApi.markAsRead(parseInt(conversationId), parseInt(decoded));
-            console.log("resp=======================>", resp.data);
+            // console.log("resp=======================>", resp.data);
 
           }
 
@@ -432,8 +428,8 @@ function ChatScreen() {
       try {
         // Fetch other user's online status
         const onlineStatusResponse = await userApi.getUserOnlineStatus(otherUserId);
-        console.log('Other user online status:', onlineStatusResponse.data.data.isOnline);
-        console.log('Other user online status:', onlineStatusResponse.data.data.lastSeen);
+        // console.log('Other user online status:', onlineStatusResponse.data.data.isOnline);
+        // console.log('Other user online status:', onlineStatusResponse.data.data.lastSeen);
 
         setIsOtherUserOnline(onlineStatusResponse.data.data.isOnline);
         const formattedTime = formatLastSeenTime(onlineStatusResponse.data.data.lastSeen);
@@ -515,8 +511,8 @@ function ChatScreen() {
 
 
       if (chatStatus === 'PENDING') {
-        console.log("initiatedBy", initiatedBy);
-        console.log("decryptedUserId", decryptedUserId);
+        // console.log("initiatedBy", initiatedBy);
+        // console.log("decryptedUserId", decryptedUserId);
 
         if (decryptedUserId == initiatedBy) {
           setStatusMessage("Your request is still pending. Please wait for the user’s approval.");
@@ -541,7 +537,7 @@ function ChatScreen() {
       setMessages(prev => [...prev, newMessage]);
       setInputText('');
 
-      console.log("inputText=======================>", inputText);
+      // console.log("inputText=======================>", inputText);
 
 
       // Send to API
@@ -645,7 +641,6 @@ function ChatScreen() {
   };
 
   const handlePrintSelected = () => {
-    console.log("handlePrintSelected===========================");
   }
 
   const LoadingScreen = () => (
@@ -691,7 +686,7 @@ function ChatScreen() {
   }
 
   return (
-    
+
     <NativeBaseProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: '#075E54' }}>
         <MenuProvider>
@@ -704,17 +699,17 @@ function ChatScreen() {
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity onPress={() => router.back()}>
-                <Ionicons name="arrow-back" size={24} color="#fff" />
+                <Ionicons name="arrow-back" size={24} color="#DADADA" />
               </TouchableOpacity>
               <View style={styles.headerContent}>
                 <Image
-                  source={{ uri: otherProfile }}
+                  source={otherProfile ? { uri: otherProfile } : require('../../../assets/images/defaultAvatar.png')}
                   style={styles.profileImage}
                   resizeMode="cover"
                 />
                 <View style={styles.headerTextContainer}>
                   <Text style={styles.headerTitle} numberOfLines={1}
-  ellipsizeMode="tail">{otherUserName}1</Text>
+                    ellipsizeMode="tail">{otherUserName}1</Text>
                   {!isBlockedByOtherUser && (
                     isOtherUserOnline ? (
                       <Text style={styles.lastSeen}>Online</Text>
@@ -733,7 +728,7 @@ function ChatScreen() {
                     triggerWrapper: { width: 20 }
                   }}
                 >
-                  <Fontisto name="more-v-a" size={18} color="#fff" />
+                  <Fontisto name="more-v-a" size={18} color="#DADADA" />
                 </MenuTrigger>
 
                 <MenuOptions
@@ -827,8 +822,8 @@ function ChatScreen() {
                         )}
 
                         <View style={isMyMessage ? styles.messageRightContainer : styles.messageLeftContainer}>
-                          {!isMyMessage && profileImage && (
-                            <Image source={{ uri: profileImage }} style={styles.avatar} />
+                          {!isMyMessage && (
+                            <Image source={profileImage ? { uri: profileImage } : require('../../../assets/images/defaultAvatar.png')} style={styles.avatar} />
                           )}
 
                           <View style={isMyMessage ? styles.messageMetaRight : styles.messageMetaLeft}>
@@ -847,8 +842,8 @@ function ChatScreen() {
                             </View>
                           </View>
 
-                          {isMyMessage && myProfile && (
-                            <Image source={{ uri: myProfile }} style={styles.avatar} />
+                          {isMyMessage && (
+                            <Image source={myProfile ? { uri: myProfile } : require('../../../assets/images/defaultAvatar.png')} style={styles.avatar} />
                           )}
                         </View>
                       </View>
@@ -859,7 +854,7 @@ function ChatScreen() {
                 {/* Input */}
                 <Animated.View style={[styles.inputContainer, { transform: [{ translateY: inputTranslateY }] }]}>
 
-                  <Image source={{ uri: myProfile }} style={styles.avatar} />
+                  <Image source={myProfile ? { uri: myProfile } : require('../../../assets/images/defaultAvatar.png')} style={styles.avatar} />
                   <View style={styles.inputFieldWrapper}>
                     <TextInput
                       placeholder="Message"
@@ -905,7 +900,7 @@ function ChatScreen() {
                   <Text
                     style={{
                       fontSize: 16,
-                      color: '#111714',
+                      color: '#130001',
                       marginBottom: 20,
                       textAlign: 'center',
                     }}
@@ -961,7 +956,7 @@ function ChatScreen() {
                         style={[styles.cancelButton, { flex: 1, marginRight: 10 }]}
                         onPress={() => setShowReportModal(false)}
                       >
-                        <Text style={[styles.buttonText, { color: '#111714' }]}>Cancel</Text>
+                        <Text style={[styles.buttonText, { color: '#130001' }]}>Cancel</Text>
                       </Pressable>
                       <Pressable
                         style={[styles.reportButton, { flex: 1 }]}
@@ -1030,7 +1025,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#DADADA',
     marginTop: 4,
     marginBottom: 2,
     // flex: 1, // Takes up available space
@@ -1038,7 +1033,7 @@ const styles = StyleSheet.create({
   },
   lastSeen: {
     fontSize: 12,
-    color: '#fff',
+    color: '#DADADA',
     opacity: 0.7,
   },
   messageLeft: {
@@ -1083,7 +1078,7 @@ const styles = StyleSheet.create({
   name: { color: '#648772', fontSize: 13, marginBottom: 5 },
   messageRight: {
     backgroundColor: '#418FEB',
-    color: '#FFFFFF',
+    color: '#DADADA',
     padding: 12,
     borderRadius: 10
   },
@@ -1147,18 +1142,18 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111714',
+    color: '#130001',
     marginBottom: 10,
   },
   modalDescription: {
     fontSize: 14,
-    color: '#111714',
+    color: '#130001',
     marginBottom: 20,
     textAlign: 'center',
   },
   reasonLabel: {
     fontSize: 14,
-    color: '#111714',
+    color: '#130001',
     marginBottom: 10,
   },
   dropdownContainer: {
@@ -1184,7 +1179,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 14,
-    color: '#fff',
+    color: '#DADADA',
   },
   dropdownBox: {
     borderWidth: 1,
@@ -1235,7 +1230,7 @@ const styles = StyleSheet.create({
   premiumTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#130001',
     marginBottom: 10,
   },
   premiumText: {
@@ -1252,7 +1247,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   upgradeButtonText: {
-    color: 'white',
+    color: '#DADADA',
     fontSize: 16,
     fontWeight: 'bold',
   },

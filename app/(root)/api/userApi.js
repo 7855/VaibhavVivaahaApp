@@ -1,13 +1,13 @@
 import axiosClient from './axiosClient';
 
 const userApi = {
-  getDailyRecommendation: (casteId,gender) =>
+  getDailyRecommendation: (casteId, gender) =>
     axiosClient.get(`/user/getDailyShuffledUsersByCaste/${casteId}/${gender}`),
 
-  getNewConnections: (casteId,gender) =>
+  getNewConnections: (casteId, gender) =>
     axiosClient.get(`/user/getTop30NewUsers/${casteId}/${gender}`),
 
-  getNearYouProfiles: (casteId,gender,location) =>
+  getNearYouProfiles: (casteId, gender, location) =>
     axiosClient.get(`/user/getUserDetailByCasteIdAndLocation/${casteId}/${gender}/${location}`),
 
   getProfileDetails: (userId) =>
@@ -25,13 +25,13 @@ const userApi = {
   userChatList: (userId) =>
     axiosClient.get(`/conversation/chatlist/${userId}`),
 
-  getRandomUsers: (gender,casteId) =>
+  getRandomUsers: (gender, casteId) =>
     axiosClient.get(`/user/getTenShuffledUsers/${gender}/${casteId}`),
 
-  filterUsers:(request)=>
-    axiosClient.post(`/user/filterUsers`,request),
+  filterUsers: (request) =>
+    axiosClient.post(`/user/filterUsers`, request),
 
-  userConnectionCount:(userId)=>
+  userConnectionCount: (userId) =>
     axiosClient.get(`/user/getUserConnectionCounts/${userId}`),
 
   getFollowingList: (userId) =>
@@ -44,19 +44,19 @@ const userApi = {
     axiosClient.get(`/userConnection/unfollow/${followerId}/${followingId}`),
 
   login: (request) =>
-    axiosClient.post(`/user/login`,request),
+    axiosClient.post(`/user/login`, request),
 
   getConversationData: (conversationId) =>
     axiosClient.get(`/chat/conversation/${conversationId}`),
-  
+
   updateUserConversation: (request) =>
-    axiosClient.post(`/chat/send`,request),
+    axiosClient.post(`/chat/send`, request),
 
   markAsRead: (conversationId, senderId) =>
     axiosClient.post(`/chat/mark-as-read/${conversationId}/${senderId}`),
 
   updateProfile: (request) =>
-    axiosClient.post(`/user-details/update-personal-info`, request),  
+    axiosClient.post(`/user-details/update-personal-info`, request),
 
   updateAstroInfo: (request) =>
     axiosClient.post(`/user-details/update-astrology-info`, request),
@@ -73,7 +73,7 @@ const userApi = {
   createUser: (request) =>
     axiosClient.post(`/user/createUser`, request),
 
-  getAllCasteProfilesByGender: (casteId,gender) =>
+  getAllCasteProfilesByGender: (casteId, gender) =>
     axiosClient.get(`/user/getUserDetailByCasteId/${casteId}/${gender}`),
 
   getReceivedMailbox: (userId) =>
@@ -94,11 +94,11 @@ const userApi = {
   getRejectedReceivedProfiles: (userId) =>
     axiosClient.get(`/mailbox/rejected/${userId}`),
 
-  updateInterestRequestStatus: (interestId,approvalStatus) =>
+  updateInterestRequestStatus: (interestId, approvalStatus) =>
     axiosClient.get(`/mailbox/updateInterestRequestStatus/${interestId}/${approvalStatus}`),
 
   deleteInterestRequest: (interestId) =>
-    axiosClient.delete(`/mailbox/deleteInterestRequest/${interestId}`), 
+    axiosClient.delete(`/mailbox/deleteInterestRequest/${interestId}`),
 
   deleteShortlistedProfile: (shortlistedId) =>
     axiosClient.delete(`/mailbox/deleteShortlistedProfile/${shortlistedId}`),
@@ -112,16 +112,16 @@ const userApi = {
   createUserLike: (request) =>
     axiosClient.post(`/userLikes/createUserLike`, request),
 
-  checkIfLiked: (likedBy,likedTo) =>
+  checkIfLiked: (likedBy, likedTo) =>
     axiosClient.get(`/userLikes/checkIfLiked/${likedBy}/${likedTo}`),
 
-  deleteLike:  (likedBy,likedTo) =>
+  deleteLike: (likedBy, likedTo) =>
     axiosClient.delete(`/userLikes/deleteLike/${likedBy}/${likedTo}`),
 
-  sendInterestRequest: (senderId,receiverId) =>
+  sendInterestRequest: (senderId, receiverId) =>
     axiosClient.post(`/interestRequest/sendInterestRequest/${senderId}/${receiverId}`),
 
-  checkInterestStatus: (senderId,receiverId) =>
+  checkInterestStatus: (senderId, receiverId) =>
     axiosClient.get(`/interestRequest/checkInterestStatus/${senderId}/${receiverId}`),
 
   getAllNotifications: (userId) =>
@@ -144,156 +144,168 @@ const userApi = {
   getConversationStatusById: (conversationId) =>
     axiosClient.get(`/conversation/getConversationStatus/${conversationId}`),
 
-  getAllHappyStoriesByIsActive:()=>
+  getAllHappyStoriesByIsActive: () =>
     axiosClient.get(`/happyStory/getAllHappyStoriesByIsActive/Y`),
 
-  reportUser:(request)=>
-    axiosClient.post(`/userReport/reportUser`,request),
+  reportUser: (request) =>
+    axiosClient.post(`/userReport/reportUser`, request),
 
-  blockUser:(request)=>
-    axiosClient.post(`/block/blockUser`,request),
+  blockUser: (request) =>
+    axiosClient.post(`/block/blockUser`, request),
 
-  checkBlockedByBlockedId:(userId1,userId2)=>
+  checkBlockedByBlockedId: (userId1, userId2) =>
     axiosClient.get(`/block/checkBlockedByBlockedId/${userId1}/${userId2}`),
 
-  lastSeen:(userId)=>
+  lastSeen: (userId) =>
     axiosClient.put(`/user/lastseen/${userId}`),
 
-  getUserOnlineStatus:(userId)=>
+  getUserOnlineStatus: (userId) =>
     axiosClient.get(`/user/getUserOnlineStatus/${userId}`),
 
-  deleteBlockedUser:(id)=>
+  deleteBlockedUser: (id) =>
     axiosClient.delete(`/block/deleteBlockedUser/${id}`),
 
-  insertShortlistedProfile:(request)=>
-    axiosClient.post(`/mailbox/insertShortlistedProfile`,request),
+  insertShortlistedProfile: (request) =>
+    axiosClient.post(`/mailbox/insertShortlistedProfile`, request),
 
-  checkIfShortlisted:(encodedId,userId)=>
+  checkIfShortlisted: (encodedId, userId) =>
     axiosClient.get(`/mailbox/checkShortlisted/${encodedId}/${userId}`),
 
-  deleteShortlistedProfileByUsers:(encodedId,userId)=>
+  deleteShortlistedProfileByUsers: (encodedId, userId) =>
     axiosClient.delete(`/mailbox/deleteShortlistedProfileByUsers/${encodedId}/${userId}`),
 
-  getProfileCompletion:(userId)=>
+  getProfileCompletion: (userId) =>
     axiosClient.get(`/user-details/getProfileCompletion/${userId}`),
 
-  getUserPaidStatus:(userId)=>
+  getUserPaidStatus: (userId) =>
     axiosClient.get(`/user/getUserPaidStatus/${userId}`),
 
-  viewedProfile:(encodedId,userId)=>
+  viewedProfile: (encodedId, userId) =>
     axiosClient.post(`/view/viewedProfile/${encodedId}/${userId}`),
 
-  getProfileViewers:(userId)=>
+  getProfileViewers: (userId) =>
     axiosClient.get(`/view/getProfileViewers/${userId}`),
 
-  getAcceptedInterestRequests:(encodedId)=>
+  getAcceptedInterestRequests: (encodedId) =>
     axiosClient.get(`/interestRequest/getAcceptedInterestRequests/${encodedId}`),
 
-  createHiddenField:(userId,fieldName)=>
+  createHiddenField: (userId, fieldName) =>
     axiosClient.post(`/hiddenFields/createHiddenField/${userId}/${fieldName}`),
 
-  deleteHiddenField:(hiddenFieldId)=>
+  deleteHiddenField: (hiddenFieldId) =>
     axiosClient.delete(`/hiddenFields/deleteHiddenField/${hiddenFieldId}`),
 
-  getHiddenFieldsByUserId:(userId)=>
+  getHiddenFieldsByUserId: (userId) =>
     axiosClient.get(`/hiddenFields/getHiddenFieldsByUserId/${userId}`),
 
-  sendOtp:(mobileNumber)=>
+  sendOtp: (mobileNumber) =>
     axiosClient.post(`/user/sendOtp/${mobileNumber}`),
 
-  verifyOtp:(request)=>
-    axiosClient.post(`/user/verifyOtp`,request),
+  verifyOtp: (request) =>
+    axiosClient.post(`/user/verifyOtp`, request),
 
-  changePin:(request)=>
-    axiosClient.post(`/user/changePin`,request),
+  changePin: (request) =>
+    axiosClient.post(`/user/changePin`, request),
 
-  getHiddenFieldsByUserId:(userId)=>
+  getHiddenFieldsByUserId: (userId) =>
     axiosClient.get(`/hiddenFields/getHiddenFieldsByUserId/${userId}`),
 
-  sendRestrictedFieldRequest:(requestedBy,requestedTo,fieldType)=>
+  sendRestrictedFieldRequest: (requestedBy, requestedTo, fieldType) =>
     axiosClient.post(`/restrictedFieldRequest/sendRestrictedFieldRequest/${requestedBy}/${requestedTo}/${fieldType}`),
 
-  deleteRequest:(requestedBy,requestedTo,fieldType)=>
+  deleteRequest: (requestedBy, requestedTo, fieldType) =>
     axiosClient.delete(`/restrictedFieldRequest/deleteRequest/${requestedBy}/${requestedTo}/${fieldType}`),
 
-  getRequestsTo:(requestBy,requestTo)=>
+  getRequestsTo: (requestBy, requestTo) =>
     axiosClient.get(`/restrictedFieldRequest/getRequestsTo/${requestBy}/${requestTo}`),
 
-  updateAboutByUserId:(requestBody)=>
-    axiosClient.post(`/user-details/updateAboutByUserId`,requestBody),
+  updateAboutByUserId: (requestBody) =>
+    axiosClient.post(`/user-details/updateAboutByUserId`, requestBody),
 
-  getAllActivePlans:()=>
+  getAllActivePlans: () =>
     axiosClient.get(`/subscriptionPlans/getAllActivePlans`),
 
-  getAllActivePremiumFeatures:()=>
+  getAllActivePremiumFeatures: () =>
     axiosClient.get(`/premiumFeatures/getAllActiveFeatures`),
 
-  getProfileDetailWithIntractionStatus:(viewedUser,profileUserId)=>
+  getProfileDetailWithIntractionStatus: (viewedUser, profileUserId) =>
     axiosClient.get(`/user/getProfileDetailWithIntractionStatus/${viewedUser}/${profileUserId}`),
 
-// userApi.js
-updateProfileImage: (formData) => {
-  return axiosClient.post('/user/updateProfileImage', formData, {
-    headers: {
-      // DO NOT set Content-Type manually, Axios will set boundary
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-},
+  // userApi.js
+  updateProfileImage: (formData) => {
+    return axiosClient.post('/user/updateProfileImage', formData, {
+      headers: {
+        // DO NOT set Content-Type manually, Axios will set boundary
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 
-uploadGalleryImage: (formData) => {
-  return axiosClient.post('/gallery/uploadGalleryImage', formData, {
-    headers: {
-      // DO NOT set Content-Type manually, Axios will set boundary
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-},
+  uploadGalleryImage: (formData) => {
+    return axiosClient.post('/gallery/uploadGalleryImage', formData, {
+      headers: {
+        // DO NOT set Content-Type manually, Axios will set boundary
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 
-uploadHoroscopeImage: (formData) => {
-  return axiosClient.post('/gallery/uploadHoroscopeImage', formData, {
-    headers: {
-      // DO NOT set Content-Type manually, Axios will set boundary
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-},
-saveDeviceInfo: (requestBody) => {
-  return axiosClient.post(`/pushNotification/saveDeviceInfo`, requestBody);
-},
-deleteDevice:(requestBody)=>{
-  return axiosClient.delete(`/pushNotification/deleteDevice`,requestBody)
-},
-createOrder:(amount)=>{
-  return axiosClient.get(`/payments/createOrder/${amount}`)
-},
-getKeyValueByKey:(key)=>{
-  return axiosClient.get(`/keyValue/getKeyValueByKey/${key}`)
-},
-getProfileDetailByMemberId:(memberId,gender,casteId)=>{
-  return axiosClient.get(`/user/getProfileDetailByMemberId/${memberId}/${gender}/${casteId}`)
-},
-getActiveUserSubscriptionByUserId:(userId)=>{
-  return axiosClient.get(`/userSubscriptions/getActiveUserSubscriptionByUserId/${userId}`)
-},
-updateSendRequestCount:(userId,subscriptionId,featureId)=>{
-  return axiosClient.get(`/userFeatureUsage/updateUsedCount/${userId}/${subscriptionId}/${featureId}`)
-},
-getAllKeyValues:()=>{
-  return axiosClient.get(`/keyValue/getAllKeyValues`)
-},
-getAllUserSavedSearches:(userId)=>{
-  return axiosClient.get(`/savedSearches/getUserSavedSearches/${userId}`)
-},
-inActiveSavedSearch:(userId)=>{
-  return axiosClient.put(`/savedSearches/inActiveSavedSearch/${userId}`)
-},
-createOrUpdateSavedSearch:(requestBody)=>{
-  return axiosClient.post(`/savedSearches/createOrUpdateSavedSearch`, requestBody)
-},
-starMatching:(requestBody)=>{
-  return axiosClient.post(`/matching/porutham`,requestBody)
-}
+  uploadScreenshot: (formData) => {
+    return axiosClient.post('/paymentrequest/create', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  getPaymentRequestsByUser: (encodedUserId) => {
+    return axiosClient.get(`/paymentrequest/getPaymentRequestsByUser/${encodedUserId}`);
+  },
+
+  uploadHoroscopeImage: (formData) => {
+    return axiosClient.post('/gallery/uploadHoroscopeImage', formData, {
+      headers: {
+        // DO NOT set Content-Type manually, Axios will set boundary
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  saveDeviceInfo: (requestBody) => {
+    return axiosClient.post(`/pushNotification/saveDeviceInfo`, requestBody);
+  },
+  deleteDevice: (requestBody) => {
+    return axiosClient.delete(`/pushNotification/deleteDevice`, requestBody)
+  },
+  createOrder: (amount) => {
+    return axiosClient.get(`/payments/createOrder/${amount}`)
+  },
+  getKeyValueByKey: (key) => {
+    return axiosClient.get(`/keyValue/getKeyValueByKey/${key}`)
+  },
+  getProfileDetailByMemberId: (memberId, gender, casteId) => {
+    return axiosClient.get(`/user/getProfileDetailByMemberId/${memberId}/${gender}/${casteId}`)
+  },
+  getActiveUserSubscriptionByUserId: (userId) => {
+    return axiosClient.get(`/userSubscriptions/getActiveUserSubscriptionByUserId/${userId}`)
+  },
+  updateSendRequestCount: (userId, subscriptionId, featureId) => {
+    return axiosClient.get(`/userFeatureUsage/updateUsedCount/${userId}/${subscriptionId}/${featureId}`)
+  },
+  getAllKeyValues: () => {
+    return axiosClient.get(`/keyValue/getAllKeyValues`)
+  },
+  getAllUserSavedSearches: (userId) => {
+    return axiosClient.get(`/savedSearches/getUserSavedSearches/${userId}`)
+  },
+  inActiveSavedSearch: (userId) => {
+    return axiosClient.put(`/savedSearches/inActiveSavedSearch/${userId}`)
+  },
+  createOrUpdateSavedSearch: (requestBody) => {
+    return axiosClient.post(`/savedSearches/createOrUpdateSavedSearch`, requestBody)
+  },
+  starMatching: (requestBody) => {
+    return axiosClient.post(`/matching/porutham`, requestBody)
+  }
 
 };
 

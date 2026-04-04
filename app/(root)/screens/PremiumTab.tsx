@@ -1,8 +1,11 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Crown, MessageCircle, Eye, Heart, Star, Shield, Users, Gift, Check, Sparkles, HeartHandshake, BellRing as Rings } from 'lucide-react-native';
+import { Crown, MessageCircle, Eye, Heart, Star, Shield, Users, Gift, Check, Sparkles, HeartHandshake, BellRing as Rings, Clock, CheckCircle, CircleDot, Circle } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
 import userApi from '../api/userApi';
+import { router } from 'expo-router';
+import { useUserData } from '../contexts/UserDataContext';
+import { useSubscription } from '../contexts/subscriptionContext';
 // import RazorpayCheckout from 'react-native-razorpay';
 // Auth context removed as it's not used in this component
 
@@ -29,34 +32,102 @@ interface Plan {
   savings: string;
   isActive: boolean;
   isPopular?: boolean;
+  features?: string[];
 }
 
+// Mock API response simulating the exact structure to be expected from backend matching static JSON requests
+const MOCK_API_RESPONSE = {
+  status: "success",
+  heroTitle: "Unlock Premium Matrimony 💕",
+  heroSubtitle: "Find your soulmate faster with exclusive matrimony features ❤️",
+  data: [
+    {
+      id: 1, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 0, durationMonths: 0, period: "/free", price: "0.00", originalPrice: "0.00", title: "Free", discount: "", savings: "Starter",
+      features: ["Basic Search Filters", "Limited Requests", "View Profile (limited)", "Shortlist"]
+    },
+    {
+      id: 2, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "999.00", originalPrice: "1499.00", title: "Bronze", discount: "33% OFF", savings: "Value",
+      features: ["Basic Search", "Advanced Search", "Send Request", "Limited Requests", "Shortlist"]
+    },
+    {
+      id: 3, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "1499.00", originalPrice: "2499.00", title: "Bronze", discount: "40% OFF", savings: "Value",
+      features: ["Basic Search", "Advanced Search", "Send Request", "Limited Requests", "Shortlist"]
+    },
+    {
+      id: 4, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "1999.00", originalPrice: "2999.00", title: "Silver", discount: "33% OFF", savings: "Popular",
+      features: ["Unlimited Requests", "Direct Messaging", "View Personal Info", "Shortlist", "Notification Alerts"]
+    },
+    {
+      id: 5, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "2999.00", originalPrice: "3999.00", title: "Silver", discount: "25% OFF", savings: "Most Popular", isPopular: true,
+      features: ["Unlimited Requests", "Direct Messaging", "View Personal Info", "Shortlist", "Notification Alerts"]
+    },
+    {
+      id: 6, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 365, durationMonths: 12, period: "/12 months", price: "4499.00", originalPrice: "5999.00", title: "Silver", discount: "25% OFF", savings: "Long Term",
+      features: ["Unlimited Requests", "Direct Messaging", "View Personal Info", "Shortlist", "Notification Alerts"]
+    },
+    {
+      id: 7, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "4999.00", originalPrice: "6999.00", title: "Gold", discount: "28% OFF", savings: "Premium",
+      features: ["Everything in Silver", "Who Viewed You", "Verification Badge", "High Visibility"]
+    },
+    {
+      id: 8, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 365, durationMonths: 12, period: "/12 months", price: "7999.00", originalPrice: "10999.00", title: "Gold", discount: "27% OFF", savings: "Best Value",
+      features: ["Everything in Silver", "Who Viewed You", "Verification Badge", "High Visibility"]
+    },
+    {
+      id: 9, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 9999, durationMonths: 0, period: "/until marriage", price: "12999.00", originalPrice: "19999.00", title: "Platinum", discount: "35% OFF", savings: "Ultimate",
+      features: ["All Features", "Speak With Families", "WhatsApp Share", "Highest Search Visibility", "Unlimited until marriage"]
+    }
+  ]
+};
+
 export default function PremiumTab() {
-  const [selectedPlan, setSelectedPlan] = useState<number | null>(1); // Default to middle plan (index 1)
+  const [selectedPlan, setSelectedPlan] = useState<number | null>(1);
   const [premiumFeatures, setPremiumFeatures] = useState<PremiumFeature[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [heroTitle, setHeroTitle] = useState("Unlock Premium Matrimony 💕");
+  const [heroSubtitle, setHeroSubtitle] = useState("Find your soulmate faster with exclusive matrimony features ❤️");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Payment status tracking
+  const { userData } = useUserData();
+  const { subscriptionData } = useSubscription() || {};
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentData, setPaymentData] = useState<any>(null);
+
   useEffect(() => {
+    fetchPaymentStatus();
     fetchData();
   }, []);
+
+  const fetchPaymentStatus = async () => {
+    try {
+      if (!userData?.userId) return;
+      const response = await userApi.getPaymentRequestsByUser(userData.userId);
+      if (response.data?.code === 200 && response.data?.data) {
+        setPaymentStatus(response.data.data.status);
+        setPaymentData(response.data.data);
+      }
+    } catch (err) {
+      console.log('No payment request found or error:', err);
+    }
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [featuresResponse, plansResponse] = await Promise.all([
         userApi.getAllActivePremiumFeatures().catch(() => ({ data: null })),
         userApi.getAllActivePlans().catch(() => ({ data: null }))
       ]);
-      
+
       // If both API calls failed, throw an error to trigger the fallback
       if (!featuresResponse?.data && !plansResponse?.data) {
         throw new Error('Failed to fetch premium data');
       }
-      
+
       // Map API response to match the existing component structure
       const mappedFeatures: PremiumFeature[] = featuresResponse?.data?.data ? featuresResponse.data.data.map((feature: any) => {
         const IconComponent = getIconComponent(feature.iconName);
@@ -71,29 +142,52 @@ export default function PremiumTab() {
         };
       }) : [];
 
-      const mappedPlans: Plan[] = plansResponse?.data?.data ? plansResponse.data.data.map((plan: any, index: number) => ({
-        id: plan.id || index + 1,
-        title: plan.title || `${plan.durationMonths || 1} Month${(plan.durationMonths || 1) > 1 ? 's' : ''}`,
-        price: `₹${(plan.price || 0).toLocaleString('en-IN')}`,
-        originalPrice: `₹${(plan.originalPrice || plan.price * 1.3 || 0).toLocaleString('en-IN')}`,
-        period: `/${plan.durationMonths || 1} ${(plan.durationMonths || 1) > 1 ? 'months' : 'month'}`,
-        discount: plan.discount ? `${plan.discount}% OFF` : (() => {
-          const original = parseFloat(plan.originalPrice || plan.price * 1.3 || '0');
-          const discounted = parseFloat(plan.price || '0');
-          const discountPercent = Math.round(((original - discounted) / original) * 100);
-          return `${discountPercent}% OFF`;
-        })(),
-        savings: index === 1 ? 'Most Popular' : 'Best Value',
-        isActive: plan.isActive !== false,
-        isPopular: index === 1
-      })) : [];
+      // NOTE: Here you would ideally make your API call like `const plansResponse = await fetch(/your-api-url).then(res => res.json())`
+      // For now, we are simulating the exact API network response with the MOCK_API_RESPONSE defined above
+      const apiResponseData = MOCK_API_RESPONSE.data;
+      const apiHeroTitle = MOCK_API_RESPONSE.heroTitle;
+      const apiHeroSubtitle = MOCK_API_RESPONSE.heroSubtitle;
 
-      setPremiumFeatures(mappedFeatures);
+      if (!apiResponseData) {
+        throw new Error('Failed to fetch premium data');
+      }
+
+      setHeroTitle(apiHeroTitle || "Unlock Premium Matrimony 💕");
+      setHeroSubtitle(apiHeroSubtitle || "Find your soulmate faster with exclusive matrimony features ❤️");
+
+      // We maintain the mapping identical so when the API connects, exactly this block takes over.
+      const mappedPlans: Plan[] = apiResponseData.map((plan: any, index: number) => {
+        let derivedPrice = parseFloat(plan.price || '0');
+        let derivedOriginalPrice = parseFloat(plan.originalPrice || plan.price * 1.3 || '0');
+
+        return {
+          id: plan.id || index + 1,
+          title: plan.durationMonths ? `${plan.title} (${plan.durationMonths} Months)` : plan.title,
+          price: `₹${derivedPrice.toLocaleString('en-IN')}`,
+          originalPrice: `₹${derivedOriginalPrice.toLocaleString('en-IN')}`,
+          period: plan.period || `/${plan.durationMonths || 1} ${(plan.durationMonths || 1) > 1 ? 'months' : 'month'}`,
+          discount: plan.discount || (() => {
+            if (derivedOriginalPrice > 0) {
+              const discountPercent = Math.round(((derivedOriginalPrice - derivedPrice) / derivedOriginalPrice) * 100);
+              return discountPercent > 0 ? `${discountPercent}% OFF` : '';
+            }
+            return '';
+          })(),
+          savings: plan.savings || 'Value',
+          isActive: plan.active === 'Y',
+          isPopular: plan.isPopular || false,
+          features: plan.features || []
+        };
+      });
+
       setPlans(mappedPlans);
+
+      const popularIndex = mappedPlans.findIndex(p => p.isPopular);
+      setSelectedPlan(popularIndex !== -1 ? popularIndex : 0);
     } catch (err) {
       console.error('Error fetching premium data:', err);
       setError('Failed to load premium features and plans. Please try again later.');
-      
+
       // Fallback to default data if API fails
       setPremiumFeatures(defaultPremiumFeatures);
       setPlans(defaultPlans);
@@ -104,7 +198,7 @@ export default function PremiumTab() {
 
   // Helper function to map icon names to components
   const getIconComponent = (iconName: string): LucideIcon => {
-    const iconMap: {[key: string]: LucideIcon} = {
+    const iconMap: { [key: string]: LucideIcon } = {
       'message-circle': MessageCircle as LucideIcon,
       'eye': Eye as LucideIcon,
       'heart': Heart as LucideIcon,
@@ -186,37 +280,40 @@ export default function PremiumTab() {
 
   const defaultPlans: Plan[] = [
     {
-      id: 1,
-      title: '1 Month',
-      price: '₹2,999',
-      originalPrice: '₹3,999',
-      period: '/month',
-      discount: '25% OFF',
-      savings: 'Best Value',
-      isActive: true,
-      isPopular: false
+      id: 1, title: 'Free', price: '₹0', originalPrice: '₹0', period: '/free', discount: '', savings: 'Starter', isActive: true, isPopular: false,
+      features: ['Basic Search Filters', 'Limited Requests', 'View Profile (limited)', 'Shortlist']
     },
     {
-      id: 2,
-      title: '3 Months',
-      price: '₹6,999',
-      originalPrice: '₹11,997',
-      period: '/3 months',
-      discount: '42% OFF',
-      savings: 'Most Popular',
-      isActive: true,
-      isPopular: true
+      id: 2, title: 'Bronze (3 Months)', price: '₹999', originalPrice: '₹1,499', period: '/3 months', discount: '33% OFF', savings: 'Value', isActive: true, isPopular: false,
+      features: ['Basic Search', 'Advanced Search', 'Send Request', 'Limited Requests', 'Shortlist']
     },
     {
-      id: 3,
-      title: '6 Months',
-      price: '₹11,999',
-      originalPrice: '₹23,994',
-      period: '/6 months',
-      discount: '50% OFF',
-      savings: 'Best Value',
-      isActive: true,
-      isPopular: false
+      id: 3, title: 'Bronze (6 Months)', price: '₹1,499', originalPrice: '₹2,499', period: '/6 months', discount: '40% OFF', savings: 'Value', isActive: true, isPopular: false,
+      features: ['Basic Search', 'Advanced Search', 'Send Request', 'Limited Requests', 'Shortlist']
+    },
+    {
+      id: 4, title: 'Silver (3 Months)', price: '₹1,999', originalPrice: '₹2,999', period: '/3 months', discount: '33% OFF', savings: 'Popular', isActive: true, isPopular: false,
+      features: ['Unlimited Requests', 'Direct Messaging', 'View Personal Info', 'Shortlist', 'Notification Alerts']
+    },
+    {
+      id: 5, title: 'Silver (6 Months)', price: '₹2,999', originalPrice: '₹3,999', period: '/6 months', discount: '25% OFF', savings: 'Most Popular', isActive: true, isPopular: true,
+      features: ['Unlimited Requests', 'Direct Messaging', 'View Personal Info', 'Shortlist', 'Notification Alerts']
+    },
+    {
+      id: 6, title: 'Silver (12 Months)', price: '₹4,499', originalPrice: '₹5,999', period: '/12 months', discount: '25% OFF', savings: 'Long Term', isActive: true, isPopular: false,
+      features: ['Unlimited Requests', 'Direct Messaging', 'View Personal Info', 'Shortlist', 'Notification Alerts']
+    },
+    {
+      id: 7, title: 'Gold (6 Months)', price: '₹4,999', originalPrice: '₹6,999', period: '/6 months', discount: '28% OFF', savings: 'Premium', isActive: true, isPopular: false,
+      features: ['Everything in Silver', 'Who Viewed You', 'Verification Badge', 'High Visibility']
+    },
+    {
+      id: 8, title: 'Gold (12 Months)', price: '₹7,999', originalPrice: '₹10,999', period: '/12 months', discount: '27% OFF', savings: 'Best Value', isActive: true, isPopular: false,
+      features: ['Everything in Silver', 'Who Viewed You', 'Verification Badge', 'High Visibility']
+    },
+    {
+      id: 9, title: 'Platinum', price: '₹12,999', originalPrice: '₹19,999', period: '/until marriage', discount: '35% OFF', savings: 'Ultimate', isActive: true, isPopular: false,
+      features: ['All Features', 'Speak With Families', 'WhatsApp Share', 'Highest Search Visibility', 'Unlimited until marriage']
     }
   ];
 
@@ -231,11 +328,11 @@ export default function PremiumTab() {
     );
   }
 
-  if (error) {
+  if (error && !paymentStatus) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.retryButton}
           onPress={fetchData}
         >
@@ -245,59 +342,222 @@ export default function PremiumTab() {
     );
   }
 
+  // PENDING payment — show payment under review
+  if (paymentStatus === 'PENDING') {
+    return (
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <LinearGradient colors={['#fdf2f8', '#fef7ff', '#fff1f2']} style={styles.hero}>
+          <View style={styles.heroContent}>
+            <View style={[styles.crownContainer, { marginBottom: 16 }]}>
+              <LinearGradient colors={['#f97316', '#ea580c']} style={styles.crownGradient}>
+                <Clock size={32} color="#ffffff" />
+              </LinearGradient>
+            </View>
+            <Text style={[styles.heroTitle, { fontSize: 22 }]}>Payment Under Review</Text>
+            <Text style={styles.heroSubtitle}>Your payment is being verified. You'll be notified once approved.</Text>
+          </View>
+        </LinearGradient>
+
+        <View style={{ padding: 20 }}>
+          {/* Payment Info Card */}
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 20,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+          }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#130001', marginBottom: 16 }}>Payment Details</Text>
+
+            {paymentData?.createdAt && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                <Text style={{ color: '#6b7280', fontSize: 14 }}>Submitted</Text>
+                <Text style={{ color: '#130001', fontSize: 14, fontWeight: '600' }}>
+                  {new Date(paymentData.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </Text>
+              </View>
+            )}
+
+            {paymentData?.utrNumber && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                <Text style={{ color: '#6b7280', fontSize: 14 }}>UTR Number</Text>
+                <Text style={{ color: '#130001', fontSize: 14, fontWeight: '600' }}>{paymentData.utrNumber}</Text>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: '#6b7280', fontSize: 14 }}>Status</Text>
+              <View style={{ backgroundColor: '#fef3c7', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+                <Text style={{ color: '#d97706', fontSize: 12, fontWeight: '700' }}>PENDING</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Verification Steps */}
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 20,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+          }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#130001', marginBottom: 16 }}>Verification Progress</Text>
+
+            {/* Step 1 - Done */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <CheckCircle size={24} color="#10b981" />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#130001' }}>Screenshot Uploaded</Text>
+                <Text style={{ fontSize: 12, color: '#6b7280' }}>Payment proof received</Text>
+              </View>
+            </View>
+
+            {/* Step 2 - In Progress */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <CircleDot size={24} color="#f97316" />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#f97316' }}>Payment Verification</Text>
+                <Text style={{ fontSize: 12, color: '#6b7280' }}>Admin is reviewing your payment</Text>
+              </View>
+            </View>
+
+            {/* Step 3 - Pending */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Circle size={24} color="#d1d5db" />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#9ca3af' }}>Premium Activation</Text>
+                <Text style={{ fontSize: 12, color: '#6b7280' }}>Will activate after approval</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Support Message */}
+          <View style={{
+            backgroundColor: '#eff6ff',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 40,
+            borderWidth: 1,
+            borderColor: '#bfdbfe',
+          }}>
+            <Text style={{ fontSize: 13, color: '#1e40af', textAlign: 'center', lineHeight: 20 }}>
+              Verification usually takes a few hours. If you have any concerns, please contact our support team.
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // APPROVED subscription — show already premium
+  if (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free')) {
+    const planName = subscriptionData?.planTitle || 'Premium';
+    return (
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <LinearGradient colors={['#fdf2f8', '#fef7ff', '#fff1f2']} style={styles.hero}>
+          <View style={styles.heroContent}>
+            <View style={[styles.crownContainer, { marginBottom: 16 }]}>
+              <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.crownGradient}>
+                <Crown size={32} color="#ffffff" />
+              </LinearGradient>
+            </View>
+            <Text style={[styles.heroTitle, { fontSize: 22 }]}>You're a {planName} Member!</Text>
+            <Text style={styles.heroSubtitle}>Enjoy all your premium features and find your perfect match.</Text>
+          </View>
+        </LinearGradient>
+
+        <View style={{ padding: 20 }}>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 20,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <CheckCircle size={24} color="#10b981" />
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#130001', marginLeft: 10 }}>Active Subscription</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Text style={{ color: '#6b7280', fontSize: 14 }}>Plan</Text>
+              <Text style={{ color: '#130001', fontSize: 14, fontWeight: '600' }}>{planName}</Text>
+            </View>
+
+            {subscriptionData?.endDate && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: '#6b7280', fontSize: 14 }}>Valid Until</Text>
+                <Text style={{ color: '#130001', fontSize: 14, fontWeight: '600' }}>
+                  {new Date(subscriptionData.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#420001',
+              borderRadius: 12,
+              padding: 16,
+              alignItems: 'center',
+              marginBottom: 40,
+            }}
+            onPress={() => router.back()}
+          >
+            <Text style={{ color: '#DADADA', fontSize: 16, fontWeight: '600' }}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  }
+
   const handleUpgradePress = () => {
+    if (selectedPlan === null || !plans[selectedPlan]) {
+      Alert.alert('Select a Plan', 'Please select a plan to continue.');
+      return;
+    }
+    const plan = plans[selectedPlan];
     Alert.alert(
       'Confirm Upgrade',
-      'Continue to the plan?',
+      `Continue with ${plan.title} plan at ${plan.price}?`,
       [
         {
           text: 'Cancel',
-          onPress: () => console.log('Pressed Cancel'),
           style: 'cancel',
         },
         {
-          text: 'OK',
-          onPress: () => upgradePlan(),
+          text: 'Continue to Payment',
+          onPress: () => {
+            router.push({
+              pathname: '/screens/PaymentScreen',
+              params: {
+                planTitle: plan.title,
+                planPrice: plan.price,
+                planPeriod: plan.title,
+                planId: plan.id.toString(),
+              },
+            });
+          },
         },
       ],
       { cancelable: false }
     );
-  }
-  const upgradePlan = async() =>{
+  };
+  const upgradePlan = async () => {
     console.log("upgradePlan=============>");
-
-    // const orderResponse = await userApi.createOrder(500)
-    // console.log("orderResponse=============>",orderResponse);
-    // if(orderResponse?.data?.code == 200){
-    //   const options = {
-    //     description: 'Credits towards consultation',
-    //   image: 'https://gallery.chennaisuperkings.com/PROD/NEWS_STORY/IMAGE/NEWS_STORY_1756715484410_9d97a2_1756715484410.png',
-    //   currency: 'INR',
-    //   key: 'rzp_test_RCElx42eadXCSx',
-    //   amount: orderResponse?.data?.data?.amount,
-    //   name: 'Selva Ganapathi',
-    //   order_id: orderResponse?.data?.data?.id,
-    //   prefill: {
-    //     email: 'selvakrish820@gmail.com',
-    //     contact: '+916379829750',
-    //     name: 'Selva Ganapathi'
-    //   },
-    //   theme: {color: '#53a20e'}
-    // }
-
-    // RazorpayCheckout.open(options).then((data : any) => {
-    //   // handle success
-    //   Alert.alert('Success', 'Payment successful');
-    // }).catch((error : any) => {
-    //   // handle failure
-    //   Alert.alert('Error', error.description);
-    // });
-
-  // }else{
-  //   Alert.alert('Error', 'Something went wrong. Please try again.');
-
-  // }
-}
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -312,7 +572,7 @@ export default function PremiumTab() {
           <Heart size={14} color="#be185d" fill="#be185d" style={[styles.floatingHeart, styles.heart3]} />
           <Heart size={10} color="#f9a8d4" fill="#f9a8d4" style={[styles.floatingHeart, styles.heart4]} />
         </View>
-        
+
         <View style={styles.heroContent}>
           <View style={styles.crownContainer}>
             <LinearGradient
@@ -324,26 +584,26 @@ export default function PremiumTab() {
               <Heart size={12} color="#ec4899" fill="#ec4899" />
             </View>
           </View>
-          <Text style={styles.heroTitle}> Unlock Premium Matrimony 💕</Text>
+          <Text style={styles.heroTitle}> {heroTitle}</Text>
           {/* <Text style={styles.heroTitle}>💕 Matrimony 💕</Text> */}
 
-          <Text style={styles.heroSubtitle}>Find your soulmate faster with exclusive matrimony features ❤️</Text>
+          <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
         </View>
       </LinearGradient>
 
       {/* Premium Features Grid */}
-      <View style={styles.featuresSection}>
+      {/* <View style={styles.featuresSection}>
         <View style={styles.sectionHeader}>
           <HeartHandshake size={20} color="#d946ef" />
           <Text style={styles.sectionTitle}>Premium Matrimony Features</Text>
           <HeartHandshake size={20} color="#d946ef" />
         </View>
-        
+
         <View style={styles.featuresGrid}>
           {premiumFeatures.map((feature, index) => {
             const IconComponent = feature.icon;
             const isEven = index % 2 === 0;
-            
+
             return (
               <View key={index} style={[styles.featureCard, isEven ? styles.leftCard : styles.rightCard]}>
                 <View style={[styles.featureIcon, { backgroundColor: feature.bgColor }]}>
@@ -360,39 +620,43 @@ export default function PremiumTab() {
             );
           })}
         </View>
-      </View>
+      </View> */}
 
       {/* Pricing Plans */}
       <View style={styles.pricingSection}>
-        <View style={styles.sectionHeader}>
-          {/* <Rings size={20} color="#d946ef" /> */}
+        {/* <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>💍 Choose Your Matrimony Plan </Text>
-          {/* <Rings size={20} color="#d946ef" /> */}
-        </View>
-        <Text style={styles.pricingSubtitle}>💕 Start your premium matrimony journey today 💕</Text>
-        
+        </View> */}
+        {/* <Text style={styles.pricingSubtitle}>💕 Start your premium matrimony journey today 💕</Text> */}
+
         <View style={styles.plansContainer}>
           {plans.map((plan, index) => (
-            <TouchableOpacity 
-              key={index} 
+            <TouchableOpacity
+              key={index}
               style={[
                 styles.planCard,
-                selectedPlan === index ? styles.selectedPlan : styles.planCard
+                selectedPlan === index ? styles.selectedPlan : null,
+                plan.isPopular && { marginTop: 15 }
               ]}
               onPress={() => setSelectedPlan(index)}>
+              {plan.title.toLowerCase() === 'free' && (
+                <View style={[styles.popularBadge, { backgroundColor: '#f3f4f6', borderColor: '#d1d5db', shadowColor: 'transparent' }]}>
+                  <Text style={[styles.popularText, { color: '#130001' }]}>CURRENT PLAN</Text>
+                </View>
+              )}
               {plan.isPopular && (
                 <View style={styles.popularBadge}>
                   <Text style={styles.popularText}>POPULAR</Text>
                 </View>
               )}
-              
+
               <View style={styles.planHeader}>
                 <Text style={styles.planTitle}>{plan.title}</Text>
                 <View style={styles.discountBadge}>
                   <Text style={styles.discountText}>{plan.discount}</Text>
                 </View>
               </View>
-              
+
               <View style={styles.priceSection}>
                 <View style={styles.priceRow}>
                   <Text style={[styles.price, plan.isPopular && styles.popularPrice]}>{plan.price}</Text>
@@ -400,20 +664,14 @@ export default function PremiumTab() {
                 </View>
                 <Text style={styles.period}>/ {plan.title}</Text>
               </View>
-              
+
               <View style={styles.planFeatures}>
-                <View style={styles.featureRow}>
-                  <Check size={14} color="#10b981" />
-                  <Text style={styles.featureText}>💖 All Premium Features</Text>
-                </View>
-                <View style={styles.featureRow}>
-                  <Check size={14} color="#10b981" />
-                  <Text style={styles.featureText}>🤝 24/7 Matrimony Support</Text>
-                </View>
-                <View style={styles.featureRow}>
-                  <Check size={14} color="#10b981" />
-                  <Text style={styles.featureText}>⭐ Profile Highlight</Text>
-                </View>
+                {(plan.features || []).map((feature, fIndex) => (
+                  <View key={fIndex} style={styles.featureRow}>
+                    <Check size={14} color="#10b981" />
+                    <Text style={styles.featureText}>{feature}</Text>
+                  </View>
+                ))}
               </View>
             </TouchableOpacity>
           ))}
@@ -422,7 +680,7 @@ export default function PremiumTab() {
 
       {/* CTA Section */}
       <View style={styles.ctaSection}>
-        <View style={styles.urgencyBanner}>
+        {/* <View style={styles.urgencyBanner}>
           <LinearGradient
             colors={['#fef2f2', '#fdf2f8']}
             style={styles.urgencyGradient}>
@@ -430,18 +688,26 @@ export default function PremiumTab() {
             <Text style={styles.urgencyText}>💕 Join 1000+ couples who found love this month! 💕</Text>
             <Heart size={14} color="#ec4899" fill="#ec4899" />
           </LinearGradient>
-        </View>
-        
-        <TouchableOpacity style={styles.upgradeButton} onPress={() => handleUpgradePress()}>
-          <LinearGradient
-            colors={['#ec4899', '#be185d']}
-            style={styles.upgradeGradient}>
-            <Heart size={18} color="#ffffff" fill="#ffffff" />
-            <Text style={styles.upgradeText}>💖 Start Premium Journey 💖</Text>
-            <Heart size={18} color="#ffffff" fill="#ffffff" />
-          </LinearGradient>
-        </TouchableOpacity>
-        
+        </View> */}
+
+        {selectedPlan !== null && plans[selectedPlan]?.title.toLowerCase() === 'free' ? (
+          <View style={[styles.upgradeButton, { opacity: 0.6 }]}>
+            <LinearGradient
+              colors={['#9ca3af', '#6b7280']}
+              style={styles.upgradeGradient}>
+              <Text style={styles.upgradeText}>Current Plan Selected</Text>
+            </LinearGradient>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.upgradeButton} onPress={() => handleUpgradePress()}>
+            <LinearGradient
+              colors={['#8b5cf6', '#7317cf']}
+              style={styles.upgradeGradient}>
+              <Text style={styles.upgradeText}>Start Premium Journey</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
         {/* <View style={styles.guaranteeSection}>
           <Heart size={16} color="#ec4899" fill="#ec4899" />
           <Text style={styles.guaranteeText}>💕 7-day money-back guarantee • Secure payment 💕</Text>
@@ -511,7 +777,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    color: 'white',
+    color: '#DADADA',
     fontWeight: '600',
     fontSize: 16,
   },
@@ -595,7 +861,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#130001',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -621,7 +887,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#130001',
     textAlign: 'center',
   },
   featuresGrid: {
@@ -662,7 +928,7 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#130001',
     marginBottom: 2,
   },
   featureDescription: {
@@ -720,11 +986,19 @@ const styles = StyleSheet.create({
   },
   popularBadge: {
     position: 'absolute',
-    top: -8,
+    top: -12,
     alignSelf: 'center',
-    left: '50%',
-    transform: [{ translateX: -40 }],
+    backgroundColor: '#fff1f2',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ec4899',
+    shadowColor: '#ec4899',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   popularBadgeGradient: {
     paddingHorizontal: 12,
@@ -733,8 +1007,10 @@ const styles = StyleSheet.create({
   },
   popularText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: '700',
+    color: '#ec4899', // Primary active color
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   planHeader: {
     flexDirection: 'row',
@@ -745,7 +1021,7 @@ const styles = StyleSheet.create({
   planTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#130001',
   },
   discountBadge: {
     backgroundColor: '#dcfce7',
@@ -770,7 +1046,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#130001',
   },
   popularPrice: {
     color: '#be185d',
@@ -840,7 +1116,7 @@ const styles = StyleSheet.create({
   upgradeText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#DADADA',
   },
   guaranteeSection: {
     flexDirection: 'row',
@@ -872,7 +1148,7 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#130001',
     textAlign: 'center',
   },
   statsRow: {

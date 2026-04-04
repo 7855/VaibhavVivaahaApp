@@ -385,7 +385,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                     {isLoading ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{
-                          color: 'white',
+                          color: '#DADADA',
                           fontSize: 18,
                           fontWeight: 'bold',
                           marginLeft: 12,
@@ -397,7 +397,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="security" size={20} color="white" />
                         <Text style={{
-                          color: 'white',
+                          color: '#DADADA',
                           fontSize: 16,
                           fontWeight: 'bold',
                           marginLeft: 8,

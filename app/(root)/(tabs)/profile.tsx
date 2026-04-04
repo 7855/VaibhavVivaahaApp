@@ -1,38 +1,39 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, StyleSheet, Image, Text as TextNative, TouchableOpacity, Modal as RNModal, TextInput, KeyboardAvoidingView, Platform, Keyboard, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import icons from '@/constants/icons';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { NativeBaseProvider, Text, HStack, Avatar } from 'native-base';
+import { NativeBaseProvider, Text, HStack, Avatar, Skeleton, VStack, Box } from 'native-base';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Tabs from '@/components/tabs';
 import userApi from '@/app/(root)/api/userApi';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
+import { useUserData } from '../contexts/UserDataContext';
 
+
+const CACHE_DURATION_MS = 30000; // 30 seconds
 
 const ProfileScreen = () => {
   const params = useLocalSearchParams();
   const initialTabIndex = params.tabIndex ? Number(params.tabIndex) : 0;
+  const { userData, updateField } = useUserData();
 
-  
   const [userDetails, setUserDetails] = useState<any>(null);
   const [personalDetail, setPersonalDetail] = useState<any>(null);
   const [galleryImages, setGalleryImages] = useState<any>(null);
   const [finalData, setFinalData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [gender, setGender] = useState<string | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editedAbout, setEditedAbout] = useState('');
   const [image, setImage] = useState<string | null>(null);
+  const lastFetchRef = useRef<number>(0);
 
   const handleUpdateAbout = async () => {
     try {
       Keyboard.dismiss();
       const wordCount = editedAbout.trim().split(/\s+/).length;
-      
+
       if (wordCount < 18 || wordCount > 23) {
         Alert.alert(
           'Validation Error',
@@ -42,16 +43,13 @@ const ProfileScreen = () => {
         return;
       }
 
-      const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
-        return;
-      }
-      const userIdNumber = Number(atob(userId));
+      if (!userData.userId || !userData.decodedUserId) return;
+      const userIdNumber = Number(userData.decodedUserId);
       const response = await userApi.updateAboutByUserId({
         userId: userIdNumber,
         about: editedAbout
       });
-      
+
       if (response.status === 200 && response.data.status === 'SUCCESS') {
         Alert.alert('Success', 'About information updated successfully', [
           {
@@ -74,12 +72,12 @@ const ProfileScreen = () => {
     if (!data || !data.userDetail || data.userDetail.length === 0) return [];
 
     const detail = data.userDetail[0];
-    
+
     // Parse nested JSON fields
     const basicInfo = JSON.parse(detail.basicInfo || '{}');
     const astronomicInfoArray = JSON.parse(detail.astronomicInfo || '[]');
     const familyInfoArray = JSON.parse(detail.familyInfo || '[]');
-    
+
     const astro = astronomicInfoArray[0] || {};
     const family = familyInfoArray[0] || {};
 
@@ -139,158 +137,162 @@ const ProfileScreen = () => {
     return result;
   };
 
-let val : any;
+  // Smart caching: show stale data immediately, refresh in background if stale
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      const timeSinceLastFetch = now - lastFetchRef.current;
 
-useFocusEffect(
-  
-  useCallback(() => {
-    refreshProfile();
-  }, [])
-);
-
-  const refreshProfile = async () => {
-    try {
-      setIsLoading(true);
-      const userId = await AsyncStorage.getItem('userId');
-      const storedGender = await AsyncStorage.getItem('gender');
-      console.log("storedGender=====================>", storedGender);
-      
-      setGender(storedGender);
-      
-      const response = await userApi.getProfileDetails(userId);
-      const rawData = response.data.data;
-      if(rawData){
-        AsyncStorage.setItem("profileImage",rawData.profileImage)
-      }
-      setUserDetails(rawData);
-      const formattedData = formatUserDetails(rawData);
-      val = formattedData;
-      setPersonalDetail(formattedData);
-
-      // Load gender from AsyncStorage
-
-
-      const galleryRes = await userApi.getUserGalleryImages(userId);
-      const galleryData = galleryRes.data.data;
-      setGalleryImages(galleryData);
-
-    const mergeData = {
-      personalDetails: val || [],
-      galleryImages: galleryData || [],
-    };
-    setFinalData(mergeData);
-  } catch (error) {
-    console.error("Refresh error:", error);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-// useFocusEffect(
-//   useCallback(() => {
-//     const fetchUserDetail = async () => {
-//       try {
-//         setIsLoading(true);
-//         const response = await userApi.getProfileDetails(1);
-//         const rawData = response.data.data;
-//         setUserDetails(rawData);
-//         const formattedData = formatUserDetails(rawData);
-//         val = formattedData;
-//         setPersonalDetail(formattedData);
-//         await fetchGalleryImages(); // Ensure this waits before moving on
-//       } catch (error: any) {
-//         console.error('API call error:', error);
-//       } finally {
-//         setIsLoading(false);
-//       }
-//     };
-
-//     const fetchGalleryImages = async () => {
-//       try {
-//         const response = await userApi.getUserGalleryImages(1);
-//         const rawData = response.data.data;
-//         setGalleryImages(rawData);
-
-//         const mergeData = {
-//           personalDetails: val || [],
-//           galleryImages: rawData || [],
-//         };
-//         console.log("mergeData=======================>", mergeData);
-//         setFinalData(mergeData);
-//       } catch (error: any) {
-//         console.error('API call error:', error);
-//       }
-//     };
-
-//     fetchUserDetail();
-//   }, [])
-// );
-// handlePickImage
-const handlePickImage = async () => {
-  try {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets?.length > 0) {
-      const imageUri = result.assets[0].uri;
-      setImage(imageUri);
-
-      const userIdEncoded = await AsyncStorage.getItem('userId');
-      if (!userIdEncoded) {
-        Alert.alert('Error', 'User not found. Please login again.');
+      if (timeSinceLastFetch < CACHE_DURATION_MS && finalData) {
+        // Data is fresh enough, skip API calls
         return;
       }
 
-      const userId = atob(userIdEncoded);
-      console.log("Decoded userId:", userId);
+      // If we have cached data, don't show loading spinner
+      if (finalData) {
+        refreshProfile(false);
+      } else {
+        refreshProfile(true);
+      }
+    }, [userData.userId])
+  );
 
-      // Get file details
-      const fileExtension = imageUri.split('.').pop() || 'jpg';
-      const mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`;
+  const refreshProfile = async (showLoading = true) => {
+    if (!userData.userId) return;
 
-      // Build FormData
-      const formData = new FormData();
-      formData.append('file', {
-        uri: imageUri,
-        type: mimeType,
-        name: `profile_${Date.now()}.${fileExtension}`,
-      } as any);
-      formData.append('userId', userId);
+    try {
+      if (showLoading) setIsLoading(true);
 
-      console.log('Sending FormData:', {
-        uri: imageUri,
-        type: mimeType,
-        name: `profile_${Date.now()}.${fileExtension}`,
-        userId,
+      const [profileRes, galleryRes] = await Promise.all([
+        userApi.getProfileDetails(userData.userId),
+        userApi.getUserGalleryImages(userData.userId),
+      ]);
+
+      const rawData = profileRes.data.data;
+      if (rawData?.profileImage) {
+        updateField('profileImage', rawData.profileImage);
+      }
+      setUserDetails(rawData);
+
+      const formattedData = formatUserDetails(rawData);
+      setPersonalDetail(formattedData);
+
+      const galleryData = galleryRes.data.data;
+      setGalleryImages(galleryData);
+
+      setFinalData({
+        personalDetails: formattedData || [],
+        galleryImages: galleryData || [],
       });
 
-      // API call
-      const response = await userApi.updateProfileImage(formData);
-
-      console.log("Response from server:", response);
-
-      if (response?.data?.code === 200) {
-        Alert.alert('Success', 'Profile image updated successfully!');
-        AsyncStorage.setItem('profileImage', response.data.data.profileImage);
-      } else {
-        throw new Error(response?.data?.message || 'Failed to update profile image');
-      }
+      lastFetchRef.current = Date.now();
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error: any) {
-    console.error('Error in handlePickImage:', error);
-    Alert.alert('Error', error.message || 'Failed to update profile image. Please try again.');
+  };
+
+
+  const handlePickImage = async () => {
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets?.length > 0) {
+        const imageUri = result.assets[0].uri;
+        setImage(imageUri);
+
+        if (!userData.decodedUserId) {
+          Alert.alert('Error', 'User not found. Please login again.');
+          return;
+        }
+
+        const userId = userData.decodedUserId;
+
+        // Get file details
+        const fileExtension = imageUri.split('.').pop() || 'jpg';
+        const mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`;
+
+        // Build FormData
+        const formData = new FormData();
+        formData.append('file', {
+          uri: imageUri,
+          type: mimeType,
+          name: `profile_${Date.now()}.${fileExtension}`,
+        } as any);
+        formData.append('userId', userId);
+
+        // API call
+        const response = await userApi.updateProfileImage(formData);
+
+        if (response?.data?.code === 200) {
+          Alert.alert('Success', 'Profile image updated successfully!');
+          updateField('profileImage', response.data.data.profileImage);
+        } else {
+          throw new Error(response?.data?.message || 'Failed to update profile image');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error in handlePickImage:', error);
+      Alert.alert('Error', error.message || 'Failed to update profile image. Please try again.');
+    }
+  };
+
+
+
+  if (isLoading) {
+    return (
+      <NativeBaseProvider>
+        <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#420001', marginBottom: 0, paddingBottom: 0 }}>
+          {/* Header skeleton - avatar, name, email, settings */}
+          <HStack alignItems="center" px={3} py={2}>
+            <Skeleton size={16} rounded="full" borderWidth={3} borderColor="#FDD017" />
+            <VStack flex={1} ml={3} space={2}>
+              <Skeleton h={4} w="50%" rounded="sm" startColor="gray.500" endColor="gray.600" />
+              <Skeleton h={3} w="70%" rounded="sm" startColor="gray.500" endColor="gray.600" />
+            </VStack>
+            <Skeleton size={6} rounded="full" startColor="gray.500" endColor="gray.600" mr={3} />
+          </HStack>
+
+          {/* About section skeleton */}
+          <Box px={5} py={4}>
+            <Skeleton h={3} w="90%" rounded="sm" startColor="gray.500" endColor="gray.600" mb={2} />
+            <Skeleton h={3} w="75%" rounded="sm" startColor="gray.500" endColor="gray.600" />
+          </Box>
+
+          {/* Tabs content skeleton */}
+          <View style={{ flex: 1, backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopEndRadius: 30 }}>
+            {/* Tab bar skeleton */}
+            <HStack justifyContent="space-around" pt={4} px={4} mb={4}>
+              <Skeleton h={4} w="20%" rounded="sm" />
+              <Skeleton h={4} w="20%" rounded="sm" />
+              <Skeleton h={4} w="20%" rounded="sm" />
+            </HStack>
+
+            {/* Tab content skeleton - detail rows */}
+            <VStack px={5} space={4}>
+              <Skeleton h={5} w="40%" rounded="sm" mb={2} />
+              {Array.from({ length: 6 }).map((_, i) => (
+                <HStack key={i} justifyContent="space-between" alignItems="center" py={2} borderBottomWidth={0.5} borderColor="gray.200">
+                  <Skeleton h={3.5} w="35%" rounded="sm" />
+                  <Skeleton h={3.5} w="40%" rounded="sm" />
+                </HStack>
+              ))}
+            </VStack>
+          </View>
+        </SafeAreaView>
+      </NativeBaseProvider>
+    );
   }
-};
-
-
 
   return (
     <NativeBaseProvider>
-      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: '#420001', marginBottom: 0, paddingBottom: 0 }} >
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#420001', marginBottom: 0, paddingBottom: 0 }} >
         <View style={{}}>
           <View className="">
             <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
@@ -312,9 +314,9 @@ const handlePickImage = async () => {
                         source={
                           userDetails?.profileImage
                             ? { uri: userDetails.profileImage }
-                            : gender === 'M'
+                            : userData.gender === 'M'
                               ? require('../../../assets/images/avatarMen.png')
-                              : gender === 'F'
+                              : userData.gender === 'F'
                                 ? require('../../../assets/images/avatarWomen.png')
                                 : require('../../../assets/images/defaultAvatar.png')
                         }
@@ -335,7 +337,7 @@ const handlePickImage = async () => {
                     </View>
                   </TouchableOpacity>
                 </HStack>
-              </View> 
+              </View>
               <TextNative style={{ flex: 1, color: 'white', marginStart: 12 }}>
                 <View>
                   <TextNative style={[styles.greetingName, { color: 'white' }]}>
@@ -346,15 +348,15 @@ const handlePickImage = async () => {
                   </TextNative>
                 </View>
               </TextNative>
-                      <TouchableOpacity
-                      onPress={() => {
-                        router.push({
-                          pathname: '/screens/settingsPage', 
-                        });
-                      }}
-                    >
-              <IIcon name='settings-sharp' color={'#fff'} size={25} style={{ marginRight: 15 }}></IIcon>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  router.push({
+                    pathname: '/screens/settingsPage',
+                  });
+                }}
+              >
+                <IIcon name='settings-sharp' color={'#fff'} size={25} style={{ marginRight: 15 }}></IIcon>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -365,8 +367,8 @@ const handlePickImage = async () => {
           justifyContent: 'space-between',
           alignItems: 'flex-start'
         }}>
-          <Text color={"#fff"} style={{ fontStyle: 'italic',width:'93%' }}>{userDetails?.userDetail?.[0]?.about}</Text>
-          <TouchableOpacity style={{backgroundColor: '#fff', padding: 5, borderRadius: 999}} onPress={() => {
+          <Text color={"#fff"} style={{ fontStyle: 'italic', width: '93%' }}>{userDetails?.userDetail?.[0]?.about}</Text>
+          <TouchableOpacity style={{ backgroundColor: '#fff', padding: 5, borderRadius: 999 }} onPress={() => {
             setEditedAbout(userDetails?.userDetail?.[0]?.about || '');
             setIsEditModalVisible(true);
           }}>
@@ -418,13 +420,14 @@ const handlePickImage = async () => {
           </RNModal>
         </View>
 
-        <View  style={{height:'100%', backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopEndRadius: 30 }}>
+        <View style={{ flex: 1, backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopEndRadius: 30 }}>
 
-          <Tabs 
-  personalDetail={finalData} 
-  refreshProfile={refreshProfile} 
-  initialTabIndex={initialTabIndex}
-/>
+          <Tabs
+            personalDetail={finalData}
+            refreshProfile={refreshProfile}
+            initialTabIndex={initialTabIndex}
+            userId={userData.userId}
+          />
         </View>
       </SafeAreaView>
     </NativeBaseProvider>

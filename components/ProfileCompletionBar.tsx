@@ -33,8 +33,8 @@ const ProfileCompletionBar = () => {
         const userId = await AsyncStorage.getItem('userId');
         if (!userId) return;
         const response = await userApi.getProfileCompletion(userId);
-        console.log("profilerc",response?.data?.data.data);
-        
+        // console.log("profilerc", response?.data?.data.data);
+
         if (response?.data?.data) {
           const { completion, meta, nextAction } = response.data.data.data;
           setCompletion(completion);
@@ -52,28 +52,28 @@ const ProfileCompletionBar = () => {
   }
 
   const titleOverrides: Record<string, string> = {
-  'Add Number of siblings': 'Add No of Siblings',
-};
+    'Add Number of siblings': 'Add No of Siblings',
+  };
 
-const actionTitle = nextAction ? 
-  (titleOverrides[nextAction.title] ?? nextAction.title) : 
-  '';
+  const actionTitle = nextAction ?
+    (titleOverrides[nextAction.title] ?? nextAction.title) :
+    '';
 
   return (
     <View style={styles.container}>
       <View style={styles.widgetContainer}>
         <View style={styles.profileCompletionWidget}>
           <View style={styles.progressSection}>
-<View style={styles.progressRingContainer}>
-  <ProgressRing 
-    percentage={completion.percentage}
-    size={43}
-    strokeWidth={4}
-    color="#420001"
-    bgColor="#e5e7eb"
-  />
-  <Text style={styles.progressText}>{completion.percentage}%</Text>
-</View>
+            <View style={styles.progressRingContainer}>
+              <ProgressRing
+                percentage={completion.percentage}
+                size={43}
+                strokeWidth={4}
+                color="#420001"
+                bgColor="#e5e7eb"
+              />
+              <Text style={styles.progressText}>{completion.percentage}%</Text>
+            </View>
             <View style={styles.progressInfo}>
               <View style={styles.progressLabel}>
                 <Text style={styles.progressStatus}>{completion.status}</Text>
@@ -85,31 +85,31 @@ const actionTitle = nextAction ?
               </Text>
             </View>
           </View>
-{completion.percentage >= 100 ? (
-  <View style={styles.completedContainer}>
-    <Text style={styles.completedText}>🎉 Profile Completed</Text>
-  </View>
-) : nextAction ? (
-  <TouchableOpacity
-    style={styles.actionButton}
-    onPress={() => {
-      const route = nextAction.route;
-      if (route === '/(root)/(tabs)/profile') {
-        router.push({
-          pathname: route,
-          params: { tabIndex: 2 },
-        } as any);
-      } else {
-        router.push(route as any);
-      }
-    }}
-  >
-    <Text style={styles.actionButtonText}>{actionTitle}</Text>
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>+{nextAction.boostPercentage}%</Text>
-    </View>
-  </TouchableOpacity>
-) : null}
+          {completion.percentage >= 100 ? (
+            <View style={styles.completedContainer}>
+              <Text style={styles.completedText}>🎉 Profile Completed</Text>
+            </View>
+          ) : nextAction ? (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                const route = nextAction.route;
+                if (route === '/(root)/(tabs)/profile') {
+                  router.push({
+                    pathname: route,
+                    params: { tabIndex: 2 },
+                  } as any);
+                } else {
+                  router.push(route as any);
+                }
+              }}
+            >
+              <Text style={styles.actionButtonText}>{actionTitle}</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>+{nextAction.boostPercentage}%</Text>
+              </View>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     </View>
@@ -153,31 +153,31 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#e5e7eb',
   },
-progressRingInner: {
-  position: 'absolute',
-  width: '100%',
-  height: '100%',
-  borderRadius: 20,
-  borderWidth: 3,
-  borderColor: '#420001', // Your primary color
-  borderRightColor: 'transparent',
-  borderBottomColor: 'transparent',
-  transform: [{ rotate: '0deg' }],
-  transformOrigin: 'center',
-},
-progressRingContainer: {
-  width: 40,
-  height: 40,
-  justifyContent: 'center',
-  alignItems: 'center',
-  position: 'relative',
-},
-progressText: {
-  position: 'absolute',
-  fontSize: 10,
-  fontWeight: 'bold',
-  color: '#420001',
-},
+  progressRingInner: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#420001', // Your primary color
+    borderRightColor: 'transparent',
+    borderBottomColor: 'transparent',
+    transform: [{ rotate: '0deg' }],
+    transformOrigin: 'center',
+  },
+  progressRingContainer: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  progressText: {
+    position: 'absolute',
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#420001',
+  },
   progressInfo: {
     justifyContent: 'center',
   },
@@ -189,7 +189,7 @@ progressText: {
   progressStatus: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#130001',
   },
   dot: {
     width: 4,
@@ -232,9 +232,9 @@ progressText: {
   badgeText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#DADADA',
   },
-    completedContainer: {
+  completedContainer: {
     padding: 8,
     backgroundColor: '#f0fdf4',
     borderRadius: 6,
@@ -247,4 +247,4 @@ progressText: {
   },
 });
 
-export default ProfileCompletionBar;
+export default React.memo(ProfileCompletionBar);

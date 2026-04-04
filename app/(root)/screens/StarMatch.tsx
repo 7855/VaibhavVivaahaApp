@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,21 @@ import {
   Modal,
   ScrollView,
   Platform,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useUserData } from '../contexts/UserDataContext';
+import userApi from '../api/userApi';
+
 const StarMatch = () => {
+  const { viewedProfile, viewedUserId } = useLocalSearchParams<{ viewedProfile?: string; viewedUserId?: string }>();
+  const { userData } = useUserData();
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
   const [activeTab, setActiveTab] = useState<'bride' | 'groom'>('bride');
   const [formData, setFormData] = useState({
     bride: {
@@ -38,6 +46,7 @@ const StarMatch = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStarModal, setShowStarModal] = useState(false);
   const [showRasiModal, setShowRasiModal] = useState(false);
+  const [showPlaceModal, setShowPlaceModal] = useState(false);
   const [showStarPicker, setShowStarPicker] = useState(false);
   const [showRasiPicker, setShowRasiPicker] = useState(false);
   // Data for dropdowns
@@ -89,6 +98,157 @@ const StarMatch = () => {
     { key: '12', value: 'Meenam' }
   ];
 
+  const tamilNaduDistricts = [
+    { key: '1', value: 'Ariyalur' }, { key: '2', value: 'Chengalpattu' }, { key: '3', value: 'Chennai' },
+    { key: '4', value: 'Coimbatore' }, { key: '5', value: 'Cuddalore' }, { key: '6', value: 'Dharmapuri' },
+    { key: '7', value: 'Dindigul' }, { key: '8', value: 'Erode' }, { key: '9', value: 'Kallakurichi' },
+    { key: '10', value: 'Kanchipuram' }, { key: '11', value: 'Kanyakumari' }, { key: '12', value: 'Karur' },
+    { key: '13', value: 'Krishnagiri' }, { key: '14', value: 'Madurai' }, { key: '15', value: 'Mayiladuthurai' },
+    { key: '16', value: 'Nagapattinam' }, { key: '17', value: 'Namakkal' }, { key: '18', value: 'Nilgiris' },
+    { key: '19', value: 'Perambalur' }, { key: '20', value: 'Pudukkottai' }, { key: '21', value: 'Ramanathapuram' },
+    { key: '22', value: 'Ranipet' }, { key: '23', value: 'Salem' }, { key: '24', value: 'Sivaganga' },
+    { key: '25', value: 'Tenkasi' }, { key: '26', value: 'Thanjavur' }, { key: '27', value: 'Theni' },
+    { key: '28', value: 'Thoothukudi' }, { key: '29', value: 'Tiruchirappalli' }, { key: '30', value: 'Tirunelveli' },
+    { key: '31', value: 'Tirupathur' }, { key: '32', value: 'Tiruppur' }, { key: '33', value: 'Tiruvallur' },
+    { key: '34', value: 'Tiruvannamalai' }, { key: '35', value: 'Tiruvarur' }, { key: '36', value: 'Vellore' },
+    { key: '37', value: 'Viluppuram' }, { key: '38', value: 'Virudhunagar' }
+  ];
+
+  // Helper to find matching rasi value from rasiData (case-insensitive)
+  const findMatchingRasi = (rasiValue: string) => {
+    if (!rasiValue) return '';
+    const match = rasiData.find(r => r.value.toLowerCase() === rasiValue.toLowerCase());
+    return match ? match.value : '';
+  };
+
+  // Helper to find matching star value from starData (case-insensitive)
+  const findMatchingStar = (starValue: string) => {
+    if (!starValue) return '';
+    const match = starData.find(s => s.value.toLowerCase() === starValue.toLowerCase());
+    return match ? match.value : '';
+  };
+
+  // Fetch logged-in user's profile and pre-fill form
+  useEffect(() => {
+    const loadProfileData = async () => {
+      try {
+        setIsLoadingData(true);
+
+        // Parse viewed profile data from route params
+        let viewedData: any = {};
+        if (viewedProfile) {
+          try {
+            viewedData = JSON.parse(viewedProfile);
+          } catch (e) {
+            console.log('Error parsing viewedProfile:', e);
+          }
+        }
+
+        // Fetch logged-in user's profile details
+        let loggedInData: any = {};
+        if (userData.userId) {
+          try {
+            const response = await userApi.getProfileDetailByUserId(userData.userId);
+            const profile = response?.data?.data;
+            if (profile) {
+              const detail = profile.userDetail?.[0];
+              let star = '';
+              let rasi = '';
+              let place = '';
+
+              if (detail) {
+                try {
+                  const astroArray = JSON.parse(detail.astronomicInfo || '[]');
+                  const astro = astroArray[0] || {};
+                  star = astro.star || '';
+                  rasi = astro.moon_sign || '';
+                } catch (e) { console.log('Error parsing logged-in user astronomicInfo:', e); }
+
+                try {
+                  const basicInfo = JSON.parse(detail.basicInfo || '{}');
+                  place = basicInfo.place_of_birth || '';
+                } catch (e) { console.log('Error parsing logged-in user basicInfo:', e); }
+              }
+
+              loggedInData = {
+                name: `${profile.firstName || ''} ${profile.lastName || ''}`.trim(),
+                gender: profile.gender || userData.gender || '',
+                dob: profile.dob || '',
+                star: star,
+                rasi: rasi,
+                place: place,
+              };
+            }
+          } catch (error) {
+            console.log('Error fetching logged-in user profile:', error);
+            // Fallback: use whatever we have from context
+            loggedInData = {
+              name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+              gender: userData.gender || '',
+              dob: '',
+              star: '',
+              rasi: '',
+              place: '',
+            };
+          }
+        }
+
+        // Determine bride/groom based on gender
+        // Logged-in user gender: 'M' = groom, 'F' = bride
+        const loggedInGender = loggedInData.gender || '';
+        const viewedGender = viewedData.gender || '';
+
+        let brideData: any = {};
+        let groomData: any = {};
+
+        if (loggedInGender === 'F') {
+          // Logged-in user is bride
+          brideData = loggedInData;
+          groomData = viewedData;
+        } else if (loggedInGender === 'M') {
+          // Logged-in user is groom
+          groomData = loggedInData;
+          brideData = viewedData;
+        } else {
+          // Gender unknown - use viewed profile gender to determine
+          if (viewedGender === 'M') {
+            groomData = viewedData;
+            brideData = loggedInData;
+          } else {
+            brideData = viewedData;
+            groomData = loggedInData;
+          }
+        }
+
+        // Pre-fill form data
+        setFormData({
+          bride: {
+            name: brideData.name || '',
+            dob: brideData.dob || '',
+            time: { hour: '12', minute: '00', period: 'AM' },
+            place: brideData.place || '',
+            star: findMatchingStar(brideData.star || ''),
+            rasi: findMatchingRasi(brideData.rasi || ''),
+          },
+          groom: {
+            name: groomData.name || '',
+            dob: groomData.dob || '',
+            time: { hour: '12', minute: '00', period: 'AM' },
+            place: groomData.place || '',
+            star: findMatchingStar(groomData.star || ''),
+            rasi: findMatchingRasi(groomData.rasi || ''),
+          }
+        });
+
+      } catch (error) {
+        console.error('Error loading profile data for star match:', error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadProfileData();
+  }, [viewedProfile, userData.userId]);
   const handleStarSelect = (star: string) => {
     setFormData(prev => ({
       ...prev,
@@ -102,6 +262,13 @@ const StarMatch = () => {
       [activeTab]: { ...prev[activeTab], rasi }
     }));
     setShowRasiModal(false);
+  };
+  const handlePlaceSelect = (place: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab], place }
+    }));
+    setShowPlaceModal(false);
   };
 
   const handleTimeChange = (type: 'hour' | 'minute' | 'period', value: string) => {
@@ -218,6 +385,32 @@ const StarMatch = () => {
 
 const handleSubmit = async () => {
   try {
+    // Validate all required fields
+    const missingFields: string[] = [];
+    
+    // Bride validation
+    if (!formData.bride.name) missingFields.push("Bride's Full Name");
+    if (!formData.bride.dob) missingFields.push("Bride's Date of Birth");
+    if (!formData.bride.place) missingFields.push("Bride's Place of Birth");
+    if (!formData.bride.star) missingFields.push("Bride's Star");
+    if (!formData.bride.rasi) missingFields.push("Bride's Rasi");
+    
+    // Groom validation
+    if (!formData.groom.name) missingFields.push("Groom's Full Name");
+    if (!formData.groom.dob) missingFields.push("Groom's Date of Birth");
+    if (!formData.groom.place) missingFields.push("Groom's Place of Birth");
+    if (!formData.groom.star) missingFields.push("Groom's Star");
+    if (!formData.groom.rasi) missingFields.push("Groom's Rasi");
+
+    if (missingFields.length > 0) {
+      Alert.alert(
+        'Missing Required Fields',
+        `Please fill in the following fields:\n\n${missingFields.join('\n')}`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     // Transform the form data to match the required API format
     const formatTime = (time: { hour: string, minute: string, period: string }) => {
       let hour = parseInt(time.hour, 10);
@@ -236,7 +429,7 @@ const handleSubmit = async () => {
         tob: formatTime(formData.bride.time),
         place: formData.bride.place,
         star: formData.bride.star,
-        rasi: formData.bride.rasi.toLowerCase() // Convert to lowercase if needed
+        rasi: formData.bride.rasi.toLowerCase()
       },
       groom: {
         name: formData.groom.name,
@@ -244,13 +437,12 @@ const handleSubmit = async () => {
         tob: formatTime(formData.groom.time),
         place: formData.groom.place,
         star: formData.groom.star,
-        rasi: formData.groom.rasi.toLowerCase() // Convert to lowercase if needed
+        rasi: formData.groom.rasi.toLowerCase()
       }
     };
 
     console.log("Submitting data:", JSON.stringify(requestData, null, 2));
     
-    // Uncomment and use this when you're ready to navigate
     router.push({
       pathname: '/(root)/screens/StarMatchResult',
       params: {
@@ -258,23 +450,25 @@ const handleSubmit = async () => {
       }
     });
 
-    // Here you would typically make your API call
-    // const response = await yourApiService.submitMatchRequest(requestData);
-    // Handle response...
-
   } catch (error) {
     console.error('Error submitting form:', error);
     Alert.alert('Error', 'Failed to submit the form. Please try again.');
   }
 };
 
+  if (isLoadingData) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <ActivityIndicator size="large" color="#420001" />
+        <Text style={{ marginTop: 12, color: '#64748b', fontSize: 16 }}>Loading profile data...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        {/* <TouchableOpacity style={styles.backButton}> */}
-          {/* <MaterialIcons name="arrow-back-ios" size={24} color="#0f52ba" /> */}
-        {/* </TouchableOpacity> */}
         <Text style={styles.headerTitle}>Star Match</Text>
         {/* <View style={{ width: 24 }} /> */}
       </View>
@@ -353,16 +547,15 @@ const handleSubmit = async () => {
         </View> */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>PLACE OF BIRTH</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Search city or town"
-            value={formData[activeTab].place}
-            onChangeText={text => setFormData(prev => ({
-              ...prev,
-              [activeTab]: { ...prev[activeTab], place: text }
-            }))}
-            placeholderTextColor="#94a3b8"
-          />
+          <TouchableOpacity
+            style={styles.pickerInput}
+            onPress={() => setShowPlaceModal(true)}
+          >
+            <Text style={[styles.inputText, !formData[activeTab].place && { color: '#94a3b8' }]}>
+              {formData[activeTab].place || 'Select District'}
+            </Text>
+            <MaterialIcons name="keyboard-arrow-down" size={24} color="#94a3b8" />
+          </TouchableOpacity>
         </View>
         {/* Star and Rasi Row */}
         <View style={styles.row}>
@@ -395,8 +588,8 @@ const handleSubmit = async () => {
         </View>
         {/* Submit Button */}
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <MaterialIcons name="stars" size={24} color="#fff" />
-          <Text style={styles.submitButtonText}>Check Compatibility</Text>
+            <MaterialIcons name="stars" size={24} color="#DADADA" />
+          <Text style={styles.submitButtonText}>Check Result</Text>
         </TouchableOpacity>
       </ScrollView>
       {/* Time Picker Modal */}
@@ -531,6 +724,43 @@ const handleSubmit = async () => {
           </View>
         </View>
       </Modal>
+      {/* Place Selection Modal */}
+      <Modal
+        visible={showPlaceModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPlaceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select District</Text>
+              <TouchableOpacity onPress={() => setShowPlaceModal(false)}>
+                <MaterialIcons name="close" size={24} color="#0f52ba" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScrollView}>
+              {tamilNaduDistricts.map((district) => (
+                <TouchableOpacity
+                  key={district.key}
+                  style={[
+                    styles.modalItem,
+                    formData[activeTab].place === district.value && styles.modalItemActive
+                  ]}
+                  onPress={() => handlePlaceSelect(district.value)}
+                >
+                  <Text style={[
+                    styles.modalItemText,
+                    formData[activeTab].place === district.value && styles.modalItemTextActive
+                  ]}>
+                    {district.value}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -584,7 +814,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   activeTabText: {
-    color: '#fff',
+    color: '#DADADA',
   },
   scrollView: {
     flex: 1,
@@ -671,7 +901,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   submitButtonText: {
-    color: 'white',
+    color: '#DADADA',
     fontSize: 17,
     fontWeight: 'bold',
     marginLeft: 8,
@@ -771,7 +1001,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   doneButtonText: {
-    color: 'white',
+    color: '#DADADA',
     fontSize: 16,
     fontWeight: '600',
   },

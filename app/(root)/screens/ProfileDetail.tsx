@@ -12,7 +12,8 @@ import userApi from '@/app/(root)/api/userApi';
 import { Briefcase, Calendar, DollarSign, Heart, MapPin, MessageCircle, Ruler } from 'lucide-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserData } from '../contexts/UserDataContext';
+import { useSubscription } from '../contexts/subscriptionContext';
 import { Alert } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
@@ -22,6 +23,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 
 const ProfileDetail = () => {
+  const { userData } = useUserData();
+  const { subscriptionData } = useSubscription();
   const { userId } = useLocalSearchParams();
   const [userDetailId, setUserDetailId] = useState<any>(null);
   const [userDetails, setUserDetails] = useState<any>(null);
@@ -34,17 +37,16 @@ const ProfileDetail = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isPremiumValue, setIsPremiumValue] = useState(false);
   const [hiddenFeildsValue, setHiddenFeildsValue] = useState<any>([]);
-  const [ subscriptionId, setSubscriptionId] = useState<any>(null);
-const [isLiked, setIsLiked] = useState(false);
-const [isShortlisted, setIsShortlisted] = useState(false);
-const [interestStatus, setInterestStatus] = useState('NONE');
+  const [subscriptionId, setSubscriptionId] = useState<any>(null);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isShortlisted, setIsShortlisted] = useState(false);
+  const [interestStatus, setInterestStatus] = useState('NONE');
 
   useEffect(() => {
     const fetchViewedProfile = async () => {
       try {
-        const userIdValue = await AsyncStorage.getItem('userId');
-        if (userIdValue && userId) {
-          userApi.viewedProfile(userIdValue, userId).then((response: any) => {
+        if (userData.userId && userId) {
+          userApi.viewedProfile(userData.userId, userId).then((response: any) => {
           });
         }
       } catch (error) {
@@ -54,21 +56,13 @@ const [interestStatus, setInterestStatus] = useState('NONE');
     // fetchUserId();
     fetchViewedProfile();
   }, [userId]);
-  
+
 
   useEffect(() => {
-    const fetchCurrentUserId = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem('userId');
-        if (storedUserId) {
-          setCurrentUserId(storedUserId);
-        }
-      } catch (error) {
-        console.error('Error fetching current user ID:', error);
-      }
-    };
-    fetchCurrentUserId();
-  }, []);
+    if (userData.userId) {
+      setCurrentUserId(userData.userId);
+    }
+  }, [userData.userId]);
 
   // Load existing permission requests when userId is available
   useEffect(() => {
@@ -78,7 +72,7 @@ const [interestStatus, setInterestStatus] = useState('NONE');
       try {
         const decodedUserId = atob(currentUserId);
         const response = await userApi.getRequestsTo(decodedUserId, userId);
-        
+
         if (!response?.data?.data) {
           console.log('No existing requests found');
           return;
@@ -88,7 +82,7 @@ const [interestStatus, setInterestStatus] = useState('NONE');
         const existingRequests = requests
           .filter((request: any) => request && request.fieldType)
           .map((request: any) => request.fieldType);
-        
+
         const updatedRequests = {
           ...permissionRequests,
           profileImage: existingRequests.includes('PROFILE_IMAGE')
@@ -129,6 +123,8 @@ const [interestStatus, setInterestStatus] = useState('NONE');
     if (!data || !data.userDetail || data.userDetail.length === 0) return [];
 
     const detail = data.userDetail[0];
+    console.log("detail==>", detail);
+
 
     // Parse nested JSON fields
     const basicInfo = JSON.parse(detail.basicInfo || '{}');
@@ -221,8 +217,8 @@ const [interestStatus, setInterestStatus] = useState('NONE');
   };
 
   const fetchProfileDetail = async () => {
-  try {
-     setLoading(true);
+    try {
+      setLoading(true);
       const hiddenFeildsResp = await userApi.getHiddenFieldsByUserId(userId);
       const hiddenFeilds = hiddenFeildsResp.data.data;
       // console.log("Hidden Feilds Data ===========>", hiddenFeilds);
@@ -230,67 +226,63 @@ const [interestStatus, setInterestStatus] = useState('NONE');
       if (hiddenFeilds?.length > 0) {
         const fieldNames = hiddenFeilds.map((item: any) => item.fieldName);
         setHiddenFeildsValue(fieldNames);
-      
+
         // console.log("Hidden Feilds Data =valueeeeeeee==========>", hiddenFeildsValue); // log the actual value before setting state
       }
-    const userIdValue = await AsyncStorage.getItem('userId');
+      const userIdValue = userData.userId;
 
-    const response = await userApi.getProfileDetailWithIntractionStatus(userIdValue,userId);
-    const { profile, interactionStatus } = response.data.data;
-    // Update profile data
-    setUserDetails(profile);
-     const formattedData = formatUserDetails(profile);
+      const response = await userApi.getProfileDetailWithIntractionStatus(userIdValue, userId);
+      const { profile, interactionStatus } = response.data.data;
+      // Update profile data
+      setUserDetails(profile);
+      const formattedData = formatUserDetails(profile);
       setPersonalDetail(formattedData);
-    // setPersonalDetail(profile.userDetail?.[0] || {});
-    setUserDetailId(profile.userId);
+      // setPersonalDetail(profile.userDetail?.[0] || {});
+      setUserDetailId(profile.userId);
 
-    // Update interaction statuses from the single API response
-    if (interactionStatus) {
-      setInterestStatus(interactionStatus.interest?.status || 'NONE');
-      setIsLiked(interactionStatus.liked || false);
-      setIsShortlisted(interactionStatus.shortlisted || false);
-      
-      // Update isSender based on who sent the interest
-      setIsSender(interactionStatus.interest?.sentBy === 'VIEWER');
+      // Update interaction statuses from the single API response
+      if (interactionStatus) {
+        setInterestStatus(interactionStatus.interest?.status || 'NONE');
+        setIsLiked(interactionStatus.liked || false);
+        setIsShortlisted(interactionStatus.shortlisted || false);
+
+        // Update isSender based on who sent the interest
+        setIsSender(interactionStatus.interest?.sentBy === 'VIEWER');
+      }
+
+      // Handle gallery images if needed
+      if (profile.galleryImages) {
+        setGalleryImages(profile.galleryImages);
+      }
+
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
     }
-
-    // Handle gallery images if needed
-    if (profile.galleryImages) {
-      setGalleryImages(profile.galleryImages);
-    }
-
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
       try {
-        const subscription = await AsyncStorage.getItem('subscription');
-        // console.log('Subscription Data ===========>:', subscription);
-        if (subscription) {
-          const parsedSubscription = JSON.parse(subscription);
-          console.log("parsedSubscription.viewPersonalInfo", parsedSubscription);
-          setSubscriptionId(parsedSubscription.subscriptionId);
-          
-          if (parsedSubscription.viewPersonalInfo == true) {
+        console.log("subscriptionData", subscriptionData);
+
+        // Use subscription context instead of AsyncStorage
+        if (subscriptionData?.entitlements) {
+          setSubscriptionId(subscriptionData.subscriptionId);
+
+          if (subscriptionData.entitlements.viewPersonalInfo === true) {
             setIsPremiumValue(true);
           } else {
             setIsPremiumValue(false);
           }
         } else {
+          // Fallback: fetch from API if context is empty
           try {
-            const localUserId = await AsyncStorage.getItem('userId');
-            if (localUserId) {
-              const decodedUserId = atob(localUserId);
-              const subscription = await userApi.getActiveUserSubscriptionByUserId(decodedUserId);
-              // console.log('Subscription response:------------------->', subscription.data.data.entitlements);
-              if(subscription.data.data?.entitlements) {
-                await AsyncStorage.setItem('subscription', JSON.stringify(subscription.data.data.entitlements));
-                if(subscription.data.data?.entitlements.viewPersonalInfo == true) {
+            if (userData.decodedUserId) {
+              const subscription = await userApi.getActiveUserSubscriptionByUserId(userData.decodedUserId);
+              if (subscription.data.data?.entitlements) {
+                if (subscription.data.data?.entitlements.viewPersonalInfo === true) {
                   setIsPremiumValue(true);
                 } else {
                   setIsPremiumValue(false);
@@ -301,14 +293,13 @@ const [interestStatus, setInterestStatus] = useState('NONE');
             console.error('Error fetching subscription:', error);
           }
         }
-
       } catch (error) {
         console.error('Error checking premium status:', error);
-      } 
+      }
     };
 
     checkPremiumStatus();
-  }, []);
+  }, [subscriptionData, userData.decodedUserId]);
 
   const handleLike = async () => {
     // console.log("currentUserId===================================>", currentUserId);
@@ -371,57 +362,80 @@ const [interestStatus, setInterestStatus] = useState('NONE');
     try {
       console.log("interestStatus===================================>", interestStatus);
 
-      if(isPremiumValue == true) {
-       
-        try {
-          const userId = await AsyncStorage.getItem('userId'); 
-          const subscriptionId = await AsyncStorage.getItem('subscriptionId'); 
-          if(userId && subscriptionId){
-            const decodedUserId = atob(userId);
-            const updateSendRequestCount = await userApi.updateSendRequestCount(decodedUserId, subscriptionId, 4);
-            console.log("updateSendRequestCount===================================>", updateSendRequestCount.data);
+      if (isPremiumValue == true) {
 
-            if(updateSendRequestCount.data.code == 200){
-            if (interestStatus === 'NONE' || interestStatus === '' || interestStatus === null) {
-              await userApi.sendInterestRequest(currentUserId, parsedUserId);
-              setInterestStatus('PENDING');
-              setIsSender(true);
-            }
-            }else if(updateSendRequestCount.data.code == 401){
-              Alert.alert(
-                'Request Limit Exceeded',
-                'You have reached the limit of requests. Please upgrade to Plan to send interest',
-                [
-                  {
-                    text: 'Cancel',
-                    style: 'cancel'
-                  },
-                  {
-                    text: 'Upgrade',
-                    onPress: () => {
-                      router.push('/(root)/screens/PremiumTab');
+        try {
+          const userId = userData.userId;
+          const subscriptionId = subscriptionData?.subscriptionId;
+          if (userId && subscriptionId) {
+            const decodedUserId = atob(userId);
+            const entitlements = subscriptionData?.entitlements;
+
+            // Check if user has unlimited requests (Silver/Gold/Platinum)
+            if (entitlements?.reqUnlimited === true) {
+              // Unlimited requests - send interest directly
+              if (interestStatus === 'NONE' || interestStatus === '' || interestStatus === null) {
+                await userApi.sendInterestRequest(currentUserId, parsedUserId);
+                setInterestStatus('PENDING');
+                setIsSender(true);
+              }
+            } else if (entitlements?.reqLimited) {
+              // Limited requests (Bronze) - check usage limit with featureId 5 (REQ_LIMITED)
+              const updateSendRequestCount = await userApi.updateSendRequestCount(decodedUserId, subscriptionId, 5);
+              console.log("updateSendRequestCount===================================>", updateSendRequestCount.data);
+
+              if (updateSendRequestCount.data.code == 200) {
+                if (interestStatus === 'NONE' || interestStatus === '' || interestStatus === null) {
+                  await userApi.sendInterestRequest(currentUserId, parsedUserId);
+                  setInterestStatus('PENDING');
+                  setIsSender(true);
+                }
+              } else if (updateSendRequestCount.data.code == 401) {
+                Alert.alert(
+                  'Request Limit Exceeded',
+                  `You have used all ${entitlements.reqLimited.limit} requests for this plan. Please upgrade to send more.`,
+                  [
+                    {
+                      text: 'Cancel',
+                      style: 'cancel'
+                    },
+                    {
+                      text: 'Upgrade',
+                      onPress: () => {
+                        router.push('/(root)/screens/PremiumTab');
+                      }
                     }
-                  }
-                ]
-              );
-            }else{
+                  ]
+                );
+              } else {
+                Alert.alert(
+                  'Something Went Wrong',
+                  'Please try again later',
+                  [
+                    {
+                      text: 'OK',
+                      style: 'cancel'
+                    }
+                  ]
+                );
+              }
+            } else {
+              // No send request entitlement at all
               Alert.alert(
-                'Something Went Wrong',
-                'Please try again later',
+                'Feature Not Available',
+                'Your current plan does not support sending interest requests. Please upgrade.',
                 [
-                  {
-                    text: 'OK',
-                    style: 'cancel'
-                  }
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Upgrade', onPress: () => router.push('/(root)/screens/PremiumTab') }
                 ]
               );
             }
-          
+
           }
         } catch (error) {
           console.error('Error updating send request count:', error);
         }
-      }else{
+      } else {
         Alert.alert(
           'Premium Required',
           'You need to upgrade to premium to send interest',
@@ -439,8 +453,8 @@ const [interestStatus, setInterestStatus] = useState('NONE');
           ]
         );
       }
-        
-      
+
+
 
       // Allow sending request if status is NONE, empty string, or null
 
@@ -460,8 +474,8 @@ const [interestStatus, setInterestStatus] = useState('NONE');
   }
 
   return (
-      <NativeBaseProvider>
-        <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: '#420001', marginBottom: 0, paddingBottom: 0, marginTop: 0 }}>
+    <NativeBaseProvider>
+      <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: '#420001', marginBottom: 0, paddingBottom: 0, marginTop: 0 }}>
 
 
         <Modal visible={isImageModalVisible} transparent={true} animationType="fade">
@@ -494,7 +508,7 @@ const [interestStatus, setInterestStatus] = useState('NONE');
 
 
         {/* <ScrollView contentContainerStyle={styles.scrollViewContent}> */}
-        <View style={{height: '100%',width:'100%'}}>
+        <View style={{ height: '100%', width: '100%' }}>
           <View style={{ paddingHorizontal: 0 }}>
             <View style={styles.rowContainer}>
               {/* Left Column - Image */}
@@ -502,7 +516,10 @@ const [interestStatus, setInterestStatus] = useState('NONE');
                 <View style={styles.card}>
                   {hiddenFeildsValue.includes('profileImage') ? (
                     <ImageBackground
-                      source={{ uri: userDetails?.profileImage }}
+                      source={userDetails?.profileImage ? { uri: userDetails?.profileImage } :
+                        userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                          userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                            require('../../../assets/images/defaultAvatar.png')}
                       style={[styles.image]}
                       imageStyle={{ borderRadius: 10 }}
                     >
@@ -511,9 +528,9 @@ const [interestStatus, setInterestStatus] = useState('NONE');
                         tint="dark"
                         style={styles.restrictedOverlay}
                       >
-                        <View style={{backgroundColor:'#fff',borderRadius:999,padding:5}}>
+                        <View style={{ backgroundColor: '#fff', borderRadius: 999, padding: 5 }}>
 
-                        <FeatherIcon name="eye-off" size={22} color="#b91c1c" />
+                          <FeatherIcon name="eye-off" size={22} color="#b91c1c" />
                         </View>
                         <Text style={styles.restrictedText}>User restricted the profile image to view</Text>
                         <TouchableOpacity
@@ -552,171 +569,174 @@ const [interestStatus, setInterestStatus] = useState('NONE');
                             }
                           }}
                         >
-                            <LinearGradient
-    colors={['#6c5ce7', '#a29bfe']}
-    style={styles.starMatchButtonGradient}
-    start={{ x: 0, y: 0 }}
-    end={{ x: 1, y: 0 }}
-  >
-                          <Text style={styles.permissionButtonText}>
-                            {permissionRequests.profileImage ? 'Cancel Request' : 'Click to Ask Permission'}
-                          </Text>
-                            </LinearGradient>
+                          <LinearGradient
+                            colors={['#6c5ce7', '#a29bfe']}
+                            style={styles.starMatchButtonGradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                          >
+                            <Text style={styles.permissionButtonText}>
+                              {permissionRequests.profileImage ? 'Cancel Request' : 'Click to Ask Permission'}
+                            </Text>
+                          </LinearGradient>
                         </TouchableOpacity>
                       </BlurView>
                     </ImageBackground>
                   ) : (
                     <ImageBackground
-                      source={{ uri: userDetails?.profileImage }}
+                      source={userDetails?.profileImage ? { uri: userDetails?.profileImage } :
+                        userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                          userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                            require('../../../assets/images/defaultAvatar.png')}
                       style={styles.image}
                       imageStyle={styles.imageStyle}
                     >
-                    <View style={styles.iconOverlay}>
-                      <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={handleLike}
-                      >
-                        <FontAwesome
-                          name={isLiked ? "thumbs-up" : "thumbs-o-up"}
-                          size={20}
-                          color={isLiked ? "red" : "gray"}
-                        />
-                      </TouchableOpacity>
+                      <View style={styles.iconOverlay}>
+                        <TouchableOpacity
+                          style={styles.iconButton}
+                          onPress={handleLike}
+                        >
+                          <FontAwesome
+                            name={isLiked ? "thumbs-up" : "thumbs-o-up"}
+                            size={20}
+                            color={isLiked ? "red" : "gray"}
+                          />
+                        </TouchableOpacity>
 
-                      {/* Expand Icon in the Center */}
-                      <TouchableOpacity style={styles.iconButton} onPress={openImageModal}>
-                        <Ionicons name="expand-outline" size={20} color="green" />
-                      </TouchableOpacity>
-
-
+                        {/* Expand Icon in the Center */}
+                        <TouchableOpacity style={styles.iconButton} onPress={openImageModal}>
+                          <Ionicons name="expand-outline" size={20} color="green" />
+                        </TouchableOpacity>
 
 
 
-                      <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={async () => {
-                          const storedUserId = await AsyncStorage.getItem('userId');
 
-                          if (!storedUserId) {
-                            Toast.show({
-                              type: 'error',
-                              text1: 'Error',
-                              text2: 'User ID not found',
-                              position: 'top',
-                              visibilityTime: 2000,
-                            });
-                            return;
-                          }
 
-                          let decodedUserId = '';
-                          try {
-                            decodedUserId = atob(storedUserId);
-                          } catch (decodeError) {
-                            Toast.show({
-                              type: 'error',
-                              text1: 'Error',
-                              text2: 'Invalid user ID format',
-                              position: 'top',
-                              visibilityTime: 2000,
-                            });
-                            return;
-                          }
+                        <TouchableOpacity
+                          style={styles.iconButton}
+                          onPress={async () => {
+                            const storedUserId = userData.userId;
 
-                          if (!isPremiumValue) {
-                            // Show Premium Required alert for non-premium users
+                            if (!storedUserId) {
+                              Toast.show({
+                                type: 'error',
+                                text1: 'Error',
+                                text2: 'User ID not found',
+                                position: 'top',
+                                visibilityTime: 2000,
+                              });
+                              return;
+                            }
+
+                            let decodedUserId = '';
+                            try {
+                              decodedUserId = atob(storedUserId);
+                            } catch (decodeError) {
+                              Toast.show({
+                                type: 'error',
+                                text1: 'Error',
+                                text2: 'Invalid user ID format',
+                                position: 'top',
+                                visibilityTime: 2000,
+                              });
+                              return;
+                            }
+
+                            if (!isPremiumValue) {
+                              // Show Premium Required alert for non-premium users
+                              Alert.alert(
+                                'Premium Required',
+                                'Shortlisting requires premium membership',
+                                [
+                                  {
+                                    text: 'Cancel',
+                                    style: 'cancel'
+                                  },
+                                  {
+                                    text: 'Upgrade',
+                                    onPress: () => {
+                                      router.push('/(root)/screens/PremiumTab');
+                                    }
+                                  }
+                                ]
+                              );
+                              return;
+                            }
+
+                            // Only show confirmation alert for premium users
+                            const alertTitle = isShortlisted ? 'Unshortlist Profile' : 'Shortlist Profile';
+                            const alertMessage = isShortlisted
+                              ? 'Do you want to unshortlist this profile?'
+                              : 'Do you want to shortlist this profile?';
+
                             Alert.alert(
-                              'Premium Required',
-                              'Shortlisting requires premium membership',
+                              alertTitle,
+                              alertMessage,
                               [
                                 {
                                   text: 'Cancel',
                                   style: 'cancel'
                                 },
                                 {
-                                  text: 'Upgrade',
-                                  onPress: () => {
-                                    router.push('/(root)/screens/PremiumTab');
+                                  text: 'OK',
+                                  onPress: async () => {
+                                    try {
+                                      if (isShortlisted) {
+                                        const encodedId = btoa(decodedUserId);
+                                        await userApi.deleteShortlistedProfileByUsers(encodedId, userId);
+
+                                        Toast.show({
+                                          type: 'success',
+                                          text1: 'Profile Unshortlisted',
+                                          text2: 'Profile has been removed from your shortlist',
+                                          position: 'top',
+                                          visibilityTime: 2000,
+                                        });
+                                        setIsShortlisted(false);
+                                      } else {
+                                        // Proceed with shortlisting for premium users
+                                        const encodedId = btoa(decodedUserId);
+                                        await userApi.insertShortlistedProfile({
+                                          shortlistedBy: decodedUserId,
+                                          shortlistedUserId: userId
+                                        });
+
+                                        Toast.show({
+                                          type: 'success',
+                                          text1: 'Profile Shortlisted',
+                                          text2: 'Profile has been added to your shortlist',
+                                          position: 'top',
+                                          visibilityTime: 2000,
+                                        });
+                                        setIsShortlisted(true);
+                                      }
+                                    } catch (error) {
+                                      console.error('Error in shortlist operation:', error);
+                                      Toast.show({
+                                        type: 'error',
+                                        text1: 'Error',
+                                        text2: 'Failed to process shortlist request',
+                                        position: 'top',
+                                        visibilityTime: 2000,
+                                      });
+                                    }
                                   }
                                 }
                               ]
-                            );
-                            return;
-                          }
-
-                          // Only show confirmation alert for premium users
-                          const alertTitle = isShortlisted ? 'Unshortlist Profile' : 'Shortlist Profile';
-                          const alertMessage = isShortlisted
-                            ? 'Do you want to unshortlist this profile?'
-                            : 'Do you want to shortlist this profile?';
-
-                          Alert.alert(
-                            alertTitle,
-                            alertMessage,
-                            [
-                              {
-                                text: 'Cancel',
-                                style: 'cancel'
-                              },
-                              {
-                                text: 'OK',
-                                onPress: async () => {
-                                  try {
-                                    if (isShortlisted) {
-                                      const encodedId = btoa(decodedUserId);
-                                      await userApi.deleteShortlistedProfileByUsers(encodedId, userId);
-
-                                      Toast.show({
-                                        type: 'success',
-                                        text1: 'Profile Unshortlisted',
-                                        text2: 'Profile has been removed from your shortlist',
-                                        position: 'top',
-                                        visibilityTime: 2000,
-                                      });
-                                      setIsShortlisted(false);
-                                    } else {
-                                      // Proceed with shortlisting for premium users
-                                      const encodedId = btoa(decodedUserId);
-                                      await userApi.insertShortlistedProfile({
-                                        shortlistedBy: decodedUserId,
-                                        shortlistedUserId:userId
-                                      });
-
-                                      Toast.show({
-                                        type: 'success',
-                                        text1: 'Profile Shortlisted',
-                                        text2: 'Profile has been added to your shortlist',
-                                        position: 'top',
-                                        visibilityTime: 2000,
-                                      });
-                                      setIsShortlisted(true);
-                                    }
-                                  } catch (error) {
-                                    console.error('Error in shortlist operation:', error);
-                                    Toast.show({
-                                      type: 'error',
-                                      text1: 'Error',
-                                      text2: 'Failed to process shortlist request',
-                                      position: 'top',
-                                      visibilityTime: 2000,
-                                    });
-                                  }
-                                }
-                              }
-                            ]
-                          )
-                        }}
-                      >
-                        <Ionicons
-                          name={isShortlisted ? "bookmark" : "bookmark-outline"}
-                          size={20}
-                          color={isShortlisted ? "#1e40af" : "gray"}
-                        />
-                      </TouchableOpacity>
+                            )
+                          }}
+                        >
+                          <Ionicons
+                            name={isShortlisted ? "bookmark" : "bookmark-outline"}
+                            size={20}
+                            color={isShortlisted ? "#1e40af" : "gray"}
+                          />
+                        </TouchableOpacity>
 
 
-                    </View>
+                      </View>
 
-                  </ImageBackground>
+                    </ImageBackground>
                   )}
                 </View>
               </View>
@@ -738,7 +758,7 @@ const [interestStatus, setInterestStatus] = useState('NONE');
                       style={{
                         fontSize: 20,
                         fontWeight: 'bold',
-                        color: '#FFFFFF',
+                        color: '#DADADA',
                         marginBottom: 5,
                       }}
                     >
@@ -772,7 +792,7 @@ const [interestStatus, setInterestStatus] = useState('NONE');
                     </View>
                   </View>
 
-                 
+
 
                   {/* Occupation */}
                   {userDetails?.userDetail?.[0]?.occupation && (
@@ -793,11 +813,61 @@ const [interestStatus, setInterestStatus] = useState('NONE');
                     </View>
                   )}
                 </View>
-                 {/* Height Card */}
+                {/* Star Match Button - Premium Only */}
                 <View style={styles.cardright}>
                   <TouchableOpacity
                     style={styles.starMatchButton}
-                    onPress={() => router.push('/(root)/screens/StarMatch')}
+                    onPress={() => {
+                      if (!isPremiumValue) {
+                        Alert.alert(
+                          'Unlock Star Match ⭐',
+                          'Star Match is a premium feature! Upgrade your plan to discover your compatibility score and find your perfect match.',
+                          [
+                            { text: 'Maybe Later', style: 'cancel' },
+                            { text: 'Upgrade Now', onPress: () => router.push('/(root)/screens/PremiumTab') }
+                          ]
+                        );
+                        return;
+                      }
+
+                      // Extract viewed profile's star match data
+                      const detail = userDetails?.userDetail?.[0];
+                      let viewedStar = '';
+                      let viewedRasi = '';
+                      let viewedPlace = '';
+                      let viewedDob = userDetails?.dob || '';
+
+                      if (detail) {
+                        try {
+                          const astroArray = JSON.parse(detail.astronomicInfo || '[]');
+                          const astro = astroArray[0] || {};
+                          viewedStar = astro.star || '';
+                          viewedRasi = astro.moon_sign || '';
+                        } catch (e) { console.log('Error parsing astronomicInfo:', e); }
+
+                        try {
+                          const basicInfo = JSON.parse(detail.basicInfo || '{}');
+                          viewedPlace = basicInfo.place_of_birth || '';
+                        } catch (e) { console.log('Error parsing basicInfo:', e); }
+                      }
+
+                      const viewedProfileData = {
+                        name: `${userDetails?.firstName || ''} ${userDetails?.lastName || ''}`.trim(),
+                        gender: userDetails?.gender || '',
+                        dob: viewedDob,
+                        star: viewedStar,
+                        rasi: viewedRasi,
+                        place: viewedPlace,
+                      };
+
+                      router.push({
+                        pathname: '/(root)/screens/StarMatch',
+                        params: {
+                          viewedProfile: JSON.stringify(viewedProfileData),
+                          viewedUserId: userId as string,
+                        }
+                      });
+                    }}
                   >
                     <LinearGradient
                       colors={['#6c5ce7', '#a29bfe']}
@@ -835,7 +905,7 @@ const [interestStatus, setInterestStatus] = useState('NONE');
                           );
                       }
                     })()}
-                    <Text style={[styles.buttonText, { color: '#fff' }]}>
+                    <Text style={[styles.buttonText, { color: '#DADADA' }]}>
                       {(() => {
                         switch (interestStatus) {
                           case 'PENDING':
@@ -857,25 +927,25 @@ const [interestStatus, setInterestStatus] = useState('NONE');
             </View>
           </View>
           {personalDetail && (
-          <View style={{flex: 1, marginTop: 0, backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>
-            <ProfileDetailTab
-              personalDetail={personalDetail}
-              isPremium={isPremiumValue}
-              onImagePress={openImageModal}
-              hiddenFields={hiddenFeildsValue}
-              profileDetailId={userDetailId}
-            />
-          </View>
-        )}
+            <View style={{ flex: 1, marginTop: 0, backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>
+              <ProfileDetailTab
+                personalDetail={personalDetail}
+                isPremium={isPremiumValue}
+                onImagePress={openImageModal}
+                hiddenFields={hiddenFeildsValue}
+                profileDetailId={userDetailId}
+              />
+            </View>
+          )}
           {/* Action Buttons */}
 
         </View>
 
 
-    
+
         {/* </ScrollView> */}
-        </SafeAreaView>
-      </NativeBaseProvider>
+      </SafeAreaView>
+    </NativeBaseProvider>
   )
 }
 
@@ -950,7 +1020,7 @@ const styles = StyleSheet.create({
 
   },
   leftText: {
-    color: 'white',
+    color: '#DADADA',
     fontWeight: '500',
     textAlign: 'left',
     // fontSize: 16,
@@ -997,7 +1067,7 @@ const styles = StyleSheet.create({
   cardValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#DADADA',
   },
   buttonRow: {
     flexDirection: 'column',
@@ -1070,7 +1140,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   restrictedText: {
-    color: '#fff',
+    color: '#DADADA',
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 15,
@@ -1082,7 +1152,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   permissionButtonText: {
-    color: '#fff',
+    color: '#DADADA',
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -1091,23 +1161,23 @@ const styles = StyleSheet.create({
   //   height: 150,
   //   borderRadius: 10,
   // },
-starMatchButton: {
-  marginTop: 10,
-  borderRadius: 12,
-  overflow: 'hidden',
-},
-starMatchButtonGradient: {
-  padding: 10,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-starMatchButtonText: {
-  color: '#fff',
-  fontSize: 16,
-  fontWeight: '600',
-  marginLeft: 8,
-}
+  starMatchButton: {
+    marginTop: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  starMatchButtonGradient: {
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starMatchButtonText: {
+    color: '#DADADA',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  }
 });
 
 export default ProfileDetail

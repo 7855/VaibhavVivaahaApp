@@ -2,9 +2,9 @@
 import { Box, AspectRatio, Center, Heading, Image, HStack, Stack, Text, FormControl, Input, Divider, NativeBaseProvider, FlatList, VStack, Pressable, Button } from 'native-base';
 import { Ionicons } from '@expo/vector-icons';
 import EditProfileModal from './editProfileModal';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, Dimensions, Modal, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import { TabView, TabBar } from 'react-native-tab-view';
 import { ScrollView, Image as RNImage } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -13,7 +13,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ALERT_TYPE, Dialog } from 'react-native-alert-notification';
 import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
-const [image, setImage] = useState<string | null>(null);
 import Toast from 'react-native-toast-message';
 
 interface GalleryItem {
@@ -21,24 +20,9 @@ interface GalleryItem {
   userImage: string;
 }
 
-const FirstRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile?: () => void; }) => {
+const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refreshProfile?: () => void; userId?: string | null }) => {
   const [editSection, setEditSection] = useState<any>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchUserId = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem('userId');
-        if (storedUserId) {
-          setUserId(storedUserId);
-        }
-      } catch (error) {
-        console.error('Error fetching userId:', error);
-      }
-    };
-    fetchUserId();
-  }, []);
 
   const handleEdit = (section: any) => {
     setEditSection(section);
@@ -114,18 +98,18 @@ const FirstRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
         const formattedData = formatter(updatedData);
         await apiFunction(formattedData);
 
-     // Replace the Toast.show() with this Alert
-Alert.alert(
-  'Success',
-  `Image updated successfully.`,
-  [
-    { 
-      text: 'OK',
-      onPress: () => console.log('OK Pressed')
-    }
-  ],
-  { cancelable: false }
-);
+        // Replace the Toast.show() with this Alert
+        Alert.alert(
+          'Success',
+          `Image updated successfully.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => console.log('OK Pressed')
+            }
+          ],
+          { cancelable: false }
+        );
 
         refreshProfile?.();
       } else {
@@ -150,7 +134,7 @@ Alert.alert(
         'Error',
         'Something went wrong while updating. Please try again.',
         [
-          { 
+          {
             text: 'OK',
             onPress: () => console.log('OK Pressed')
           }
@@ -164,7 +148,7 @@ Alert.alert(
   return (
     <NativeBaseProvider>
       <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 460 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}>
           <View style={{ flexGrow: 1, padding: 0, alignItems: 'center', backgroundColor: '#F5F5F5' }}>
             {data && Array.isArray(data) && data.length > 0 ? (
               data.map((section: any, idx: number) => (
@@ -187,9 +171,9 @@ Alert.alert(
                     }}
                   >
                     <HStack justifyContent="space-between" alignItems="center">
-                      <Text fontSize="md" fontWeight="bold" color={"black"}>{section.title}</Text>
+                      <Text fontSize="md" fontWeight="bold" color={"#130001"}>{section.title}</Text>
                       <TouchableOpacity style={{ backgroundColor: '#fff', padding: 5, borderRadius: 999 }} onPress={() => handleEdit(section)}>
-                                 <MaterialDesignIcons name="circle-edit-outline" size={24} color="#000" />
+                        <MaterialDesignIcons name="circle-edit-outline" size={24} color="#130001" />
                       </TouchableOpacity>
                     </HStack>
 
@@ -201,15 +185,16 @@ Alert.alert(
                             <Input
                               type="text"
                               defaultValue={value}
+                              isReadOnly={true}
                               borderWidth={0}
                               p={0}
                               fontWeight="bold"
                               fontSize={14}
                               color={'#800000'}
-                              _dark={{ color: "white" }}
+                              _dark={{ color: "#DADADA" }}
                               _light={{ color: "#800000" }}
                               _web={{
-                                color: "white",
+                                color: "#DADADA",
                                 backgroundColor: "#F5F5F5",
                               }}
                             />
@@ -224,7 +209,7 @@ Alert.alert(
                 </Box>
               ))
             ) : (
-              <Text color="white">No data available</Text>
+              <Text color="#DADADA">No data available</Text>
             )}
           </View>
         </ScrollView>
@@ -246,27 +231,14 @@ Alert.alert(
 const SecondRoute = ({
   data,
   refreshProfile,
+  userId,
 }: {
   data: GalleryItem[];
   refreshProfile?: () => void;
+  userId?: string | null;
 }) => {
-  const [userId, setUserId] = useState<string | null>(null);
   const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
   const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchUserId = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem('userId');
-        if (storedUserId) {
-          setUserId(storedUserId);
-        }
-      } catch (error) {
-        console.error('Error fetching userId:', error);
-      }
-    };
-    fetchUserId();
-  }, []);
 
   const handleAddPhoto = async () => {
     try {
@@ -274,22 +246,22 @@ const SecondRoute = ({
         console.error('No userId available');
         return;
       }
-  
+
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
       });
-  
+
       if (!result.canceled && result.assets?.length > 0) {
         const imageUri = result.assets[0].uri;
-        
+
         // Get file details
         const fileExtension = imageUri.split('.').pop() || 'jpg';
         const mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`;
         const fileName = `gallery_${Date.now()}.${fileExtension}`;
-  
+
         // Build FormData
         const formData = new FormData();
         formData.append('file', {
@@ -305,11 +277,11 @@ const SecondRoute = ({
           name: fileName,
           userIdConvert,
         });
-  
+
         // Upload the image
         const response = await userApi.uploadGalleryImage(formData);
         console.log("Gallery upload response:", response);
-  
+
         if (response && response.data) {
           if (response.data.code === 200) {
             Alert.alert('Success', 'Profile image updated successfully!');
@@ -359,18 +331,18 @@ const SecondRoute = ({
           shadow={4}
           position="relative"
         >
-        <Image
-  source={
-    item.userImage
-      ? { uri: item.userImage }
-      : require('../assets/images/avatarMen.png')
-  }
-  style={{
-    width: Dimensions.get('window').width / 2 - 20,
-    height: 150,
-  }}
-  resizeMode="cover"
-/>
+          <Image
+            source={
+              item.userImage
+                ? { uri: item.userImage }
+                : require('../assets/images/avatarMen.png')
+            }
+            style={{
+              width: Dimensions.get('window').width / 2 - 20,
+              height: 150,
+            }}
+            resizeMode="cover"
+          />
 
 
           {isSelected && (
@@ -396,7 +368,7 @@ const SecondRoute = ({
                     borderWidth: 2,
                     borderColor: 'white',
                   }}>
-                    <Ionicons name="trash" size={18} color="white" />
+                    <Ionicons name="trash" size={18} color="#DADADA" />
                   </View>
                 </TouchableOpacity>
 
@@ -411,7 +383,7 @@ const SecondRoute = ({
                     borderWidth: 2,
                     borderColor: 'white',
                   }}>
-                    <Ionicons name="expand" size={18} color="white" />
+                    <Ionicons name="expand" size={18} color="#DADADA" />
                   </View>
                 </TouchableOpacity>
               </HStack>
@@ -439,7 +411,7 @@ const SecondRoute = ({
               _pressed={{ opacity: 0.5 }}
             >
               <HStack alignItems="center" space={2}>
-                <Ionicons name="add-circle" size={24}  />
+                <Ionicons name="add-circle" size={24} />
                 <Text>Add Photo</Text>
               </HStack>
             </Pressable>
@@ -450,9 +422,13 @@ const SecondRoute = ({
             numColumns={2}
             keyExtractor={(item) => item.galleryId.toString()}
             renderItem={renderItem}
+            windowSize={5}
+            initialNumToRender={6}
+            maxToRenderPerBatch={4}
+            removeClippedSubviews={true}
             ListEmptyComponent={
               <Center flex={1} mt={40}>
-                <Text  fontSize="md">
+                <Text fontSize="md">
                   You have not updated images
                 </Text>
               </Center>
@@ -460,14 +436,16 @@ const SecondRoute = ({
           />
         </VStack>
 
-          {/* Expanded Image Modal */}
-          <Modal visible={!!expandedImageUrl} transparent={true} animationType="fade">
+        {/* Expanded Image Modal */}
+        <Modal visible={!!expandedImageUrl} transparent={true} animationType="fade">
           <TouchableOpacity
             activeOpacity={1}
-            style={{ flex: 1,
+            style={{
+              flex: 1,
               backgroundColor: 'rgba(0,0,0,0.85)',
               justifyContent: 'center',
-              alignItems: 'center',}}
+              alignItems: 'center',
+            }}
             onPress={() => setExpandedImageUrl(null)}
           >
             <RNImage
@@ -488,34 +466,33 @@ const SecondRoute = ({
 };
 // });
 
-const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile?: () => void; }) => {
+const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refreshProfile?: () => void; userId?: string | null }) => {
   const [horoscopeImage, setHoroscopeImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const handleAddHoroscope = async () => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
       if (!userId) {
         Alert.alert('Error', 'User not found. Please login again.');
         return;
       }
-  
+
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
       });
-  
+
       if (!result.canceled && result.assets?.length > 0) {
         const imageUri = result.assets[0].uri;
-        
+
         // Get file details
         const fileExtension = imageUri.split('.').pop() || 'jpg';
         const mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`;
         const fileName = `horoscope_${Date.now()}.${fileExtension}`;
-  
+
         // Build FormData
         const formData = new FormData();
         formData.append('file', {
@@ -525,25 +502,25 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
         } as any);
         const userIdConvert = atob(userId);
         formData.append('userId', userIdConvert);
-  
+
         console.log('Uploading horoscope image:', {
           uri: imageUri,
           type: mimeType,
           name: fileName,
           userId: userIdConvert,
         });
-  
+
         // Upload the image
         const response = await userApi.uploadHoroscopeImage(formData);
         console.log("Horoscope upload response:", response);
-  
+
         if (response && response.data) {
           if (response.data.data.code === 200 || response.data.data.code === 201) {  // Accept both 200 and 201 as success
             Alert.alert(
               'Success',
               response.data.data.message || 'Horoscope uploaded successfully!',
-              [ 
-                { 
+              [
+                {
                   text: 'OK',
                   onPress: () => {
                     console.log('Horoscope uploaded successfully');
@@ -563,9 +540,9 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
       console.error('Error adding horoscope:', error);
       Alert.alert(
         'Error',
-         'Failed to upload horoscope. Please try again.',
+        'Failed to upload horoscope. Please try again.',
         [
-          { 
+          {
             text: 'OK',
             onPress: () => console.log('Error acknowledged')
           }
@@ -576,27 +553,26 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
 
   const handleUpdateHoroscope = async () => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
       if (!userId) {
         Alert.alert('Error', 'User not found. Please login again.');
         return;
       }
-  
+
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
       });
-  
+
       if (!result.canceled && result.assets?.length > 0) {
         const imageUri = result.assets[0].uri;
-        
+
         // Get file details
         const fileExtension = imageUri.split('.').pop() || 'jpg';
         const mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`;
         const fileName = `horoscope_${Date.now()}.${fileExtension}`;
-  
+
         // Build FormData
         const formData = new FormData();
         formData.append('file', {
@@ -606,28 +582,28 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
         } as any);
         const userIdConvert = atob(userId);
         formData.append('userId', userIdConvert);
-  
-        console.log('Uploading horoscope image:', {
-          uri: imageUri,
-          type: mimeType,
-          name: fileName,
-          userId: userIdConvert,
-        });
-  
+
+        // console.log('Uploading horoscope image:', {
+        //   uri: imageUri,
+        //   type: mimeType,
+        //   name: fileName,
+        //   userId: userIdConvert,
+        // });
+
         // Upload the image
         const response = await userApi.uploadHoroscopeImage(formData);
-        console.log("Horoscope upload response:", response);
-  
+        // console.log("Horoscope upload response:", response);
+
         if (response && response.data) {
           if (response.data.data.code === 200 || response.data.data.code === 201) {  // Accept both 200 and 201 as success
             Alert.alert(
               'Success',
               response.data.data.message || 'Horoscope uploaded successfully!',
               [
-                { 
+                {
                   text: 'OK',
                   onPress: () => {
-                    console.log('Horoscope uploaded successfully');
+                    // console.log('Horoscope uploaded successfully');
                     if (refreshProfile) {
                       refreshProfile();  // Refresh the profile to show the new horoscope
                     }
@@ -645,7 +621,7 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
       Alert.alert(
         'Error', 'Failed to upload horoscope. Please try again.',
         [
-          { 
+          {
             text: 'OK',
             onPress: () => console.log('Error acknowledged')
           }
@@ -657,14 +633,13 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
   useEffect(() => {
     const fetchHoroscopeData = async () => {
       try {
-        const userId = await AsyncStorage.getItem('userId');
         if (!userId) return;
 
         const response = await userApi.getProfileDetails(userId);
         // console.log("response horoscope=============>", response.data.data.userDetail);
-        
+
         const userData = response.data.data;
-        
+
         // Find the horoscope image from the gallery images
         const horoscopeImg = userData?.userDetail?.[0]?.horoscope;
         setHoroscopeImage(horoscopeImg || null);
@@ -714,8 +689,8 @@ const ThirdRoute = ({ data = [], refreshProfile }: { data: any[]; refreshProfile
               _pressed={{ opacity: 0.5 }}
             >
               <HStack alignItems="center" space={2}>
-                <Ionicons name="add-circle" size={24}  />
-                <Text >{horoscopeImage ? 'Update Horoscope' : 'Add Horoscope'}</Text>
+                <Ionicons name="add-circle" size={24} />
+                <Text>{horoscopeImage ? 'Update Horoscope' : 'Add Horoscope'}</Text>
               </HStack>
             </Pressable>
           </HStack>
@@ -749,9 +724,10 @@ interface ProfileDetailTabProps {
   personalDetail: any;
   refreshProfile: () => void;
   initialTabIndex?: number;
+  userId?: string | null;
 }
 
-const Tabs = ({ personalDetail, refreshProfile, initialTabIndex = 0 }: ProfileDetailTabProps) => {
+const Tabs = ({ personalDetail, refreshProfile, initialTabIndex = 0, userId }: ProfileDetailTabProps) => {
   const layout = useWindowDimensions();
   const [index, setIndex] = React.useState(0);
 
@@ -762,37 +738,31 @@ const Tabs = ({ personalDetail, refreshProfile, initialTabIndex = 0 }: ProfileDe
     }
   }, [initialTabIndex]);
 
-
-
-  // console.log("personalDetail =============>", personalDetail);
-  // Log to debug
-  // console.log("Received personalDetail:", personalDetail);
-
-  // Transform the data with proper null checks
-  const formdata = personalDetail?.personalDetails?.map((section: any) => ({
-    title: section.section,
-    data: section.data
-  })) || [
+  // Memoize the transformed form data
+  const formdata = React.useMemo(() =>
+    personalDetail?.personalDetails?.map((section: any) => ({
+      title: section.section,
+      data: section.data
+    })) || [
       { title: 'Personal Details', data: {} },
       { title: 'Religious Details', data: {} },
       { title: 'Education Details', data: {} },
       { title: 'Family Details', data: {} }
-    ];
+    ], [personalDetail?.personalDetails]);
 
-  console.log("Transformed formdata:", formdata);
-
-  const renderScene = SceneMap({
-    first: (props: any) => <FirstRoute data={formdata} refreshProfile={refreshProfile} {...props} />,
-    second: (props: any) => <SecondRoute data={personalDetail?.galleryImages || []} {...props} />,
-    third: (props: any) => <ThirdRoute data={personalDetail?.galleryImages || []} {...props} />,
-  });
-
-
-  // const renderScene = SceneMap({
-  //   first: FirstRoute,
-  //   second: SecondRoute,
-
-  // });
+  // Stable renderScene — avoids recreating sub-route components on every render
+  const renderScene = React.useCallback(({ route }: { route: { key: string } }) => {
+    switch (route.key) {
+      case 'first':
+        return <FirstRoute data={formdata} refreshProfile={refreshProfile} userId={userId} />;
+      case 'second':
+        return <SecondRoute data={personalDetail?.galleryImages || []} refreshProfile={refreshProfile} userId={userId} />;
+      case 'third':
+        return <ThirdRoute data={personalDetail?.galleryImages || []} refreshProfile={refreshProfile} userId={userId} />;
+      default:
+        return null;
+    }
+  }, [formdata, personalDetail?.galleryImages, refreshProfile, userId]);
 
   return (
     <TabView
@@ -813,8 +783,8 @@ const Tabs = ({ personalDetail, refreshProfile, initialTabIndex = 0 }: ProfileDe
             borderTopEndRadius: 30,
             borderTopStartRadius: 30,
             // color:'#420001'
-            
-            
+
+
 
 
           }}
@@ -822,9 +792,9 @@ const Tabs = ({ personalDetail, refreshProfile, initialTabIndex = 0 }: ProfileDe
             backgroundColor: '#FFD700', // Active tab indicator color
             height: 2, // Thickness of indicator
           }}
-          // activeColor="#420001"     
-          // inactiveColor="#9CA3AF"  
-          
+        // activeColor="#420001"     
+        // inactiveColor="#9CA3AF"  
+
 
         />
       )}

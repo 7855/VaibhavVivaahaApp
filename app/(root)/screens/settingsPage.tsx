@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,10 +20,12 @@ import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 // import AntDesign from '@expo/vector-icons/AntDesign';
 
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useUserData } from '../contexts/UserDataContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/subscriptionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 
@@ -39,12 +41,37 @@ const SettingsPage: React.FC = () => {
   });
 
   const { logout } = useAuth();
+  const { userData } = useUserData();
+  const { subscriptionData } = useSubscription() || {};
   const toast = useToast();
+
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentRequestId, setPaymentRequestId] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchPaymentStatus = async () => {
+        if (userData?.decodedUserId) {
+          try {
+            const response = await userApi.getPaymentRequestsByUser(userData.userId);
+            if (response.data && response.data.code === 200 && response.data.data) {
+              setPaymentStatus(response.data.data.status);
+              setPaymentRequestId(response.data.data.id?.toString());
+            }
+          } catch (error) {
+            console.log('No pending payment request or error fetching', error);
+          }
+        }
+      };
+
+      fetchPaymentStatus();
+    }, [userData?.decodedUserId])
+  );
 
   const handleLogout = useCallback(async () => {
     try {
-      const userIdRemove =await AsyncStorage.getItem('userId');
-      const fcmToken =await AsyncStorage.getItem('fcmToken');
+      const userIdRemove = await AsyncStorage.getItem('userId');
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
       console.log("userIdRemove", userIdRemove);
       console.log("fcmToken", fcmToken);
 
@@ -100,76 +127,123 @@ const SettingsPage: React.FC = () => {
   return (
     <NativeBaseProvider>
       {/* <SafeAreaView > */}
-        <ScrollView>
-      <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerIcon}>
-          <Ionicons name="settings" size={28} color="white" />
-        </View>
-        <View>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <Text style={styles.headerSubtitle}>Manage your account and preferences</Text>
-        </View>
-      </View>
-
-      {/* Account Settings */}
-      <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
-        <View style={styles.sectionIcon}>
-          <MaterialDesignIcons name="account-cog" size={16} color="#dc2626" />
-        </View>
-        <Text style={styles.sectionTitleText}>Account Settings</Text>
-      </View>
-      <SettingItem
-        icon={<MaterialIcons name="security" size={20} color="#e11d48" />}
-        title="Privacy Settings"
-        subtitle="Control what others can see"
-        onPress={() => router.push('/screens/PrivacySettingsPage')}
-      />
-      <SettingItem
-        icon={<Ionicons name="lock-closed" size={20} color="#e11d48" />}
-        title="Change PIN"
-        subtitle="Update your security PIN"
-        onPress={() => router.push('/screens/SettingPageChangePin')}
-      />
-      <SettingItem
-        icon={<MaterialCommunityIcons name="crown" size={20} color="#eab308" />}
-        title="Upgrade Now"
-        subtitle="Get premium features"
-        onPress={() => router.push('/screens/PremiumTab')}
-        rightElement={
-          <View style={styles.premiumBadge}>
-            <Text style={styles.premiumText}>Premium</Text>
+      <ScrollView>
+        <View style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="settings" size={28} color="#DADADA" />
+            </View>
+            <View>
+              <Text style={styles.headerTitle}>Settings</Text>
+              <Text style={styles.headerSubtitle}>Manage your account and preferences</Text>
+            </View>
           </View>
-        }
-      />
 
-      {/* Community Settings */}
-      <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
-        <View style={styles.sectionIcon}>
-        <MaterialCommunityIcons name="account-group" size={16} color="#dc2626" />
-        </View>
-        <Text style={styles.sectionTitleText}>Community Settings</Text>
-      </View>
-      {/* <Text style={styles.sectionTitle}>
+          {/* Account Settings */}
+          <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
+            <View style={styles.sectionIcon}>
+              <MaterialDesignIcons name="account-cog" size={16} color="#dc2626" />
+            </View>
+            <Text style={styles.sectionTitleText}>Account Settings</Text>
+          </View>
+          <SettingItem
+            icon={<MaterialIcons name="security" size={20} color="#e11d48" />}
+            title="Privacy Settings"
+            subtitle="Control what others can see"
+            onPress={() => router.push('/screens/PrivacySettingsPage')}
+          />
+          <SettingItem
+            icon={<Ionicons name="lock-closed" size={20} color="#e11d48" />}
+            title="Change PIN"
+            subtitle="Update your security PIN"
+            onPress={() => router.push('/screens/SettingPageChangePin')}
+          />
+          {/* Premium Settings Conditional Logic */}
+          {(() => { console.log('🔍 Payment Debug:', { paymentStatus, planTitle: subscriptionData?.planTitle, endDate: subscriptionData?.endDate, entitlements: subscriptionData?.entitlements }); return null; })()}
+          {paymentStatus === 'PENDING' ? (
+            <SettingItem
+              icon={<MaterialCommunityIcons name="timer-sand" size={20} color="#f97316" />}
+              title="Your Payment Status"
+              subtitle="Verification in progress"
+              onPress={() => router.push({
+                pathname: '/screens/PaymentScreen',
+                params: {
+                  showVerificationOnInit: 'true',
+                  paymentRequestId: paymentRequestId || ''
+                }
+              })}
+              rightElement={
+                <View style={[styles.premiumBadge, { backgroundColor: '#f97316' }]}>
+                  <Text style={styles.premiumText}>Pending</Text>
+                </View>
+              }
+            />
+          ) : (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free' && subscriptionData?.endDate && new Date(subscriptionData.endDate) > new Date())) ? (
+            <SettingItem
+              icon={<MaterialCommunityIcons name="crown" size={20} color="#f59e0b" />}
+              title="See Your Plan"
+              subtitle={subscriptionData?.planTitle ? `${subscriptionData.planTitle} plan active` : 'View your active subscription'}
+              onPress={() => router.push('/screens/PremiumTab')}
+              rightElement={
+                <View style={[styles.premiumBadge, { backgroundColor: '#10b981' }]}>
+                  <Text style={styles.premiumText}>Active</Text>
+                </View>
+              }
+            />
+          ) : (
+            <SettingItem
+              icon={<MaterialCommunityIcons name="crown" size={20} color="#eab308" />}
+              title="Upgrade Now"
+              subtitle="Get premium features"
+              onPress={() => router.push('/screens/PremiumTab')}
+              rightElement={
+                <View style={styles.premiumBadge}>
+                  <Text style={styles.premiumText}>Premium</Text>
+                </View>
+              }
+            />
+          )}
+
+          {/* Community Settings */}
+          <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
+            <View style={styles.sectionIcon}>
+              <MaterialCommunityIcons name="account-group" size={16} color="#dc2626" />
+            </View>
+            <Text style={styles.sectionTitleText}>Community Settings</Text>
+          </View>
+          {/* <Text style={styles.sectionTitle}>
         <View style={[styles.sectionIcon, { backgroundColor: '#fce7f3' }]}>
           <Ionicons name="people" size={16} color="#db2777" />
         </View>
         Community Settings
       </Text> */}
-<SettingItem
-  icon={<MaterialIcons name="stars" size={20} color="#6c5ce7" />}
-  title="Star Match"
-  subtitle="Check horoscope compatibility"
-  onPress={() => router.push('/(root)/screens/StarMatch')}
-  rightElement={<MaterialIcons name="chevron-right" size={24} color="#9ca3af" />}
-/>
-      <SettingItem
-        icon={<Ionicons name="people" size={20} color="#e11d48" />}
-        title="Your Connections"
-        subtitle="View and manage connections"
-        onPress={() => router.push('/screens/ListUser?type=connection')}
-      />
+          <SettingItem
+            icon={<MaterialIcons name="stars" size={20} color="#6c5ce7" />}
+            title="Star Match"
+            subtitle="Check horoscope compatibility"
+            onPress={() => {
+              if (!subscriptionData?.planTitle || subscriptionData.planTitle === 'Free') {
+                Alert.alert(
+                  'Unlock Star Match ⭐',
+                  'Star Match is a premium feature! Upgrade your plan to discover your compatibility score and find your perfect match.',
+                  [
+                    { text: 'Maybe Later', style: 'cancel' },
+                    { text: 'Upgrade Now', onPress: () => router.push('/(root)/screens/PremiumTab') }
+                  ]
+                );
+                return;
+              }
+              router.push('/(root)/screens/StarMatch');
+            }}
+            rightElement={<MaterialIcons name="chevron-right" size={24} color="#9ca3af" />}
+          />
+          <SettingItem
+            icon={<Ionicons name="people" size={20} color="#e11d48" />}
+            title="Your Connections"
+            subtitle="View and manage connections"
+            onPress={() => router.push('/screens/ListUser?type=connection')}
+          />
           <SettingItem
             icon={<Ionicons name="eye" size={20} color="#e11d48" />}
             title="Viewed You"
@@ -185,45 +259,45 @@ const SettingsPage: React.FC = () => {
           />
 
 
-      {/* Others */}
-      <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
-        <View style={styles.sectionIcon}>
-        <FontAwesome5 name="cogs" size={16} color="#dc2626" />
-        </View>
-        <Text style={styles.sectionTitleText}>Others</Text>
-      </View>
-      {/* <Text style={styles.sectionTitle}>
+          {/* Others */}
+          <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
+            <View style={styles.sectionIcon}>
+              <FontAwesome5 name="cogs" size={16} color="#dc2626" />
+            </View>
+            <Text style={styles.sectionTitleText}>Others</Text>
+          </View>
+          {/* <Text style={styles.sectionTitle}>
         <View style={[styles.sectionIcon, { backgroundColor: '#ffedd5' }]}>
           <Ionicons name="help-circle" size={16} color="#f59e0b" />
         </View>
         Others
       </Text> */}
-      <SettingItem
-        icon={<Ionicons name="alert-circle-sharp" size={20} color="#e11d48" />}
-        title="FAQ"
-        subtitle="Frequently asked questions"
-        onPress={() => router.push('/screens/FAQPage')}
-      />
-      <SettingItem
-        icon={<Ionicons name="help-circle-sharp" size={20} color="#e11d48" />}
-        title="Help and Support"
-        subtitle="Get help when you need it"
-        onPress={() => router.push('/screens/HelpSupportPage')}
-      />
-      <SettingItem
-        icon={<Ionicons name="document-text" size={20} color="#e11d48" />}
-        title="Terms and Conditions"
-        subtitle="Read our terms"
-        onPress={() => router.push('/screens/TermsPage')}
-      />
-      <SettingItem
-        icon={<Ionicons name="log-out" size={20} color="#ef4444" />}
-        title="Logout"
-        subtitle="Sign out of your account"
-        onPress={handleLogout}
-        rightElement={<Ionicons name="chevron-forward" size={20} color="#ef4444" />}
-      />
-      </View>
+          <SettingItem
+            icon={<Ionicons name="alert-circle-sharp" size={20} color="#e11d48" />}
+            title="FAQ"
+            subtitle="Frequently asked questions"
+            onPress={() => router.push('/screens/FAQPage')}
+          />
+          <SettingItem
+            icon={<Ionicons name="help-circle-sharp" size={20} color="#e11d48" />}
+            title="Help and Support"
+            subtitle="Get help when you need it"
+            onPress={() => router.push('/screens/HelpSupportPage')}
+          />
+          <SettingItem
+            icon={<Ionicons name="document-text" size={20} color="#e11d48" />}
+            title="Terms and Conditions"
+            subtitle="Read our terms"
+            onPress={() => router.push('/screens/TermsPage')}
+          />
+          <SettingItem
+            icon={<Ionicons name="log-out" size={20} color="#ef4444" />}
+            title="Logout"
+            subtitle="Sign out of your account"
+            onPress={handleLogout}
+            rightElement={<Ionicons name="chevron-forward" size={20} color="#ef4444" />}
+          />
+        </View>
       </ScrollView>
       {/* </SafeAreaView> */}
     </NativeBaseProvider>
@@ -254,7 +328,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#130001',
   },
   headerSubtitle: {
     color: '#6b7280',
@@ -269,7 +343,7 @@ const styles = StyleSheet.create({
   sectionTitleText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#130001',
   },
   sectionIcon: {
     width: 32,
@@ -306,7 +380,7 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#111827',
+    color: '#130001',
   },
   settingSubtitle: {
     fontSize: 13,
@@ -319,7 +393,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   premiumText: {
-    color: '#fff',
+    color: '#DADADA',
     fontSize: 12,
     fontWeight: 'bold',
   },

@@ -589,7 +589,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                     {isLoading ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{
-                          color: 'white',
+                          color: '#DADADA',
                           fontSize: 18,
                           fontWeight: 'bold',
                           marginLeft: 12,
@@ -601,7 +601,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="star" size={20} color="white" />
                         <Text style={{
-                          color: 'white',
+                          color: '#DADADA',
                           fontSize: 18,
                           fontWeight: 'bold',
                           marginLeft: 8,

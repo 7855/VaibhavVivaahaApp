@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: "#fff",
+    color: "#DADADA",
     textAlign: "center",
     marginBottom: 30,
   },
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    color: 'white',
+    color: '#DADADA',
     fontSize: 16,
     fontWeight: '500',
   },

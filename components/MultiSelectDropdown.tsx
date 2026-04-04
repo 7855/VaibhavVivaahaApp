@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
     fontSize: 14,
-    color: '#333',
+    color: '#130001',
   },
   placeholderText: {
     color: '#999',
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#130001',
   },
   closeButton: {
     padding: 4,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 16,
-    color: '#333',
+    color: '#130001',
     flex: 1,
   },
   checkmarkContainer: {
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     }),
   },
   applyButtonText: {
-    color: 'white',
+    color: '#DADADA',
     fontWeight: '600',
     fontSize: 16,
   },

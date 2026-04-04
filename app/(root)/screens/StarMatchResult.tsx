@@ -142,7 +142,7 @@
 //               <Text style={styles.scorePercentage}>{result.percentage}%</Text>
 //               <Text style={styles.scoreLabel}>Match</Text>
 //             </View>
-            
+
 //             <View style={styles.verdictContainer}>
 //               <View style={[styles.verdictBadge, { backgroundColor: `${getResultColor('PASS')}20`, borderColor: getResultColor('PASS') }]}>
 //                 <Text style={[styles.verdictText, { color: getResultColor('PASS') }]}>{result.verdict}</Text>
@@ -476,7 +476,8 @@ import {
   Dimensions,
   Share,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -540,39 +541,43 @@ const StarMatchResult = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [result, setResult] = useState<MatchResult | null>(null);
   const { formData } = useLocalSearchParams<{ formData: string }>();
-    const [apiResponse, setApiResponse] = useState(null);
 
-const [requestBody, setRequestBody] = useState({
-    bride: {
-      name: "Meena",
-      dob: "1996-08-10",
-      tob: "06:45",
-      place: "Chennai",
-      star: "Rohini",
-      rasi: "simham"
-    },
-    groom: {
-      name: "Arun",
-      dob: "1993-11-21",
-      tob: "14:30",
-      place: "Coimbatore",
-      star: "Aswini",
-      rasi: "rishabam"
-    }
-  });
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Parse the form data if it exists
-        let requestData = { ...requestBody };
-        // if (formData) {
-        //   requestData = JSON.parse(formData);
-        //   setRequestBody(requestData);
-        // }
+        // Parse the form data from route params
+        let requestData = {
+          bride: {
+            name: "Bride",
+            dob: "1990-01-01",
+            tob: "00:00",
+            place: "Unknown",
+            star: "Aswini",
+            rasi: "mesham"
+          },
+          groom: {
+            name: "Groom",
+            dob: "1990-01-01",
+            tob: "00:00",
+            place: "Unknown",
+            star: "Aswini",
+            rasi: "mesham"
+          }
+        };
+
+        if (formData) {
+          try {
+            requestData = JSON.parse(formData);
+            console.log('Parsed form data for star match:', JSON.stringify(requestData, null, 2));
+          } catch (e) {
+            console.error('Error parsing formData:', e);
+          }
+        }
+
         // Make the API call with the request data
         const response = await userApi.starMatching(requestData);
-        setApiResponse(response.data);
-        console.log('API Response:', response.data);
+        console.log('Star Match API Response:', response.data);
+
         // Transform the API response to match your MatchResult interface
         if (response.data && response.data.data) {
           const apiData = response.data.data;
@@ -581,23 +586,22 @@ const [requestBody, setRequestBody] = useState({
             percentage: apiData.percentage,
             totalWeight: apiData.totalWeight,
             verdict: apiData.verdict,
-            message: response.data.message || 'Horoscope match results',
             results: apiData.results || []
           };
           setResult(formattedResult);
         }
       } catch (error) {
         console.error('Error fetching star match data:', error);
-        // Fallback to mock data in case of error (optional)
+        // Fallback to show error state
         const mockResponse: MatchResult = {
-          score: 70,
-          percentage: 78,
-          totalWeight: 90,
-          verdict: 'PASS',
-          message: 'Error fetching data. Showing sample results.',
-          results: [] // You can keep your mock results here if needed
+          score: 0,
+          percentage: 0,
+          totalWeight: 100,
+          verdict: 'ERROR',
+          results: []
         };
         setResult(mockResponse);
+        Alert.alert('Error', 'Failed to fetch compatibility results. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -648,7 +652,7 @@ const [requestBody, setRequestBody] = useState({
       console.error(error);
     }
   };
-  
+
 
   if (isLoading || !result) {
     return (
@@ -681,7 +685,7 @@ const [requestBody, setRequestBody] = useState({
               <Text style={styles.scorePercentage}>{result.percentage}%</Text>
               <Text style={styles.scoreLabel}>Match</Text>
             </View>
-            
+
             <View style={styles.verdictContainer}>
               <View style={[styles.verdictBadge, { backgroundColor: `${getResultColor('PASS')}20`, borderColor: getResultColor('PASS') }]}>
                 <Text style={[styles.verdictText, { color: getResultColor('PASS') }]}>{result.verdict}</Text>
@@ -697,14 +701,14 @@ const [requestBody, setRequestBody] = useState({
                 <Text style={styles.scoreValue}>{result.score} / {result.totalWeight} Points</Text>
               </View>
               <View style={styles.progressBar}>
-                <View 
+                <View
                   style={[
-                    styles.progressFill, 
-                    { 
+                    styles.progressFill,
+                    {
                       width: `${(result.score / result.totalWeight) * 100}%`,
                       backgroundColor: getResultColor('PASS')
                     }
-                  ]} 
+                  ]}
                 />
               </View>
             </View>
@@ -731,10 +735,10 @@ const [requestBody, setRequestBody] = useState({
                   <Text style={styles.resultReason}>{item.reason}</Text>
                 </View>
                 <View style={[styles.resultIcon, { backgroundColor: `${getResultColor(item.result)}10` }]}>
-                  <MaterialCommunityIcons 
-                    name={getPoruthamIcon(item.key)} 
-                    size={28} 
-                    color={getResultColor(item.result)} 
+                  <MaterialCommunityIcons
+                    name={getPoruthamIcon(item.key)}
+                    size={28}
+                    color={getResultColor(item.result)}
                   />
                 </View>
               </View>
@@ -746,7 +750,7 @@ const [requestBody, setRequestBody] = useState({
 
         {/* Fixed Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={() => router.push('/(root)/screens/StarMatch')}
           >
@@ -775,7 +779,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: '#fff',
+    color: '#DADADA',
     fontSize: 16,
   },
   header: {
@@ -813,7 +817,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffe0e0',
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-  },  
+  },
   scoreCircle: {
     width: 180,
     height: 180,
@@ -828,7 +832,7 @@ const styles = StyleSheet.create({
   scorePercentage: {
     fontSize: 42,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#DADADA',
   },
   scoreLabel: {
     fontSize: 14,
@@ -958,7 +962,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   resultName: {
-    color: '#fff',
+    color: '#DADADA',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,

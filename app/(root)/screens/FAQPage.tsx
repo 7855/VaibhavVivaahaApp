@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827'
+    color: '#130001'
   },
   subtitle: {
     color: '#6b7280',
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   faqQuestion: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#111827',
+    color: '#130001',
     flex: 1,
     marginRight: 8,
     width: '80%'
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   faqAnswer: {
     fontSize: 14,
-    color: '#4b5563',
+    color: '#130001',
     lineHeight: 20
   },
   noResults: {
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   noResultsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#130001',
     marginTop: 12
   },
   noResultsText: {

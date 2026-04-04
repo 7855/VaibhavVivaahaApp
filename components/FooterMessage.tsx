@@ -10,10 +10,10 @@ const FooterMessage = () => {
       <View style={styles.footerCard}>
         <View style={styles.textContainer}>
           <Text style={styles.footerText}>We're here with you. Take your time. </Text>
-          <MaterialIcons 
-            name="favorite" 
-            size={16} 
-            color="#420001" 
+          <MaterialIcons
+            name="favorite"
+            size={16}
+            color="#420001"
           />
         </View>
       </View>
@@ -58,4 +58,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default FooterMessage;
+export default React.memo(FooterMessage);

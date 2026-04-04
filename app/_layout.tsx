@@ -8,6 +8,8 @@ import { AlertNotificationRoot } from 'react-native-alert-notification';
 import { AuthProvider } from './(root)/contexts/AuthContext';
 import { MasterProvider } from './(root)/contexts/MasterDataContext';
 import { SubscriptionProvider } from './(root)/contexts/subscriptionContext';
+import { UserDataProvider } from './(root)/contexts/UserDataContext';
+import { NativeBaseProvider } from 'native-base';
 // ... other imports
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -32,18 +34,22 @@ export default function RootLayout() {
     return null;
   }
 
-return (
+  return (
     <SafeAreaProvider>
-      <MasterProvider>
-        <SubscriptionProvider>
-          <AuthProvider>
-            <AlertNotificationRoot>
-              <StatusBar style="auto" />
-              <Stack screenOptions={{ headerShown: false }} />
-            </AlertNotificationRoot>
-          </AuthProvider>
-        </SubscriptionProvider>
-      </MasterProvider>
+      <UserDataProvider>
+        <MasterProvider>
+          <SubscriptionProvider>
+            <AuthProvider>
+              <NativeBaseProvider>
+                <AlertNotificationRoot>
+                  <StatusBar style="auto" />
+                  <Stack screenOptions={{ headerShown: false }} />
+                </AlertNotificationRoot>
+              </NativeBaseProvider>
+            </AuthProvider>
+          </SubscriptionProvider>
+        </MasterProvider>
+      </UserDataProvider>
     </SafeAreaProvider>
   );
 }

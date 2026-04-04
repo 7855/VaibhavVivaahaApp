@@ -45,8 +45,8 @@ const handleToAgeChange = (itemValue: number) => {
           <View style={styles.picker}>
 <Picker
   selectedValue={fromAge}
-  style={{color: "#000000"}}
-  itemStyle={{color: "#000000"}}
+  style={{color: "#130001"}}
+  itemStyle={{color: "#130001"}}
   onValueChange={handleFromAgeChange}
 >
   {ageOptions.map((age) => (
@@ -61,7 +61,7 @@ const handleToAgeChange = (itemValue: number) => {
           <View style={styles.picker}>
            <Picker
   selectedValue={toAge}
-  itemStyle={{color: "#000000"}}
+  itemStyle={{color: "#130001"}}
   onValueChange={handleToAgeChange}
   enabled={fromAge <= toAge}
 >
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 8,
-    color: '#333',
+    color: '#130001',
   },
   pickerContainer: {
     flexDirection: 'row',

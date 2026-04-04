@@ -42,11 +42,11 @@ const NotificationFilterComponent: React.FC<NotificationFilterProps> = ({
                 isActive ? styles.activeButton : styles.inactiveButton,
               ]}
             >
-              <Icon size={16} color={isActive ? '#fff' : '#4B5563'} />
+              <Icon size={16} color={isActive ? '#DADADA' : '#130001'} />
               <Text style={[styles.label, isActive && styles.activeLabel]}>{label}</Text>
               {counts[key] > 0 && (
                 <View style={[styles.countBadge, isActive ? styles.activeCountBadge : styles.inactiveCountBadge]}>
-                  <Text style={[styles.countText, isActive && { color: '#fff' }]}>
+                  <Text style={[styles.countText, isActive && { color: '#DADADA' }]}>
                     {counts[key]}
                   </Text>
                 </View>
@@ -93,12 +93,12 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#4B5563',
+    color: '#130001',
     fontWeight: '500',
     marginLeft: 6,
   },
   activeLabel: {
-    color: '#fff',
+    color: '#DADADA',
   },
   countBadge: {
     marginLeft: 8,

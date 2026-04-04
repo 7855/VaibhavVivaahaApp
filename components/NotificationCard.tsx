@@ -107,7 +107,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onMar
 
                         {/* Right side: Delete icon */}
                         <TouchableOpacity onPress={() => onDelete(notification.id)} style={styles.deleteButton}>
-                            <AntDesign name="delete" size={15} color="#FFFFFF" />
+                            <AntDesign name="delete" size={15} color="#DADADA" />
                         </TouchableOpacity>
                     </View>
 
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     avatarInitial: {
-        color: 'white',
+        color: '#DADADA',
         fontSize: 16,
         fontWeight: 'bold',
     },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
         color: '#374151',
     },
     unreadText: {
-        color: '#111827',
+        color: '#130001',
     },
     message: {
         fontSize: 12,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 5,
         // borderRadius: 999,
-        borderBottomLeftRadius:999,
+        borderBottomLeftRadius: 999,
         zIndex: 1,
         elevation: 3,
         shadowColor: '#000',
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
     },
     newBadgeText: {
-        color: '#fff',
+        color: '#DADADA',
         fontSize: 10,
         fontWeight: '500',
         letterSpacing: 0.5,
@@ -288,4 +288,4 @@ const styles = StyleSheet.create({
 
 });
 
-export default NotificationCard;
+export default React.memo(NotificationCard);

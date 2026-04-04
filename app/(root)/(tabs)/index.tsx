@@ -1,16 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Image, StyleSheet, Text as TextNative, ScrollView, TouchableOpacity, FlatList, Dimensions } from 'react-native';
-import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { NativeBaseProvider, Box, Stack, Heading, Text, HStack, Center, VStack, Skeleton } from 'native-base';
-// import ProfileSwiper from '@/components/tindercard';
-import icons from '@/constants/icons';
-import { Card } from 'react-native-elements';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Box, Text, HStack, Center, VStack, Skeleton } from 'native-base';
 import SwiperProfile from '@/components/swiperprofile';
-import { MaterialIcons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import IconMeterial from 'react-native-vector-icons/MaterialIcons';
-import ProfileCompletionWidget from '../../../components/ProfileCompletionBar';
-import QuiclAction from '../../../components/QuickAction';
+import ProfileCompletionWidget from '@/components/ProfileCompletionBar';
+import QuickAction from '@/components/QuickAction';
+import { router, useFocusEffect } from 'expo-router';
+// AsyncStorage import removed - subscription data now managed through SubscriptionContext
+import userApi from '../api/userApi';
+import { ArrowRight, Award, Bell, Crown, Eye, Heart, Send, User, UserCheck } from 'lucide-react-native';
+import HappyStoryCard from '@/components/HappyStoryCard';
+import { usePushNotifications } from '@/usePushNotification';
+import { LinearGradient } from 'expo-linear-gradient';
+import { loadUserSubscription, loadMasterData } from '../services/masterService';
+import { useSubscription } from '../contexts/subscriptionContext';
+import { useMasterData } from '../contexts/MasterDataContext';
+import FooterMessage from '@/components/FooterMessage';
+import { useUserData } from '../contexts/UserDataContext';
+import * as WebBrowser from 'expo-web-browser';
 
 interface ConnectionCount {
   Matches?: number;
@@ -58,37 +67,46 @@ const ProfileCardSkeleton = () => (
 
 const ProfileCardSmallSkeleton = () => (
   <View style={styles.profileCardSmallSkeleton}>
-    <Skeleton h={120} w={120} rounded="md" />
-    <VStack p={2} space={1}>
-      <Skeleton h={4} w="80%" rounded="sm" />
-      <Skeleton h={3} w="60%" rounded="sm" />
-      <HStack space={1} mt={1}>
-        <Skeleton h={3} w={12} rounded="full" />
-        <Skeleton h={3} w={12} rounded="full" />
-      </HStack>
-    </VStack>
+    {/* Image placeholder - matches 125x150 card image */}
+    <Skeleton h={150} w={125} rounded="lg" />
+    {/* Text overlay at bottom - mimics the semi-transparent overlay */}
+    <View style={styles.skeletonTextOverlay}>
+      <Skeleton h={3} w="80%" rounded="sm" startColor="gray.400" endColor="gray.500" />
+      <Skeleton h={2.5} w="60%" rounded="sm" mt={1} startColor="gray.400" endColor="gray.500" />
+    </View>
   </View>
 );
 
 const StatsSkeleton = () => (
-  <HStack space={4} justifyContent="center" my={4}>
-    {[1, 2, 3].map((item) => (
-      <Center key={item} h="120" w="20" bg="blueGray.100" rounded="xl" >
-        <VStack alignItems="center" space={2}>
-          <Skeleton size="10" rounded="full" />
-          <Skeleton.Text lines={1} px="2" />
-          <Skeleton h="6" w="40%" />
-        </VStack>
-      </Center>
+  <View style={{
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 24,
+    paddingVertical: 10,
+    marginHorizontal: 8,
+    backgroundColor: '#F5F5F5',
+  }}>
+    {[1, 2, 3, 4].map((item, index) => (
+      <React.Fragment key={item}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Skeleton size="10" rounded="full" mb={2} />
+          <Skeleton h={5} w={8} rounded="sm" mb={1} />
+          <Skeleton h={3} w={12} rounded="sm" />
+        </View>
+        {index < 3 && (
+          <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+        )}
+      </React.Fragment>
     ))}
-  </HStack>
+  </View>
 );
 
 const SectionSkeleton = ({ title = true, small = false }) => (
   <Box mb={6} bg="white" p={4} borderRadius={12} mx={2}>
     {title && <Skeleton h={6} w="40%" mb={4} />}
-    <ScrollView 
-      horizontal 
+    <ScrollView
+      horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ paddingRight: 16 }}
     >
@@ -112,7 +130,7 @@ const LoadingState = () => (
           </Box>
         </HStack>
       </HStack>
-      
+
       {/* Profile Section Skeleton */}
       <Box p={4} bg="white" mb={2}>
         <HStack space={4} alignItems="center">
@@ -127,7 +145,7 @@ const LoadingState = () => (
               <Skeleton h="4" w="30%" rounded="sm" />
             </HStack>
             <Skeleton h="4" w="50%" rounded="sm" />
-            
+
             {/* Profile Completion Bar Skeleton */}
             <Box mt={2}>
               <HStack justifyContent="space-between" mb={1}>
@@ -139,28 +157,28 @@ const LoadingState = () => (
           </VStack>
         </HStack>
       </Box>
-      
+
       {/* Stats Skeleton */}
       <Box bg="white" py={4} mb={2}>
         <StatsSkeleton />
       </Box>
-      
+
       {/* Daily Recommendations Section */}
       <SectionSkeleton title={true} />
-      
+
       {/* New Connections Section */}
       <SectionSkeleton title={true} small={true} />
-      
+
       {/* Near You Section */}
       <SectionSkeleton title={true} small={true} />
-      
+
       {/* Happy Stories Section */}
       <Box bg="white" mt={2} py={4}>
         <Box px={4} mb={3}>
           <Skeleton h="6" w="50%" rounded="sm" />
         </Box>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 8 }}
         >
@@ -176,66 +194,43 @@ const LoadingState = () => (
           ))}
         </ScrollView>
       </Box>
-      
+
       <Box h={20} /> {/* Bottom padding */}
     </ScrollView>
   </SafeAreaView>
 );
 
 
-import { router, useNavigation } from 'expo-router';
-import { Button } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-// import Getstart from '../../getstart';
-import userApi from '../api/userApi';
-// import Getstart from '@/app/(root)/(main)';
-import { ArrowRight, Award, Bell, Crown, Eye, Heart, Send, User, UserCheck } from 'lucide-react-native';
-import HappyStoryCard from '@/components/HappyStoryCard';
-import ProfileCompletionBar from '@/components/ProfileCompletionBar';
-import { useFocusEffect } from 'expo-router';
-import { usePushNotifications } from '@/usePushNotification';
-import { LinearGradient } from 'expo-linear-gradient';
-import { loadUserSubscription } from '../services/masterService';
-import { useSubscription } from '../contexts/subscriptionContext';
-import QuickAction from '../../../components/QuickAction';
-import FooterMessage from '@/components/FooterMessage';
-
-// const router = router();
-
 const Index = () => {
+  const { userData } = useUserData();
   const [hasStarted, setHasStarted] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const navigation = useNavigation();
+  const dataLoadedRef = useRef(false);
+
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [newConnection, setNewConnection] = useState<any[]>([]);
   const [nearYouProfile, setNearYouProfile] = useState<any[]>([]);
-  const [userConnectionCount, setUserConnectionCount] = useState<ConnectionCount[]>([]);
-  const [firstName, setFirstName] = useState<string>('');
-  const [lastName, setLastName] = useState<string>('');
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [gender, setGender] = useState<string>('');
-  const [userIdValue, setUserId] = useState<string | null>(null);
-  const [location, setLocation] = useState<string | null>(null);
-  const [casteId, setCasteId] = useState<string | null>(null);
+  const [userConnectionCount, setUserConnectionCount] = useState<ConnectionCount>({});
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [happyStories, setHappyStories] = useState<any[]>([]);
   const [percentage, setPercentage] = useState<number>(0);
-  const [userPaid, setUserPaid] = useState<any>(false);
+
   const [timeLeft, setTimeLeft] = useState('');
-const { subscriptionData = {}, setSubscription } = useSubscription() || {};
+  const { subscriptionData = {}, setSubscription } = useSubscription() || {};
   const [userTier, setUserTier] = useState<string | null>(null);
+  const { state: masterData, setMasterData } = useMasterData();
+  const [bannerData, setBannerData] = useState<any[]>([]);
 
-
+  // Only refresh unread notification count on tab focus (lightweight)
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
 
       const fetchUnreadCount = async () => {
-        const userId = await AsyncStorage.getItem('userId');
-        if (!userId) return;
+        if (!userData.userId) return;
 
         try {
-          const unreadCount = await userApi.getUnreadNotificationCount(userId);
+          const unreadCount = await userApi.getUnreadNotificationCount(userData.userId);
           if (isActive) {
             setUnreadCount(unreadCount.data?.data);
           }
@@ -249,7 +244,7 @@ const { subscriptionData = {}, setSubscription } = useSubscription() || {};
       return () => {
         isActive = false;
       };
-    }, []) // Empty dependency array means this runs once when the component mounts
+    }, [userData.userId])
   );
 
 
@@ -257,46 +252,43 @@ const { subscriptionData = {}, setSubscription } = useSubscription() || {};
     const fetchHappyStories = async () => {
       try {
         const response = await userApi.getAllHappyStoriesByIsActive();
-        // console.log('Happy Stories Data:', response.data.data);
         setHappyStories(response.data.data);
-      } catch (error) {
-        21
-        console.error('Error fetching happy storgetPies:', error);
-      }
-    };
-    fetchHappyStories();
-  }, []);
-
-  useEffect(() => {
-    const fetchHappyStories = async () => {
-      try {
-        const userId = await AsyncStorage.getItem('userId');
-        const isUser = await AsyncStorage.getItem('isUser');
-
-        setUserPaid(isUser == 'PU' ? true : false);
-        const response = await userApi.getProfileCompletion(userId);
-        console.log('Percentage Data ===========>:', response.data.data.data);
-        if (response.data.data.data) {
-          setPercentage(response.data.data.data.percentage);
-        }
       } catch (error) {
         console.error('Error fetching happy stories:', error);
       }
     };
+    fetchHappyStories();
+  }, []);
 
-    const getUserPaidStatus = async () => {
+  // Load master data and extract banner
+  useEffect(() => {
+    if (!Object.keys(masterData || {}).length) {
+      loadMasterData(setMasterData);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (masterData?.HomepageBottomBanner) {
+      setBannerData(masterData.HomepageBottomBanner);
+    }
+  }, [masterData]);
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
       try {
-        const userId = await AsyncStorage.getItem('userId');
-        const response = await userApi.getUserPaidStatus(userId);
-        console.log('User Paid Status Data ===========>:', response.data.data);
-        setUserPaid(response.data.data);
+        const response = await userApi.getProfileCompletion(userData.userId);
+        if (response.data.data.data) {
+          setPercentage(response.data.data.data.percentage);
+        }
       } catch (error) {
-        console.error('Error fetching user paid status:', error);
+        console.error('Error fetching profile completion:', error);
       }
     };
-    fetchHappyStories();
-    getUserPaidStatus();
-  }, []);
+
+    if (userData.userId) {
+      fetchProfileData();
+    }
+  }, [userData.userId]);
 
 
 
@@ -323,224 +315,145 @@ const { subscriptionData = {}, setSubscription } = useSubscription() || {};
   }, [updateCountdown]);
 
   useEffect(() => {
-    const checkUserStatus = async () => {
+    // Skip if data already loaded or missing required context
+    if (dataLoadedRef.current || !userData.userId || !userData.casteId || !userData.gender || !userData.location) {
+      if (!userData.userId && userData.userId !== null) {
+        router.push({
+          pathname: '/(main)/LoginScreen',
+          params: { from: 'home' }
+        } as any);
+      }
+      return;
+    }
+
+    const loadData = async () => {
       setIsLoading(true);
       try {
-        const userId = await AsyncStorage.getItem('userId');
-        const started = await AsyncStorage.getItem('hasStarted');
-        const firstName = await AsyncStorage.getItem('firstName');
-        const lastName = await AsyncStorage.getItem('lastName');
-        
         // Get user subscription status
-        if (userId) {
+        if (userData.decodedUserId) {
           try {
-            const decodedUserId = atob(userId);
-            const subscription = await userApi.getActiveUserSubscriptionByUserId(decodedUserId);
-            const wholeSubscriptionData = subscription;
-            if(subscription.data.data){
+            const subscription = await userApi.getActiveUserSubscriptionByUserId(userData.decodedUserId);
+            if (subscription.data.data) {
               setUserTier(subscription.data.data.planCode);
-            }
-            // console.log("Tier ===>",subscription.data.data.planCode);
-            
-            // console.log('Subscription response:------------------->', subscription.data.data);
-            if(subscription.data.data?.entitlements) {
-              await AsyncStorage.setItem('subscription', JSON.stringify(subscription.data.data.entitlements));
-              console.log('Subscription entitlements saved to AsyncStorage');
-            }
-            if(subscription.data.data.subscriptionId) {
-              await AsyncStorage.setItem('subscriptionId', JSON.stringify(subscription.data.data.subscriptionId));
+              // Store in subscription context (which also persists to AsyncStorage)
+              setSubscription(subscription.data.data);
             }
           } catch (error) {
             console.error('Error fetching subscription:', error);
           }
         }
-        const profileImage = await AsyncStorage.getItem('profileImage');  
-        console.log('Profile Image Data ===========>:', profileImage);
-        const location = await AsyncStorage.getItem('location');
-        const storedGender = await AsyncStorage.getItem('gender');
-        const casteId = await AsyncStorage.getItem('casteId');
-
-        // Set state
-        setUserId(userId || null);
-        setCasteId(casteId || null);
-        setLocation(location || null);
-        setFirstName(firstName || '');
-        setLastName(lastName || '');
-        setProfileImage(profileImage || null);
-        setGender(storedGender || '');
-
-        // Use local variables instead of waiting for state update
-        if (!userId || !casteId || !storedGender || !location) {
-          // Use the correct path format for expo-router v3
-          // @ts-ignore - expo-router types are not up to date
-          router.push({
-            pathname: '/(main)/LoginScreen',
-            params: { from: 'home' }
-          } as any);
-          console.log('⛔ Required values missing, redirecting to sign in');
-          console.log('Missing values:', { userId, casteId, storedGender, location });
-          return;
-        }
 
         setHasStarted(true);
-        const casteIdValue = parseInt(casteId);
-        console.log("🔥 Calling all APIs...");
-        
-        // Simulate loading for demo purposes
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 1500);
+        const casteIdValue = parseInt(userData.casteId!);
 
         const [rec, conn, near, count] = await Promise.all([
-          userApi.getDailyRecommendation(casteIdValue, storedGender),
-          userApi.getNewConnections(casteIdValue, storedGender),
-          userApi.getNearYouProfiles(casteIdValue, storedGender, location),
-          userApi.userConnectionCount(userId),
+          userApi.getDailyRecommendation(casteIdValue, userData.gender),
+          userApi.getNewConnections(casteIdValue, userData.gender),
+          userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location),
+          userApi.userConnectionCount(userData.userId),
         ]);
-        console.log("Matches",userConnectionCount);
-        
 
-        // console.log("ec.data?.data?.slice(0, 7)=>",rec.data?.data?.slice(0, 7));
-        
         setRecommendations(rec.data?.data?.slice(0, 7) || []);
         setNewConnection(conn.data?.data?.slice(0, 7) || []);
         setNearYouProfile(near.data?.data?.slice(0, 7) || []);
-        setUserConnectionCount(count.data?.data || []);
-        const unreadCount = await userApi.getUnreadNotificationCount(userId);
-        setUnreadCount(unreadCount.data?.data);
+        setUserConnectionCount(count.data?.data || {});
+
+        const unreadRes = await userApi.getUnreadNotificationCount(userData.userId);
+        setUnreadCount(unreadRes.data?.data);
+
+        dataLoadedRef.current = true;
+        setIsLoading(false);
       } catch (error) {
-        console.error('Error checking user status:', error);
+        console.error('Error loading home data:', error);
         setHasStarted(false);
       }
     };
 
-    checkUserStatus();
-  }, []);
+    loadData();
+  }, [userData.userId, userData.casteId, userData.gender, userData.location]);
 
-useEffect(() => {
-  const initSubscription = async () => {
-    const raw = await AsyncStorage.getItem("userId");
-    if (!raw) return;
+  useEffect(() => {
+    if (!userData.decodedUserId) return;
+    loadUserSubscription(userData.decodedUserId, setSubscription);
+  }, [userData.decodedUserId]);
 
-    const userId = atob(raw);
-    await loadUserSubscription(userId, setSubscription);
-    console.log("subscriptionData==>",subscriptionData);
-    
-  };
-
-  initSubscription();
-}, []);
-
-
-  // const onStart = async () => {
-  //   await AsyncStorage.setItem("hasStarted", "true");
-  //   setHasStarted(true);
-  // };
-
-  // const [followingList, setFollowingList] = useState([]);
-  // const [followersList, setFollowersList] = useState([]);
-
-  const handleFollowingPress = async () => {
-    try {
-      const response = await userApi.getFollowingList(userIdValue);
-      const followingData = response.data.data || [];
-      router.push({
-        pathname: '/screens/FollowUserList',
-        params: {
-          title: 'Following',
-          data: JSON.stringify(followingData)
-        }
-      });
-
-    } catch (error) {
-      console.error('Error fetching following list:', error);
-    }
-  };
-
-  const handleFollowersPress = async () => {
-    try {
-      const response = await userApi.getFollowersList(userIdValue);
-      const followersData = response.data.data || [];
-      router.push({
-        pathname: '/screens/FollowUserList',
-        params: {
-          title: 'Followers',
-          data: JSON.stringify(followersData)
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching followers list:', error);
-    }
-  };
 
   const { expoPushToken, notification } = usePushNotifications();
 
-const getTierStyle = (tier: any) => {
-  const baseStyle = {
-    icon: null as React.ReactNode,
-    background: '',
-    textColor: '',
-    gradient: [] as string[],
-    borderColor: '',
+  const handleBannerPress = async (banner: any) => {
+    if (banner.openUrl === 'internal') {
+      router.push(banner.actionUrl as any);
+    } else {
+      await WebBrowser.openBrowserAsync(banner.actionUrl);
+    }
   };
 
-  const tierUpper = tier?.toUpperCase() || 'FREE';
+  const getTierStyle = (tier: any) => {
+    const baseStyle = {
+      icon: null as React.ReactNode,
+      background: '',
+      textColor: '',
+      gradient: [] as string[],
+      borderColor: '',
+    };
 
-  
-  switch (tierUpper) {
-case 'PLATINUM':
-  return {
-    ...baseStyle,
-    icon: <Crown size={16} color="#E5E4E2" />, // Platinum metallic color
-    background: 'rgba(229, 228, 226, 0.2)', // Light platinum background
-    textColor: '#E5E4E2', // Platinum text color
-    gradient: ['#E5E4E2', '#C0C0C0'], // Platinum gradient
-    borderColor: '#E5E4E2', // Platinum border
-    name: 'Platinum'
+    const tierUpper = tier?.toUpperCase() || 'FREE';
+
+
+    switch (tierUpper) {
+      case 'PLATINUM':
+        return {
+          ...baseStyle,
+          icon: <Crown size={16} color="#E5E4E2" />, // Platinum metallic color
+          background: 'rgba(229, 228, 226, 0.2)', // Light platinum background
+          textColor: '#E5E4E2', // Platinum text color
+          gradient: ['#E5E4E2', '#C0C0C0'], // Platinum gradient
+          borderColor: '#E5E4E2', // Platinum border
+          name: 'Platinum'
+        };
+      case 'GOLD':
+        return {
+          ...baseStyle,
+          icon: <Award size={16} color="#FFD700" />,
+          background: 'rgba(255, 215, 0, 0.2)',
+          textColor: 'userConnectionCount#FFD700',
+          gradient: ['#FFD700', '#FFA500'],
+          borderColor: '#FFD700',
+          name: 'Gold'
+        };
+      case 'SILVER':
+        return {
+          ...baseStyle,
+          icon: <Award size={16} color="#E0E0E0" />,
+          background: 'rgba(224, 224, 224, 0.2)',
+          textColor: '#E0E0E0',
+          gradient: ['#E0E0E0', '#A0A0A0'],
+          borderColor: '#E0E0E0',
+          name: 'Silver'
+        };
+      case 'BRONZE':
+        return {
+          ...baseStyle,
+          icon: <Award size={16} color="#CD7F32" />,
+          background: 'rgba(205, 127, 50, 0.2)',
+          textColor: '#CD7F32',
+          gradient: ['#CD7F32', '#8B4513'],
+          borderColor: '#CD7F32',
+          name: 'Bronze'
+        };
+      default: // FREE
+        return {
+          ...baseStyle,
+          icon: <User size={16} color="#4A90E2" />,
+          background: 'rgba(74, 144, 226, 0.2)',
+          textColor: '#2DD4BF',
+          gradient: ['#4A90E2', '#1E3A8A'],
+          borderColor: '#4A90E2',
+          name: 'Free'
+        };
+    }
   };
-    case 'GOLD':
-      return {
-        ...baseStyle,
-        icon: <Award size={16} color="#FFD700" />,
-        background: 'rgba(255, 215, 0, 0.2)',
-        textColor: 'userConnectionCount#FFD700',
-        gradient: ['#FFD700', '#FFA500'],
-        borderColor: '#FFD700',
-        name: 'Gold'
-      };
-    case 'SILVER':
-      return {
-        ...baseStyle,
-        icon: <Award size={16} color="#E0E0E0" />,
-        background: 'rgba(224, 224, 224, 0.2)',
-        textColor: '#E0E0E0',
-        gradient: ['#E0E0E0', '#A0A0A0'],
-        borderColor: '#E0E0E0',
-        name: 'Silver'
-      };
-    case 'BRONZE':
-      return {
-        ...baseStyle,
-        icon: <Award size={16} color="#CD7F32" />,
-        background: 'rgba(205, 127, 50, 0.2)',
-        textColor: '#CD7F32',
-        gradient: ['#CD7F32', '#8B4513'],
-        borderColor: '#CD7F32',
-        name: 'Bronze'
-      };
-    default: // FREE
-      return {
-        ...baseStyle,
-        icon: <User size={16} color="#4A90E2" />,
-        background: 'rgba(74, 144, 226, 0.2)',
-        textColor: '#2DD4BF',
-        gradient: ['#4A90E2', '#1E3A8A'],
-        borderColor: '#4A90E2',
-        name: 'Free'
-      };
-  }
-};
-const tierStyle = getTierStyle(userTier);
+  const tierStyle = getTierStyle(userTier);
   // Log token and notification data
   React.useEffect(() => {
     console.log('--- Push Notification Debug Info ---');
@@ -564,14 +477,14 @@ const tierStyle = getTierStyle(userTier);
     data: notification.request.content.data
   }, null, 2) : 'No notification data';
   return (
-    <NativeBaseProvider>
+    <>
       {/* {!hasStarted || hasStarted == null ? ( */}
       {/* // <Getstart onStart={onStart} /> */}
       {/* ) : ( */}
       <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'linear-gradient(0deg,rgba(254, 254, 254, 1) 18%, rgba(219, 177, 211, 1) 100%)' }}>
-     
+
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
-    
+
           <View style={{ marginTop: 12 }}>
             {/* <View style={styles.container}>
                  <Text>Token: {expoPushToken?.data ?? ""}</Text>
@@ -582,9 +495,9 @@ const tierStyle = getTierStyle(userTier);
             <View style={{ height: 90, marginHorizontal: 5 }}>
               <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
                 <Image
-                  source={profileImage ? { uri: profileImage } :
-                    gender === 'M' ? require('../../../assets/images/avatarMen.png') :
-                      gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                  source={userData.profileImage ? { uri: userData.profileImage } :
+                    userData.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                      userData.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
                         require('../../../assets/images/defaultAvatar.png')}
                   style={{ ...styles.profileImage, borderWidth: 2 }}
                 />
@@ -598,8 +511,8 @@ const tierStyle = getTierStyle(userTier);
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <TextNative style={[styles.greetingName, { color: '#fff' }]}>
-                      {firstName} {lastName}
+                    <TextNative style={[styles.greetingName, { color: '#DADADA' }]}>
+                      {userData.firstName} {userData.lastName}
                     </TextNative>
 
                   </View>
@@ -622,12 +535,12 @@ const tierStyle = getTierStyle(userTier);
                         {tierStyle.name} Member
                       </Text>
                       {tierStyle.name === 'Free' && (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           onPress={() => router.push('/(root)/screens/PremiumTab')}
                           style={[styles.upgradeButton, { backgroundColor: '#FFD700' }]}
                         >
                           <Text style={styles.upgradeText}>Upgrade Plan</Text>
-                          <ArrowRight size={14} color="#000" />
+                          <ArrowRight size={14} color="#130001" />
                         </TouchableOpacity>
                       )}
                     </View>
@@ -681,152 +594,152 @@ const tierStyle = getTierStyle(userTier);
                 }}
               >
 
-<View style={{ paddingHorizontal: 8, paddingVertical: 10 }}>
+                <View style={{ paddingHorizontal: 8, paddingVertical: 10 }}>
 
-      {/* Card */}
-      <LinearGradient
-    colors={['#F5F5F5', '#F9F3FC']}
-    start={{ x: 0, y: 0 }}
-    end={{ x: 0, y: 0.5 }}
-    style={{
-      borderRadius: 24,
-      paddingVertical: 10,
-      paddingHorizontal: 0,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 4,
-      borderWidth: 1,
-      borderColor: '#F3F4F6',
-    }}
-  >
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}
-    >
-      {/* Hearts */}
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <LinearGradient
-          colors={['#420001', '#8B0000']}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Heart stroke="#ffffff" width={20} height={20} />
-        </LinearGradient>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{userConnectionCount.Matches}</Text>
-        <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
-          Hearts
-        </Text>
-      </View>
+                  {/* Card */}
+                  <LinearGradient
+                    colors={['#F5F5F5', '#F9F3FC']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 0.5 }}
+                    style={{
+                      borderRadius: 24,
+                      paddingVertical: 10,
+                      paddingHorizontal: 0,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 4,
+                      elevation: 4,
+                      borderWidth: 1,
+                      borderColor: '#F3F4F6',
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      {/* Hearts */}
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <LinearGradient
+                          colors={['#420001', '#8B0000']}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 999,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginBottom: 8,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
+                        >
+                          <Heart stroke="#ffffff" width={20} height={20} />
+                        </LinearGradient>
+                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#130001' }}>{userConnectionCount.Hearts}</Text>
+                        <Text style={{ fontSize: 12, color: '#130001', textAlign: 'center', fontWeight: '500' }}>
+                          Hearts
+                        </Text>
+                      </View>
 
-      {/* Divider */}
-      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+                      {/* Divider */}
+                      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
 
-      {/* Proposals */}
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <LinearGradient
-          colors={['#420001', '#8B0000']}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Send stroke="#ffffff" width={20} height={20} />
-        </LinearGradient>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{userConnectionCount.Proposals}</Text>
-        <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
-          Proposals
-        </Text>
-      </View>
+                      {/* Proposals */}
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <LinearGradient
+                          colors={['#420001', '#8B0000']}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 999,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginBottom: 8,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
+                        >
+                          <Send stroke="#ffffff" width={20} height={20} />
+                        </LinearGradient>
+                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#130001' }}>{userConnectionCount.Proposals}</Text>
+                        <Text style={{ fontSize: 12, color: '#130001', textAlign: 'center', fontWeight: '500' }}>
+                          Proposals
+                        </Text>
+                      </View>
 
-      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+                      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
 
-      {/* Admirers */}
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <LinearGradient
-          colors={['#420001', '#8B0000']}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Eye stroke="#ffffff" width={20} height={20} />
-        </LinearGradient>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{userConnectionCount.Admirers}</Text>
-        <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
-          Admirers
-        </Text>
-      </View>
+                      {/* Admirers */}
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <LinearGradient
+                          colors={['#420001', '#8B0000']}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 999,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginBottom: 8,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
+                        >
+                          <Eye stroke="#ffffff" width={20} height={20} />
+                        </LinearGradient>
+                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#130001' }}>{userConnectionCount.Admirers}</Text>
+                        <Text style={{ fontSize: 12, color: '#130001', textAlign: 'center', fontWeight: '500' }}>
+                          Admirers
+                        </Text>
+                      </View>
 
-      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
+                      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
 
-      {/* Matches */}
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <LinearGradient
-          colors={['#420001', '#8B0000']}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <UserCheck stroke="#ffffff" width={20} height={20} />
-        </LinearGradient>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{userConnectionCount.Matches}</Text>
-        <Text style={{ fontSize: 12, color: '#4B5563', textAlign: 'center', fontWeight: '500' }}>
-          Matches
-        </Text>
-      </View>
-    </View>
-  </LinearGradient>
-    </View>
+                      {/* Matches */}
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <LinearGradient
+                          colors={['#420001', '#8B0000']}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 999,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginBottom: 8,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
+                        >
+                          <UserCheck stroke="#ffffff" width={20} height={20} />
+                        </LinearGradient>
+                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#130001' }}>{userConnectionCount.Matches}</Text>
+                        <Text style={{ fontSize: 12, color: '#130001', textAlign: 'center', fontWeight: '500' }}>
+                          Matches
+                        </Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </View>
 
-<View>
-    <ProfileCompletionWidget />
+                <View>
+                  <ProfileCompletionWidget />
 
-</View>
-    {/* <View style={{ paddingHorizontal: 5 ,  
+                </View>
+                {/* <View style={{ paddingHorizontal: 5 ,  
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.1,
@@ -909,7 +822,7 @@ const tierStyle = getTierStyle(userTier);
         </View>
         <Text
           style={{
-            color: '#111827',
+            color: '#130001',
             fontWeight: 'bold',
             fontSize: 10,
             textAlign: 'right',
@@ -920,7 +833,7 @@ const tierStyle = getTierStyle(userTier);
       </View>
     </View>
   </LinearGradient> */}
-{/* </View> */}
+                {/* </View> */}
 
 
                 {/*  New Connections Section */}
@@ -946,7 +859,7 @@ const tierStyle = getTierStyle(userTier);
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize="md" fontWeight="semibold">
+                          <Text fontSize={14} fontWeight="bold" textTransform="uppercase" color="#130001">
                             New Connections
                           </Text>
                           <HStack alignItems="center" space={1}>
@@ -1002,7 +915,7 @@ const tierStyle = getTierStyle(userTier);
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize="md" fontWeight="semibold">
+                          <Text fontSize={14} fontWeight="bold" textTransform="uppercase" color="#130001">
                             Daily Recommendations
                           </Text>
                           <HStack alignItems="center" space={1}>
@@ -1059,7 +972,7 @@ const tierStyle = getTierStyle(userTier);
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize="md" fontWeight="semibold">
+                          <Text fontSize={14} fontWeight="bold" textTransform="uppercase" color="#130001">
                             Near You
                           </Text>
                           <HStack alignItems="center" space={1}>
@@ -1115,7 +1028,7 @@ const tierStyle = getTierStyle(userTier);
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize="md" fontWeight="semibold">
+                          <Text fontSize={14} fontWeight="bold" textTransform="uppercase" color="#130001">
                             Near You
                           </Text>
                           <HStack alignItems="center" space={1}>
@@ -1142,28 +1055,54 @@ const tierStyle = getTierStyle(userTier);
                   <QuickAction />
                 </View>
 
-                <Box
-                  width="100%"
-                  style={{
-                    height: 150,
-                    marginVertical: 10,
-                    marginTop: 10,
-                    padding: 5,
-                    marginBottom: 25
-                  }}
-                >
-                  <Image
-                    source={require('../../../assets/images/homebanner.webp')}
+                {bannerData.length > 0 ? (
+                  bannerData.map((banner: any) => (
+                    <TouchableOpacity
+                      key={banner.id}
+                      onPress={() => handleBannerPress(banner)}
+                      activeOpacity={0.8}
+                      style={{
+                        width: '100%',
+                        height: 150,
+                        marginVertical: 10,
+                        marginTop: 10,
+                        padding: 5,
+                        marginBottom: 25,
+                      }}
+                    >
+                      <Image
+                        source={{ uri: banner.imageUrl }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          resizeMode: 'cover',
+                          borderRadius: 10,
+                        }}
+                      />
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Box
+                    width="100%"
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      resizeMode: 'cover',
-                      borderRadius: 10,
-                      objectFit:'cover'
-        
+                      height: 150,
+                      marginVertical: 10,
+                      marginTop: 10,
+                      padding: 5,
+                      marginBottom: 25,
                     }}
-                  />
-                </Box>
+                  >
+                    <Image
+                      source={require('../../../assets/images/homebanner.webp')}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        resizeMode: 'cover',
+                        borderRadius: 10,
+                      }}
+                    />
+                  </Box>
+                )}
 
 
                 {/* <View style={styles.section}>
@@ -1172,7 +1111,7 @@ const tierStyle = getTierStyle(userTier);
                       <VStack>
                         <HStack alignItems="center" space={2}>
                           <Heart size={20} color="#EF4444" />
-                          <Text fontSize="lg" fontWeight="semibold" color="#1f2937">
+                          <Text fontSize="lg" fontWeight="semibold" color="#130001">
                             Happy Stories
                           </Text>
                           <Heart size={20} color="#EF4444" fill="#EF4444" />
@@ -1232,7 +1171,7 @@ const tierStyle = getTierStyle(userTier);
 
       {/* )} */}
 
-    </NativeBaseProvider>
+    </>
   );
 };
 
@@ -1273,16 +1212,25 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   profileCardSmallSkeleton: {
-    width: 140,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    width: 125,
+    height: 150,
+    borderRadius: 10,
+    marginRight: 10,
+    marginLeft: 5,
     overflow: 'hidden',
+    position: 'relative' as const,
+  },
+  skeletonTextOverlay: {
+    position: 'absolute' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    alignItems: 'center' as const,
   },
   happyStorySkeleton: {
     width: 200,
@@ -1352,7 +1300,7 @@ const styles = StyleSheet.create({
 
   },
   userText: {
-    color: 'white',
+    color: '#DADADA',
     fontSize: 11,
     fontWeight: 'bold',
     marginTop: 4,
@@ -1465,24 +1413,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color: 'white',
+    color: '#DADADA',
     fontSize: 10,
     fontWeight: '600',
   },
   tierContainer: {
     marginTop: 2,
   },
-tierDisplay: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  borderRadius: 16,
-  backgroundColor: 'rgba(45, 55, 72, 0.5)', // Semi-transparent dark background
-  alignSelf: 'flex-start',
-  padding: 0,
-  paddingRight: 0,
-  borderWidth: 1,
-  borderColor: 'rgba(255, 255, 255, 0.1)',
-},
+  tierDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: 'rgba(45, 55, 72, 0.5)', // Semi-transparent dark background
+    alignSelf: 'flex-start',
+    padding: 0,
+    paddingRight: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
   tierGradient: {
     borderRadius: 16,
     padding: 1, // For border
@@ -1494,25 +1442,25 @@ tierDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-tierIcon: {
-  width: 24,
-  height: 24,
-  borderRadius: 12,
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginRight: 8,
-  backgroundColor: '#2D3748', // A dark gray that works well with all colors
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.2,
-  shadowRadius: 2,
-  elevation: 2,
-},
+  tierIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    backgroundColor: '#2D3748', // A dark gray that works well with all colors
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   tierTitle: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.4,
-    marginEnd:5
+    marginEnd: 5
   },
   freeTierContainer: {
     flexDirection: 'row',
@@ -1531,25 +1479,25 @@ tierIcon: {
     fontSize: 11,
     fontWeight: '600',
   },
-upgradeButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  paddingVertical: 2,
-  paddingHorizontal: 5,
-  borderRadius: 12,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.3,
-  shadowRadius: 3,
-  elevation: 3,
-  marginLeft:4
-},
-upgradeText: {
-  color: '#000',
-  fontSize: 11,
-  fontWeight: '700',
-  marginRight: 4,
-},
+  upgradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 5,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+    marginLeft: 4
+  },
+  upgradeText: {
+    color: '#130001',
+    fontSize: 11,
+    fontWeight: '700',
+    marginRight: 4,
+  },
 
 });
 
