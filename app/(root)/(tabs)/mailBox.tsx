@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { router } from 'expo-router';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
+import { usePopup } from '../contexts/PopupContext';
 import {
   View,
   Text,
@@ -21,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Center, Stack, VStack, Image as NBImage, Text as NBText, Divider, Skeleton, HStack as NBHStack } from 'native-base';
 import { Image as ImageNative } from 'react-native';
+import VerifiedBadges from '../../../components/VerifiedBadges';
 import Icon from 'react-native-vector-icons/Ionicons';
 import EvilIcons from 'react-native-vector-icons/EvilIcons';
 
@@ -159,6 +161,7 @@ interface ReceivedProfile {
 
 const ReceivedTab = () => {
   const { userData } = useUserData();
+  const popup = usePopup();
   const [error, setError] = useState<string | null>(null);
   const { subscriptionData } = useSubscription();
   const [isPremium, setIsPremium] = useState(false);
@@ -225,19 +228,9 @@ const ReceivedTab = () => {
   const handleAccept = async (item: ReceivedProfile) => {
     try {
       if (!isPremium) {
-        Alert.alert(
-          'Premium Required',
-          'Upgrade to Premium to accept requests and send messages',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-            {
-              text: 'Upgrade Now',
-              onPress: () => router.push('/(root)/screens/PremiumTab'),
-            },
-          ]
+        popup.premiumRequired(
+          'Upgrade to Premium to accept connection requests and start chatting.',
+          () => router.push('/(root)/screens/PremiumTab')
         );
         return;
       }
@@ -416,7 +409,7 @@ const ReceivedTab = () => {
               <View style={styles.overlay} />
               <View style={styles.matchInfo}>
                 <View style={styles.infoText}>
-                  <Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text>
+                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text><View style={{marginLeft:6}}><VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" /></View></View>
                   <Text style={styles.occupation}>
                     {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
                   </Text>
@@ -530,7 +523,7 @@ const SentTab = () => {
               <View style={styles.overlay} />
               <View style={styles.matchInfo}>
                 <View style={styles.infoText}>
-                  <Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text>
+                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text><View style={{marginLeft:6}}><VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" /></View></View>
                   <Text style={styles.occupation}>
                     {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
                   </Text>
@@ -829,7 +822,20 @@ const RequestsTab = () => {
     return (
       <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${request.requestedTo}`)} style={styles.requestCard}>
         <View style={styles.cardHeader}>
-          <ImageNative source={request.profileImage ? { uri: request.profileImage } : require('../../../assets/images/defaultAvatar.png')} style={styles.profileImageRequestCard} />
+          <View style={{ position: 'relative' }}>
+            <ImageNative source={request.profileImage ? { uri: request.profileImage } : require('../../../assets/images/defaultAvatar.png')} style={styles.profileImageRequestCard} />
+            {/* Gold trust shield — top-right corner, matches home carousel styling */}
+            <View style={{ position: 'absolute', top: 4, right: 4 }}>
+              <VerifiedBadges
+                idVerified={request.idVerified}
+                educationVerified={request.educationVerified}
+                incomeVerified={request.incomeVerified}
+                mode="compact"
+                size="sm"
+                color="gold"
+              />
+            </View>
+          </View>
           <View style={styles.headerInfo}>
             <Text style={styles.nameRequestCard}>
               {request.firstname} {request.lastname}
@@ -1251,9 +1257,12 @@ const ShortlistedTab = () => {
 
                     {/* Profile Details */}
                     <VStack flex={1} space={1}>
-                      <NBText fontSize="md" fontWeight="semibold" isTruncated maxWidth="90%">
-                        {member.firstName} {member.lastName}
-                      </NBText>
+                      <NBHStack alignItems="center" space={1}>
+                        <NBText fontSize="md" fontWeight="semibold" isTruncated maxWidth="85%">
+                          {member.firstName} {member.lastName}
+                        </NBText>
+                        <VerifiedBadges idVerified={member.idVerified} educationVerified={member.educationVerified} incomeVerified={member.incomeVerified} mode="compact" size="sm" />
+                      </NBHStack>
                       <NBText fontSize="sm" color="gray.500">{member.location}, {member.degree}, {member.annualIncome}, {member.occupation}</NBText>
                     </VStack>
 
@@ -1289,21 +1298,127 @@ const ShortlistedTab = () => {
   );
 };
 
+const WhoShortlistedMeTab = () => {
+  const { userData } = useUserData();
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!userData.userId) { setError('User ID not found'); return; }
+        const response = await userApi.getWhoShortlistedMe(userData.userId);
+        if (response.data.code === 200) {
+          setData(response.data.data || []);
+        } else if (response.data.code === 403) {
+          setError('Upgrade to Gold or Platinum to see who shortlisted you.');
+        } else {
+          setError(response.data.message || 'No one has shortlisted you yet');
+        }
+      } catch (e: any) {
+        if (e?.response?.data?.code === 403) {
+          setError('Upgrade to Gold or Platinum to see who shortlisted you.');
+        } else {
+          setError('Error loading data');
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
+        <ScrollView style={{ padding: 16 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <NBHStack key={i} space={3} alignItems="center" py={3} borderBottomWidth={1} borderColor="gray.200">
+              <Skeleton size={12} rounded="full" />
+              <VStack flex={1} space={2}>
+                <Skeleton h={4} w="50%" rounded="sm" />
+                <Skeleton h={3} w="80%" rounded="sm" />
+              </VStack>
+            </NBHStack>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyStateText}>{error}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
+      <ScrollView className='mb-3'>
+        <View className='ml-5 mt-2 mb-2'>
+          <NBText fontSize={'lg'} fontWeight={'semibold'}>Who Shortlisted You</NBText>
+        </View>
+        <View className='mb-10'>
+          {data.map((member: any) => (
+            <VStack key={member.userId} space={2} alignItems="center">
+              <Center w="100%" h="75" rounded="md">
+                <Stack direction="row" m={5} space={3} alignItems="center">
+                  <Center shadow={3}>
+                    <NBImage
+                      source={member.profileImage ? { uri: member.profileImage } : require('../../../assets/images/defaultAvatar.png')}
+                      alt="Img"
+                      size="50px"
+                      borderRadius="full"
+                    />
+                  </Center>
+                  <VStack flex={1} space={1}>
+                    <NBHStack alignItems="center" space={1}>
+                      <NBText fontSize="md" fontWeight="semibold" isTruncated maxWidth="85%">
+                        {member.firstName} {member.lastName}
+                      </NBText>
+                      <VerifiedBadges idVerified={member.idVerified} educationVerified={member.educationVerified} incomeVerified={member.incomeVerified} mode="compact" size="sm" />
+                    </NBHStack>
+                    <NBText fontSize="sm" color="gray.500">
+                      {member.location}, {member.degree}, {member.annualIncome}, {member.occupation}
+                    </NBText>
+                  </VStack>
+                </Stack>
+              </Center>
+              <Divider my="1" _light={{ bg: "gray.200" }} _dark={{ bg: "gray.50" }} />
+            </VStack>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
 const MailBox = () => {
   const layout = useWindowDimensions();
+  const { subscriptionData } = useSubscription();
   const [index, setIndex] = useState(0);
-  const [routes] = useState([
-    { key: 'received', title: 'Received' },
-    { key: 'sent', title: 'Sent By You' },
-    { key: 'request', title: 'Permissions' },
-    // { key: 'shortlisted', title: 'Shortlisted' }
-  ]);
+
+  const isGoldPlus = subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum';
+
+  const routes = useMemo(() => {
+    const base = [
+      { key: 'received', title: 'Received' },
+      { key: 'sent', title: 'Sent By You' },
+      { key: 'request', title: 'Permissions' },
+    ];
+    if (isGoldPlus) {
+      base.push({ key: 'whoShortlistedMe', title: 'Shortlisted You' });
+    }
+    return base;
+  }, [isGoldPlus]);
 
   const renderScene = SceneMap({
     received: ReceivedTab,
     sent: SentTab,
     request: RequestsTab,
-    // shortlisted: ShortlistedTab
+    whoShortlistedMe: WhoShortlistedMeTab,
   });
 
   return (

@@ -13,14 +13,16 @@ const userApi = {
   getProfileDetails: (userId) =>
     axiosClient.get(`/user/getUserByUserId/${userId}`),
 
-  getProfileDetailByUserId: (userId) =>
-    axiosClient.get(`/user/getProfileDetailByUserId/${userId}`),
+  getProfileDetailByUserId: (userId, requesterId) =>
+    axiosClient.get(`/user/getProfileDetailByUserId/${userId}`, {
+      params: requesterId ? { requesterId } : undefined,
+    }),
 
   getUserGalleryImages: (userId) =>
     axiosClient.get(`/gallery/getAllImagesByUserId/${userId}`),
 
   changeGalleryImageActiveStatusByImageId: (galleryId) =>
-    axiosClient.get(`/gallery/changeImageActiveStatus/${galleryId}`),
+    axiosClient.put(`/gallery/changeImageActiveStatus/${galleryId}`),
 
   userChatList: (userId) =>
     axiosClient.get(`/conversation/chatlist/${userId}`),
@@ -41,7 +43,7 @@ const userApi = {
     axiosClient.get(`/userConnection/followers/${userId}`),
 
   unfollowOrRemoveUser: (followerId, followingId) =>
-    axiosClient.get(`/userConnection/unfollow/${followerId}/${followingId}`),
+    axiosClient.post(`/userConnection/unfollow/${followerId}/${followingId}`),
 
   login: (request) =>
     axiosClient.post(`/user/login`, request),
@@ -85,6 +87,38 @@ const userApi = {
   getShortlistedMailbox: (userId) =>
     axiosClient.get(`/mailbox/shortlisted/${userId}`),
 
+  getWhoShortlistedMe: (encodedId, page = 0, size = 10) =>
+    axiosClient.get(`/mailbox/whoShortlistedMe/${encodedId}`, {
+      params: { page, size },
+    }),
+
+  createServiceRequest: (encodedUserId, requestType, note, targetUserId) =>
+    axiosClient.post(`/service-request/create/${encodedUserId}`, { requestType, note, targetUserId }),
+
+  getMyServiceRequests: (encodedUserId, page = 0, size = 10) =>
+    axiosClient.get(`/service-request/my/${encodedUserId}`, {
+      params: { page, size },
+    }),
+
+  // ==== Family Login ====
+  createFamilyLogin: (encodedUserId, body) =>
+    axiosClient.post(`/family-login/create/${encodedUserId}`, body),
+
+  getMyFamilyLogins: (encodedUserId) =>
+    axiosClient.get(`/family-login/mine/${encodedUserId}`),
+
+  revokeFamilyLogin: (encodedUserId, familyLoginId) =>
+    axiosClient.delete(`/family-login/${encodedUserId}/${familyLoginId}`),
+
+  deleteHoroscopeByUserId: (encodedUserId) =>
+    axiosClient.delete(`/gallery/deleteHoroscope/${encodedUserId}`),
+
+  deleteAccount: (encodedUserId) =>
+    axiosClient.delete(`/user/deleteAccount/${encodedUserId}`),
+
+  getMyBlockedUsers: (encodedUserId) =>
+    axiosClient.get(`/block/getMyBlocked/${encodedUserId}`),
+
   getPendingReceivedProfiles: (userId) =>
     axiosClient.get(`/mailbox/pending-received/${userId}`),
 
@@ -95,7 +129,7 @@ const userApi = {
     axiosClient.get(`/mailbox/rejected/${userId}`),
 
   updateInterestRequestStatus: (interestId, approvalStatus) =>
-    axiosClient.get(`/mailbox/updateInterestRequestStatus/${interestId}/${approvalStatus}`),
+    axiosClient.put(`/mailbox/updateInterestRequestStatus/${interestId}/${approvalStatus}`),
 
   deleteInterestRequest: (interestId) =>
     axiosClient.delete(`/mailbox/deleteInterestRequest/${interestId}`),
@@ -139,7 +173,7 @@ const userApi = {
     axiosClient.post(`/notifications/markAllAsReadByReceiverId/${receiverId}`),
 
   deleteNotification: (notificationId) =>
-    axiosClient.delete(`/notification/${notificationId}`),
+    axiosClient.delete(`/notifications/deleteNotificationById/${notificationId}`),
 
   getConversationStatusById: (conversationId) =>
     axiosClient.get(`/conversation/getConversationStatus/${conversationId}`),
@@ -207,8 +241,21 @@ const userApi = {
   changePin: (request) =>
     axiosClient.post(`/user/changePin`, request),
 
-  getHiddenFieldsByUserId: (userId) =>
-    axiosClient.get(`/hiddenFields/getHiddenFieldsByUserId/${userId}`),
+  // ===== Email-based auth =====
+  sendAuthOtp: (body) =>
+    axiosClient.post(`/auth/send-otp`, body),
+
+  verifyAuthOtp: (body) =>
+    axiosClient.post(`/auth/verify-otp`, body),
+
+  forgotPassword: (body) =>
+    axiosClient.post(`/auth/forgot-password`, body),
+
+  resetPasswordWithToken: (body) =>
+    axiosClient.post(`/auth/reset-password`, body),
+
+  resubmitProfile: (encodedUserId) =>
+    axiosClient.post(`/user/resubmit-profile/${encodedUserId}`),
 
   sendRestrictedFieldRequest: (requestedBy, requestedTo, fieldType) =>
     axiosClient.post(`/restrictedFieldRequest/sendRestrictedFieldRequest/${requestedBy}/${requestedTo}/${fieldType}`),
@@ -270,14 +317,44 @@ const userApi = {
       },
     });
   },
+
+  // F8 — Salary / Income Verified Badge
+  uploadIncomeDocument: (encodedUserId, formData) => {
+    return axiosClient.post(`/income-verification/upload/${encodedUserId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  getIncomeVerificationStatus: (encodedUserId) =>
+    axiosClient.get(`/income-verification/status/${encodedUserId}`),
+
+  // Education Verified Badge
+  uploadEducationDocument: (encodedUserId, formData) => {
+    return axiosClient.post(`/education-verification/upload/${encodedUserId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  getEducationVerificationStatus: (encodedUserId) =>
+    axiosClient.get(`/education-verification/status/${encodedUserId}`),
+
+  // Government ID Verified Badge
+  uploadIdDocument: (encodedUserId, formData) => {
+    return axiosClient.post(`/id-verification/upload/${encodedUserId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  getIdVerificationStatus: (encodedUserId) =>
+    axiosClient.get(`/id-verification/status/${encodedUserId}`),
   saveDeviceInfo: (requestBody) => {
     return axiosClient.post(`/pushNotification/saveDeviceInfo`, requestBody);
   },
   deleteDevice: (requestBody) => {
-    return axiosClient.delete(`/pushNotification/deleteDevice`, requestBody)
+    return axiosClient.delete(`/pushNotification/deleteDevice`, { data: requestBody })
+  },
+  updatePushToken: (requestBody) => {
+    return axiosClient.post(`/pushNotification/updateToken`, requestBody)
   },
   createOrder: (amount) => {
-    return axiosClient.get(`/payments/createOrder/${amount}`)
+    return axiosClient.post(`/payments/createOrder/${amount}`)
   },
   getKeyValueByKey: (key) => {
     return axiosClient.get(`/keyValue/getKeyValueByKey/${key}`)
@@ -289,7 +366,7 @@ const userApi = {
     return axiosClient.get(`/userSubscriptions/getActiveUserSubscriptionByUserId/${userId}`)
   },
   updateSendRequestCount: (userId, subscriptionId, featureId) => {
-    return axiosClient.get(`/userFeatureUsage/updateUsedCount/${userId}/${subscriptionId}/${featureId}`)
+    return axiosClient.post(`/userFeatureUsage/updateUsedCount/${userId}/${subscriptionId}/${featureId}`)
   },
   getAllKeyValues: () => {
     return axiosClient.get(`/keyValue/getAllKeyValues`)

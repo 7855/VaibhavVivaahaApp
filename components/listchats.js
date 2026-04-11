@@ -6,6 +6,7 @@ import { Entypo, MaterialIcons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Search from '@/components/Search';
 import { Grid3X3, Eye, Heart, MessageCircle, Users, Star, Bookmark } from 'lucide-react-native';
+import VerifiedBadges from './VerifiedBadges';
 
 const ListChats = ({ allChats, onPress }) => {
   // Using allChats as the data source
@@ -80,9 +81,18 @@ const ListChats = ({ allChats, onPress }) => {
           <HStack alignItems="center" space={3}>
             <Avatar size="55px" source={item.profileImage ? { uri: item.profileImage } : require('../assets/images/defaultAvatar.png')} />
             <VStack className='h-full'  width={'58%'} >
-              <NBText color="coolGray.800" _dark={{ color: 'warmGray.50' }} bold>
-                {item.otherUserName}
-              </NBText>
+              <HStack alignItems="center" space={1}>
+                <NBText color="coolGray.800" _dark={{ color: 'warmGray.50' }} bold>
+                  {item.otherUserName}
+                </NBText>
+                <VerifiedBadges
+                  idVerified={item.idVerified}
+                  educationVerified={item.educationVerified}
+                  incomeVerified={item.incomeVerified}
+                  mode="compact"
+                  size="sm"
+                />
+              </HStack>
               <NBText
                 fontWeight={item.unreadCount > 0 ? "500" : "normal"}
                 numberOfLines={2}

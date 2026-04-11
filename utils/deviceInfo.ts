@@ -38,10 +38,28 @@ export const saveDeviceInfo = async (userId: string) => {
       return;
     }
 
-    // Get the push token
-    const expoPushToken = (
-      await Notifications.getExpoPushTokenAsync({ projectId })
-    ).data;
+    // Get the push token — Expo's push API can be flaky (503), so retry silently
+    const fetchExpoToken = async (attempts = 3, delayMs = 1500): Promise<string | null> => {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const res = await Notifications.getExpoPushTokenAsync({ projectId });
+          return res.data;
+        } catch (err: any) {
+          const msg = err?.message || '';
+          const transient = msg.includes('503') || msg.includes('SERVICE_UNAVAILABLE') || msg.includes('temporarily unavailable');
+          console.log(`Expo push token attempt ${i + 1}/${attempts} failed${transient ? ' (transient)' : ''}: ${msg}`);
+          if (!transient || i === attempts - 1) return null;
+          await new Promise((r) => setTimeout(r, delayMs * (i + 1))); // backoff
+        }
+      }
+      return null;
+    };
+
+    const expoPushToken = await fetchExpoToken();
+    if (!expoPushToken) {
+      console.log('Skipping device info save — Expo push token unavailable (will retry on next launch)');
+      return;
+    }
 
     // Generate a device ID
     const deviceId = getOrCreateDeviceId();
@@ -69,8 +87,39 @@ export const saveDeviceInfo = async (userId: string) => {
    if(response.data.status == 200){
     AsyncStorage.setItem('fcmToken', response.data.data.fcmToken);
    }
+    // Store deviceId for token refresh
+    await AsyncStorage.setItem('deviceId', deviceId);
     console.log('Device info saved successfully');
   } catch (error) {
     console.error('Error saving device info:', error);
+  }
+};
+
+/**
+ * Update the FCM/Expo push token when it refreshes.
+ * Call this when Expo detects a token change.
+ */
+export const updatePushToken = async (newToken: string) => {
+  try {
+    const userId = await AsyncStorage.getItem('userId');
+    const deviceId = await AsyncStorage.getItem('deviceId');
+
+    if (!userId || !deviceId) {
+      console.log('No userId or deviceId found, skipping token refresh');
+      return;
+    }
+
+    const encodedUserId = atob(userId);
+
+    await userApi.updatePushToken({
+      userId: encodedUserId,
+      deviceId: deviceId,
+      fcmToken: newToken,
+    });
+
+    await AsyncStorage.setItem('fcmToken', newToken);
+    console.log('Push token refreshed successfully');
+  } catch (error) {
+    console.error('Error refreshing push token:', error);
   }
 };

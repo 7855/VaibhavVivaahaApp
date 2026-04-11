@@ -1,4 +1,6 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import CommonPopup from '../../../components/CommonPopup';
+import { usePopup } from '../contexts/PopupContext';
 import {
   View,
   Text,
@@ -6,6 +8,11 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  Modal as RNModal,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeBaseProvider, Text as NBText, HStack, VStack, useToast } from 'native-base';
@@ -27,6 +34,7 @@ import AntDesign from 'react-native-vector-icons/AntDesign';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import userApi from '../api/userApi';
 
 interface PrivacySettings {
@@ -42,11 +50,35 @@ const SettingsPage: React.FC = () => {
 
   const { logout } = useAuth();
   const { userData } = useUserData();
+  const popup = usePopup();
   const { subscriptionData } = useSubscription() || {};
   const toast = useToast();
 
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentRequestId, setPaymentRequestId] = useState<string | null>(null);
+  const [logoutPopupVisible, setLogoutPopupVisible] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [userRole, setUserRole] = useState<string>('USER');
+  const [parentName, setParentName] = useState<string>('');
+  const [relationship, setRelationship] = useState<string>('');
+  const [primaryFirstName, setPrimaryFirstName] = useState<string>('');
+
+  useEffect(() => {
+    (async () => {
+      const r = await AsyncStorage.getItem('userRole');
+      if (r) setUserRole(r);
+      const p = await AsyncStorage.getItem('parentName');
+      if (p) setParentName(p);
+      const rel = await AsyncStorage.getItem('relationship');
+      if (rel) setRelationship(rel);
+      const fn = await AsyncStorage.getItem('firstName');
+      if (fn) setPrimaryFirstName(fn);
+    })();
+  }, []);
+  const isParent = userRole === 'PARENT';
 
   useFocusEffect(
     useCallback(() => {
@@ -68,19 +100,16 @@ const SettingsPage: React.FC = () => {
     }, [userData?.decodedUserId])
   );
 
-  const handleLogout = useCallback(async () => {
+  const performLogout = useCallback(async () => {
     try {
       const userIdRemove = await AsyncStorage.getItem('userId');
       const fcmToken = await AsyncStorage.getItem('fcmToken');
-      console.log("userIdRemove", userIdRemove);
-      console.log("fcmToken", fcmToken);
 
       if (userIdRemove != null && fcmToken != null) {
         const requestBody = {
           userId: userIdRemove,
           fcmToken: fcmToken
         }
-        console.log("requestBody", requestBody);
         await userApi.deleteDevice(requestBody);
       }
       await logout();
@@ -99,6 +128,43 @@ const SettingsPage: React.FC = () => {
     }
   }, [logout, toast]);
 
+  const handleLogout = useCallback(() => {
+    setLogoutPopupVisible(true);
+  }, []);
+
+  const handleDeleteAccount = useCallback(() => {
+    setDeleteConfirmText('');
+    setDeleteAccountVisible(true);
+  }, []);
+
+  const performDeleteAccount = useCallback(async () => {
+    try {
+      setDeleteAccountLoading(true);
+      if (!userData.userId) {
+        popup.error('Error', 'User not found. Please log in again.');
+        return;
+      }
+      const res = await userApi.deleteAccount(userData.userId);
+      if (res?.data?.code === 200) {
+        // Clear everything locally and route to main
+        try { await AsyncStorage.clear(); } catch (_) {}
+        await logout();
+        setDeleteAccountVisible(false);
+        popup.success(
+          'Account deleted',
+          'Your account and all your data have been permanently removed. We\'re sorry to see you go.',
+          () => router.replace('/(root)/(main)')
+        );
+      } else {
+        popup.error('Delete failed', res?.data?.message || 'Could not delete account. Please try again.');
+      }
+    } catch (e: any) {
+      popup.error('Delete failed', e?.response?.data?.message || 'Network error. Please try again.');
+    } finally {
+      setDeleteAccountLoading(false);
+    }
+  }, [userData.userId, logout, popup]);
+
   const SettingItem = ({
     icon,
     title,
@@ -115,12 +181,14 @@ const SettingsPage: React.FC = () => {
     <TouchableOpacity style={styles.settingItem} onPress={onPress}>
       <View style={styles.settingLeft}>
         <View style={styles.iconContainer}>{icon}</View>
-        <View>
-          <Text style={styles.settingTitle}>{title}</Text>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={styles.settingTitle} numberOfLines={1}>{title}</Text>
           {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
         </View>
       </View>
-      <View>{rightElement ?? <Ionicons name="chevron-forward" size={20} color="#9ca3af" />}</View>
+      <View style={{ flexShrink: 0 }}>
+        {rightElement ?? <Ionicons name="chevron-forward" size={20} color="#9ca3af" />}
+      </View>
     </TouchableOpacity>
   );
 
@@ -140,69 +208,145 @@ const SettingsPage: React.FC = () => {
             </View>
           </View>
 
-          {/* Account Settings */}
-          <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
-            <View style={styles.sectionIcon}>
-              <MaterialDesignIcons name="account-cog" size={16} color="#dc2626" />
+          {/* Parent / Family Member context card — only visible when logged in as PARENT */}
+          {isParent && (
+            <LinearGradient
+              colors={['#fff7ed', '#fde8cf']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                marginHorizontal: 0,
+                marginTop: 2,
+                marginBottom: 16,
+                borderRadius: 10,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                borderLeftWidth: 3,
+                borderLeftColor: '#d4a017',
+                shadowColor: '#d4a017',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.12,
+                shadowRadius: 4,
+                elevation: 2,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{
+                  width: 30, height: 30, borderRadius: 15,
+                  backgroundColor: '#d4a017',
+                  justifyContent: 'center', alignItems: 'center',
+                  marginRight: 10,
+                }}>
+                  <Ionicons name="people" size={15} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#7a2d2d', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
+                    FAMILY ACCESS MODE
+                  </Text>
+                  <Text style={{ color: '#111', fontSize: 13, fontWeight: '700', marginTop: 1 }} numberOfLines={1}>
+                    {parentName || 'Family Member'}
+                    {relationship ? ` · ${relationship}` : ''}
+                  </Text>
+                  <Text style={{ color: '#7a2d2d', fontSize: 10, marginTop: 1 }} numberOfLines={1}>
+                    Helping <Text style={{ fontWeight: '700' }}>{primaryFirstName || 'your family'}</Text> find their match
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          )}
+
+          {/* Account Settings — hidden entirely for parent sessions */}
+          {!isParent && (
+            <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
+              <View style={styles.sectionIcon}>
+                <MaterialDesignIcons name="account-cog" size={16} color="#dc2626" />
+              </View>
+              <Text style={styles.sectionTitleText}>Account Settings</Text>
             </View>
-            <Text style={styles.sectionTitleText}>Account Settings</Text>
-          </View>
-          <SettingItem
-            icon={<MaterialIcons name="security" size={20} color="#e11d48" />}
-            title="Privacy Settings"
-            subtitle="Control what others can see"
-            onPress={() => router.push('/screens/PrivacySettingsPage')}
-          />
-          <SettingItem
-            icon={<Ionicons name="lock-closed" size={20} color="#e11d48" />}
-            title="Change PIN"
-            subtitle="Update your security PIN"
-            onPress={() => router.push('/screens/SettingPageChangePin')}
-          />
-          {/* Premium Settings Conditional Logic */}
-          {(() => { console.log('🔍 Payment Debug:', { paymentStatus, planTitle: subscriptionData?.planTitle, endDate: subscriptionData?.endDate, entitlements: subscriptionData?.entitlements }); return null; })()}
-          {paymentStatus === 'PENDING' ? (
-            <SettingItem
-              icon={<MaterialCommunityIcons name="timer-sand" size={20} color="#f97316" />}
-              title="Your Payment Status"
-              subtitle="Verification in progress"
-              onPress={() => router.push({
-                pathname: '/screens/PaymentScreen',
-                params: {
-                  showVerificationOnInit: 'true',
-                  paymentRequestId: paymentRequestId || ''
+          )}
+          {isParent ? null : (
+            <>
+              <SettingItem
+                icon={<MaterialIcons name="security" size={20} color="#e11d48" />}
+                title="Privacy Settings"
+                subtitle="Control what others can see"
+                onPress={() => router.push('/screens/PrivacySettingsPage')}
+              />
+              <SettingItem
+                icon={<Ionicons name="lock-closed" size={20} color="#e11d48" />}
+                title="Change PIN"
+                subtitle="Update your security PIN"
+                onPress={() => router.push('/screens/SettingPageChangePin')}
+              />
+              <SettingItem
+                icon={<MaterialCommunityIcons name="shield-check" size={20} color="#059669" />}
+                title="Trust & Verification"
+                subtitle="Email, ID, Education, Income badges"
+                onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}
+                rightElement={
+                  <View style={[styles.premiumBadge, { backgroundColor: '#10b981' }]}>
+                    <Text style={styles.premiumText}>Verify</Text>
+                  </View>
                 }
-              })}
-              rightElement={
-                <View style={[styles.premiumBadge, { backgroundColor: '#f97316' }]}>
-                  <Text style={styles.premiumText}>Pending</Text>
-                </View>
-              }
-            />
-          ) : (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free' && subscriptionData?.endDate && new Date(subscriptionData.endDate) > new Date())) ? (
-            <SettingItem
-              icon={<MaterialCommunityIcons name="crown" size={20} color="#f59e0b" />}
-              title="See Your Plan"
-              subtitle={subscriptionData?.planTitle ? `${subscriptionData.planTitle} plan active` : 'View your active subscription'}
-              onPress={() => router.push('/screens/PremiumTab')}
-              rightElement={
-                <View style={[styles.premiumBadge, { backgroundColor: '#10b981' }]}>
-                  <Text style={styles.premiumText}>Active</Text>
-                </View>
-              }
-            />
-          ) : (
-            <SettingItem
-              icon={<MaterialCommunityIcons name="crown" size={20} color="#eab308" />}
-              title="Upgrade Now"
-              subtitle="Get premium features"
-              onPress={() => router.push('/screens/PremiumTab')}
-              rightElement={
-                <View style={styles.premiumBadge}>
-                  <Text style={styles.premiumText}>Premium</Text>
-                </View>
-              }
-            />
+              />
+              {/* Payment / Plan status row — moved from old Premium section */}
+              {paymentStatus === 'PENDING' ? (
+                <SettingItem
+                  icon={<MaterialCommunityIcons name="timer-sand" size={20} color="#f97316" />}
+                  title="Your Payment Status"
+                  subtitle="Verification in progress"
+                  onPress={() => router.push({
+                    pathname: '/screens/PaymentScreen',
+                    params: {
+                      showVerificationOnInit: 'true',
+                      paymentRequestId: paymentRequestId || ''
+                    }
+                  })}
+                  rightElement={
+                    <View style={[styles.premiumBadge, { backgroundColor: '#f97316' }]}>
+                      <Text style={styles.premiumText}>Pending</Text>
+                    </View>
+                  }
+                />
+              ) : (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free' && subscriptionData?.endDate && new Date(subscriptionData.endDate) > new Date())) ? (
+                <SettingItem
+                  icon={<MaterialCommunityIcons name="crown" size={20} color="#f59e0b" />}
+                  title="See Your Plan"
+                  subtitle={subscriptionData?.planTitle ? `${subscriptionData.planTitle} plan active` : 'View your active subscription'}
+                  onPress={() => router.push('/screens/PremiumTab')}
+                  rightElement={
+                    <View style={[styles.premiumBadge, { backgroundColor: '#10b981' }]}>
+                      <Text style={styles.premiumText}>Active</Text>
+                    </View>
+                  }
+                />
+              ) : (
+                <SettingItem
+                  icon={<MaterialCommunityIcons name="crown" size={20} color="#eab308" />}
+                  title="Upgrade Now"
+                  subtitle="Get premium features"
+                  onPress={() => router.push('/screens/PremiumTab')}
+                  rightElement={
+                    <View style={styles.premiumBadge}>
+                      <Text style={styles.premiumText}>Premium</Text>
+                    </View>
+                  }
+                />
+              )}
+              {(subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum') ? (
+                <SettingItem
+                  icon={<Ionicons name="people-circle" size={20} color="#d4a017" />}
+                  title="Family Access"
+                  subtitle="Add a parent / family login"
+                  onPress={() => router.push('/(root)/screens/FamilyAccessScreen' as any)}
+                  rightElement={
+                    <View style={[styles.premiumBadge, { backgroundColor: '#d4a017' }]}>
+                      <Text style={styles.premiumText}>Gold+</Text>
+                    </View>
+                  }
+                />
+              ) : null}
+            </>
           )}
 
           {/* Community Settings */}
@@ -224,13 +368,9 @@ const SettingsPage: React.FC = () => {
             subtitle="Check horoscope compatibility"
             onPress={() => {
               if (!subscriptionData?.planTitle || subscriptionData.planTitle === 'Free') {
-                Alert.alert(
-                  'Unlock Star Match ⭐',
-                  'Star Match is a premium feature! Upgrade your plan to discover your compatibility score and find your perfect match.',
-                  [
-                    { text: 'Maybe Later', style: 'cancel' },
-                    { text: 'Upgrade Now', onPress: () => router.push('/(root)/screens/PremiumTab') }
-                  ]
+                popup.premiumRequired(
+                  'Star Match is a premium feature. Upgrade your plan to discover horoscope compatibility and find your perfect match.',
+                  () => router.push('/(root)/screens/PremiumTab')
                 );
                 return;
               }
@@ -290,6 +430,14 @@ const SettingsPage: React.FC = () => {
             subtitle="Read our terms"
             onPress={() => router.push('/screens/TermsPage')}
           />
+          {!isParent && (
+            <SettingItem
+              icon={<Ionicons name="ban" size={20} color="#6b7280" />}
+              title="Blocked Users"
+              subtitle="Manage who you've blocked"
+              onPress={() => router.push('/(root)/screens/BlockedUsersScreen' as any)}
+            />
+          )}
           <SettingItem
             icon={<Ionicons name="log-out" size={20} color="#ef4444" />}
             title="Logout"
@@ -297,12 +445,134 @@ const SettingsPage: React.FC = () => {
             onPress={handleLogout}
             rightElement={<Ionicons name="chevron-forward" size={20} color="#ef4444" />}
           />
+          {!isParent && (
+            <SettingItem
+              icon={<MaterialIcons name="delete-forever" size={20} color="#991b1b" />}
+              title="Delete Account"
+              subtitle="Permanently remove your account and all data"
+              onPress={handleDeleteAccount}
+              rightElement={<Ionicons name="chevron-forward" size={20} color="#991b1b" />}
+            />
+          )}
         </View>
       </ScrollView>
+      <CommonPopup
+        visible={logoutPopupVisible}
+        variant="confirm"
+        title="Logout?"
+        description="Are you sure you want to sign out of your account?"
+        dismissable={!logoutLoading}
+        onClose={() => !logoutLoading && setLogoutPopupVisible(false)}
+        buttons={[
+          {
+            text: 'Cancel',
+            variant: 'secondary',
+            onPress: () => setLogoutPopupVisible(false),
+          },
+          {
+            text: 'Logout',
+            variant: 'destructive',
+            loading: logoutLoading,
+            onPress: async () => {
+              setLogoutLoading(true);
+              await performLogout();
+              setLogoutLoading(false);
+              setLogoutPopupVisible(false);
+            },
+          },
+        ]}
+      />
+
+      {/* Delete Account — typed confirm modal */}
+      <RNModal visible={deleteAccountVisible} transparent animationType="fade" onRequestClose={() => !deleteAccountLoading && setDeleteAccountVisible(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 20 }}
+        >
+          <View style={{
+            backgroundColor: '#fff', borderRadius: 20, padding: 22,
+            shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
+          }}>
+            <View style={{ alignItems: 'center', marginBottom: 14 }}>
+              <View style={{
+                width: 60, height: 60, borderRadius: 30,
+                backgroundColor: '#fee2e2',
+                justifyContent: 'center', alignItems: 'center',
+              }}>
+                <MaterialIcons name="delete-forever" size={32} color="#dc2626" />
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#111', textAlign: 'center', marginBottom: 8 }}>
+              Delete account permanently?
+            </Text>
+
+            <Text style={{ fontSize: 13, color: '#4b5563', textAlign: 'center', marginBottom: 16, lineHeight: 19 }}>
+              This will{' '}
+              <Text style={{ fontWeight: '700', color: '#dc2626' }}>permanently remove</Text>
+              {' '}your profile, photos, messages, matches, subscriptions and family logins. This cannot be undone.
+            </Text>
+
+            <View style={{ backgroundColor: '#fef2f2', padding: 12, borderRadius: 10, borderLeftWidth: 3, borderLeftColor: '#dc2626', marginBottom: 16 }}>
+              <Text style={{ fontSize: 11, color: '#991b1b', lineHeight: 16 }}>
+                • Your profile will no longer appear in search{'\n'}
+                • Chat history will be erased for you and the other party{'\n'}
+                • Any active subscription will be forfeited (no refund){'\n'}
+                • Linked family logins will be revoked
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 12, color: '#4b5563', marginBottom: 6, fontWeight: '600' }}>
+              Type <Text style={{ color: '#dc2626', fontWeight: '800' }}>DELETE</Text> to confirm
+            </Text>
+            <TextInput
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              placeholder="DELETE"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="characters"
+              style={{
+                borderWidth: 1.5, borderColor: deleteConfirmText === 'DELETE' ? '#dc2626' : '#e5e7eb',
+                borderRadius: 10, padding: 12, fontSize: 14,
+                backgroundColor: '#fafafa', marginBottom: 16,
+              }}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                disabled={deleteAccountLoading}
+                onPress={() => setDeleteAccountVisible(false)}
+                style={{
+                  flex: 1, padding: 13, borderRadius: 10,
+                  borderWidth: 1.5, borderColor: '#e5e7eb', alignItems: 'center',
+                  backgroundColor: '#fff',
+                }}
+              >
+                <Text style={{ color: '#4b5563', fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={deleteConfirmText !== 'DELETE' || deleteAccountLoading}
+                onPress={performDeleteAccount}
+                style={{
+                  flex: 1, padding: 13, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: deleteConfirmText === 'DELETE' && !deleteAccountLoading ? '#dc2626' : '#fca5a5',
+                }}
+              >
+                {deleteAccountLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={{ color: '#fff', fontWeight: '700' }}>Delete Forever</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </RNModal>
+
       {/* </SafeAreaView> */}
     </NativeBaseProvider>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -365,8 +635,10 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   settingLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 0,
   },
   iconContainer: {
     width: 40,

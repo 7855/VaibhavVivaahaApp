@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, ImageBackground, useWindowDimensions, Modal, TouchableWithoutFeedback, ActivityIndicator, FlatList, Dimensions } from 'react-native'
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, ImageBackground, useWindowDimensions, Modal, TouchableWithoutFeedback, ActivityIndicator, FlatList, Dimensions, Linking } from 'react-native'
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react'
@@ -6,16 +6,19 @@ import { Box, Button, Center, Divider, FormControl, HStack, Input, NativeBasePro
 import { router, useLocalSearchParams } from 'expo-router';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import ProfileDetailTab from '@/components/ProfileDetailTab';
+import VerifiedBadges, { VerifiedCollapsibleBlock } from '@/components/VerifiedBadges';
 import FeatherIcon from '@expo/vector-icons/Feather'
 
 import userApi from '@/app/(root)/api/userApi';
-import { Briefcase, Calendar, DollarSign, Heart, MapPin, MessageCircle, Ruler } from 'lucide-react-native';
+import { Calendar, Heart, MapPin } from 'lucide-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { useUserData } from '../contexts/UserDataContext';
+import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { Alert } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -24,6 +27,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const ProfileDetail = () => {
   const { userData } = useUserData();
+  const popup = usePopup();
   const { subscriptionData } = useSubscription();
   const { userId } = useLocalSearchParams();
   const [userDetailId, setUserDetailId] = useState<any>(null);
@@ -41,6 +45,15 @@ const ProfileDetail = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [isShortlisted, setIsShortlisted] = useState(false);
   const [interestStatus, setInterestStatus] = useState('NONE');
+  const [isParent, setIsParent] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const role = await AsyncStorage.getItem('userRole');
+      setIsParent(role === 'PARENT');
+    })();
+  }, []);
 
   useEffect(() => {
     const fetchViewedProfile = async () => {
@@ -99,9 +112,19 @@ const ProfileDetail = () => {
   }, [currentUserId, userId]);
 
   const openImageModal = async () => {
+    // Photo view gate: Free plan users cannot access the full gallery
+    const planTitle = subscriptionData?.planTitle;
+    if (!planTitle || planTitle === 'Free') {
+      popup.premiumRequired(
+        'Upgrade to Starter or above to view all profile photos.',
+        () => router.push('/(root)/screens/PremiumTab' as any)
+      );
+      return;
+    }
+
     try {
       const encodeId = btoa(userDetailId);
-      const res = await userApi.getUserGalleryImages(encodeId); // Use correct userId
+      const res = await userApi.getUserGalleryImages(encodeId);
       if (res?.data?.data?.length > 0) {
         const imageUrls = res.data.data.map((img: any) => img.userImage);
         setGalleryImages(imageUrls);
@@ -109,11 +132,9 @@ const ProfileDetail = () => {
         setGalleryImages([userDetails.profileImage]);
       }
       setImageModalVisible(true);
-
-
     } catch (error) {
       console.error("Error fetching gallery images:", error);
-      setGalleryImages([userDetails?.profileImage]); // fallback on error
+      setGalleryImages([userDetails?.profileImage]);
     }
   };
 
@@ -129,9 +150,10 @@ const ProfileDetail = () => {
     // Parse nested JSON fields
     const basicInfo = JSON.parse(detail.basicInfo || '{}');
     const astronomicInfoArray = JSON.parse(detail.astronomicInfo || '[]');
-    const familyInfoArray = JSON.parse(detail.familyInfo || '[]');
+    // familyInfo may be stored as object OR array depending on how it was saved
+    const familyInfoRaw = JSON.parse(detail.familyInfo || '{}');
     const astro = astronomicInfoArray[0] || {};
-    const family = familyInfoArray[0] || {};
+    const family = Array.isArray(familyInfoRaw) ? (familyInfoRaw[0] || {}) : (familyInfoRaw || {});
 
     // Check if current user has already liked this profile
 
@@ -141,6 +163,7 @@ const ProfileDetail = () => {
         data: {
           Name: `${data.firstName} ${data.lastName}`,
           Gender: data.gender == 'M' ? 'Male' : 'Female',
+          Occupation: detail.occupation,
           "Date of Birth": data.dob,
           'Mobile Number': data.mobile,
           Height: detail.height + "f.t",
@@ -165,7 +188,6 @@ const ProfileDetail = () => {
         section: "EducationalDetail",
         data: {
           Education: detail.degree,
-          Occupation: detail.occupation,
           "Employing In": detail.employedAt,
           "Annual Income": detail.annualIncome + "",
         },
@@ -173,13 +195,38 @@ const ProfileDetail = () => {
       {
         section: "FamilyDetail",
         data: {
-          "Family Type": family.familyType,
-          "Family Status": family.family_status,
-          "Fathers Name": family.father,
-          "Fathers Occupation": family.father_occupation,
-          "Mothers Name": family.mother,
-          "Mothers Occupation": family.mother_occupation,
-          "No of Sibblings": parseInt(family.no_of_sister) + parseInt(family.no_of_brother) + "",
+          "Family Type": family.family_type || family.familyType || "-",
+          "Family Status": family.family_status || "-",
+          "Fathers Name": family.father || "-",
+          "Fathers Occupation": family.father_occupation || "-",
+          "Mothers Name": family.mother || "-",
+          "Mothers Occupation": family.mother_occupation || "-",
+          "Number of Siblings": (() => {
+            const sisters = parseInt(family.no_of_sister) || 0;
+            const brothers = parseInt(family.no_of_brother) || 0;
+            const total = sisters + brothers;
+            return total > 0 ? String(total) : "-";
+          })(),
+          "Brothers": (() => {
+            const brothers = parseInt(family.no_of_brother) || 0;
+            return brothers > 0 ? String(brothers) : "-";
+          })(),
+          "Brothers Married": (() => {
+            const brothersMarried = parseInt(family.brother_married) || 0;
+            const brothers = parseInt(family.no_of_brother) || 0;
+            if (brothers === 0) return "-";
+            return `${brothersMarried} of ${brothers}`;
+          })(),
+          "Sisters": (() => {
+            const sisters = parseInt(family.no_of_sister) || 0;
+            return sisters > 0 ? String(sisters) : "-";
+          })(),
+          "Sisters Married": (() => {
+            const sistersMarried = parseInt(family.sister_married) || 0;
+            const sisters = parseInt(family.no_of_sister) || 0;
+            if (sisters === 0) return "-";
+            return `${sistersMarried} of ${sisters}`;
+          })(),
         },
       }
     ];
@@ -310,33 +357,19 @@ const ProfileDetail = () => {
     const parsedUserId = Array.isArray(userId) ? userId[0] : userId;
 
     if (isLiked) {
-      // Show confirmation for reverting like
-      Alert.alert(
+      popup.confirm(
         'Revert Like',
         'Are you sure you want to revert this like?',
-        [
-          {
-            text: 'No',
-            style: 'cancel'
-          },
-          {
-            text: 'Yes',
-            onPress: async () => {
-              try {
-                const likeRequest = {
-                  likedBy: currentUserId,
-                  likedTo: parsedUserId
-                };
-
-                await userApi.deleteLike(currentUserId, parsedUserId);
-                setIsLiked(false);
-                console.log('Like reverted successfully');
-              } catch (error) {
-                console.error('Error reverting like:', error);
-              }
-            }
+        async () => {
+          try {
+            await userApi.deleteLike(currentUserId, parsedUserId);
+            setIsLiked(false);
+          } catch (error) {
+            console.error('Error reverting like:', error);
           }
-        ]
+        },
+        'Yes',
+        'No'
       );
     } else {
       try {
@@ -391,43 +424,17 @@ const ProfileDetail = () => {
                   setIsSender(true);
                 }
               } else if (updateSendRequestCount.data.code == 401) {
-                Alert.alert(
-                  'Request Limit Exceeded',
-                  `You have used all ${entitlements.reqLimited.limit} requests for this plan. Please upgrade to send more.`,
-                  [
-                    {
-                      text: 'Cancel',
-                      style: 'cancel'
-                    },
-                    {
-                      text: 'Upgrade',
-                      onPress: () => {
-                        router.push('/(root)/screens/PremiumTab');
-                      }
-                    }
-                  ]
+                popup.premiumRequired(
+                  `You have used all ${entitlements.reqLimited.limit} requests for this plan. Upgrade to send more.`,
+                  () => router.push('/(root)/screens/PremiumTab')
                 );
               } else {
-                Alert.alert(
-                  'Something Went Wrong',
-                  'Please try again later',
-                  [
-                    {
-                      text: 'OK',
-                      style: 'cancel'
-                    }
-                  ]
-                );
+                popup.error('Something Went Wrong', 'Please try again later.');
               }
             } else {
-              // No send request entitlement at all
-              Alert.alert(
-                'Feature Not Available',
+              popup.premiumRequired(
                 'Your current plan does not support sending interest requests. Please upgrade.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Upgrade', onPress: () => router.push('/(root)/screens/PremiumTab') }
-                ]
+                () => router.push('/(root)/screens/PremiumTab')
               );
             }
 
@@ -436,21 +443,9 @@ const ProfileDetail = () => {
           console.error('Error updating send request count:', error);
         }
       } else {
-        Alert.alert(
-          'Premium Required',
-          'You need to upgrade to premium to send interest',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            },
-            {
-              text: 'Upgrade',
-              onPress: () => {
-                router.push('/(root)/screens/PremiumTab');
-              }
-            }
-          ]
+        popup.premiumRequired(
+          'Upgrade to Premium to send interest requests.',
+          () => router.push('/(root)/screens/PremiumTab')
         );
       }
 
@@ -537,7 +532,7 @@ const ProfileDetail = () => {
                           style={styles.permissionButton}
                           onPress={() => {
                             if (!currentUserId) {
-                              Alert.alert('Error', 'User ID not found');
+                              console.warn('User ID not found in storage');
                               return;
                             }
                             try {
@@ -549,9 +544,9 @@ const ProfileDetail = () => {
                                     ...prev,
                                     profileImage: false
                                   }));
-                                  Alert.alert('Success', 'Permission request cancelled successfully');
+                                  popup.success('Cancelled', 'Permission request cancelled successfully.');
                                 }).catch(error => {
-                                  Alert.alert('Error', 'Failed to cancel permission request');
+                                  popup.error('Error', 'Failed to cancel permission request.');
                                 });
                               } else {
                                 // Send request
@@ -562,10 +557,10 @@ const ProfileDetail = () => {
                                 const decodedUserId = atob(currentUserId);
 
                                 userApi.sendRestrictedFieldRequest(decodedUserId, userId, 'PROFILE_IMAGE');
-                                Alert.alert('Success', 'Permission request sent successfully');
+                                popup.success('Sent', 'Permission request sent successfully.');
                               }
                             } catch (error) {
-                              Alert.alert('Error', 'Failed to process permission request');
+                              popup.error('Error', 'Failed to process permission request.');
                             }
                           }}
                         >
@@ -643,87 +638,43 @@ const ProfileDetail = () => {
                             }
 
                             if (!isPremiumValue) {
-                              // Show Premium Required alert for non-premium users
-                              Alert.alert(
-                                'Premium Required',
-                                'Shortlisting requires premium membership',
-                                [
-                                  {
-                                    text: 'Cancel',
-                                    style: 'cancel'
-                                  },
-                                  {
-                                    text: 'Upgrade',
-                                    onPress: () => {
-                                      router.push('/(root)/screens/PremiumTab');
-                                    }
-                                  }
-                                ]
+                              popup.premiumRequired(
+                                'Shortlisting profiles requires a premium membership.',
+                                () => router.push('/(root)/screens/PremiumTab')
                               );
                               return;
                             }
 
-                            // Only show confirmation alert for premium users
                             const alertTitle = isShortlisted ? 'Unshortlist Profile' : 'Shortlist Profile';
                             const alertMessage = isShortlisted
-                              ? 'Do you want to unshortlist this profile?'
-                              : 'Do you want to shortlist this profile?';
+                              ? 'Do you want to remove this profile from your shortlist?'
+                              : 'Do you want to add this profile to your shortlist?';
 
-                            Alert.alert(
+                            popup.confirm(
                               alertTitle,
                               alertMessage,
-                              [
-                                {
-                                  text: 'Cancel',
-                                  style: 'cancel'
-                                },
-                                {
-                                  text: 'OK',
-                                  onPress: async () => {
-                                    try {
-                                      if (isShortlisted) {
-                                        const encodedId = btoa(decodedUserId);
-                                        await userApi.deleteShortlistedProfileByUsers(encodedId, userId);
-
-                                        Toast.show({
-                                          type: 'success',
-                                          text1: 'Profile Unshortlisted',
-                                          text2: 'Profile has been removed from your shortlist',
-                                          position: 'top',
-                                          visibilityTime: 2000,
-                                        });
-                                        setIsShortlisted(false);
-                                      } else {
-                                        // Proceed with shortlisting for premium users
-                                        const encodedId = btoa(decodedUserId);
-                                        await userApi.insertShortlistedProfile({
-                                          shortlistedBy: decodedUserId,
-                                          shortlistedUserId: userId
-                                        });
-
-                                        Toast.show({
-                                          type: 'success',
-                                          text1: 'Profile Shortlisted',
-                                          text2: 'Profile has been added to your shortlist',
-                                          position: 'top',
-                                          visibilityTime: 2000,
-                                        });
-                                        setIsShortlisted(true);
-                                      }
-                                    } catch (error) {
-                                      console.error('Error in shortlist operation:', error);
-                                      Toast.show({
-                                        type: 'error',
-                                        text1: 'Error',
-                                        text2: 'Failed to process shortlist request',
-                                        position: 'top',
-                                        visibilityTime: 2000,
-                                      });
-                                    }
+                              async () => {
+                                try {
+                                  if (isShortlisted) {
+                                    const encodedId = btoa(decodedUserId);
+                                    await userApi.deleteShortlistedProfileByUsers(encodedId, userId);
+                                    popup.success('Unshortlisted', 'Profile removed from your shortlist.');
+                                    setIsShortlisted(false);
+                                  } else {
+                                    const encodedId = btoa(decodedUserId);
+                                    await userApi.insertShortlistedProfile({
+                                      shortlistedBy: decodedUserId,
+                                      shortlistedUserId: userId
+                                    });
+                                    popup.success('Shortlisted', 'Profile added to your shortlist.');
+                                    setIsShortlisted(true);
                                   }
+                                } catch (error) {
+                                  console.error('Error in shortlist operation:', error);
+                                  popup.error('Error', 'Failed to process shortlist request.');
                                 }
-                              ]
-                            )
+                              }
+                            );
                           }}
                         >
                           <Ionicons
@@ -732,7 +683,6 @@ const ProfileDetail = () => {
                             color={isShortlisted ? "#1e40af" : "gray"}
                           />
                         </TouchableOpacity>
-
 
                       </View>
 
@@ -744,74 +694,118 @@ const ProfileDetail = () => {
               <View style={styles.rightColumn}>
                 {/* Top Section - Name and Location */}
                 <View style={styles.infoGrid}>
-                  <View style={{
-                    borderRadius: 12,
-                    // padding: 7,
-                    backdropFilter: 'blur(4px)', // Use `expo-blur` or just skip
-                    width: '100%',
-                    marginBottom: 5
-                  }}>
-                    {/* Full Name */}
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{
-                        fontSize: 20,
-                        fontWeight: 'bold',
-                        color: '#DADADA',
-                        marginBottom: 5,
-                      }}
-                    >
-                      {userDetails?.firstName} {userDetails?.lastName}
-                    </Text>
-
-                    {/* Location */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                      <MapPin size={16} color="#059669" style={{ marginRight: 4 }} />
+                    {/* Full Name + Verification badge */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                       <Text
                         numberOfLines={1}
                         ellipsizeMode="tail"
                         style={{
-                          fontSize: 14,
-                          color: 'gray',
+                          fontSize: 18,
+                          fontWeight: '800',
+                          color: '#f1f5f9',
+                          marginRight: 5,
+                          letterSpacing: 0.2,
+                          flexShrink: 1,
                         }}
                       >
-                        {userDetails?.location || 'Location not set'}
+                        {userDetails?.firstName} {userDetails?.lastName}
+                      </Text>
+                      {(userDetails?.subscriptionTitle === 'Silver' ||
+                        userDetails?.subscriptionTitle === 'Gold' ||
+                        userDetails?.subscriptionTitle === 'Platinum') ? (
+                        <MaterialIcons name="verified" size={16} color="#3b82f6" />
+                      ) : null}
+                    </View>
+
+                    {/* Verification block — compact by default, expands on tap */}
+                    <View style={{ marginBottom: 6 }}>
+                      <VerifiedCollapsibleBlock
+                        idVerified={userDetails?.idVerified}
+                        educationVerified={userDetails?.educationVerified}
+                        incomeVerified={userDetails?.incomeVerified}
+                      />
+                    </View>
+
+                    {/* Plan-gated CTA bar: WhatsApp share (Gold+) + Request Call (Silver+) */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                      {(subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum') ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            const text = `Check out ${userDetails?.firstName || ''} ${userDetails?.lastName || ''}'s profile on Vaibhav Vivaaha`;
+                            const url = `whatsapp://send?text=${encodeURIComponent(text)}`;
+                            Linking.openURL(url).catch(() => {
+                              popup.error('WhatsApp not installed', 'Install WhatsApp to share this profile.');
+                            });
+                          }}
+                          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#25D366', shadowColor: '#25D366', shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}
+                        >
+                          <FontAwesome name="whatsapp" size={12} color="#fff" />
+                          <Text style={{ color: '#fff', marginLeft: 4, fontSize: 10, fontWeight: '700' }}>Share</Text>
+                        </TouchableOpacity>
+                      ) : null}
+
+                      {(!isParent && subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free') ? (
+                        <TouchableOpacity
+                          onPress={async () => {
+                            try {
+                              if (!userData.userId) return;
+                              const targetId = userId ? Number(userId) : undefined;
+                              const res = await userApi.createServiceRequest(
+                                userData.userId,
+                                'VOICE_CALL',
+                                `Voice call request for ${userDetails?.firstName || 'member'}`,
+                                targetId
+                              );
+                              if (res.data.code === 200) {
+                                popup.success('Request submitted', 'Our team will reach out to you shortly to arrange the call.');
+                              } else if (res.data.code === 409) {
+                                popup.info(
+                                  'Already requested',
+                                  'You already have a pending voice-call request for this profile. Our team will reach out to you shortly.'
+                                );
+                              } else if (res.data.code === 403) {
+                                popup.premiumRequired('Upgrade to Silver or above to request a voice call.', () => router.push('/(root)/screens/PremiumTab' as any));
+                              } else {
+                                popup.error('Request failed', res.data.message || 'Please try again.');
+                              }
+                            } catch (e: any) {
+                              const code = e?.response?.data?.code;
+                              if (code === 409) {
+                                popup.info(
+                                  'Already requested',
+                                  'You already have a pending voice-call request for this profile. Our team will reach out to you shortly.'
+                                );
+                              } else if (code === 403) {
+                                popup.premiumRequired('Upgrade to Silver or above to request a voice call.', () => router.push('/(root)/screens/PremiumTab' as any));
+                              } else {
+                                popup.error('Request failed', 'Network error. Please try again.');
+                              }
+                            }
+                          }}
+                          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#4F46E5', shadowColor: '#4F46E5', shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}
+                        >
+                          <Ionicons name="call" size={12} color="#fff" />
+                          <Text style={{ color: '#fff', marginLeft: 4, fontSize: 10, fontWeight: '700' }}>Request Call</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+
+                  {/* Location + Age as compact info chips in a row */}
+                  <View style={styles.infoChipRow}>
+                    <View style={styles.infoChip}>
+                      <MapPin size={13} color="#059669" />
+                      <Text style={styles.infoChipText} numberOfLines={1}>
+                        {userDetails?.location || 'Not set'}
+                      </Text>
+                    </View>
+                    <View style={styles.infoChipDot} />
+                    <View style={styles.infoChip}>
+                      <Calendar size={13} color="#4F46E5" />
+                      <Text style={styles.infoChipText}>
+                        {userDetails?.age} yrs
                       </Text>
                     </View>
                   </View>
-
-                  {/* Age Card */}
-                  <View style={styles.cardright}>
-                    <View style={styles.cardRow}>
-                      <Calendar size={16} color="#4F46E5" />
-                      <View style={styles.cardTextBlock}>
-                        <Text style={styles.cardLabel}>Age</Text>
-                        <Text style={styles.cardValue}>{userDetails?.age} years</Text>
-                      </View>
-                    </View>
-                  </View>
-
-
-
-                  {/* Occupation */}
-                  {userDetails?.userDetail?.[0]?.occupation && (
-                    <View style={[styles.cardright, styles.cardFull]}>
-                      <View style={styles.cardRow}>
-                        <Briefcase size={16} color="#2563EB" />
-                        <View style={styles.cardTextBlock}>
-                          <Text style={styles.cardLabel}>Occupation</Text>
-                          <Text
-                            style={[styles.cardValue, { flexShrink: 1 }]}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {userDetails.userDetail[0].occupation}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  )}
                 </View>
                 {/* Star Match Button - Premium Only */}
                 <View style={styles.cardright}>
@@ -819,13 +813,9 @@ const ProfileDetail = () => {
                     style={styles.starMatchButton}
                     onPress={() => {
                       if (!isPremiumValue) {
-                        Alert.alert(
-                          'Unlock Star Match ⭐',
-                          'Star Match is a premium feature! Upgrade your plan to discover your compatibility score and find your perfect match.',
-                          [
-                            { text: 'Maybe Later', style: 'cancel' },
-                            { text: 'Upgrade Now', onPress: () => router.push('/(root)/screens/PremiumTab') }
-                          ]
+                        popup.premiumRequired(
+                          'Star Match is a premium feature. Upgrade your plan to discover horoscope compatibility.',
+                          () => router.push('/(root)/screens/PremiumTab')
                         );
                         return;
                       }
@@ -988,23 +978,27 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   card: {
-    width: 175,
-    height: 230, // Make sure this is set explicitly
+    width: '100%',
+    height: 220,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: '#1a1a2e',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245,158,11,0.35)',
+    shadowColor: '#f59e0b',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
   rowContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    // backgroundColor: '',
-    borderRadius: 16,
-    padding: 10,
+    padding: 12,
+    paddingBottom: 8,
   },
   leftColumn: {
-    width: 180,
-    marginRight: 10,
+    width: 165,
+    marginRight: 12,
   },
 
   // rightColumn: {
@@ -1033,21 +1027,63 @@ const styles = StyleSheet.create({
   },
   rightColumn: {
     flex: 1,
-    // paddingHorizontal: 8,
-    // marginTop: 8,
+    justifyContent: 'flex-start',
   },
   infoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
   },
   cardright: {
-    // backgroundColor: 'rgba(255,255,255,0.7)',
-    // borderRadius: 12,
-    // padding: 7,
-    backdropFilter: 'blur(4px)', // Use `expo-blur` or just skip
+    backdropFilter: 'blur(4px)',
     width: '100%',
     marginBottom: 10,
+  },
+  /** Reusable 2-line detail card (icon + label + value). Used by Location, Age,
+   *  and any future right-column detail rows for consistent vertical rhythm. */
+  detailCard: {
+    width: '100%',
+    marginBottom: 10,
+  },
+  /** Minimal 1-line inline detail (icon + value, no label). */
+  inlineDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  inlineDetailText: {
+    fontSize: 14,
+    color: '#DADADA',
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  /** Compact info chip row — Location · Age side by side */
+  infoChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 6,
+  },
+  infoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
+  },
+  infoChipText: {
+    fontSize: 12,
+    color: '#DADADA',
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  infoChipDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#6b7280',
   },
   cardFull: {
     width: '100%',
@@ -1059,15 +1095,20 @@ const styles = StyleSheet.create({
   },
   cardTextBlock: {
     flexShrink: 1,
+    flex: 1,
   },
   cardLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#059669',
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginBottom: 2,
   },
   cardValue: {
     fontSize: 14,
     fontWeight: '600',
     color: '#DADADA',
+    lineHeight: 18,
   },
   buttonRow: {
     flexDirection: 'column',
@@ -1118,20 +1159,27 @@ const styles = StyleSheet.create({
   },
   iconOverlay: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
-    // gap: 10,
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
-    display: 'flex',
-    width: '90%'
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
   },
-
   iconButton: {
-    backgroundColor: '#FFFFFF',
-    padding: 6,
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    padding: 7,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   restrictedOverlay: {
     flex: 1,

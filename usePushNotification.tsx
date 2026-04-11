@@ -3,6 +3,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { updatePushToken } from "./utils/deviceInfo";
 
 export interface PushNotificationState {
   expoPushToken?: Notifications.ExpoPushToken;
@@ -82,9 +83,16 @@ export const usePushNotifications = (): PushNotificationState => {
         console.log("Notification response:", response);
       });
 
+    // Listen for push token refresh and update backend
+    const tokenSubscription = Notifications.addPushTokenListener((tokenData) => {
+      console.log("🔄 Push token refreshed:", tokenData.data);
+      updatePushToken(tokenData.data);
+    });
+
     return () => {
       notificationListener.current?.remove();
       responseListener.current?.remove();
+      tokenSubscription.remove();
     };
   }, []);
 

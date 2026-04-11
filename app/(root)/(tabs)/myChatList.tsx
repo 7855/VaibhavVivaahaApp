@@ -80,8 +80,8 @@ const MyChatList = () => {
         try {
           if (!userData.userId) return;
 
-          const decodedUserId = userData.decodedUserId;
-          const response = await userApi.userChatList(decodedUserId);
+          // Backend expects Base64-encoded userId
+          const response = await userApi.userChatList(userData.userId);
 
           const rawData = response?.data?.data || [];
           const formattedChats = rawData.map((chat: any) => ({

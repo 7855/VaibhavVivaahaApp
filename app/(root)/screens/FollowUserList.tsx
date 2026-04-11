@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import { useLocalSearchParams } from 'expo-router';
+import VerifiedBadges from '../../../components/VerifiedBadges';
 
 const FollowUserList = () => {
   const { title, data } = useLocalSearchParams();
@@ -42,9 +43,18 @@ const FollowUserList = () => {
 
                     {/* Name and Location Details */}
                     <VStack flex={1} space={1}>
-                      <NBText fontSize="md" fontWeight="semibold" isTruncated maxWidth="90%">
-                        {user.firstName} {user.lastName}
-                      </NBText>
+                      <HStack alignItems="center" space={1}>
+                        <NBText fontSize="md" fontWeight="semibold" isTruncated maxWidth="85%">
+                          {user.firstName} {user.lastName}
+                        </NBText>
+                        <VerifiedBadges
+                          idVerified={(user as any).idVerified}
+                          educationVerified={(user as any).educationVerified}
+                          incomeVerified={(user as any).incomeVerified}
+                          mode="compact"
+                          size="sm"
+                        />
+                      </HStack>
                       <NBText fontSize="sm" color="gray.500">Member ID: {user.memberId}</NBText>
                     </VStack>
 

@@ -8,6 +8,9 @@ import userApi from '../api/userApi';
 import { webSocketService } from '../services/webSocketService';
 import { Avatar, NativeBaseProvider } from 'native-base';
 import { saveDeviceInfo } from '../../../utils/deviceInfo';
+import { useUserData } from '../contexts/UserDataContext';
+import CommonPopup from '../../../components/CommonPopup';
+import { usePopup } from '../contexts/PopupContext';
 
 interface LoginScreenProps {
   onForgetPin?: () => void;
@@ -16,7 +19,12 @@ interface LoginScreenProps {
 const { width, height } = Dimensions.get('window');
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => {
+  const { loadUserData } = useUserData();
+  const popup = usePopup();
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [welcomeVisible, setWelcomeVisible] = useState(false);
+  const [welcomeName, setWelcomeName] = useState('');
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const [mobileNumber, setMobileNumber] = useState('')
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -29,7 +37,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
     // Simulate API call
     setTimeout(() => {
       setIsLoading(false);
-      Alert.alert('Success', 'Login successful!');
+      popup.success('Success', 'Login successful!');
     }, 1500);
   };
 
@@ -45,6 +53,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
           const response = await userApi.login(request)
           // console.log('Login response:', response.data)
           if(response.data.code === 200){
+              // Store JWT token for authenticated API calls
+              if (response.data.data.token) {
+                await AsyncStorage.setItem('authToken', response.data.data.token)
+              }
+              if (response.data.data.refreshToken) {
+                await AsyncStorage.setItem('refreshToken', response.data.data.refreshToken)
+              }
               // Store only non-null values
               await AsyncStorage.setItem('userId', response.data.data.userId)
               await AsyncStorage.setItem('mobileNumber', mobileNumber)
@@ -56,41 +71,76 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
               // console.log("response.data.data.isUser===================>",response.data.data.isUser);
               
               
-              await AsyncStorage.setItem('firstName', response.data.data.firstName)
-              await AsyncStorage.setItem('lastName', response.data.data.lastName)
-              await AsyncStorage.setItem('gender', response.data.data.gender)
-              await AsyncStorage.setItem('location', response.data.data.location)
-              await AsyncStorage.setItem('casteId', response.data.data.casteId.toString());
-              await AsyncStorage.setItem('isUser', response.data.data.isUser);
-              await AsyncStorage.setItem('hasStarted', 'true')     
+              await AsyncStorage.setItem('firstName', response.data.data.firstName || '')
+              await AsyncStorage.setItem('lastName', response.data.data.lastName || '')
+              await AsyncStorage.setItem('gender', response.data.data.gender || '')
+              await AsyncStorage.setItem('location', response.data.data.location || '')
+              if (response.data.data.casteId) {
+                await AsyncStorage.setItem('casteId', response.data.data.casteId.toString());
+              }
+              await AsyncStorage.setItem('isUser', response.data.data.isUser || '');
+              // Store role: 'PARENT' for family logins, 'USER' for normal members
+              await AsyncStorage.setItem('userRole', response.data.data.role || 'USER');
+              if (response.data.data.familyLoginId) {
+                await AsyncStorage.setItem('familyLoginId', String(response.data.data.familyLoginId));
+                await AsyncStorage.setItem('parentName', response.data.data.parentName || '');
+                await AsyncStorage.setItem('relationship', response.data.data.relationship || '');
+              } else {
+                await AsyncStorage.removeItem('familyLoginId');
+                await AsyncStorage.removeItem('parentName');
+                await AsyncStorage.removeItem('relationship');
+              }
+              await AsyncStorage.setItem('hasStarted', 'true')
+
+              // Store profile approval status. Default to APPROVED when the
+              // backend doesn't send it (legacy payloads) — only PENDING/REJECTED
+              // should actually hold users on the verification screen.
+              const userStatus = response.data.data.userStatus || 'APPROVED';
+              await AsyncStorage.setItem('userStatus', userStatus);
+              if (response.data.data.rejectionReason) {
+                await AsyncStorage.setItem('rejectionReason', response.data.data.rejectionReason);
+              } else {
+                await AsyncStorage.removeItem('rejectionReason');
+              }
+
               // Initialize WebSocket connection if not already connected
               try {
                   if (!webSocketService.socket) {
-                      // console.log('No existing WebSocket connection, creating new one...');
                       await webSocketService.connect(response.data.data.userId);
-                  } else {
-                      console.log('WebSocket connection already exists');
                   }
               } catch (error) {
                   console.error('Error initializing WebSocket connection:', error);
               }
-              
+
               // Save device info and then navigate
               try {
-                console.log('Saving device info for user:', response.data.data.userId);
                 await saveDeviceInfo(response.data.data.userId);
               } catch (error) {
                 console.error('Error saving device info:', error);
               }
-              
-              // Navigate to index page
-              router.replace('/(root)/(tabs)')
+
+              // Refresh user data context with the freshly stored values
+              await loadUserData();
+
+              const name = response.data.data.firstName || 'there';
+              setWelcomeName(name);
+              setPendingNavigation(() => () => {
+                // Only hold on the verification screen when explicitly pending/rejected
+                if (userStatus === 'PENDING' || userStatus === 'REJECTED') {
+                  router.replace('/(root)/(main)/ProfileUnderVerificationScreen');
+                } else {
+                  router.replace('/(root)/(tabs)');
+                }
+              });
+              setWelcomeVisible(true);
           }else if(response.data.code === 404){
-            Alert.alert('Mobile Number Not Registered')
+            popup.error('Not Registered', 'This mobile number is not registered. Please sign up first.')
           }else if(response.data.code === 401){
-            Alert.alert('Invalid Pin')
+            popup.error('Invalid PIN', 'The PIN you entered is incorrect. Please try again.')
+          }else if(response.data.code === 403){
+            popup.error('Account Blocked', response.data.message || 'Your account has been blocked by the administrator.')
           }else{
-            Alert.alert('Something Went Wrong. Please Try Again')
+            popup.error('Login Failed', 'Something went wrong. Please try again.')
           }
       } catch (error) {
           console.error('Login error:', error)
@@ -545,8 +595,25 @@ Turning Matches Into Lasting Marriages
     </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
     </View>
+    <CommonPopup
+      visible={welcomeVisible}
+      variant="success"
+      title="Welcome!"
+      description={`Hi ${welcomeName}, you have logged in successfully.`}
+      dismissable={false}
+      buttons={[
+        {
+          text: 'Continue',
+          variant: 'primary',
+          onPress: () => {
+            setWelcomeVisible(false);
+            pendingNavigation?.();
+          },
+        },
+      ]}
+    />
     </NativeBaseProvider>
-   
+
   );
 };
 

@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { NativeBaseProvider } from 'native-base';
+import { usePopup } from '../contexts/PopupContext';
 
 interface OTPValidationScreenProps {
   onBack: () => void;
@@ -14,8 +15,15 @@ interface OTPValidationScreenProps {
 
 export default function OTPValidationScreen({ onBack, onVerified }: OTPValidationScreenProps) {
   const router = useRouter();
-  const { phoneNumber: routePhoneNumber } = useLocalSearchParams<{ phoneNumber: string }>();
-  const phoneNumber = routePhoneNumber || ''; // Ensure we have a valid phone number
+  const popup = usePopup();
+  const params = useLocalSearchParams<{
+    phoneNumber?: string;
+    email?: string;
+    purpose?: string;
+  }>();
+  const phoneNumber = params.phoneNumber || '';
+  const email = params.email || '';
+  const purpose = params.purpose || ''; // 'registration' | 'reset' | ''
   const [phoneNumberState, setPhoneNumber] = useState('');
   const { width, height } = Dimensions.get('window');
   const [otp, setOtp] = useState(['', '', '', '']);
@@ -59,49 +67,104 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
 
   const handleVerify = async () => {
     if (otp.some(digit => !digit)) return;
-    
+
     setIsLoading(true);
-    
+
     try {
+      const otpCode = otp.join('');
+
+      // ===== Email-based flow (registration or reset) =====
+      if (email && purpose) {
+        const response = await userApi.verifyAuthOtp({
+          email,
+          otp: otpCode,
+          purpose,
+        });
+        console.log('Verify Auth OTP response:', response.data);
+
+        if (response.data?.code === 200) {
+          setIsLoading(false);
+
+          if (purpose === 'registration') {
+            // Store verification token — signup screen will read this on return
+            const token = response.data.data?.verificationToken;
+            if (token) {
+              await AsyncStorage.setItem('emailVerificationToken', token);
+              await AsyncStorage.setItem('verifiedEmail', email);
+            }
+            popup.success('Email Verified', 'Your email has been verified successfully.', () => router.back());
+          } else if (purpose === 'reset') {
+            const resetToken = response.data.data?.resetToken;
+            router.replace({
+              pathname: '/(root)/(main)/SetNewPasswordScreen',
+              params: { resetToken: resetToken || '' },
+            });
+          }
+        } else {
+          setIsLoading(false);
+          popup.error('Invalid OTP', response.data?.message || 'Please enter a valid OTP');
+          setOtp(['', '', '', '']);
+          inputRefs.current[0]?.focus();
+        }
+        return;
+      }
+
+      // ===== Legacy mobile-based flow =====
       const requestBody = {
         mobileNumber: await AsyncStorage.getItem('resetPhoneNumber'),
-        otp: otp.join('')
+        otp: otpCode,
       };
-      
+
       const response = await userApi.verifyOtp(requestBody);
       console.log('Verify OTP response:', response.data.code);
-      
+
       if (response.data.code === 200) {
         setIsLoading(false);
         router.push({
           pathname: '/(root)/(main)/ChangePinScreen',
-          params: { onComplete: 'onVerified' }
+          params: { onComplete: 'onVerified' },
         });
       } else if (response.data.code === 400) {
         setIsLoading(false);
-        Alert.alert('Invalid OTP', 'Please enter a valid OTP');
+        popup.error('Invalid OTP', 'Please enter a valid OTP');
         setOtp(['', '', '', '']);
         inputRefs.current[0]?.focus();
       } else {
         setIsLoading(false);
-        Alert.alert('Error', 'Something went wrong. Please try again.');
+        popup.error('Error', 'Something went wrong. Please try again.');
         setOtp(['', '', '', '']);
         inputRefs.current[0]?.focus();
       }
     } catch (error) {
       console.error('Error verifying OTP:', error);
       setIsLoading(false);
-      Alert.alert('Error', 'Failed to verify OTP. Please try again.');
+      popup.error('Error', 'Failed to verify OTP. Please try again.');
       setOtp(['', '', '', '']);
       inputRefs.current[0]?.focus();
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setResendTimer(30);
     setCanResend(false);
     setOtp(['', '', '', '']);
     inputRefs.current[0]?.focus();
+
+    try {
+      if (email && purpose) {
+        await userApi.sendAuthOtp({ email, purpose });
+        popup.success('OTP Resent', `A new code has been sent to ${email}.`);
+      } else {
+        const mobile = await AsyncStorage.getItem('resetPhoneNumber');
+        if (mobile) {
+          await userApi.sendOtp(mobile);
+          popup.success('OTP Resent', 'A new code has been sent to your mobile.');
+        }
+      }
+    } catch (err) {
+      console.error('Resend OTP failed:', err);
+      popup.error('Error', 'Failed to resend OTP. Please try again.');
+    }
   };
 
   const isFormValid = otp.every(digit => digit !== '');

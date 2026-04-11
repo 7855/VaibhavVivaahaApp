@@ -47,9 +47,6 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const loadedRef = useRef(false);
 
     const loadUserData = useCallback(async () => {
-        // Avoid duplicate loads
-        if (loadedRef.current) return;
-
         try {
             const keys = ['userId', 'firstName', 'lastName', 'gender', 'profileImage', 'location', 'casteId', 'email', 'mobileNumber', 'isUser', 'hasStarted'];
             const results = await AsyncStorage.multiGet(keys);

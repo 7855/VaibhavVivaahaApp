@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { NativeBaseProvider } from 'native-base';
+import { usePopup } from '../contexts/PopupContext';
 
 interface ChangePinScreenProps {
   onBack: () => void;
@@ -19,6 +20,7 @@ interface ChangePinScreenProps {
   onComplete: () => void;
 }
 const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete }) => {
+  const popup = usePopup();
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [showNewPin, setShowNewPin] = useState(false);
@@ -33,7 +35,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
       const phoneNumber = await AsyncStorage.getItem('resetPhoneNumber');
       if (!phoneNumber) {
         setIsLoading(false);
-        Alert.alert('Error', 'Phone number not found');
+        popup.error('Error', 'Phone number not found');
         return;
       }
 
@@ -47,22 +49,19 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
 
       if (response.data.code === 200) {
         setIsLoading(false);
-        Alert.alert(
-          'Success',
-          'PIN changed successfully',
-          [{
-            text: 'OK',
-            onPress: () => router.replace('/(root)/(main)/LoginScreen')
-          }]
+        popup.success(
+          'PIN Updated',
+          'Your PIN has been changed successfully.',
+          () => router.replace('/(root)/(main)/LoginScreen')
         );
       } else {
         setIsLoading(false);
-        Alert.alert('Error', 'Something went wrong. Please try again.');
+        popup.error('Error', 'Something went wrong. Please try again.');
       }
     } catch (error) {
       console.error('Error changing PIN:', error);
       setIsLoading(false);
-      Alert.alert('Error', 'Failed to change PIN. Please try again.');
+      popup.error('Error', 'Failed to change PIN. Please try again.');
     }
   };
 

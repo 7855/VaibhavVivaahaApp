@@ -5,7 +5,7 @@ import Tabs from '../screens/SearchTabs';
 
 const ExploreScreen = () => {
   return (
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1 }}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         <Tabs />
       </View>

@@ -6,46 +6,62 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { NativeBaseProvider } from 'native-base';
+import { usePopup } from '../contexts/PopupContext';
 
 interface ResetPasswordScreenProps {
   onBack: () => void;
-  onContinue: (phoneNumber: string) => void;
+  onContinue: (email: string) => void;
 }
 
 const { width, height } = Dimensions.get('window');
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onContinue }) => {
   const router = useRouter();
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const popup = usePopup();
+  const [email, setEmail] = useState('');
+  // Kept as `phoneNumber` state variable alias for minimal JSX changes below
+  const phoneNumber = email;
+  const setPhoneNumber = setEmail;
   const [isLoading, setIsLoading] = useState(false);
 
   const handleContinue = async () => {
-    if (phoneNumber.length !== 10) return;
+    if (!EMAIL_REGEX.test(email)) return;
     setIsLoading(true);
 
     try {
-      const response = await userApi.sendOtp(phoneNumber);
-      console.log('OTP response:------------------------------------>', response.data.code);
+      const response = await userApi.forgotPassword({ email });
+      console.log('Forgot-password response:', response.data.code);
 
       if (response.data.code === 200) {
-        await AsyncStorage.setItem('resetPhoneNumber', phoneNumber);
+        await AsyncStorage.setItem('resetEmail', email);
         setIsLoading(false);
-        router.push('/(root)/(main)/OTPValidationScreen');
-      }else if(response.data.code === 404){
+        popup.success(
+          'OTP Sent',
+          `A reset code has been sent to ${email}. Please check your inbox.`,
+          () => {
+            router.push({
+              pathname: '/(root)/(main)/OTPValidationScreen',
+              params: { email, purpose: 'reset' },
+            });
+          }
+        );
+      } else if (response.data.code === 404) {
         setIsLoading(false);
-        Alert.alert('Error', 'Please Enter Registered Mobile number');
+        popup.error('Not Registered', 'No account found with this email address.');
       } else {
         setIsLoading(false);
-        Alert.alert('Error', 'Something went wrong. Please try again.');
+        popup.error('Error', response.data.message || 'Something went wrong. Please try again.');
       }
     } catch (error) {
       console.error('Error sending OTP:', error);
       setIsLoading(false);
-      Alert.alert('Error', 'Failed to send OTP. Please try again.');
+      popup.error('Error', 'Failed to send OTP. Please try again.');
     }
   };
 
-  const isFormValid = phoneNumber.length === 10;
+  const isFormValid = EMAIL_REGEX.test(email);
 
   return (
     // <KeyboardAvoidingView
@@ -307,7 +323,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                     </View>
                     <TextInput
                       defaultValue={phoneNumber}
-                      onChangeText={(text) => setPhoneNumber(text.replace(/\D/g, '').slice(0, 10))}
+                      onChangeText={(text) => setPhoneNumber(text)}
                       style={{
                         paddingLeft: 48,
                         paddingRight: 16,
@@ -320,12 +336,12 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         fontWeight: '500',
                         color: '#130057',
                       }}
-                      placeholder="Enter your mobile number"
+                      placeholder="Enter your email"
                       placeholderTextColor="rgba(19, 0, 87, 0.4)"
-                      keyboardType="numeric"
-                      maxLength={10}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
                     />
-                    {phoneNumber.length === 10 && (
+                    {EMAIL_REGEX.test(phoneNumber) && (
                       <View style={{
                         position: 'absolute',
                         right: 16,

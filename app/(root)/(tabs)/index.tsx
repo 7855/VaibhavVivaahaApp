@@ -18,6 +18,7 @@ import { loadUserSubscription, loadMasterData } from '../services/masterService'
 import { useSubscription } from '../contexts/subscriptionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import FooterMessage from '@/components/FooterMessage';
+import PromotionalPopup from '@/components/PromotionalPopup';
 import { useUserData } from '../contexts/UserDataContext';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -333,13 +334,30 @@ const Index = () => {
         if (userData.decodedUserId) {
           try {
             const subscription = await userApi.getActiveUserSubscriptionByUserId(userData.decodedUserId);
-            if (subscription.data.data) {
+            if (subscription.data?.code === 200 && subscription.data?.data) {
               setUserTier(subscription.data.data.planCode);
-              // Store in subscription context (which also persists to AsyncStorage)
               setSubscription(subscription.data.data);
+            } else {
+              // 404 / no active subscription → user is on Free plan
+              setUserTier('FREE');
+              setSubscription({
+                planTitle: 'Free',
+                subscriptionId: null,
+                startDate: null,
+                endDate: null,
+                entitlements: {},
+              });
             }
           } catch (error) {
             console.error('Error fetching subscription:', error);
+            setUserTier('FREE');
+            setSubscription({
+              planTitle: 'Free',
+              subscriptionId: null,
+              startDate: null,
+              endDate: null,
+              entitlements: {},
+            });
           }
         }
 
@@ -416,7 +434,7 @@ const Index = () => {
           ...baseStyle,
           icon: <Award size={16} color="#FFD700" />,
           background: 'rgba(255, 215, 0, 0.2)',
-          textColor: 'userConnectionCount#FFD700',
+          textColor: '#FFD700',
           gradient: ['#FFD700', '#FFA500'],
           borderColor: '#FFD700',
           name: 'Gold'
@@ -478,6 +496,7 @@ const Index = () => {
   }, null, 2) : 'No notification data';
   return (
     <>
+      <PromotionalPopup />
       {/* {!hasStarted || hasStarted == null ? ( */}
       {/* // <Getstart onStart={onStart} /> */}
       {/* ) : ( */}

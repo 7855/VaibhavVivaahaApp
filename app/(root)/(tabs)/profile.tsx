@@ -1,5 +1,6 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Image, Text as TextNative, TouchableOpacity, Modal as RNModal, TextInput, KeyboardAvoidingView, Platform, Keyboard, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { NativeBaseProvider, Text, HStack, Avatar, Skeleton, VStack, Box } from 'native-base';
@@ -10,6 +11,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { useUserData } from '../contexts/UserDataContext';
+import { usePopup } from '../contexts/PopupContext';
 
 
 const CACHE_DURATION_MS = 30000; // 30 seconds
@@ -18,6 +20,7 @@ const ProfileScreen = () => {
   const params = useLocalSearchParams();
   const initialTabIndex = params.tabIndex ? Number(params.tabIndex) : 0;
   const { userData, updateField } = useUserData();
+  const popup = usePopup();
 
   const [userDetails, setUserDetails] = useState<any>(null);
   const [personalDetail, setPersonalDetail] = useState<any>(null);
@@ -26,6 +29,14 @@ const ProfileScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editedAbout, setEditedAbout] = useState('');
+  const [isParent, setIsParent] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const role = await AsyncStorage.getItem('userRole');
+      setIsParent(role === 'PARENT');
+    })();
+  }, []);
   const [image, setImage] = useState<string | null>(null);
   const lastFetchRef = useRef<number>(0);
 
@@ -35,10 +46,9 @@ const ProfileScreen = () => {
       const wordCount = editedAbout.trim().split(/\s+/).length;
 
       if (wordCount < 18 || wordCount > 23) {
-        Alert.alert(
+        popup.warning(
           'Validation Error',
-          'Please write between 18 to 23 words about yourself.',
-          [{ text: 'OK' }]
+          'Please write between 18 to 23 words about yourself.'
         );
         return;
       }
@@ -51,17 +61,12 @@ const ProfileScreen = () => {
       });
 
       if (response.status === 200 && response.data.status === 'SUCCESS') {
-        Alert.alert('Success', 'About information updated successfully', [
-          {
-            text: 'OK',
-            onPress: async () => {
-              await refreshProfile();
-              setIsEditModalVisible(false);
-            }
-          }
-        ]);
+        popup.success('Updated', 'Your about information has been updated successfully.', async () => {
+          await refreshProfile();
+          setIsEditModalVisible(false);
+        });
       } else {
-        Alert.alert('Error', 'Something went wrong. Please try again later.');
+        popup.error('Error', 'Something went wrong. Please try again later.');
       }
     } catch (error) {
       console.error('Error updating about:', error);
@@ -195,6 +200,13 @@ const ProfileScreen = () => {
 
 
   const handlePickImage = async () => {
+    if (isParent) {
+      popup.error(
+        'Not allowed',
+        'Family members cannot change the profile photo. Please ask the account holder to make this change.'
+      );
+      return;
+    }
     try {
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -208,7 +220,7 @@ const ProfileScreen = () => {
         setImage(imageUri);
 
         if (!userData.decodedUserId) {
-          Alert.alert('Error', 'User not found. Please login again.');
+          console.warn('User not found in storage — skipping');
           return;
         }
 
@@ -231,7 +243,7 @@ const ProfileScreen = () => {
         const response = await userApi.updateProfileImage(formData);
 
         if (response?.data?.code === 200) {
-          Alert.alert('Success', 'Profile image updated successfully!');
+          popup.success('Updated', 'Profile image updated successfully!');
           updateField('profileImage', response.data.data.profileImage);
         } else {
           throw new Error(response?.data?.message || 'Failed to update profile image');
@@ -239,7 +251,7 @@ const ProfileScreen = () => {
       }
     } catch (error: any) {
       console.error('Error in handlePickImage:', error);
-      Alert.alert('Error', error.message || 'Failed to update profile image. Please try again.');
+      popup.error('Error', error.message || 'Failed to update profile image. Please try again.');
     }
   };
 
@@ -369,6 +381,13 @@ const ProfileScreen = () => {
         }}>
           <Text color={"#fff"} style={{ fontStyle: 'italic', width: '93%' }}>{userDetails?.userDetail?.[0]?.about}</Text>
           <TouchableOpacity style={{ backgroundColor: '#fff', padding: 5, borderRadius: 999 }} onPress={() => {
+            if (isParent) {
+              popup.error(
+                'Not allowed',
+                'Family members cannot edit the primary member\'s profile. Please ask the account holder to make this change.'
+              );
+              return;
+            }
             setEditedAbout(userDetails?.userDetail?.[0]?.about || '');
             setIsEditModalVisible(true);
           }}>

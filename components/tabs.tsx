@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import userApi from '../app/(root)/api/userApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePopup } from '../app/(root)/contexts/PopupContext';
 import { ALERT_TYPE, Dialog } from 'react-native-alert-notification';
 import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,10 +22,26 @@ interface GalleryItem {
 }
 
 const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refreshProfile?: () => void; userId?: string | null }) => {
+  const popup = usePopup();
   const [editSection, setEditSection] = useState<any>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isParent, setIsParent] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const role = await AsyncStorage.getItem('userRole');
+      setIsParent(role === 'PARENT');
+    })();
+  }, []);
 
   const handleEdit = (section: any) => {
+    if (isParent) {
+      popup.error(
+        'Not allowed',
+        'Family members cannot edit the primary member\'s profile. Please ask the account holder to make this change.'
+      );
+      return;
+    }
     setEditSection(section);
     setIsEditModalOpen(true);
   };
@@ -98,49 +115,25 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
         const formattedData = formatter(updatedData);
         await apiFunction(formattedData);
 
-        // Replace the Toast.show() with this Alert
-        Alert.alert(
-          'Success',
-          `Image updated successfully.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => console.log('OK Pressed')
-            }
-          ],
-          { cancelable: false }
-        );
+        const sectionLabels: Record<string, string> = {
+          PersonalDetail: 'Personal details',
+          ReligiousDetail: 'Religious & astro details',
+          EducationalDetail: 'Education details',
+          FamilyDetail: 'Family details',
+        };
+        const niceLabel = sectionLabels[sectionKey] || 'Profile';
+        popup.success('Updated', `${niceLabel} updated successfully.`);
 
         refreshProfile?.();
       } else {
         console.warn('Unknown section or API mapping missing:', sectionKey);
       }
 
-      // Update local state
-      const updatedSections = data.map((section) =>
-        section.title === editSection.title ? { ...section, data: updatedData } : section
-      );
-
-      // console.log('Updated data:', updatedData);
-      // console.log('Edited section title:', sectionKey);
-      // console.log('Updated sections:', updatedSections);
-
       handleClose();
 
     } catch (error) {
       console.error('Error updating profile:', error);
-
-      Alert.alert(
-        'Error',
-        'Something went wrong while updating. Please try again.',
-        [
-          {
-            text: 'OK',
-            onPress: () => console.log('OK Pressed')
-          }
-        ],
-        { cancelable: false }
-      );
+      popup.error('Update failed', 'Something went wrong while updating. Please try again.');
     }
   };
 
@@ -237,10 +230,27 @@ const SecondRoute = ({
   refreshProfile?: () => void;
   userId?: string | null;
 }) => {
+  const popup = usePopup();
   const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
   const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
+  const [isParent, setIsParent] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const role = await AsyncStorage.getItem('userRole');
+      setIsParent(role === 'PARENT');
+    })();
+  }, []);
+
+  const blockedForParent = (action: string) => {
+    popup.error(
+      'Not allowed',
+      `Family members cannot ${action}. Please ask the account holder to make this change.`
+    );
+  };
 
   const handleAddPhoto = async () => {
+    if (isParent) { blockedForParent('upload photos'); return; }
     try {
       if (!userId) {
         console.error('No userId available');
@@ -284,27 +294,52 @@ const SecondRoute = ({
 
         if (response && response.data) {
           if (response.data.code === 200) {
-            Alert.alert('Success', 'Profile image updated successfully!');
-            console.log('Gallery upload response:', response.data.data);
+            popup.success('Photo uploaded', 'Your new gallery photo is now visible on your profile.');
+            refreshProfile?.();
+          } else if (response.data.code === 400) {
+            popup.error('Limit reached', response.data.message || 'You can only upload 3 photos. Please delete an existing photo first.');
           } else {
-            // Only throw for actual errors
-            throw new Error(response.data.message || 'Failed to update profile image');
+            throw new Error(response.data.message || 'Failed to upload photo');
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding photo:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Something went wrong while adding photo.',
-      });
+      // Check if axios error has response data with a user-friendly message
+      const errorMessage = error?.response?.data?.message || error?.message || 'Something went wrong while adding photo.';
+      if (errorMessage.toLowerCase().includes('maximum')) {
+        Alert.alert('Maximum Limit Reached', errorMessage);
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: errorMessage,
+        });
+      }
     }
   };
 
   const handleDelete = (galleryId: number) => {
-    console.log('Delete image:', galleryId);
-    // implement delete API here
+    if (isParent) { blockedForParent('delete photos'); return; }
+    popup.confirm(
+      'Delete photo?',
+      'This photo will be removed from your gallery. This action cannot be undone.',
+      async () => {
+        try {
+          const res = await userApi.changeGalleryImageActiveStatusByImageId(galleryId);
+          if (res?.data?.code === 200) {
+            popup.success('Deleted', 'Photo removed from your gallery.');
+            refreshProfile?.();
+          } else {
+            popup.error('Delete failed', res?.data?.message || 'Could not delete photo. Please try again.');
+          }
+        } catch (e) {
+          popup.error('Delete failed', 'Network error. Please try again.');
+        }
+      },
+      'Delete',
+      'Cancel'
+    );
   };
 
   const handleExpand = (imageUrl: string) => {
@@ -467,14 +502,56 @@ const SecondRoute = ({
 // });
 
 const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refreshProfile?: () => void; userId?: string | null }) => {
+  const popup = usePopup();
   const [horoscopeImage, setHoroscopeImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isParent, setIsParent] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const role = await AsyncStorage.getItem('userRole');
+      setIsParent(role === 'PARENT');
+    })();
+  }, []);
+
+  const blockedForParent = (action: string) => {
+    popup.error(
+      'Not allowed',
+      `Family members cannot ${action}. Please ask the account holder to make this change.`
+    );
+  };
+
+  const handleDeleteHoroscope = () => {
+    if (isParent) { blockedForParent('delete the horoscope'); return; }
+    if (!userId) return;
+    popup.confirm(
+      'Delete horoscope?',
+      'Your uploaded horoscope image will be removed from your profile. You can upload a new one anytime.',
+      async () => {
+        try {
+          const res = await userApi.deleteHoroscopeByUserId(userId);
+          if (res?.data?.code === 200) {
+            popup.success('Deleted', 'Horoscope image removed.');
+            setHoroscopeImage(null);
+            refreshProfile?.();
+          } else {
+            popup.error('Delete failed', res?.data?.message || 'Could not delete horoscope. Please try again.');
+          }
+        } catch (e) {
+          popup.error('Delete failed', 'Network error. Please try again.');
+        }
+      },
+      'Delete',
+      'Cancel'
+    );
+  };
 
   const handleAddHoroscope = async () => {
+    if (isParent) { blockedForParent('upload a horoscope'); return; }
     try {
       if (!userId) {
-        Alert.alert('Error', 'User not found. Please login again.');
+        popup.error('Error', 'User not found. Please login again.');
         return;
       }
 
@@ -552,6 +629,7 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
   };
 
   const handleUpdateHoroscope = async () => {
+    if (isParent) { blockedForParent('update the horoscope'); return; }
     try {
       if (!userId) {
         Alert.alert('Error', 'User not found. Please login again.');
@@ -682,17 +760,29 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
     <NativeBaseProvider>
       <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
         <VStack space={1} p={1} flex={1}>
-          <HStack justifyContent="flex-end" pt={3} pr={2}>
+          <HStack justifyContent="flex-end" pt={3} pr={2} space={4}>
             <Pressable
               onPress={horoscopeImage ? handleUpdateHoroscope : handleAddHoroscope}
               borderRadius={30}
               _pressed={{ opacity: 0.5 }}
             >
               <HStack alignItems="center" space={2}>
-                <Ionicons name="add-circle" size={24} />
-                <Text>{horoscopeImage ? 'Update Horoscope' : 'Add Horoscope'}</Text>
+                <Ionicons name={horoscopeImage ? 'refresh-circle' : 'add-circle'} size={24} color="#059669" />
+                <Text color="#059669" fontWeight="600">{horoscopeImage ? 'Update' : 'Add Horoscope'}</Text>
               </HStack>
             </Pressable>
+            {horoscopeImage ? (
+              <Pressable
+                onPress={handleDeleteHoroscope}
+                borderRadius={30}
+                _pressed={{ opacity: 0.5 }}
+              >
+                <HStack alignItems="center" space={2}>
+                  <Ionicons name="trash" size={22} color="#dc2626" />
+                  <Text color="#dc2626" fontWeight="600">Delete</Text>
+                </HStack>
+              </Pressable>
+            ) : null}
           </HStack>
 
           <Center>

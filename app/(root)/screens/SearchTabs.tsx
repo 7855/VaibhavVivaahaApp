@@ -25,8 +25,9 @@ import ExploreProfileCard from "../../../components/ExploreProfileCard";
 import userApi from "@/app/(root)/api/userApi";
 import { router } from "expo-router";
 import { useUserData } from '../contexts/UserDataContext';
+import { usePopup } from '../contexts/PopupContext';
 import { Book, Calendar, DollarSign, Briefcase, ChevronDown, ChevronRight } from "lucide-react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSubscription } from '../contexts/subscriptionContext';
 import AgeRangeSelector from "@/components/AgeRangeSelector";
 import RangeSelectorModal from "@/components/RangeSelectorModal";
@@ -75,8 +76,15 @@ type Filters = {
     degree: string[];  // Changed from string to string[]
 };
 
+// Floating bottom tab bar footprint (PremiumNavBar):
+// - card height 66 + bottom gap 10 + safe-area bottom inset
+const NAV_BAR_FOOTPRINT = 66 + 10;
+
 const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
+    const tabInsets = useSafeAreaInsets();
+    const searchBarBottomPad = NAV_BAR_FOOTPRINT + tabInsets.bottom + 12;
     const { userData } = useUserData();
+    const popup = usePopup();
     const [profiles, setProfiles] = useState<any>(null);
     const [expanded, setExpanded] = useState(false);
     const [minAgeText, setMinAgeText] = useState("18");
@@ -342,13 +350,9 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             );
 
             if (hasPremiumFeatures && !isPremiumUser) {
-                Alert.alert(
-                    'Premium Feature',
-                    'This search includes premium features. Please upgrade to premium to use this search.',
-                    [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Upgrade Now', onPress: () => router.push('/') }
-                    ]
+                popup.premiumRequired(
+                    'This search includes premium filters. Upgrade to Premium to use horoscope, education, and dosham filters.',
+                    () => router.push('/(root)/screens/PremiumTab')
                 );
                 return;
             }
@@ -951,7 +955,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     </TouchableOpacity>
                                 </View> */}
 
-                                <View style={styles.filterRow}>
+                                <View style={[styles.filterRow, styles.filterRowFirst]}>
                                     <Text style={styles.filterLabel}>Age</Text>
                                     <TouchableOpacity
                                         style={styles.dropdownButton}
@@ -986,8 +990,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     </TouchableOpacity>
                                 </View> */}
 
-                                <View>
-                                    <HStack alignItems="center" space={2}>
+                                <View style={styles.filterRow}>
+                                    <HStack alignItems="center" space={2} justifyContent="space-between" width="100%">
                                         <Text style={styles.filterLabel}>Profile with photos only</Text>
                                         <Switch
                                             size="sm"
@@ -1055,11 +1059,6 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     <View style={styles.singleRowContainer}>
                                         <View style={styles.labelContainer1}>
                                             <Text style={styles.filterLabel}>Education</Text>
-                                            {!isPremiumUser && (
-                                                <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
-                                                    <Text style={styles.lockIcon}>🔒</Text>
-                                                </TouchableOpacity>
-                                            )}
                                         </View>
 
                                         {optionsMap.education && optionsMap.education.length > 0 ? (
@@ -1188,11 +1187,6 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     <View style={styles.singleRowContainer}>
                                         <View style={styles.labelContainer1}>
                                             <Text style={styles.filterLabel}>Star</Text>
-                                            {!isPremiumUser && (
-                                                <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
-                                                    <Text style={styles.lockIcon}>🔒</Text>
-                                                </TouchableOpacity>
-                                            )}
                                         </View>
 
                                         {optionsMap.star && optionsMap.star.length > 0 ? (
@@ -1231,11 +1225,6 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     <View style={styles.singleRowContainer}>
                                         <View style={styles.labelContainer1}>
                                             <Text style={styles.filterLabel}>Dosham</Text>
-                                            {!isPremiumUser && (
-                                                <TouchableOpacity onPress={() => setShowUpgradeModal(true)}>
-                                                    <Text style={styles.lockIcon}>🔒</Text>
-                                                </TouchableOpacity>
-                                            )}
                                         </View>
 
                                         {optionsMap.dosham && optionsMap.dosham.length > 0 ? (
@@ -1272,14 +1261,6 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 <View style={{ ...styles.filterRow }}>
                                     <Text style={styles.filterLabel}>
                                         Profile with Horoscope only
-                                        {!isPremiumUser && (
-                                            <Text
-                                                style={styles.lockIcon}
-                                                onPress={() => setShowUpgradeModal(true)}
-                                            >
-                                                {' '}🔒
-                                            </Text>
-                                        )}
                                     </Text>
                                     <Switch
                                         size="sm"
@@ -1445,7 +1426,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 </View> */}
             </ScrollView>
 
-            <View style={styles.basesearchButtonContainer}>
+            <View style={[styles.basesearchButtonContainer, { paddingBottom: searchBarBottomPad }]}>
                 <TouchableOpacity onPress={activeTab === 'profile' ? handleProfileIdSearch : handleSearch} style={styles.basesearchButtonWrapper}>
                     <LinearGradient
                         colors={['#420001', '#8B0000', '#420001']}
@@ -1724,7 +1705,14 @@ const FindPartner = () => {
                     numColumns={2}
                     contentContainerStyle={styles.containerProfle}
                     columnWrapperStyle={styles.rowProfile}
-                    renderItem={({ item }) => (
+                    renderItem={({ item }) => {
+                        const profilePlan = item.subscriptionTitle;
+                        const badgeColor =
+                            profilePlan === 'Platinum' ? '#7c3aed' :
+                            profilePlan === 'Gold' ? '#d4a017' :
+                            profilePlan === 'Silver' ? '#9ca3af' : null;
+                        const isVerified = profilePlan === 'Silver' || profilePlan === 'Gold' || profilePlan === 'Platinum';
+                        return (
                         <View style={styles.cardWrapper}>
                             <TouchableOpacity
                                 onPress={() => {
@@ -1741,10 +1729,27 @@ const FindPartner = () => {
                                     job={item.userDetail?.[0]?.occupation || ''}
                                     location={item.location}
                                     gender={item.gender}
+                                    idVerified={item.idVerified}
+                                    educationVerified={item.educationVerified}
+                                    incomeVerified={item.incomeVerified}
                                 />
+                                {badgeColor ? (
+                                    <View style={{
+                                        position: 'absolute', top: 8, left: 8,
+                                        flexDirection: 'row', alignItems: 'center',
+                                        paddingHorizontal: 6, paddingVertical: 2,
+                                        borderRadius: 10, backgroundColor: badgeColor,
+                                    }}>
+                                        {isVerified ? <Ionicons name="checkmark-circle" size={10} color="#fff" /> : null}
+                                        <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', marginLeft: 2 }}>
+                                            {profilePlan?.toUpperCase()}
+                                        </Text>
+                                    </View>
+                                ) : null}
                             </TouchableOpacity>
                         </View>
-                    )}
+                        );
+                    }}
                     ListEmptyComponent={() => (
                         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
                             <Text style={{ color: 'gray' }}>
@@ -2257,26 +2262,29 @@ const styles = StyleSheet.create({
     },
 
     filterCard: {
-        backgroundColor: 'white',
-        borderRadius: 12,
-        padding: 15,
-        marginBottom: 16,
-        elevation: 3,
-        shadowColor: '#000',
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 14,
+        elevation: 2,
+        shadowColor: '#420001',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        borderWidth: 1,
+        borderColor: '#F2E8E9',
     },
     sectionHeaderContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
+        paddingVertical: 4,
     },
     sectionHeader: {
         color: '#420001',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '700',
+        letterSpacing: 0.3,
     },
     chevronIcon: {
         transform: [{ rotate: '0deg' }],
@@ -2288,29 +2296,37 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginTop: 14,
+        paddingTop: 14,
+        borderTopWidth: 1,
+        borderTopColor: '#F5EEEF',
+    },
+    filterRowFirst: {
+        marginTop: 6,
+        paddingTop: 6,
+        borderTopWidth: 0,
     },
     filterLabel: {
         color: '#130001',
-        fontSize: 16,
-        fontWeight: '500',
+        fontSize: 14,
+        fontWeight: '600',
         flex: 1,
     },
     dropdownButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        backgroundColor: '#FDFAFA',
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 11,
         borderWidth: 1,
-        borderColor: '#e9ecef',
-        minWidth: 200,
+        borderColor: '#EBDADC',
+        minWidth: 180,
         justifyContent: 'space-between',
     },
     dropdownText: {
         color: '#130001',
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '500',
     },
     expandedContent: {
@@ -2611,13 +2627,12 @@ const styles = StyleSheet.create({
     },
     basesearchButtonContainer: {
         paddingHorizontal: 10,
-        paddingVertical: 10,
+        paddingTop: 10,
         backgroundColor: 'white',
         borderTopWidth: 1,
         borderTopColor: '#f0f0f0',
-        paddingBottom: 70,
         flexDirection: 'row',
-        justifyContent: 'center'
+        justifyContent: 'center',
     },
     basesearchButtonWrapper: {
         borderRadius: 25,
@@ -2709,15 +2724,17 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        backgroundColor: '#fff',
+        borderColor: '#EBDADC',
+        borderRadius: 10,
+        paddingVertical: 11,
+        paddingHorizontal: 14,
+        backgroundColor: '#FDFAFA',
+        maxWidth: 200,
     },
     filterButtonText: {
-        fontSize: 14,
+        fontSize: 13,
         color: '#130001',
+        fontWeight: '500',
     },
     singleRowContainer: {
         flexDirection: 'row',
@@ -2728,27 +2745,29 @@ const styles = StyleSheet.create({
     labelContainer1: {
         flexDirection: 'row',
         alignItems: 'center',
-        minWidth: 100, // Adjust as needed
+        flex: 1,
     },
     dropdownContainer: {
         flex: 1,
-        marginLeft: 10, // Add some spacing between label and dropdown
+        marginLeft: 12,
+        maxWidth: 200,
     },
     dropdownDisabled: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        backgroundColor: '#f7f7f7',
-        minWidth: 150, // Adjust as needed
-        marginLeft: 10, // Match the margin of the dropdown
+        borderColor: '#EBDADC',
+        borderRadius: 10,
+        paddingVertical: 11,
+        paddingHorizontal: 14,
+        backgroundColor: '#F8F2F3',
+        minWidth: 180,
+        marginLeft: 12,
     },
     disabledText: {
-        color: '#999',
-        fontSize: 14,
+        color: '#9B8284',
+        fontSize: 13,
+        fontWeight: '500',
     },
 });

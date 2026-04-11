@@ -14,9 +14,29 @@ export const loadMasterData = async (setMasterData: any) => {
 };
 
 export const loadUserSubscription = async (userId: string, setSubscription: any) => {
-  const res = await userApi.getActiveUserSubscriptionByUserId(userId);
-  if (res.data?.data) {
-    setSubscription(res.data.data);   // this already persists to AsyncStorage via context
+  try {
+    const res = await userApi.getActiveUserSubscriptionByUserId(userId);
+    if (res.data?.code === 200 && res.data?.data) {
+      setSubscription(res.data.data);
+    } else {
+      // 404 / no active subscription → user is on Free plan
+      setSubscription({
+        planTitle: 'Free',
+        subscriptionId: null,
+        startDate: null,
+        endDate: null,
+        entitlements: {},
+      });
+    }
+  } catch (e) {
+    // Network error or API failure — still default to Free
+    setSubscription({
+      planTitle: 'Free',
+      subscriptionId: null,
+      startDate: null,
+      endDate: null,
+      entitlements: {},
+    });
   }
 };
 

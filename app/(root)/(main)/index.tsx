@@ -18,7 +18,13 @@ export default function Index() {
         const casteId = await AsyncStorage.getItem('casteId');
 
         if (userId && firstName && lastName && location && storedGender && casteId) {
-          router.replace('/(root)/(tabs)');
+          // Check approval status — route to verification screen if not approved
+          const approvalStatus = await AsyncStorage.getItem('userStatus');
+          if (approvalStatus === 'APPROVED') {
+            router.replace('/(root)/(tabs)');
+          } else {
+            router.replace('/(root)/(main)/ProfileUnderVerificationScreen');
+          }
         }
       } catch (error) {
         console.error('Error checking user status:', error);

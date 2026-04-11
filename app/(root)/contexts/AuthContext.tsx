@@ -178,12 +178,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkUserStatus = async () => {
     try {
       const storedUserId = await AsyncStorage.getItem('userId');
+      const storedAuthToken = await AsyncStorage.getItem('authToken');
+
+      // Zombie session guard: if we have a userId but no authToken,
+      // the stored session is stale (pre-JWT-rollout or token expired).
+      // Wipe everything and force a fresh login.
+      if (storedUserId && !storedAuthToken) {
+        console.warn('⚠️ Stale session detected (userId without authToken). Clearing and routing to login.');
+        try { await AsyncStorage.clear(); } catch (_) {}
+        setUserId(null);
+        setIsOnline(false);
+        try { router.replace('/(root)/(main)/LoginScreen'); } catch (_) {}
+        return;
+      }
+
       if (storedUserId) {
         setUserId(storedUserId);
         setIsOnline(true);
-        // console.log('User is online:---------------------->', storedUserId);
         userApi.lastSeen(storedUserId);
-        // console.log('User is online:---------------------->', storedUserId);
         webSocketService.connect(storedUserId);
       }
     } catch (error) {
@@ -197,7 +209,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserId(null);
       setIsOnline(false);
       try {
-        // await AsyncStorage.multiRemove(['userId', 'firstName', 'lastName', 'gender', 'location', 'casteId', 'isUser', 'hasStarted', 'mobileNumber', 'profileImage', 'userDetailId']);
         AsyncStorage.clear();
       } catch (error) {
         console.error('Error removing userId from storage:', error);
@@ -237,6 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsOnline(false);
       // Clear async storage
       await AsyncStorage.removeItem('userId');
+      await AsyncStorage.removeItem('authToken');
       
       // Update last seen status
       await handleLogout();

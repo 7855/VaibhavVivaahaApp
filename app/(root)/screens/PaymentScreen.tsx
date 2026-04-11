@@ -19,8 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserData } from '../contexts/UserDataContext';
+import { usePopup } from '../contexts/PopupContext';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as Clipboard from 'expo-clipboard';
 import Svg, { Circle } from 'react-native-svg';
@@ -168,6 +168,7 @@ const PaymentScreen = () => {
     const planPeriod = (params.planPeriod as string) || '12 Months';
     const paymentRequestId = (params.paymentRequestId as string) || (params.planId as string) || '';
     const { userData } = useUserData();
+    const popup = usePopup();
 
     const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
     const [utrNumber, setUtrNumber] = useState('');
@@ -181,6 +182,19 @@ const PaymentScreen = () => {
     const [timeLeft, setTimeLeft] = useState(TIMER_DURATION);
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Parent scope guard — bounce back, parents cannot make payments
+    useEffect(() => {
+        (async () => {
+            try {
+                const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                const role = await AsyncStorage.getItem('userRole');
+                if (role === 'PARENT') {
+                    router.replace('/(root)/(tabs)' as any);
+                }
+            } catch (_) {}
+        })();
+    }, []);
 
     // Pulse animation for status indicator
     useEffect(() => {
@@ -230,62 +244,67 @@ const PaymentScreen = () => {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            Alert.alert('Error', 'Failed to copy UPI ID');
+            popup.error('Error', 'Failed to copy UPI ID');
         }
-    }, []);
+    }, [popup]);
 
     const handleUploadScreenshot = useCallback(async () => {
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permissionResult.granted) {
-                Alert.alert('Permission Required', 'Please allow access to your photo library to upload the payment screenshot.');
+                popup.warning('Permission Required', 'Please allow access to your photo library to upload the payment screenshot.');
                 return;
             }
 
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                mediaTypes: ['images'],
                 allowsEditing: false,
                 quality: 1,
             });
 
-            if (!result.canceled && result.assets[0]) {
-                const asset = result.assets[0];
-                const uri = asset.uri;
+            if (result.canceled || !result.assets?.[0]) return;
 
-                // Validate file is an image
-                const filename = uri.split('/').pop() || '';
-                const ext = filename.split('.').pop()?.toLowerCase();
-                const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
-                if (!ext || !allowedExts.includes(ext)) {
-                    Alert.alert('Invalid File', 'Please select an image file (JPG, PNG, or WEBP).');
-                    return;
-                }
+            const asset = result.assets[0];
+            const uri = asset.uri;
 
-                // Check file size and compress if > 5MB
-                const fileInfo = await FileSystem.getInfoAsync(uri);
-                const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+            // Validate file is an image (extension check, lenient)
+            const filename = (uri.split('/').pop() || '').toLowerCase();
+            const ext = filename.split('.').pop() || '';
+            const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
+            if (ext && !allowedExts.includes(ext)) {
+                popup.error('Invalid File', 'Please select an image file (JPG, PNG, or WEBP).');
+                return;
+            }
 
-                if (fileInfo.exists && fileInfo.size && fileInfo.size > MAX_SIZE) {
-                    // Compress the image
+            // Get file size from the asset directly (expo-image-picker provides it)
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+            const fileSize = asset.fileSize || 0;
+
+            if (fileSize > MAX_SIZE) {
+                try {
                     const compressed = await manipulateAsync(
                         uri,
                         [{ resize: { width: 1200 } }],
                         { compress: 0.6, format: SaveFormat.JPEG }
                     );
                     setScreenshotUri(compressed.uri);
-                } else {
+                } catch (compressErr) {
+                    console.warn('Image compression failed, using original:', compressErr);
                     setScreenshotUri(uri);
                 }
+            } else {
+                setScreenshotUri(uri);
             }
-        } catch {
-            Alert.alert('Error', 'Failed to pick image. Please try again.');
+        } catch (err) {
+            console.error('Error picking image:', err);
+            popup.error('Error', 'Failed to pick image. Please try again.');
         }
-    }, []);
+    }, [popup]);
 
     const handleConfirmScreenshot = useCallback(async () => {
         if (!screenshotUri) return;
         if (!utrNumber.trim()) {
-            Alert.alert('Required', 'Please enter your UTR / Transaction ID to confirm payment.');
+            popup.warning('Required', 'Please enter your UTR / Transaction ID to confirm payment.');
             return;
         }
 
@@ -319,11 +338,11 @@ const PaymentScreen = () => {
                 setShowVerification(true);
                 setTimeLeft(TIMER_DURATION);
             } else {
-                Alert.alert('Upload Failed', response.data.message || 'Could not upload payment details. Please try again.');
+                popup.error('Upload Failed', response.data.message || 'Could not upload payment details. Please try again.');
             }
         } catch (error: any) {
             console.error('Error uploading payment details:', error);
-            Alert.alert('Error', error.response?.data?.message || 'Failed to submit payment details. Please check your connection and try again.');
+            popup.error('Error', error.response?.data?.message || 'Failed to submit payment details. Please check your connection and try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -332,24 +351,23 @@ const PaymentScreen = () => {
     const handleWhatsAppSupport = useCallback(() => {
         const url = `whatsapp://send?phone=${WHATSAPP_NUMBER}&text=Hi, I need help with my premium payment.`;
         Linking.openURL(url).catch(() => {
-            Alert.alert('Error', 'WhatsApp is not installed on your device.');
+            popup.error('Error', 'WhatsApp is not installed on your device.');
         });
-    }, []);
+    }, [popup]);
 
     const handleGoBack = useCallback(() => {
         if (showVerification) {
-            Alert.alert(
+            popup.confirm(
                 'Leave Verification?',
-                'Your payment is being verified. You can safely leave — we\'ll notify you once approved.',
-                [
-                    { text: 'Stay', style: 'cancel' },
-                    { text: 'Leave', onPress: () => router.back() },
-                ]
+                "Your payment is being verified. You can safely leave — we'll notify you once approved.",
+                () => router.back(),
+                'Leave',
+                'Stay'
             );
         } else {
             router.back();
         }
-    }, [showVerification]);
+    }, [showVerification, popup]);
 
     // ─── VERIFICATION STATUS VIEW ───
     if (showVerification) {

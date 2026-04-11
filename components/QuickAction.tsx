@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSubscription } from '../app/(root)/contexts/subscriptionContext';
+import { usePopup } from '../app/(root)/contexts/PopupContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 20) / 2 - 10; // 40 = 20 padding on each side, 10 = half the gap
@@ -10,6 +11,7 @@ const CARD_WIDTH = (SCREEN_WIDTH - 20) / 2 - 10; // 40 = 20 padding on each side
 const QuickAction = () => {
   const router = useRouter();
   const { subscriptionData } = useSubscription() || {};
+  const popup = usePopup();
 
   const handleActionPress = (actionType: string) => {
     switch (actionType) {
@@ -18,13 +20,9 @@ const QuickAction = () => {
         break;
       case 'Star Match':
         if (!subscriptionData?.planTitle || subscriptionData.planTitle === 'Free') {
-          Alert.alert(
-            'Unlock Star Match ⭐',
+          popup.premiumRequired(
             'Star Match is a premium feature! Upgrade your plan to discover your compatibility score and find your perfect match.',
-            [
-              { text: 'Maybe Later', style: 'cancel' },
-              { text: 'Upgrade Now', onPress: () => router.push('/(root)/screens/PremiumTab') }
-            ]
+            () => router.push('/(root)/screens/PremiumTab' as any)
           );
           return;
         }

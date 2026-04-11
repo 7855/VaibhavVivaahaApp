@@ -33,6 +33,8 @@ interface Plan {
   isActive: boolean;
   isPopular?: boolean;
   features?: string[];
+  tagline?: string;
+  planDescription?: string;
 }
 
 // Mock API response simulating the exact structure to be expected from backend matching static JSON requests
@@ -43,39 +45,63 @@ const MOCK_API_RESPONSE = {
   data: [
     {
       id: 1, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 0, durationMonths: 0, period: "/free", price: "0.00", originalPrice: "0.00", title: "Free", discount: "", savings: "Starter",
-      features: ["Basic Search Filters", "Limited Requests", "View Profile (limited)", "Shortlist"]
+      tagline: "உங்கள் பயணம் தொடங்குகிறது",
+      planDescription: "Browse profiles and send 3 free interests. Partnerஐ பார்க்க முடியும் — join பண்ணி start பண்ணுங்கள்!",
+      features: ["Browse profiles by age, caste & location", "Save favourite profiles", "3 free interest requests"]
     },
     {
-      id: 2, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "999.00", originalPrice: "1499.00", title: "Bronze", discount: "33% OFF", savings: "Value",
-      features: ["Basic Search", "Advanced Search", "Send Request", "Limited Requests", "Shortlist"]
+      id: 2, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "199.00", originalPrice: "499.00", title: "Starter", discount: "60% OFF", savings: "Entry",
+      tagline: "முதல் அடி எடுங்கள்",
+      planDescription: "15 interests, see who viewed you, and explore advanced filters. Serious match தேட ஒரு perfect entry plan.",
+      features: ["Advanced filters — education, income & more", "15 interest requests", "See who viewed you (last 5)", "View all profile photos"]
     },
     {
-      id: 3, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "1499.00", originalPrice: "2499.00", title: "Bronze", discount: "40% OFF", savings: "Value",
-      features: ["Basic Search", "Advanced Search", "Send Request", "Limited Requests", "Shortlist"]
+      id: 3, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "999.00", originalPrice: "1499.00", title: "Classic", discount: "33% OFF", savings: "Value",
+      tagline: "தெளிவான தேர்வு",
+      planDescription: "50 interests, full profile details, contact info, and limited \"who viewed\" — நிறைய options பாருங்கள்!",
+      features: ["50 interest requests", "See full profile details & all photos", "See phone & personal contact info", "See who viewed you (last 20)", "Save favourite profiles"]
     },
     {
-      id: 4, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "1999.00", originalPrice: "2999.00", title: "Silver", discount: "33% OFF", savings: "Popular",
-      features: ["Unlimited Requests", "Direct Messaging", "View Personal Info", "Shortlist", "Notification Alerts"]
+      id: 4, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "1499.00", originalPrice: "2499.00", title: "Classic", discount: "40% OFF", savings: "Best Value",
+      tagline: "தெளிவான தேர்வு",
+      planDescription: "50 interests, full profile details, contact info, and limited \"who viewed\" — நிறைய options பாருங்கள்!",
+      features: ["50 interest requests", "See full profile details & all photos", "See phone & personal contact info", "See who viewed you (last 20)", "Save favourite profiles"]
     },
     {
-      id: 5, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "2999.00", originalPrice: "3999.00", title: "Silver", discount: "25% OFF", savings: "Most Popular", isPopular: true,
-      features: ["Unlimited Requests", "Direct Messaging", "View Personal Info", "Shortlist", "Notification Alerts"]
+      id: 5, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "1999.00", originalPrice: "2999.00", title: "Silver", discount: "33% OFF", savings: "Popular",
+      tagline: "இதயம் திறக்கும் நேரம்",
+      planDescription: "Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!",
+      features: ["Unlimited interest requests", "Chat directly with families", "Full profile & contact visibility", "Appear higher in search results", "See who viewed your profile"]
     },
     {
-      id: 6, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 365, durationMonths: 12, period: "/12 months", price: "4499.00", originalPrice: "5999.00", title: "Silver", discount: "25% OFF", savings: "Long Term",
-      features: ["Unlimited Requests", "Direct Messaging", "View Personal Info", "Shortlist", "Notification Alerts"]
+      id: 6, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "2999.00", originalPrice: "3999.00", title: "Silver", discount: "25% OFF", savings: "Most Popular", isPopular: true,
+      tagline: "இதயம் திறக்கும் நேரம்",
+      planDescription: "Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!",
+      features: ["Unlimited interest requests", "Chat directly with families", "Full profile & contact visibility", "Appear higher in search results", "See who viewed your profile"]
     },
     {
-      id: 7, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "4999.00", originalPrice: "6999.00", title: "Gold", discount: "28% OFF", savings: "Premium",
-      features: ["Everything in Silver", "Who Viewed You", "Verification Badge", "High Visibility"]
+      id: 7, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 365, durationMonths: 12, period: "/12 months", price: "4499.00", originalPrice: "5999.00", title: "Silver", discount: "25% OFF", savings: "Long Term",
+      tagline: "இதயம் திறக்கும் நேரம்",
+      planDescription: "Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!",
+      features: ["Unlimited interest requests", "Chat directly with families", "Full profile & contact visibility", "Appear higher in search results", "See who viewed your profile"]
     },
     {
-      id: 8, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 365, durationMonths: 12, period: "/12 months", price: "7999.00", originalPrice: "10999.00", title: "Gold", discount: "27% OFF", savings: "Best Value",
-      features: ["Everything in Silver", "Who Viewed You", "Verification Badge", "High Visibility"]
+      id: 8, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "4999.00", originalPrice: "6999.00", title: "Gold", discount: "28% OFF", savings: "Premium",
+      tagline: "தங்க வாழ்க்கை தொடர்புகள்",
+      planDescription: "Everything in Silver plus jathagam match, verification badge, and search boost. உங்கள் profile shine ஆகும்!",
+      features: ["Everything in Silver", "Jathagam compatibility check", "Verified badge on your profile", "Priority search placement", "See who viewed your profile"]
     },
     {
-      id: 9, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 9999, durationMonths: 0, period: "/until marriage", price: "12999.00", originalPrice: "19999.00", title: "Platinum", discount: "35% OFF", savings: "Ultimate",
-      features: ["All Features", "Speak With Families", "WhatsApp Share", "Highest Search Visibility", "Unlimited until marriage"]
+      id: 9, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 365, durationMonths: 12, period: "/12 months", price: "7999.00", originalPrice: "10999.00", title: "Gold", discount: "27% OFF", savings: "Best Value",
+      tagline: "தங்க வாழ்க்கை தொடர்புகள்",
+      planDescription: "Everything in Silver plus jathagam match, verification badge, and search boost. உங்கள் profile shine ஆகும்!",
+      features: ["Everything in Silver", "Jathagam compatibility check", "Verified badge on your profile", "Priority search placement", "See who viewed your profile"]
+    },
+    {
+      id: 10, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 9999, durationMonths: 0, period: "/until marriage", price: "9999.00", originalPrice: "19999.00", title: "Platinum", discount: "50% OFF", savings: "Ultimate",
+      tagline: "திருமணம் வரை நம்மோட உதவி",
+      planDescription: "All features until your wedding day — family chat, WhatsApp sharing, priority support. நாங்கள் உங்களோடு இருக்கோம்!",
+      features: ["All Gold features", "Family-to-family direct chat", "Share profiles via WhatsApp", "Priority customer support", "Active until your wedding day"]
     }
   ]
 };
@@ -96,8 +122,19 @@ export default function PremiumTab() {
   const [paymentData, setPaymentData] = useState<any>(null);
 
   useEffect(() => {
-    fetchPaymentStatus();
-    fetchData();
+    (async () => {
+      try {
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        const role = await AsyncStorage.getItem('userRole');
+        if (role === 'PARENT') {
+          // Parents cannot manage subscriptions/payments — bounce them back
+          router.replace('/(root)/(tabs)' as any);
+          return;
+        }
+      } catch (_) {}
+      fetchPaymentStatus();
+      fetchData();
+    })();
   }, []);
 
   const fetchPaymentStatus = async () => {
@@ -176,7 +213,9 @@ export default function PremiumTab() {
           savings: plan.savings || 'Value',
           isActive: plan.active === 'Y',
           isPopular: plan.isPopular || false,
-          features: plan.features || []
+          features: plan.features || [],
+          tagline: plan.tagline || '',
+          planDescription: plan.planDescription || '',
         };
       });
 
@@ -281,39 +320,63 @@ export default function PremiumTab() {
   const defaultPlans: Plan[] = [
     {
       id: 1, title: 'Free', price: '₹0', originalPrice: '₹0', period: '/free', discount: '', savings: 'Starter', isActive: true, isPopular: false,
-      features: ['Basic Search Filters', 'Limited Requests', 'View Profile (limited)', 'Shortlist']
+      tagline: 'உங்கள் பயணம் தொடங்குகிறது',
+      planDescription: 'Browse profiles and send 3 free interests. Partnerஐ பார்க்க முடியும் — join பண்ணி start பண்ணுங்கள்!',
+      features: ['Browse profiles by age, caste & location', 'Save favourite profiles', '3 free interest requests']
     },
     {
-      id: 2, title: 'Bronze (3 Months)', price: '₹999', originalPrice: '₹1,499', period: '/3 months', discount: '33% OFF', savings: 'Value', isActive: true, isPopular: false,
-      features: ['Basic Search', 'Advanced Search', 'Send Request', 'Limited Requests', 'Shortlist']
+      id: 2, title: 'Starter (3 Months)', price: '₹199', originalPrice: '₹499', period: '/3 months', discount: '60% OFF', savings: 'Entry', isActive: true, isPopular: false,
+      tagline: 'முதல் அடி எடுங்கள்',
+      planDescription: '15 interests, see who viewed you, and explore advanced filters. Serious match தேட ஒரு perfect entry plan.',
+      features: ['Advanced filters — education, income & more', '15 interest requests', 'See who viewed you (last 5)', 'View all profile photos']
     },
     {
-      id: 3, title: 'Bronze (6 Months)', price: '₹1,499', originalPrice: '₹2,499', period: '/6 months', discount: '40% OFF', savings: 'Value', isActive: true, isPopular: false,
-      features: ['Basic Search', 'Advanced Search', 'Send Request', 'Limited Requests', 'Shortlist']
+      id: 3, title: 'Classic (3 Months)', price: '₹999', originalPrice: '₹1,499', period: '/3 months', discount: '33% OFF', savings: 'Value', isActive: true, isPopular: false,
+      tagline: 'தெளிவான தேர்வு',
+      planDescription: '50 interests, full profile details, contact info, and limited "who viewed" — நிறைய options பாருங்கள்!',
+      features: ['50 interest requests', 'See full profile details & all photos', 'See phone & personal contact info', 'See who viewed you (last 20)', 'Save favourite profiles']
     },
     {
-      id: 4, title: 'Silver (3 Months)', price: '₹1,999', originalPrice: '₹2,999', period: '/3 months', discount: '33% OFF', savings: 'Popular', isActive: true, isPopular: false,
-      features: ['Unlimited Requests', 'Direct Messaging', 'View Personal Info', 'Shortlist', 'Notification Alerts']
+      id: 4, title: 'Classic (6 Months)', price: '₹1,499', originalPrice: '₹2,499', period: '/6 months', discount: '40% OFF', savings: 'Best Value', isActive: true, isPopular: false,
+      tagline: 'தெளிவான தேர்வு',
+      planDescription: '50 interests, full profile details, contact info, and limited "who viewed" — நிறைய options பாருங்கள்!',
+      features: ['50 interest requests', 'See full profile details & all photos', 'See phone & personal contact info', 'See who viewed you (last 20)', 'Save favourite profiles']
     },
     {
-      id: 5, title: 'Silver (6 Months)', price: '₹2,999', originalPrice: '₹3,999', period: '/6 months', discount: '25% OFF', savings: 'Most Popular', isActive: true, isPopular: true,
-      features: ['Unlimited Requests', 'Direct Messaging', 'View Personal Info', 'Shortlist', 'Notification Alerts']
+      id: 5, title: 'Silver (3 Months)', price: '₹1,999', originalPrice: '₹2,999', period: '/3 months', discount: '33% OFF', savings: 'Popular', isActive: true, isPopular: false,
+      tagline: 'இதயம் திறக்கும் நேரம்',
+      planDescription: 'Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!',
+      features: ['Unlimited interest requests', 'Chat directly with families', 'Full profile & contact visibility', 'Appear higher in search results', 'See who viewed your profile']
     },
     {
-      id: 6, title: 'Silver (12 Months)', price: '₹4,499', originalPrice: '₹5,999', period: '/12 months', discount: '25% OFF', savings: 'Long Term', isActive: true, isPopular: false,
-      features: ['Unlimited Requests', 'Direct Messaging', 'View Personal Info', 'Shortlist', 'Notification Alerts']
+      id: 6, title: 'Silver (6 Months)', price: '₹2,999', originalPrice: '₹3,999', period: '/6 months', discount: '25% OFF', savings: 'Most Popular', isActive: true, isPopular: true,
+      tagline: 'இதயம் திறக்கும் நேரம்',
+      planDescription: 'Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!',
+      features: ['Unlimited interest requests', 'Chat directly with families', 'Full profile & contact visibility', 'Appear higher in search results', 'See who viewed your profile']
     },
     {
-      id: 7, title: 'Gold (6 Months)', price: '₹4,999', originalPrice: '₹6,999', period: '/6 months', discount: '28% OFF', savings: 'Premium', isActive: true, isPopular: false,
-      features: ['Everything in Silver', 'Who Viewed You', 'Verification Badge', 'High Visibility']
+      id: 7, title: 'Silver (12 Months)', price: '₹4,499', originalPrice: '₹5,999', period: '/12 months', discount: '25% OFF', savings: 'Long Term', isActive: true, isPopular: false,
+      tagline: 'இதயம் திறக்கும் நேரம்',
+      planDescription: 'Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!',
+      features: ['Unlimited interest requests', 'Chat directly with families', 'Full profile & contact visibility', 'Appear higher in search results', 'See who viewed your profile']
     },
     {
-      id: 8, title: 'Gold (12 Months)', price: '₹7,999', originalPrice: '₹10,999', period: '/12 months', discount: '27% OFF', savings: 'Best Value', isActive: true, isPopular: false,
-      features: ['Everything in Silver', 'Who Viewed You', 'Verification Badge', 'High Visibility']
+      id: 8, title: 'Gold (6 Months)', price: '₹4,999', originalPrice: '₹6,999', period: '/6 months', discount: '28% OFF', savings: 'Premium', isActive: true, isPopular: false,
+      tagline: 'தங்க வாழ்க்கை தொடர்புகள்',
+      planDescription: 'Everything in Silver plus jathagam match, verification badge, and search boost. உங்கள் profile shine ஆகும்!',
+      features: ['Everything in Silver', 'Jathagam compatibility check', 'Verified badge on your profile', 'Priority search placement', 'See who viewed your profile']
     },
     {
-      id: 9, title: 'Platinum', price: '₹12,999', originalPrice: '₹19,999', period: '/until marriage', discount: '35% OFF', savings: 'Ultimate', isActive: true, isPopular: false,
-      features: ['All Features', 'Speak With Families', 'WhatsApp Share', 'Highest Search Visibility', 'Unlimited until marriage']
+      id: 9, title: 'Gold (12 Months)', price: '₹7,999', originalPrice: '₹10,999', period: '/12 months', discount: '27% OFF', savings: 'Best Value', isActive: true, isPopular: false,
+      tagline: 'தங்க வாழ்க்கை தொடர்புகள்',
+      planDescription: 'Everything in Silver plus jathagam match, verification badge, and search boost. உங்கள் profile shine ஆகும்!',
+      features: ['Everything in Silver', 'Jathagam compatibility check', 'Verified badge on your profile', 'Priority search placement', 'See who viewed your profile']
+    },
+    {
+      id: 10, title: 'Platinum', price: '₹9,999', originalPrice: '₹19,999', period: '/until marriage', discount: '50% OFF', savings: 'Ultimate', isActive: true, isPopular: false,
+      tagline: 'திருமணம் வரை நம்மோட உதவி',
+      planDescription: 'All features until your wedding day — family chat, WhatsApp sharing, priority support. நாங்கள் உங்களோடு இருக்கோம்!',
+      features: ['All Gold features', 'Family-to-family direct chat', 'Share profiles via WhatsApp', 'Priority customer support', 'Active until your wedding day']
     }
   ];
 
@@ -651,11 +714,20 @@ export default function PremiumTab() {
               )}
 
               <View style={styles.planHeader}>
-                <Text style={styles.planTitle}>{plan.title}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.planTitle}>{plan.title}</Text>
+                  {plan.tagline ? (
+                    <Text style={styles.planTagline}>{plan.tagline}</Text>
+                  ) : null}
+                </View>
                 <View style={styles.discountBadge}>
                   <Text style={styles.discountText}>{plan.discount}</Text>
                 </View>
               </View>
+
+              {selectedPlan === index && plan.planDescription ? (
+                <Text style={styles.planDescription}>{plan.planDescription}</Text>
+              ) : null}
 
               <View style={styles.priceSection}>
                 <View style={styles.priceRow}>
@@ -1015,13 +1087,29 @@ const styles = StyleSheet.create({
   planHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
   planTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#130001',
+  },
+  planTagline: {
+    fontSize: 11,
+    color: '#9c4040',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  planDescription: {
+    fontSize: 12,
+    color: '#4b5563',
+    lineHeight: 18,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f3e8e8',
   },
   discountBadge: {
     backgroundColor: '#dcfce7',

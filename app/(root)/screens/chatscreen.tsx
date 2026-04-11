@@ -3,9 +3,11 @@ import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, StyleSheet,
 import { Ionicons, Feather, Fontisto } from '@expo/vector-icons';
 import { router, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Box, NativeBaseProvider, Pressable, Toast } from 'native-base';
+import VerifiedBadges from '../../../components/VerifiedBadges';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import userApi from '../api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
+import { usePopup } from '../contexts/PopupContext';
 import base64 from 'react-native-base64';
 
 import {
@@ -37,6 +39,7 @@ interface ChatScreenParams {
 
 function ChatScreen() {
   const { userData } = useUserData();
+  const popup = usePopup();
   const router = useRouter();
   const navigation = useNavigation();
   const route = useLocalSearchParams();
@@ -62,6 +65,22 @@ function ChatScreen() {
   const [statusMessage, setStatusMessage] = useState('');
   const [chatPadding, setChatPadding] = useState(10);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [isParent, setIsParent] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const role = await AsyncStorage.getItem('userRole');
+      setIsParent(role === 'PARENT');
+    })();
+  }, []);
+
+  const blockedForParent = (action: string) => {
+    popup.error(
+      'Not allowed',
+      `Family members cannot ${action}. This action must come from the primary account holder.`
+    );
+  };
   const [selectedReason, setSelectedReason] = useState('');
   const [isShortlisted, setIsShortlisted] = useState(false);
   const { subscriptionData } = useSubscription();
@@ -104,6 +123,11 @@ function ChatScreen() {
   const [isBlockedByOtherUser, setIsBlockedByOtherUser] = useState(false);
   const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
   const [otherUserLastseenTime, setOtherUserLastseenTime] = useState('');
+  const [otherUserVerifications, setOtherUserVerifications] = useState<{
+    idVerified?: boolean;
+    educationVerified?: boolean;
+    incomeVerified?: boolean;
+  }>({});
   const [blockedId, setBlockedId] = useState('');
 
 
@@ -114,56 +138,38 @@ function ChatScreen() {
     { key: '4', value: 'Others' },
   ]);
 
-  const handleBlockUser = async () => {
-    try {
-      // First show confirmation dialog
-      const confirm = await new Promise((resolve) => {
-        Alert.alert(
-          'Block User',
-          'Are you sure you want to block this user? You won\'t be able to chat or view each other\'s profiles.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Yes',
-              onPress: () => resolve(true),
-              style: 'destructive'
-            }
-          ]
-        );
-      });
-
-      if (confirm) {
+  const handleBlockUser = () => {
+    if (isParent) { blockedForParent('block other users'); return; }
+    popup.confirm(
+      'Block User',
+      "Are you sure you want to block this user? You won't be able to chat or view each other's profiles.",
+      async () => {
         try {
-          // Get the current user's ID from context
           if (!userData.userId) {
-            Alert.alert('Error', 'User ID not found. Please try again.');
+            console.warn('User ID not found in storage');
             return;
           }
 
           const requestBody = {
-            blockedByUserId: userData.userId, // Convert to base64
-            blockedUserId: parseInt(otherUserId)
+            blockedByUserId: userData.userId,
+            blockedUserId: parseInt(otherUserId),
           };
 
-          // Call the blockUser API
           await userApi.blockUser(requestBody);
 
-          // Show success message
-          Alert.alert('Success', 'User blocked successfully.');
-
-          // Navigate back to chat list
-          router.back();
+          popup.success('Blocked', 'User blocked successfully.', () => router.back());
         } catch (error) {
           console.error('Error blocking user:', error);
-          Alert.alert('Error', 'Failed to block user. Please try again.');
+          popup.error('Error', 'Failed to block user. Please try again.');
         }
-      }
-    } catch (error) {
-      console.error('Error showing block confirmation:', error);
-    }
+      },
+      'Block',
+      'Cancel'
+    );
   };
 
   const handleReportUser = async () => {
+    if (isParent) { blockedForParent('report other users'); return; }
     setShowReportModal(true);
   };
 
@@ -178,13 +184,13 @@ function ChatScreen() {
       await userApi.deleteBlockedUser(blockedId);
 
       // Show success message
-      Alert.alert('Success', 'User unblocked successfully.');
+      popup.success('Unblocked', 'User unblocked successfully.');
 
       // Navigate back to chat list
       router.navigate('/myChatList');
     } catch (error) {
       console.error('Error unblocking user:', error);
-      Alert.alert('Error', 'Failed to unblock user. Please try again.');
+      popup.error('Error', 'Failed to unblock user. Please try again.');
     }
 
   };
@@ -192,7 +198,7 @@ function ChatScreen() {
   const handleShortlistUser = async () => {
     try {
       if (!userId || !otherUserId) {
-        Alert.alert('Error', 'User IDs not available');
+        console.warn('User IDs not available');
         return;
       }
       const storedUserId = userData.userId;
@@ -205,27 +211,27 @@ function ChatScreen() {
       });
 
       setIsShortlisted(true);
-      Alert.alert('Success', 'User has been shortlisted');
+      popup.success('Shortlisted', 'User has been added to your shortlist.');
     } catch (error) {
       console.error('Error shortlisting user:', error);
-      Alert.alert('Error', 'Failed to shortlist user');
+      popup.error('Error', 'Failed to shortlist user.');
     }
   };
 
   const handleUnshortlistUser = async () => {
     try {
       if (!userId || !otherUserId) {
-        Alert.alert('Error', 'User IDs not available');
+        console.warn('User IDs not available');
         return;
       }
       const storedUserId = userData.userId;
 
       await userApi.deleteShortlistedProfileByUsers(storedUserId, parseInt(otherUserId));
       setIsShortlisted(false);
-      Alert.alert('Success', 'User has been removed from shortlist');
+      popup.success('Removed', 'User removed from your shortlist.');
     } catch (error) {
       console.error('Error unshortlisting user:', error);
-      Alert.alert('Error', 'Failed to remove user from shortlist');
+      popup.error('Error', 'Failed to remove user from shortlist.');
     }
   };
 
@@ -234,36 +240,31 @@ function ChatScreen() {
     const reasonToSend = selectedReason;
 
     if (!reasonToSend) {
-      Alert.alert('Error', 'Please select or enter a reason.');
+      popup.warning('Select a reason', 'Please select or enter a reason for reporting.');
       return;
     }
 
     try {
-      // Get the current user's ID from AsyncStorage
       const storedUserId = userData.userId;
       if (!storedUserId) {
-        Alert.alert('Error', 'User ID not found. Please try again.');
+        console.warn('User ID not found in storage');
         return;
       }
 
-      // Prepare the request body
       const requestBody = {
         reportedByUserId: storedUserId,
         reportedUserId: parseInt(otherUserId),
         reason: reasonToSend
       };
 
-      // Call the reportUser API
       await userApi.reportUser(requestBody);
 
-      // Show success message
-      Alert.alert('Success', 'User reported successfully.');
-
-      // Navigate back to chat list
-      router.navigate('/myChatList');
+      popup.success('Reported', 'User reported successfully. Our team will review.', () =>
+        router.navigate('/myChatList')
+      );
     } catch (error) {
       console.error('Error reporting user:', error);
-      Alert.alert('Error', 'Failed to report user. Please try again.');
+      popup.error('Error', 'Failed to report user. Please try again.');
     }
   };
 
@@ -434,6 +435,19 @@ function ChatScreen() {
         setIsOtherUserOnline(onlineStatusResponse.data.data.isOnline);
         const formattedTime = formatLastSeenTime(onlineStatusResponse.data.data.lastSeen);
         setOtherUserLastseenTime(formattedTime);
+
+        // Fetch verification flags once for the header shield
+        try {
+          const profileRes = await userApi.getProfileDetails(otherUserId);
+          const d = profileRes?.data?.data;
+          if (d) {
+            setOtherUserVerifications({
+              idVerified: d.idVerified === true,
+              educationVerified: d.educationVerified === true,
+              incomeVerified: d.incomeVerified === true,
+            });
+          }
+        } catch (_) {}
         const response = await userApi.getConversationData(conversationId);
         if (response.data && response.data.data) {
           // Get conversation data
@@ -484,12 +498,10 @@ function ChatScreen() {
 
   const handleSend = async () => {
     if (!isPremium) {
-      Toast.show({
-        title: "Premium Required",
-        description: "Upgrade to Premium to send messages",
-        duration: 3000,
-      });
-      router.replace('/(root)/screens/PremiumTab');
+      popup.premiumRequired(
+        'Upgrade to Premium to send messages and unlock unlimited chats.',
+        () => router.push('/(root)/screens/PremiumTab')
+      );
       return;
     }
     if (!inputText.trim()) return;
@@ -708,8 +720,19 @@ function ChatScreen() {
                   resizeMode="cover"
                 />
                 <View style={styles.headerTextContainer}>
-                  <Text style={styles.headerTitle} numberOfLines={1}
-                    ellipsizeMode="tail">{otherUserName}1</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.headerTitle} numberOfLines={1}
+                      ellipsizeMode="tail">{otherUserName}</Text>
+                    <View style={{ marginLeft: 6 }}>
+                      <VerifiedBadges
+                        idVerified={otherUserVerifications.idVerified}
+                        educationVerified={otherUserVerifications.educationVerified}
+                        incomeVerified={otherUserVerifications.incomeVerified}
+                        mode="compact"
+                        size="sm"
+                      />
+                    </View>
+                  </View>
                   {!isBlockedByOtherUser && (
                     isOtherUserOnline ? (
                       <Text style={styles.lastSeen}>Online</Text>
@@ -776,11 +799,21 @@ function ChatScreen() {
                       )}
 
                       <MenuOption onSelect={handleBlockUser}>
-                        <Text style={styles.item}>Block</Text>
+                        <View style={{ paddingVertical: 4, paddingHorizontal: 6 }}>
+                          <Text style={[styles.item, { fontWeight: '600', paddingHorizontal: 0, paddingVertical: 0, marginBottom: 0 }]}>Block</Text>
+                          <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
+                            Hide each other. Reversible.
+                          </Text>
+                        </View>
                       </MenuOption>
 
                       <MenuOption onSelect={handleReportUser}>
-                        <Text style={styles.item}>Report User</Text>
+                        <View style={{ paddingVertical: 4, paddingHorizontal: 6 }}>
+                          <Text style={[styles.item, { fontWeight: '600', color: '#dc2626', paddingHorizontal: 0, paddingVertical: 0, marginBottom: 0 }]}>Report User</Text>
+                          <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
+                            Flag for moderator review. Anonymous.
+                          </Text>
+                        </View>
                       </MenuOption>
 
                       {/* <MenuOption onSelect={handlePrintSelected}>

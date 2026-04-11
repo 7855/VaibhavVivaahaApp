@@ -10,7 +10,7 @@ interface WebSocketMessage {
   };
 }
 
-const WS_BASE_URL = process.env.EXPO_PUBLIC_WS_URL || 'ws://192.168.43.250:9100';
+const WS_BASE_URL = process.env.EXPO_PUBLIC_WS_URL || 'ws://10.46.223.75:9100';
 
 export class WebSocketService {
   private static instance: WebSocketService;
@@ -82,7 +82,10 @@ export class WebSocketService {
     this.socket.onclose = (event) => {
       console.log(`🔴 WebSocket closed (code: ${event.code}, reason: ${event.reason})`);
       if (this.userId) {
-        userApi.lastSeen(this.userId).catch(() => { });
+        // Backend expects Base64-encoded userId
+        if (this.rawUserId) {
+          userApi.lastSeen(this.rawUserId).catch(() => { });
+        }
       }
       // Only reconnect from onclose (NOT from onerror) to avoid double reconnect
       this.reconnect();

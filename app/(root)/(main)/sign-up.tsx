@@ -10,7 +10,8 @@ import {
   TextInput,
   Pressable,
   Alert,
-  Modal
+  Modal,
+  ActivityIndicator
 } from "react-native";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Swiper from "react-native-swiper";
@@ -22,13 +23,15 @@ import { NativeModules } from 'react-native';
 import moment from 'moment'; // Import the moment library for date formatting
 import { SelectList } from 'react-native-dropdown-select-list'
 import { Ionicons } from '@expo/vector-icons';
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { AntDesign } from '@expo/vector-icons';
 import RNDateTimePicker from "@react-native-community/datetimepicker";
 import { ArrowLeft, ArrowRight } from "lucide-react-native";
 import { loadMasterData } from "../services/masterService";
 import { useMasterData } from "../contexts/MasterDataContext";
+import { usePopup } from "../contexts/PopupContext";
 type GetstartProps = {
   onStart: () => void;
 };
@@ -60,6 +63,7 @@ interface FormErrors {
 }
 
 export default function SignUp({ onStart }: GetstartProps) {
+  const popup = usePopup();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(new Date());
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -89,6 +93,10 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [confirmPin, setConfirmPin] = useState('');
   const [age, setAge] = useState('');
   const [email, setEmail] = useState('');
+  // Email verification state
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationToken, setVerificationToken] = useState<string | null>(null);
+  const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [fatherName, setFatherName] = useState('');
@@ -175,7 +183,7 @@ const validateFormData = () => {
     .map(field => fieldLabels[field] || field); // Map field names to labels
 
   if (missingFields.length > 0) {
-    Alert.alert(
+    popup.warning(
       "Missing Fields",
       `Please fill in the following required fields:\n\n• ${missingFields.join("\n• ")}`
     );
@@ -183,7 +191,7 @@ const validateFormData = () => {
   }
 
   if (formData.pin !== formData.confirmPin) {
-    Alert.alert("Validation Error", "PIN and Confirm PIN do not match!");
+    popup.error("Validation Error", "PIN and Confirm PIN do not match!");
     return false;
   }
 
@@ -267,14 +275,72 @@ useEffect(() => {
     console.log('Form Data:', JSON.stringify(formData, null, 2));
   };
 
+  // ===== Email verification =====
+  const handleVerifyEmail = async () => {
+    if (!isValidEmail(email)) {
+      setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
+      return;
+    }
+    try {
+      setSendingEmailOtp(true);
+      console.log('sendAuthOtp payload →', { email, purpose: 'registration', firstName });
+      const res = await userApi.sendAuthOtp({ email, purpose: 'registration', firstName: firstName || undefined });
+      if (res.data?.code === 200) {
+        popup.success(
+          'OTP Sent',
+          `A verification code has been sent to ${email}. Please check your inbox.`,
+          () => {
+            router.push({
+              pathname: '/(root)/(main)/OTPValidationScreen',
+              params: { email, purpose: 'registration' },
+            });
+          }
+        );
+      } else if (res.data?.code === 409) {
+        popup.warning('Email Already Registered', res.data.message || 'This email is already registered. Please login instead.');
+      } else {
+        popup.error('Error', res.data?.message || 'Failed to send OTP. Please try again.');
+      }
+    } catch (err) {
+      console.error('sendAuthOtp error:', err);
+      popup.error('Error', 'Failed to send OTP. Please try again.');
+    } finally {
+      setSendingEmailOtp(false);
+    }
+  };
+
+  // When user returns from OTP screen, check if they verified their email
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkVerification = async () => {
+        const token = await AsyncStorage.getItem('emailVerificationToken');
+        const verifiedEmail = await AsyncStorage.getItem('verifiedEmail');
+        if (token && verifiedEmail && verifiedEmail === email) {
+          setVerificationToken(token);
+          setEmailVerified(true);
+          // Clear so user doesn't auto-verify if they change email
+          await AsyncStorage.removeItem('emailVerificationToken');
+          await AsyncStorage.removeItem('verifiedEmail');
+        }
+      };
+      checkVerification();
+    }, [email])
+  );
+
   const handleFormSubmit = async () => {
     // Validate all fields first
     if (!validateFormData()) return;
 
+    // Require email verification before allowing registration
+    if (!emailVerified || !verificationToken) {
+      popup.warning("Verify Email", "Please verify your email before registering.");
+      return;
+    }
+
     // Find the selected caste data
     const selectedCasteData = allCaste.find((item: any) => item.casteCode === caste);
     if (!selectedCasteData) {
-      Alert.alert("No caste selected", "Please select a valid caste.");
+      popup.warning("No caste selected", "Please select a valid caste.");
       return;
     }
 
@@ -301,6 +367,7 @@ useEffect(() => {
       location: jobPlace,
       age,
       email,
+      verificationToken,
     };
 
     console.log("payload=====================>", payload);
@@ -309,20 +376,21 @@ useEffect(() => {
       const response = await userApi.createUser(payload);
 
       if (response.data?.code === 401) {
-        Alert.alert("Error", "Given Mobile Number Already Registered.");
+        popup.error("Registration Failed", "This mobile number is already registered.");
       } else if (response.data?.code === 200) {
-        Alert.alert("Success", "Account created successfully!", [
-          {
-            text: "OK",
-            onPress: () => router.push("/"),
-          },
-        ]);
+        popup.success(
+          "Account Created",
+          "Your profile has been submitted for review. You'll be notified once approved.",
+          () => router.replace('/(root)/(main)/LoginScreen')
+        );
+      } else if (response.data?.code === 400) {
+        popup.error("Verification Failed", response.data.message || "Please verify your email and try again.");
       } else {
-        Alert.alert("Error", "Something went wrong. Please try again.");
+        popup.error("Error", "Something went wrong. Please try again.");
       }
     } catch (error) {
       console.error("Error creating user:", error);
-      Alert.alert("Error", "Failed to create account. Please try again.");
+      popup.error("Error", "Failed to create account. Please try again.");
     }
   };
 
@@ -357,7 +425,7 @@ useEffect(() => {
 
       // 🚫 Underage validation
       if (computedAge < 18) {
-        Alert.alert(
+        popup.warning(
           "Age Restriction",
           "You must be at least 18 years old to register."
         );
@@ -386,7 +454,7 @@ useEffect(() => {
     const computedAge = calculateAge(tempDate);
 
     if (computedAge < 18) {
-      Alert.alert("Age Restriction", "You must be at least 18 years old to register.");
+      popup.warning("Age Restriction", "You must be at least 18 years old to register.");
       return;   // ❌ do not update anything
     }
 
@@ -525,6 +593,88 @@ useEffect(() => {
               {/* Your form fields go here */}
               <View style={{ marginBottom: 0 }}>
 
+                {/* Header */}
+                <View
+                  style={{
+                    marginBottom: 20,
+                    marginTop: 8,
+                    alignItems: 'center',
+                    paddingHorizontal: 8,
+                  }}
+                >
+                  {/* Logo */}
+                  <View
+                    style={{
+                      width: 88,
+                      height: 88,
+                      borderRadius: 44,
+                      backgroundColor: '#fff8f8',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginBottom: 12,
+                      borderWidth: 2,
+                      borderColor: '#f3d5d6',
+                      shadowColor: '#420001',
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 10,
+                      elevation: 8,
+                    }}
+                  >
+                    <Image
+                      source={require('../../../assets/images/LotusLogo.jpeg')}
+                      style={{ width: 72, height: 72, borderRadius: 36, resizeMode: 'cover' }}
+                    />
+                  </View>
+
+                  {/* Decorative top divider with heart */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                    <View style={{ height: 1, width: 36, backgroundColor: '#420001', opacity: 0.3 }} />
+                    <TextNB style={{ marginHorizontal: 8, fontSize: 18 }}>♥</TextNB>
+                    <View style={{ height: 1, width: 36, backgroundColor: '#420001', opacity: 0.3 }} />
+                  </View>
+
+                  <TextNB
+                    style={{
+                      color: '#420001',
+                      fontSize: 22,
+                      fontWeight: 'bold',
+                      letterSpacing: 1.5,
+                      textAlign: 'center',
+                    }}
+                  >
+                    CREATE AN ACCOUNT
+                  </TextNB>
+
+                  <View
+                    style={{
+                      height: 3,
+                      width: 50,
+                      backgroundColor: '#420001',
+                      borderRadius: 2,
+                      marginTop: 8,
+                      marginBottom: 10,
+                    }}
+                  />
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                    <TextNB style={{ color: '#666', fontSize: 13 }}>
+                      Already have an account?{' '}
+                    </TextNB>
+                    <TouchableOpacity onPress={() => router.replace('/(root)/(main)/LoginScreen')}>
+                      <TextNB
+                        style={{
+                          color: '#420001',
+                          fontSize: 13,
+                          fontWeight: 'bold',
+                          textDecorationLine: 'underline',
+                        }}
+                      >
+                        Login
+                      </TextNB>
+                    </TouchableOpacity>
+                  </View>
+                </View>
 
                 <HStack space={2} width="100%">
                   {/* First Name Field */}
@@ -533,7 +683,7 @@ useEffect(() => {
                       First Name
                     </TextNB>
                     <TextInput
-                      placeholder="Enter First Name"
+                      placeholder="First Name"
                       value={firstName}
                       onChangeText={(t) => {
                         setFirstName(onlyAlphabets(t));
@@ -563,7 +713,7 @@ useEffect(() => {
                       Last Name
                     </TextNB>
                     <TextInput
-                      placeholder="Enter Last Name"
+                      placeholder="Last Name"
                       value={lastName}
                       onChangeText={(t) => {
                         setLastName(onlyAlphabets(t));
@@ -786,11 +936,41 @@ useEffect(() => {
                     <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
                       Email
                     </TextNB>
+                    {emailVerified ? (
+                      <TextNB style={{ position: 'absolute', right: 4, top: 0, color: 'green', fontSize: 12, fontWeight: 'bold' }}>
+                        ✓ Verified
+                      </TextNB>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={handleVerifyEmail}
+                        disabled={!isValidEmail(email) || sendingEmailOtp}
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: -4,
+                          backgroundColor: !isValidEmail(email) || sendingEmailOtp ? '#ccc' : '#420001',
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                          zIndex: 2,
+                        }}
+                      >
+                        {sendingEmailOtp ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <TextNB style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>Verify</TextNB>
+                        )}
+                      </TouchableOpacity>
+                    )}
                     <TextInput
                       placeholder="Enter Email"
                       value={email}
                       onChangeText={(t) => {
                         setEmail(t);
+                        if (emailVerified) {
+                          setEmailVerified(false);
+                          setVerificationToken(null);
+                        }
                         if (errors.email) {
                           setErrors(prev => ({ ...prev, email: '' }));
                         }
@@ -802,6 +982,7 @@ useEffect(() => {
                           setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
                         }
                       }}
+                      editable={!emailVerified}
                       style={[styles.input, errors.email && styles.inputError]}
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -894,7 +1075,7 @@ useEffect(() => {
               </View>
             </KeyboardAwareScrollView>
             <View style={{ display: 'flex', alignItems: 'flex-end', marginRight: 25 }}>
-              <ButtonNB style={{ marginBottom: 60, marginTop: 0, width: '26%', borderRadius: 20, backgroundColor: '#420001' }} onPress={() => swiperRef.current?.scrollBy(1)}>
+              <ButtonNB style={{ marginBottom: 60, marginTop: 0, width: '30%', borderRadius: 24, backgroundColor: '#420001', paddingVertical: 12, shadowColor: '#420001', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 }} onPress={() => swiperRef.current?.scrollBy(1)}>
                 <HStack space={2} alignItems="center">
                   <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>Next</TextNB>
                   <ArrowRight size={20} color="#fff" fontWeight={'semibold'} />
@@ -933,10 +1114,13 @@ useEffect(() => {
               <TextNB color="#130057" fontSize={13} marginBottom={2} fontWeight="bold">
                 Employing In
               </TextNB>
-              <Box alignItems="flex-start" width="100%" marginBottom={4}>
-                <HStack space={4} alignItems="start">
+              <Box width="100%" marginBottom={4}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                   {employmentOptions.map((option) => (
-                    <HStack key={option.value} space={2} alignItems="start">
+                    <View
+                      key={option.value}
+                      style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16, marginBottom: 8 }}
+                    >
                       <Checkbox
                         value={option.value}
                         isChecked={employmentStatus === option.value}
@@ -948,12 +1132,12 @@ useEffect(() => {
                           borderColor: "#130057"
                         }}
                       />
-                      <TextNB fontSize="sm">
+                      <TextNB fontSize="sm" marginLeft={2}>
                         {option.label}
                       </TextNB>
-                    </HStack>
+                    </View>
                   ))}
-                </HStack>
+                </View>
               </Box>
 
               {/* 11. Income (annual CTC) (multiline) */}
@@ -1277,9 +1461,15 @@ useEffect(() => {
               {/* Back Button */}
               <ButtonNB
                 style={{
-                  width: '26%',
-                  borderRadius: 20,
+                  width: '30%',
+                  borderRadius: 24,
                   backgroundColor: '#420001',
+                  paddingVertical: 12,
+                  shadowColor: '#420001',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 6,
+                  elevation: 4,
                 }}
                 onPress={() => swiperRef.current?.scrollBy(-1)} // move to previous page
               >
@@ -1294,9 +1484,15 @@ useEffect(() => {
               {/* Submit or Next Button */}
               <ButtonNB
                 style={{
-                  width: '26%',
-                  borderRadius: 20,
+                  width: '30%',
+                  borderRadius: 24,
                   backgroundColor: '#420001',
+                  paddingVertical: 12,
+                  shadowColor: '#420001',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 6,
+                  elevation: 4,
                 }}
                 onPress={() => handleFormSubmit()} // or change to submit handler
               >
@@ -1323,14 +1519,14 @@ useEffect(() => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#fffaf9",
   },
   scrollContainer: {
     flexGrow: 1,
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#fffaf9",
   },
   backgroundImage: {
     width: "100%",
@@ -1405,25 +1601,35 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   input: {
-    height: 40,
+    height: 44,
     borderWidth: 1,
-    padding: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     width: '100%',
-    borderRadius: 10,
-    borderColor: 'black',
+    borderRadius: 12,
+    borderColor: '#e8d5d5',
+    backgroundColor: '#ffffff',
+    fontSize: 14,
+    color: '#333',
+    shadowColor: '#420001',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   inputContainer: {
-    marginBottom: 0,
+    marginBottom: 4,
   },
   dateinput: {
-    height: 40,
-    // margin: 12,
+    height: 44,
     borderWidth: 1,
-    padding: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     width: '100%',
-    borderRadius: 10,
-    borderColor: 'gray',
-    color: '#F5F5F5',
+    borderRadius: 12,
+    borderColor: '#e8d5d5',
+    backgroundColor: '#ffffff',
+    color: '#333',
     marginBottom: 12,
   },
   box: {
@@ -1444,17 +1650,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "bold",
     marginBottom: 5,
-    color: "#130057",
+    color: "#420001",
   },
   inputBox: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 1,
-    // borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    // backgroundColor: "#fff",
+    borderColor: "#e8d5d5",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    backgroundColor: "#ffffff",
+    height: 44,
+    shadowColor: "#420001",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   overlay: {
     flex: 1,
@@ -1493,7 +1706,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "#ddd",
   },
   inputError: {
-    borderColor: 'red',
+    borderColor: '#dc2626',
+    borderWidth: 1.5,
   },
   error: {
     color: 'red',
