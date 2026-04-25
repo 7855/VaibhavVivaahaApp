@@ -171,16 +171,13 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
           </View>
           
           <Text style={{
-            fontSize: 28,
-            fontWeight: 'bold',
-            color: '#420001',
-            marginBottom: 12,
+            fontSize: 22,
+            fontWeight: '600',
+            color: '#5C1A1B',
+            marginBottom: 8,
             textAlign: 'center',
-            // textShadowColor: 'rgba(0, 0, 0, 0.3)',
-            // textShadowOffset: { width: 0, height: 2 },
-            textShadowRadius: 4,
           }}>
-            VVM PIN Recovery
+            Forgot Password
           </Text>
           <Text style={{
             // color: '#f5f5f5',
@@ -202,13 +199,13 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
             <View style={{
               width: 32,
               height: 2,
-              backgroundColor: '#420001',
+              backgroundColor: '#1F7FE5',
             }} />
-            <Icon name="spa" size={16} color="#420001" style={{ marginHorizontal: 12 }} />
+            <Icon name="spa" size={16} color="#1F7FE5" style={{ marginHorizontal: 12 }} />
             <View style={{
               width: 32,
               height: 2,
-              backgroundColor: '#420001',
+              backgroundColor: '#1F7FE5',
             }} />
           </View>
         </View>
@@ -234,7 +231,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               height: 40,
               borderLeftWidth: 3,
               borderTopWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderTopLeftRadius: 16,
             }} />
             <View style={{
@@ -245,7 +242,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               height: 40,
               borderRightWidth: 3,
               borderTopWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderTopRightRadius: 16,
             }} />
             <View style={{
@@ -256,7 +253,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               height: 40,
               borderLeftWidth: 3,
               borderBottomWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderBottomLeftRadius: 16,
             }} />
             <View style={{
@@ -267,7 +264,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               height: 40,
               borderRightWidth: 3,
               borderBottomWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderBottomRightRadius: 16,
             }} />
             
@@ -298,7 +295,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 {/* Sacred Mobile Input */}
                 <View style={{ gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Icon name="phone" size={16} color="#130057" />
+                    <Icon name="email" size={16} color="#130057" />
                     <Text style={{
                       fontSize: 12,
                       fontWeight: 'bold',
@@ -307,7 +304,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
-                      Registered VVM Number
+                      Registered Email
                     </Text>
                   </View>
                   <View style={{ position: 'relative' }}>
@@ -319,7 +316,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       justifyContent: 'center',
                       zIndex: 1,
                     }}>
-                      <Icon name="phone" size={20} color="#130057" />
+                      <Icon name="email" size={20} color="#130057" />
                     </View>
                     <TextInput
                       defaultValue={phoneNumber}
@@ -358,7 +355,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       </View>
                     )}
                   </View>
-                  {phoneNumber.length > 0 && phoneNumber.length !== 10 && (
+                  {phoneNumber.length > 0 && !EMAIL_REGEX.test(phoneNumber) && (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <View style={{
                         width: 4,
@@ -372,7 +369,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         color: '#f44336',
                         fontWeight: '500',
                       }}>
-                        Please enter a complete 10-digit VVM number
+                        Please enter a valid email address
                       </Text>
                     </View>
                   )}
@@ -385,7 +382,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                
                 >
                   <LinearGradient
-                    colors={isFormValid && !isLoading ? ['#420001', '#420001'] : ['#cccccc', '#999999']}
+                    colors={isFormValid && !isLoading ? ['#1F7FE5', '#1F7FE5'] : ['#cccccc', '#999999']}
                     style={{
                       paddingVertical: 16,
                       paddingHorizontal: 24,
@@ -406,7 +403,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                           fontWeight: 'bold',
                           marginLeft: 12,
                         }}>
-                          Sending Sacred Code...
+                          Sending Code...
                         </Text>
                       </View>
                     ) : (
@@ -455,45 +452,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
           </View>
         </View>
 
-        {/* Sacred Information */}
-        <View style={{
-          marginTop: 24,
-          padding: 20,
-          backgroundColor: '#420001',
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: 'rgba(245, 245, 245, 0.2)',
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            <View style={{
-              width: 24,
-              height: 24,
-              backgroundColor: 'rgba(245, 245, 245, 0.2)',
-              borderRadius: 12,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginRight: 12,
-              marginTop: 2,
-            }}>
-              <View style={{
-                width: 8,
-                height: 8,
-                backgroundColor: '#f5f5f5',
-                borderRadius: 4,
-              }} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{
-                fontSize: 14,
-                color: '#f5f5f5',
-                fontWeight: '500',
-                lineHeight: 20,
-              }}>
-                <Text style={{ fontWeight: 'bold' }}>VVM Assurance:</Text> We'll send a 4-digit verification code to your registered mobile number for secure access restoration.
-              </Text>
-            </View>
-          </View>
-        </View>
+        {/* VVM Assurance note removed */}
       </View>
     </View>
       </TouchableWithoutFeedback>

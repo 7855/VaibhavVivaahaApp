@@ -6,6 +6,7 @@ import userApi from '../api/userApi';
 import { router } from 'expo-router';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
+import { usePopup } from '../contexts/PopupContext';
 // import RazorpayCheckout from 'react-native-razorpay';
 // Auth context removed as it's not used in this component
 
@@ -118,6 +119,7 @@ export default function PremiumTab() {
   // Payment status tracking
   const { userData } = useUserData();
   const { subscriptionData } = useSubscription() || {};
+  const popup = usePopup();
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<any>(null);
 
@@ -571,7 +573,7 @@ export default function PremiumTab() {
 
           <TouchableOpacity
             style={{
-              backgroundColor: '#420001',
+              backgroundColor: '#1F7FE5',
               borderRadius: 12,
               padding: 16,
               alignItems: 'center',
@@ -579,7 +581,7 @@ export default function PremiumTab() {
             }}
             onPress={() => router.back()}
           >
-            <Text style={{ color: '#DADADA', fontSize: 16, fontWeight: '600' }}>Go Back</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -588,34 +590,26 @@ export default function PremiumTab() {
 
   const handleUpgradePress = () => {
     if (selectedPlan === null || !plans[selectedPlan]) {
-      Alert.alert('Select a Plan', 'Please select a plan to continue.');
+      popup.warning('Select a Plan', 'Please select a plan to continue.');
       return;
     }
     const plan = plans[selectedPlan];
-    Alert.alert(
+    popup.confirm(
       'Confirm Upgrade',
-      `Continue with ${plan.title} plan at ${plan.price}?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Continue to Payment',
-          onPress: () => {
-            router.push({
-              pathname: '/screens/PaymentScreen',
-              params: {
-                planTitle: plan.title,
-                planPrice: plan.price,
-                planPeriod: plan.title,
-                planId: plan.id.toString(),
-              },
-            });
+      `Continue with ${plan.title} plan at ₹${plan.price}?`,
+      () => {
+        router.push({
+          pathname: '/screens/PaymentScreen',
+          params: {
+            planTitle: plan.title,
+            planPrice: plan.price,
+            planPeriod: plan.title,
+            planId: plan.id.toString(),
           },
-        },
-      ],
-      { cancelable: false }
+        });
+      },
+      'Continue to Payment',
+      'Cancel'
     );
   };
   const upgradePlan = async () => {
@@ -773,7 +767,7 @@ export default function PremiumTab() {
         ) : (
           <TouchableOpacity style={styles.upgradeButton} onPress={() => handleUpgradePress()}>
             <LinearGradient
-              colors={['#8b5cf6', '#7317cf']}
+              colors={['#1F7FE5', '#8B0000']}
               style={styles.upgradeGradient}>
               <Text style={styles.upgradeText}>Start Premium Journey</Text>
             </LinearGradient>
@@ -1187,7 +1181,7 @@ const styles = StyleSheet.create({
   upgradeButton: {
     width: '100%',
     marginBottom: 16,
-    shadowColor: '#ec4899',
+    shadowColor: '#1F7FE5',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

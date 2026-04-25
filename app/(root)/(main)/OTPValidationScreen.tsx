@@ -224,7 +224,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               }} />
               
               {/* Message icon with divine aura */}
-              <Icon name="message" size={36} color="#420001" />
+              <Icon name="message" size={36} color="#1F7FE5" />
               
               {/* Floating divine elements */}
               <Icon 
@@ -265,16 +265,13 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
           </View>
           
           <Text style={{
-            fontSize: 28,
-            fontWeight: 'bold',
-            color: '#420001',
-            marginBottom: 12,
+            fontSize: 22,
+            fontWeight: '600',
+            color: '#5C1A1B',
+            marginBottom: 8,
             textAlign: 'center',
-            // textShadowColor: 'rgba(0, 0, 0, 0.3)',
-            // textShadowOffset: { width: 0, height: 2 },
-            textShadowRadius: 4,
           }}>
-            VVM Verification
+            OTP Verification
           </Text>
           <Text style={{
             // color: '#f5f5f5',
@@ -295,14 +292,14 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
             justifyContent: 'center',
             marginTop: 16,
           }}>
-            <Icon name="star" size={12} color="#420001" />
+            <Icon name="star" size={12} color="#1F7FE5" />
             <View style={{
               width: 64,
               height: 2,
-              backgroundColor: '#420001',
+              backgroundColor: '#1F7FE5',
               marginHorizontal: 8,
             }} />
-            <Icon name="star" size={12} color="#420001" />
+            <Icon name="star" size={12} color="#1F7FE5" />
           </View>
         </View>
 
@@ -327,7 +324,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               height: 40,
               borderLeftWidth: 3,
               borderTopWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderTopLeftRadius: 16,
             }} />
             <View style={{
@@ -338,7 +335,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               height: 40,
               borderRightWidth: 3,
               borderTopWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderTopRightRadius: 16,
             }} />
             <View style={{
@@ -349,7 +346,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               height: 40,
               borderLeftWidth: 3,
               borderBottomWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderBottomLeftRadius: 16,
             }} />
             <View style={{
@@ -360,7 +357,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               height: 40,
               borderRightWidth: 3,
               borderBottomWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderBottomRightRadius: 16,
             }} />
             
@@ -457,7 +454,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                  
                 >
                   <LinearGradient
-                    colors={isFormValid && !isLoading ? ['#420001', '#420001'] : ['#cccccc', '#999999']}
+                    colors={isFormValid && !isLoading ? ['#1F7FE5', '#1F7FE5'] : ['#cccccc', '#999999']}
                     style={{
                       paddingVertical: 16,
                       paddingHorizontal: 24,
@@ -478,7 +475,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                           fontWeight: 'bold',
                           marginLeft: 12,
                         }}>
-                          Verifying Sacred Code...
+                          Verifying Code...
                         </Text>
                       </View>
                     ) : (
@@ -511,7 +508,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                         marginLeft: 8,
                         textDecorationLine: 'underline',
                       }}>
-                        Resend Sacred Code
+                        Resend Code
                       </Text>
                     </TouchableOpacity>
                   ) : (
@@ -570,41 +567,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
           </View>
         </View>
 
-        {/* Divine Guidance */}
-        <View style={{
-          marginTop: 24,
-          padding: 20,
-          backgroundColor: '#420001',
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: 'rgba(245, 245, 245, 0.2)',
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            <View style={{
-              width: 24,
-              height: 24,
-              backgroundColor: 'rgba(245, 245, 245, 0.2)',
-              borderRadius: 12,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginRight: 12,
-              marginTop: 2,
-            }}>
-              <Icon name="star" size={12} color="#f5f5f5" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{
-                fontSize: 14,
-                color: '#f5f5f5',
-                fontWeight: '500',
-                lineHeight: 20,
-              }}>
-                <Text style={{ fontWeight: 'bold' }}>Guidance:</Text> Check your messages for code
-                to continue your journey.
-              </Text>
-            </View>
-          </View>
-        </View>
+        {/* Guidance note removed */}
       </View>
     </View>
     </TouchableWithoutFeedback>

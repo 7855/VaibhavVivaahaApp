@@ -1,7 +1,15 @@
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+
+// expo-notifications crashes on Expo Go (Android) since SDK 53.
+// Lazy-import so the rest of the app still loads in Expo Go.
+let Notifications: typeof import('expo-notifications') | null = null;
+try {
+  Notifications = require('expo-notifications');
+} catch (e) {
+  console.warn('expo-notifications not available (Expo Go Android). Push features disabled.');
+}
 import userApi from '../app/(root)/api/userApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -17,10 +25,16 @@ export const saveDeviceInfo = async (userId: string) => {
   try {
     console.log('Saving device info for user:', userId);
     
+    // expo-notifications unavailable in Expo Go Android — skip push registration
+    if (!Notifications) {
+      console.log('Notifications module not available, skipping device info save');
+      return;
+    }
+
     // Request notification permissions if not already granted
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
-    
+
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;

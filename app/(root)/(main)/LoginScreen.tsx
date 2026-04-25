@@ -45,6 +45,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
   const handleLogin = async () => {
       try {
     if (mobileNumber.length !== 10 || pin.length !== 4) return;
+    setIsLoading(true);
 
           const request = {
               mobile: mobileNumber,
@@ -112,12 +113,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                   console.error('Error initializing WebSocket connection:', error);
               }
 
-              // Save device info and then navigate
-              try {
-                await saveDeviceInfo(response.data.data.userId);
-              } catch (error) {
-                console.error('Error saving device info:', error);
-              }
+              // Save device info in background — don't block login
+              saveDeviceInfo(response.data.data.userId).catch(() => {});
 
               // Refresh user data context with the freshly stored values
               await loadUserData();
@@ -144,6 +141,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
           }
       } catch (error) {
           console.error('Login error:', error)
+          popup.error('Login Failed', 'Network error. Please check your connection and try again.');
+      } finally {
+          setIsLoading(false);
       }
   }
 
@@ -158,160 +158,62 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1 }}>
-              <View style={{ position: 'absolute', top: 70, left:10, zIndex: 199 }}>
-                <View style={{ backgroundColor: '#420001', borderRadius: 999, padding: 0 }}>
-                  <TouchableOpacity 
+              {/* Back button */}
+              <View style={{ position: 'absolute', top: 60, left: 16, zIndex: 199 }}>
+                <TouchableOpacity
                   onPress={() => router.back()}
-                  style={{ padding: 5 }}
+                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}
                 >
-                  <Icon name="arrow-back" size={24} color="#DADADA" />
+                  <Icon name="arrow-back" size={20} color="#0f1724" />
                 </TouchableOpacity>
-                </View>
               </View>
-         
+
             <View style={{
               flex: 1,
               justifyContent: 'center',
               alignItems: 'center',
               paddingHorizontal: 20,
               paddingVertical: 40,
-              backgroundColor: '#F5F5F5'
             }}>
               <View style={{ width: '100%', maxWidth: 400 }}>
-                {/* Elegant Header with Traditional Elements */}
+                {/* Header */}
                 <View style={{ alignItems: 'center', marginBottom: 30 }}>
-                  {/* Logo with Traditional Design */}
                   <View style={{ position: 'relative', marginBottom: 24 }}>
                     <LinearGradient
                       colors={['#F5F5F5', '#e0e0e0', '#F5F5F5']}
                       style={{
-                        width: 96,
-                        height: 96,
-                        borderRadius: 48,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 8 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 16,
-                        elevation: 16,
+                        width: 96, height: 96, borderRadius: 48,
+                        justifyContent: 'center', alignItems: 'center',
+                        shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 16,
                       }}
                     >
-                      {/* Inner decorative ring */}
-                      <View style={{
-                        position: 'absolute',
-                        top: 8,
-                        left: 8,
-                        right: 8,
-                        bottom: 8,
-                        borderRadius: 40,
-                        borderWidth: 2,
-                        borderColor: 'rgba(19, 0, 87, 0.3)',
-                      }} />
-                      <View style={{
-                        position: 'absolute',
-                        top: 16,
-                        left: 16,
-                        right: 16,
-                        bottom: 16,
-                        borderRadius: 32,
-                        borderWidth: 1,
-                        borderColor: 'rgba(19, 0, 87, 0.2)',
-                      }} />
-
-                      {/* Main Icon */}
                       <View style={{ position: 'relative', zIndex: 10 }}>
                         <Avatar size={59} source={require('/assets/images/LotusLogo.jpeg')} />
-                        {/* <Icon name="favorite" size={40} color="#130057" /> */}
-                        {/* <Icon
-                          name="star"
-                          size={24}
-                          color="#130057"
-                          style={{ position: 'absolute', top: -8, right: -4 }}
-                        /> */}
                       </View>
-
-                      {/* Sparkle Effects */}
-                      <Icon
-                        name="auto-awesome"
-                        size={16}
-                        color="#130057"
-                        style={{ position: 'absolute', top: 8, left: 8, opacity: 0.6 }}
-                      />
-                      <Icon
-                        name="auto-awesome"
-                        size={12}
-                        color="#130057"
-                        style={{ position: 'absolute', bottom: 12, right: 8, opacity: 0.6 }}
-                      />
                     </LinearGradient>
-
-                    {/* Decorative Elements Around Logo */}
-                    <View style={{
-                      position: 'absolute',
-                      top: -8,
-                      left: -8,
-                      width: 24,
-                      height: 24,
-                      borderWidth: 2,
-                      borderColor: 'rgba(245, 245, 245, 0.6)',
-                      borderRadius: 12,
-                    }} />
-                    <View style={{
-                      position: 'absolute',
-                      bottom: -8,
-                      right: -8,
-                      width: 16,
-                      height: 16,
-                      backgroundColor: 'rgba(245, 245, 245, 0.6)',
-                      borderRadius: 8,
-                    }} />
                   </View>
 
                   <Text style={{
-                    fontSize: 25,
-                    fontWeight: 'bold',
-                    color: '#420001',
-                    marginBottom: 12,
+                    fontSize: 24,
+                    fontWeight: '600',
+                    color: '#5C1A1B',
+                    marginBottom: 8,
                     textAlign: 'center',
-                    // textShadowColor: 'rgba(0, 0, 0, 0.3)',
-                    // textShadowOffset: { width: 0, height: 2 },
-                    textShadowRadius: 4,
                   }}>
                     Vaibhav Vivaaha Matrimony
                   </Text>
                   <Text style={{
-                    // color: '#f5f5f5',
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: '500',
+                    color: '#8a7a6d',
                     textAlign: 'center',
-                    opacity: 0.9,
                   }}>
-Turning Matches Into Lasting Marriages                 
- </Text>
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginTop: 8,
-                  }}>
-                    <View style={{
-                      width: 48,
-                      height: 2,
-                      backgroundColor: 'rgba(245, 245, 245, 0.3)',
-                    }} />
-                    <Icon name="favorite" size={16} color="rgba(245, 245, 245, 0.4)" style={{ marginHorizontal: 8 }} />
-                    <View style={{
-                      width: 48,
-                      height: 2,
-                      backgroundColor: 'rgba(245, 245, 245, 0.3)',
-                    }} />
-                  </View>
+                    Turning Matches Into Lasting Marriages
+                  </Text>
                 </View>
 
-                {/* Elegant Login Card */}
+                {/* Login Card — same as Forgot Password card */}
                 <View style={{ position: 'relative' }}>
-                  {/* Card Background */}
                   <View style={{
                     backgroundColor: 'white',
                     borderRadius: 24,
@@ -321,65 +223,29 @@ Turning Matches Into Lasting Marriages
                     shadowRadius: 24,
                     elevation: 24,
                   }}>
-                    {/* Decorative Corner Elements */}
-                    <View style={{
-                      position: 'absolute',
-                      top: 16,
-                      left: 16,
-                      width: 32,
-                      height: 32,
-                      borderLeftWidth: 2,
-                      borderTopWidth: 2,
-                      borderColor: '#420001',
-                      borderTopLeftRadius: 8,
-                    }} />
-                    <View style={{
-                      position: 'absolute',
-                      top: 16,
-                      right: 16,
-                      width: 32,
-                      height: 32,
-                      borderRightWidth: 2,
-                      borderTopWidth: 2,
-                      borderColor: '#420001',
-                      borderTopRightRadius: 8,
-                    }} />
-                    <View style={{
-                      position: 'absolute',
-                      bottom: 16,
-                      left: 16,
-                      width: 32,
-                      height: 32,
-                      borderLeftWidth: 2,
-                      borderBottomWidth: 2,
-                      borderColor: '#420001',
-                      borderBottomLeftRadius: 8,
-                    }} />
-                    <View style={{
-                      position: 'absolute',
-                      bottom: 16,
-                      right: 16,
-                      width: 32,
-                      height: 32,
-                      borderRightWidth: 2,
-                      borderBottomWidth: 2,
-                      borderColor: '#420001',
-                      borderBottomRightRadius: 8,
-                    }} />
+                    {/* Corner decorations */}
+                    <View style={{ position: 'absolute', top: 12, left: 12, width: 40, height: 40, borderLeftWidth: 3, borderTopWidth: 3, borderColor: '#1F7FE5', borderTopLeftRadius: 16 }} />
+                    <View style={{ position: 'absolute', top: 12, right: 12, width: 40, height: 40, borderRightWidth: 3, borderTopWidth: 3, borderColor: '#1F7FE5', borderTopRightRadius: 16 }} />
+                    <View style={{ position: 'absolute', bottom: 12, left: 12, width: 40, height: 40, borderLeftWidth: 3, borderBottomWidth: 3, borderColor: '#1F7FE5', borderBottomLeftRadius: 16 }} />
+                    <View style={{ position: 'absolute', bottom: 12, right: 12, width: 40, height: 40, borderRightWidth: 3, borderBottomWidth: 3, borderColor: '#1F7FE5', borderBottomRightRadius: 16 }} />
 
-                    <View style={{ padding: 40 }}>
-                      <View style={{ gap: 32 }}>
+                    <View style={{ padding: 36 }}>
+                      <View style={{ gap: 28 }}>
                         {/* Phone Number Input */}
                         <View style={{ gap: 12 }}>
-                          <Text style={{
-                            fontSize: 12,
-                            fontWeight: 'bold',
-                            color: '#130057',
-                            letterSpacing: 1,
-                            textTransform: 'uppercase',
-                          }}>
-                            Contact Number
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Icon name="phone" size={16} color="#130057" />
+                            <Text style={{
+                              fontSize: 12,
+                              fontWeight: 'bold',
+                              color: '#130057',
+                              letterSpacing: 1,
+                              textTransform: 'uppercase',
+                              marginLeft: 8,
+                            }}>
+                              Contact Number
+                            </Text>
+                          </View>
                           <View style={{ position: 'relative' }}>
                             <View style={{
                               position: 'absolute',
@@ -406,7 +272,7 @@ Turning Matches Into Lasting Marriages
                                 fontWeight: '500',
                                 color: '#130057',
                               }}
-                              placeholder="N U M B E R"
+                              placeholder="Enter mobile number"
                               placeholderTextColor="rgba(19, 0, 87, 0.4)"
                               keyboardType="numeric"
                               maxLength={10}
@@ -441,15 +307,19 @@ Turning Matches Into Lasting Marriages
 
                         {/* PIN Input */}
                         <View style={{ gap: 12 }}>
-                          <Text style={{
-                            fontSize: 12,
-                            fontWeight: 'bold',
-                            color: '#130057',
-                            letterSpacing: 1,
-                            textTransform: 'uppercase',
-                          }}>
-                            PIN
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Icon name="lock" size={16} color="#130057" />
+                            <Text style={{
+                              fontSize: 12,
+                              fontWeight: 'bold',
+                              color: '#130057',
+                              letterSpacing: 1,
+                              textTransform: 'uppercase',
+                              marginLeft: 8,
+                            }}>
+                              PIN
+                            </Text>
+                          </View>
                           <View style={{ position: 'relative' }}>
                             <View style={{
                               position: 'absolute',
@@ -475,10 +345,9 @@ Turning Matches Into Lasting Marriages
                                 fontSize: 14,
                                 fontWeight: '500',
                                 color: '#130057',
-                                letterSpacing: 8,
                               }}
-                              placeholder="PIN"
-                              placeholderTextColor="rgba(19, 0, 87, 0.4)"
+                              placeholder="Enter PIN"
+                              placeholderTextColor="rgba(19, 0, 87, 0.25)"
                               secureTextEntry={!showPin}
                               keyboardType="numeric"
                               maxLength={4}
@@ -518,40 +387,23 @@ Turning Matches Into Lasting Marriages
                          
                         >
                           <LinearGradient
-                            colors={isFormValid && !isLoading ? ['#420001', '#420001'] : ['#cccccc', '#999999']}
+                            colors={isFormValid && !isLoading ? ['#1F7FE5', '#1F7FE5'] : ['#cccccc', '#999999']}
                             style={{
                               paddingVertical: 16,
                               paddingHorizontal: 24,
                               borderRadius: 16,
                               alignItems: 'center',
-                              // shadowColor: '#000',
-                              // shadowOffset: { width: 0, height: 8 },
-                              // shadowOpacity: 0.3,
-                              // shadowRadius: 16,
-                              // elevation: 8,
                             }}
                           >
                             {isLoading ? (
-                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={{
-                                  color: '#DADADA',
-                                  fontSize: 18,
-                                  fontWeight: 'bold',
-                                  marginLeft: 12,
-                                }}>
-                                  Entering Portal...
-                                </Text>
-                              </View>
+                              <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                Signing in...
+                              </Text>
                             ) : (
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Icon name="favorite" size={20} color="white" />
-                                <Text style={{
-                                  color: '#DADADA',
-                                  fontSize: 18,
-                                  fontWeight: 'bold',
-                                  marginLeft: 8,
-                                }}>
-                                  Begin Your Journey
+                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 }}>
+                                  Sign In
                                 </Text>
                               </View>
                             )}
@@ -571,7 +423,7 @@ Turning Matches Into Lasting Marriages
                               marginLeft: 8,
                               textDecorationLine: 'underline',
                             }}>
-                              Forgotten PIN?
+                              Forgot PIN?
                             </Text>
                           </TouchableOpacity>
                         </View>
@@ -580,14 +432,14 @@ Turning Matches Into Lasting Marriages
                   </View>
                 </View>
 
-                {/* Footer */}
-                <View style={{ alignItems: 'center', marginTop: 32 }}>
-                  <Text style={{
-                    color: 'rgba(245, 245, 245, 0.7)',
-                    fontWeight: '500',
-                    textAlign: 'center',
-                  }}>
-💍 United by Love • Guided by Tradition • Blessed for Life 💍                  </Text>
+                {/* Sign up link */}
+                <View style={{ alignItems: 'center', marginTop: 24 }}>
+                  <Text style={{ fontSize: 13, color: '#8a7a6d' }}>
+                    Don't have an account?{' '}
+                    <Text style={{ color: '#5C1A1B', fontWeight: '600' }} onPress={() => router.push('/(root)/(main)/sign-up')}>
+                      Sign Up
+                    </Text>
+                  </Text>
                 </View>
               </View>
             </View>

@@ -686,10 +686,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 <Text fontSize="md" fontWeight="bold" color="coolGray.800">
                   {section.title}
                 </Text>
-                <HStack space={5}>
-                  <EIcon name="cross" size={28} color="coolGray.600" onPress={onClose} />
-                  <EIcon name="check" size={25} color="coolGray.600" onPress={handleSubmit} />
-                </HStack>
+                <EIcon name="cross" size={28} color="#6b7280" onPress={onClose} />
               </HStack>
 
               <Divider my={2} height="2px" bg="coolGray.200" />
@@ -706,10 +703,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 <Button
                   width="50%"
                   onPress={handleSubmit}
-                  bg="primary.500"
+                  bg="#1F7FE5"
                   borderRadius="lg"
-                  _text={{ color: "#DADADA" }}
-                  _pressed={{ bg: "primary.600" }}
+                  _text={{ color: "#fff", fontWeight: "700" }}
+                  _pressed={{ bg: "#1862B8" }}
                 >
                   Save Changes
                 </Button>

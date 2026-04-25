@@ -32,6 +32,8 @@ import { ArrowLeft, ArrowRight } from "lucide-react-native";
 import { loadMasterData } from "../services/masterService";
 import { useMasterData } from "../contexts/MasterDataContext";
 import { usePopup } from "../contexts/PopupContext";
+import InterestChipGrid from "../../../components/InterestChipGrid";
+import { INTEREST_TAGS } from "../../../constants/interests";
 type GetstartProps = {
   onStart: () => void;
 };
@@ -76,9 +78,12 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [caste, setCaste] = useState('');
   const { state: masterData, setMasterData } = useMasterData();
   const [educationOptions, setEducationOptions] = useState<Array<{ id: string, value: string }>>([]);
-  const [incomeOptions, setIncomeOptions] = useState<Array<{ id: string, value: string, label: string }>>([]);
+  const [incomeOptions, setIncomeOptions] = useState<Array<{ id: string, value: string, label: string, numericValue: string }>>([]);
   const [employmentOptions, setEmploymentOptions] = useState<Array<{ id: string, value: string, label: string }>>([]);
+  const [districtOptions, setDistrictOptions] = useState<Array<{ id: string, value: string }>>([]);
+  const [selectedCity, setSelectedCity] = useState('');
   const [allCaste, setAllCaste] = useState<any[]>([]);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [fatherOccupation, setFatherOccupation] = React.useState("");
   const [motherOccupation, setMotherOccupation] = React.useState("");
   const [selectedComplexion, setSelectedComplexion] = useState<string>('');
@@ -87,6 +92,7 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [loading, setLoading] = useState(false);
   const [casteList, setCasteList] = useState<CasteOption[]>([]);
   const [income, setIncome] = useState('');
+  const [incomeNumeric, setIncomeNumeric] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('');
   // employmentOptions is now managed by the masterData effect
   const [pin, setPin] = useState('');
@@ -120,89 +126,96 @@ export default function SignUp({ onStart }: GetstartProps) {
   };
   const [errors, setErrors] = useState<FormErrors>({});
 
-const validateFormData = () => {
-  const fieldLabels: Record<string, string> = {
-    firstName: 'First Name',
-    lastName: 'Last Name',
-    dob: 'Date of Birth',
-    gender: 'Gender',
-    caste: 'Caste',
-    mobile: 'Mobile Number',
-    age: 'Age',
-    email: 'Email',
-    education: 'Education',
-    occupation: 'Occupation',
-    employmentStatus: 'Employment Status',
-    nativePlace: 'Native Place',
-    income: 'Income',
-    fatherName: 'Father\'s Name',
-    fatherOccupation: 'Father\'s Occupation',
-    motherName: 'Mother\'s Name',
-    motherOccupation: 'Mother\'s Occupation',
-    jobPlace: 'Job Place',
-    currentAddress: 'Current Address',
-    pin: 'PIN',
-    confirmPin: 'Confirm PIN',
-    educationInDetail: 'Education in Detail'
+  const validateFormData = () => {
+    const fieldLabels: Record<string, string> = {
+      firstName: 'First Name',
+      lastName: 'Last Name',
+      dob: 'Date of Birth',
+      gender: 'Gender',
+      caste: 'Caste',
+      mobile: 'Mobile Number',
+      age: 'Age',
+      email: 'Email',
+      education: 'Education',
+      occupation: 'Occupation',
+      employmentStatus: 'Employment Status',
+      nativePlace: 'Native Place',
+      income: 'Income',
+      fatherName: 'Father\'s Name',
+      fatherOccupation: 'Father\'s Occupation',
+      motherName: 'Mother\'s Name',
+      motherOccupation: 'Mother\'s Occupation',
+      selectedCity: 'City / District',
+      jobPlace: 'Job Place',
+      currentAddress: 'Current Address',
+      pin: 'PIN',
+      confirmPin: 'Confirm PIN',
+      educationInDetail: 'Education in Detail'
+    };
+
+    const formData: any = {
+      firstName,
+      lastName,
+      dob,
+      gender: selectedGender,
+      caste,
+      mobile,
+      age,
+      email,
+      education,
+      occupation,
+      employmentStatus,
+      nativePlace,
+      income,
+      fatherName,
+      fatherOccupation,
+      motherName,
+      motherOccupation,
+      selectedCity,
+      jobPlace,
+      currentAddress,
+      pin,
+      confirmPin,
+      educationInDetail
+    };
+
+    const requiredFields = Object.keys(formData);
+
+    const missingFields = requiredFields
+      .filter(
+        (field) =>
+          formData[field] === null ||
+          formData[field] === undefined ||
+          formData[field].toString().trim() === ""
+      )
+      .map(field => fieldLabels[field] || field); // Map field names to labels
+
+    // Add email verification to the missing list if not verified
+    if (!emailVerified) {
+      missingFields.push('Email Verification');
+    }
+
+    if (missingFields.length > 0) {
+      popup.warning(
+        "Missing Fields",
+        `Please fill in the following required fields:\n\n• ${missingFields.join("\n• ")}`
+      );
+      return false;
+    }
+
+    if (formData.pin !== formData.confirmPin) {
+      popup.error("Validation Error", "PIN and Confirm PIN do not match!");
+      return false;
+    }
+
+    return true;
   };
 
-  const formData: any = {
-    firstName,
-    lastName,
-    dob,
-    gender: selectedGender,
-    caste,
-    mobile,
-    age,
-    email,
-    education,
-    occupation,
-    employmentStatus,
-    nativePlace,
-    income,
-    fatherName,
-    fatherOccupation,
-    motherName,
-    motherOccupation,
-    jobPlace,
-    currentAddress,
-    pin,
-    confirmPin,
-    educationInDetail
-  };
-
-  const requiredFields = Object.keys(formData);
-
-  const missingFields = requiredFields
-    .filter(
-      (field) =>
-        formData[field] === null ||
-        formData[field] === undefined ||
-        formData[field].toString().trim() === ""
-    )
-    .map(field => fieldLabels[field] || field); // Map field names to labels
-
-  if (missingFields.length > 0) {
-    popup.warning(
-      "Missing Fields",
-      `Please fill in the following required fields:\n\n• ${missingFields.join("\n• ")}`
-    );
-    return false;
-  }
-
-  if (formData.pin !== formData.confirmPin) {
-    popup.error("Validation Error", "PIN and Confirm PIN do not match!");
-    return false;
-  }
-
-  return true;
-};
-
-useEffect(() => {
-  if (!Object.keys(masterData || {}).length) {
-    loadMasterData(setMasterData);
-  }
-}, []);
+  useEffect(() => {
+    if (!Object.keys(masterData || {}).length) {
+      loadMasterData(setMasterData);
+    }
+  }, []);
 
   // Update dropdown options when masterData changes
   useEffect(() => {
@@ -216,12 +229,13 @@ useEffect(() => {
         setEducationOptions(eduOptions);
       }
 
-      // Update income options
-      if (masterData.annualIncomes) {
-        const incOptions = masterData.annualIncomes.map((income: any) => ({
+      // Update income options — use annualIncomeRegister for registration (simple list)
+      const incSource = masterData.annualIncomeRegister || masterData.annualIncome || masterData.annualIncomes;
+      if (incSource) {
+        const incOptions = incSource.map((income: any) => ({
           id: income.id.toString(),
-          value: income.amount,
-          label: income.amount
+          value: income.label || income.amount?.toString() || '',
+          numericValue: income.value || income.amount?.toString() || ''
         }));
         setIncomeOptions(incOptions);
       }
@@ -235,6 +249,15 @@ useEffect(() => {
         }));
         console.log("Employment options:", empOptions);
         setEmploymentOptions(empOptions);
+      }
+
+      // Update district/city options
+      if (masterData.districts) {
+        const distOptions = masterData.districts.map((d: any) => ({
+          id: d.id.toString(),
+          value: d.value,
+        }));
+        setDistrictOptions(distOptions);
       }
     }
   }, [masterData]);
@@ -338,7 +361,7 @@ useEffect(() => {
     }
 
     // Find the selected caste data
-    const selectedCasteData = allCaste.find((item: any) => item.casteCode === caste);
+    const selectedCasteData = allCaste.find((item: any) => item.casteName === caste || item.casteCode === caste);
     if (!selectedCasteData) {
       popup.warning("No caste selected", "Please select a valid caste.");
       return;
@@ -360,14 +383,15 @@ useEffect(() => {
       employingIn: employmentStatus,
       nativePlace,
       currentAddress,
-      annualIncome: income,
+      annualIncome: incomeNumeric || income,
       gender: selectedGender.toUpperCase() == "MALE" ? "M" : "F",
       casteId: parseInt(selectedCasteData.id),
       pin,
-      location: jobPlace,
+      location: selectedCity || jobPlace,
       age,
       email,
       verificationToken,
+      educationInDetail,
     };
 
     console.log("payload=====================>", payload);
@@ -378,6 +402,22 @@ useEffect(() => {
       if (response.data?.code === 401) {
         popup.error("Registration Failed", "This mobile number is already registered.");
       } else if (response.data?.code === 200) {
+        // Store token so subsequent API calls (hobbies) work
+        if (response.data.data?.token) {
+          await AsyncStorage.setItem('authToken', response.data.data.token);
+        }
+        if (response.data.data?.refreshToken) {
+          await AsyncStorage.setItem('refreshToken', response.data.data.refreshToken);
+        }
+
+        // Save hobbies if user selected any during signup
+        if (selectedInterests.length > 0 && response.data?.data?.userId) {
+          try {
+            await userApi.updateUserHobbies(response.data.data.userId, selectedInterests);
+          } catch (hobbyErr) {
+            console.log('Failed to save hobbies during signup:', hobbyErr);
+          }
+        }
         popup.success(
           "Account Created",
           "Your profile has been submitted for review. You'll be notified once approved.",
@@ -395,8 +435,6 @@ useEffect(() => {
   };
 
 
-
-  console.log("RNDatePicker module:", NativeModules.RNDatePicker);
 
   const genderOptions = [
     { label: 'Male', value: 'male' },
@@ -421,19 +459,19 @@ useEffect(() => {
   const handleDateChange = (event: any, selectedDate: Date | undefined) => {
     setOpen(false);
     if (selectedDate) {
+      if (selectedDate > new Date()) {
+        setTimeout(() => popup.warning("Invalid Date", "Date of birth cannot be a future date."), 300);
+        return;
+      }
+
       const computedAge = calculateAge(selectedDate);
 
-      // 🚫 Underage validation
       if (computedAge < 18) {
-        popup.warning(
-          "Age Restriction",
-          "You must be at least 18 years old to register."
-        );
-        return; // ❗ Do NOT update DOB or age
+        setTimeout(() => popup.warning("Age Restriction", "You must be at least 18 years old to register."), 300);
+        return;
       }
       setDate(selectedDate);
       setDob(selectedDate);
-      // Format the date for display
       const formattedDate = moment(selectedDate).format('DD MMM YYYY');
       setDobDisplay(formattedDate);
     }
@@ -451,18 +489,25 @@ useEffect(() => {
   };
 
   const onDateConfirm = () => {
+    // Always close the picker first
+    setShowDatePicker(false);
+
+    if (tempDate > new Date()) {
+      setTimeout(() => popup.warning("Invalid Date", "Date of birth cannot be a future date."), 300);
+      return;
+    }
+
     const computedAge = calculateAge(tempDate);
 
     if (computedAge < 18) {
-      popup.warning("Age Restriction", "You must be at least 18 years old to register.");
-      return;   // ❌ do not update anything
+      setTimeout(() => popup.warning("Age Restriction", "You must be at least 18 years old to register."), 300);
+      return;
     }
 
     setDate(tempDate);
     setAge(computedAge.toString());
     setDob(tempDate);
     setDobDisplay(moment(tempDate).format("DD MMM YYYY"));
-    setShowDatePicker(false);
   };
 
 
@@ -504,7 +549,7 @@ useEffect(() => {
           <TextNB style={{ color: selected ? "#000" : "#999" }}>
             {selected || placeholder}
           </TextNB>
-          <Ionicons name="chevron-down" size={18} color="#130057" />
+          <Ionicons name="chevron-down" size={16} color="#130057" />
         </TouchableOpacity>
 
         {/* Modal */}
@@ -594,86 +639,27 @@ useEffect(() => {
               <View style={{ marginBottom: 0 }}>
 
                 {/* Header */}
-                <View
-                  style={{
-                    marginBottom: 20,
-                    marginTop: 8,
-                    alignItems: 'center',
-                    paddingHorizontal: 8,
-                  }}
-                >
-                  {/* Logo */}
-                  <View
-                    style={{
-                      width: 88,
-                      height: 88,
-                      borderRadius: 44,
-                      backgroundColor: '#fff8f8',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      marginBottom: 12,
-                      borderWidth: 2,
-                      borderColor: '#f3d5d6',
-                      shadowColor: '#420001',
-                      shadowOffset: { width: 0, height: 6 },
-                      shadowOpacity: 0.25,
-                      shadowRadius: 10,
-                      elevation: 8,
-                    }}
-                  >
+                <View style={{ marginBottom: 16, marginTop: 2 }}>
+                  {/* Top bar — logo left, login link right */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <Image
                       source={require('../../../assets/images/LotusLogo.jpeg')}
-                      style={{ width: 72, height: 72, borderRadius: 36, resizeMode: 'cover' }}
+                      style={{ width: 44, height: 44, borderRadius: 22 }}
                     />
-                  </View>
-
-                  {/* Decorative top divider with heart */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                    <View style={{ height: 1, width: 36, backgroundColor: '#420001', opacity: 0.3 }} />
-                    <TextNB style={{ marginHorizontal: 8, fontSize: 18 }}>♥</TextNB>
-                    <View style={{ height: 1, width: 36, backgroundColor: '#420001', opacity: 0.3 }} />
-                  </View>
-
-                  <TextNB
-                    style={{
-                      color: '#420001',
-                      fontSize: 22,
-                      fontWeight: 'bold',
-                      letterSpacing: 1.5,
-                      textAlign: 'center',
-                    }}
-                  >
-                    CREATE AN ACCOUNT
-                  </TextNB>
-
-                  <View
-                    style={{
-                      height: 3,
-                      width: 50,
-                      backgroundColor: '#420001',
-                      borderRadius: 2,
-                      marginTop: 8,
-                      marginBottom: 10,
-                    }}
-                  />
-
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                    <TextNB style={{ color: '#666', fontSize: 13 }}>
-                      Already have an account?{' '}
-                    </TextNB>
-                    <TouchableOpacity onPress={() => router.replace('/(root)/(main)/LoginScreen')}>
-                      <TextNB
-                        style={{
-                          color: '#420001',
-                          fontSize: 13,
-                          fontWeight: 'bold',
-                          textDecorationLine: 'underline',
-                        }}
-                      >
-                        Login
-                      </TextNB>
+                    <TouchableOpacity
+                      onPress={() => router.replace('/(root)/(main)/LoginScreen')}
+                      style={{ backgroundColor: '#1F7FE5', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
+                    >
+                      <TextNB style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Sign In</TextNB>
                     </TouchableOpacity>
                   </View>
+                  {/* Title + subtitle */}
+                  <TextNB style={{ color: '#1a1a1a', fontSize: 22, fontWeight: '800' }}>
+                    Create your account
+                  </TextNB>
+                  <TextNB style={{ color: '#9ca3af', fontSize: 12, marginTop: 3 }}>
+                    Find your perfect match — start your journey
+                  </TextNB>
                 </View>
 
                 <HStack space={2} width="100%">
@@ -848,6 +834,7 @@ useEffect(() => {
                               onChange={() => setSelectedGender(option.value)}
                               size="sm"
                               colorScheme="black"
+                              accessibilityLabel={option.label}
                               _checked={{
                                 bg: "#130057",
                                 borderColor: "#130057",
@@ -871,10 +858,7 @@ useEffect(() => {
                   placeholder="Select Caste"
                   data={casteList}
                   selected={caste}
-                  onSelect={(val) => {
-                    const selectedCaste = casteList.find(c => c.id === val);
-                    setCaste(selectedCaste?.code || '');
-                  }}
+                  onSelect={(val) => setCaste(val)}
                 />
 
 
@@ -937,9 +921,24 @@ useEffect(() => {
                       Email
                     </TextNB>
                     {emailVerified ? (
-                      <TextNB style={{ position: 'absolute', right: 4, top: 0, color: 'green', fontSize: 12, fontWeight: 'bold' }}>
-                        ✓ Verified
-                      </TextNB>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setEmailVerified(false);
+                          setVerificationToken(null);
+                        }}
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: -4,
+                          backgroundColor: '#f59e0b',
+                          paddingHorizontal: 10,
+                          paddingVertical: 3,
+                          borderRadius: 4,
+                          zIndex: 2,
+                        }}
+                      >
+                        <TextNB style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>Change</TextNB>
+                      </TouchableOpacity>
                     ) : (
                       <TouchableOpacity
                         onPress={handleVerifyEmail}
@@ -948,9 +947,9 @@ useEffect(() => {
                           position: 'absolute',
                           right: 0,
                           top: -4,
-                          backgroundColor: !isValidEmail(email) || sendingEmailOtp ? '#ccc' : '#420001',
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
+                          backgroundColor: !isValidEmail(email) || sendingEmailOtp ? '#ccc' : '#1F7FE5',
+                          paddingHorizontal: 10,
+                          paddingVertical: 3,
                           borderRadius: 4,
                           zIndex: 2,
                         }}
@@ -962,31 +961,41 @@ useEffect(() => {
                         )}
                       </TouchableOpacity>
                     )}
-                    <TextInput
-                      placeholder="Enter Email"
-                      value={email}
-                      onChangeText={(t) => {
-                        setEmail(t);
-                        if (emailVerified) {
-                          setEmailVerified(false);
-                          setVerificationToken(null);
-                        }
-                        if (errors.email) {
-                          setErrors(prev => ({ ...prev, email: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!email) {
-                          setErrors(prev => ({ ...prev, email: 'Email is required' }));
-                        } else if (!isValidEmail(email)) {
-                          setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
-                        }
-                      }}
-                      editable={!emailVerified}
-                      style={[styles.input, errors.email && styles.inputError]}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
+                    <View style={{ position: 'relative' }}>
+                      <TextInput
+                        placeholder="Enter Email"
+                        value={email}
+                        onChangeText={(t) => {
+                          setEmail(t);
+                          if (errors.email) {
+                            setErrors(prev => ({ ...prev, email: '' }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!email) {
+                            setErrors(prev => ({ ...prev, email: 'Email is required' }));
+                          } else if (!isValidEmail(email)) {
+                            setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
+                          }
+                        }}
+                        editable={!emailVerified}
+                        style={[
+                          styles.input,
+                          errors.email && styles.inputError,
+                          emailVerified && { backgroundColor: '#f0fdf4', borderColor: '#86efac', paddingRight: 36 },
+                        ]}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                      {emailVerified && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color="#16a34a"
+                          style={{ position: 'absolute', right: 10, top: 10 }}
+                        />
+                      )}
+                    </View>
                     {errors.email ? (
                       <TextNB style={styles.error}>{errors.email}</TextNB>
                     ) : (
@@ -1075,7 +1084,7 @@ useEffect(() => {
               </View>
             </KeyboardAwareScrollView>
             <View style={{ display: 'flex', alignItems: 'flex-end', marginRight: 25 }}>
-              <ButtonNB style={{ marginBottom: 60, marginTop: 0, width: '30%', borderRadius: 24, backgroundColor: '#420001', paddingVertical: 12, shadowColor: '#420001', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 }} onPress={() => swiperRef.current?.scrollBy(1)}>
+              <ButtonNB style={{ marginBottom: 28, marginTop: 15, width: '30%', borderRadius: 24, backgroundColor: '#1F7FE5', paddingVertical: 12, shadowColor: '#1F7FE5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 }} onPress={() => swiperRef.current?.scrollBy(1)}>
                 <HStack space={2} alignItems="center">
                   <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>Next</TextNB>
                   <ArrowRight size={20} color="#fff" fontWeight={'semibold'} />
@@ -1108,85 +1117,89 @@ useEffect(() => {
               showsVerticalScrollIndicator={false}
               enableResetScrollToCoords={false} // Prevents unwanted scrolling
             >
-            <View >
+              <View >
 
-              {/* 8. Employed In (multiline) */}
-              <TextNB color="#130057" fontSize={13} marginBottom={2} fontWeight="bold">
-                Employing In
-              </TextNB>
-              <Box width="100%" marginBottom={4}>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                  {employmentOptions.map((option) => (
-                    <View
-                      key={option.value}
-                      style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16, marginBottom: 8 }}
-                    >
-                      <Checkbox
-                        value={option.value}
-                        isChecked={employmentStatus === option.value}
-                        onChange={() => setEmploymentStatus(option.value)}
-                        size="sm"
-                        colorScheme="amber"
-                        _checked={{
-                          bg: "#130057",
-                          borderColor: "#130057"
-                        }}
-                      />
-                      <TextNB fontSize="sm" marginLeft={2}>
-                        {option.label}
-                      </TextNB>
-                    </View>
-                  ))}
-                </View>
-              </Box>
-
-              {/* 11. Income (annual CTC) (multiline) */}
-              {/* <Box style={styles.inputContainer}> */}
-              <CustomModalPicker
-                label="Annual Income"
-                placeholder="Select Your Annual Income"
-                data={incomeOptions}
-                selected={income}
-                onSelect={(val) => {
-                  setIncome(val);
-                  if (errors.income) {
-                    setErrors(prev => ({ ...prev, income: '' }));
-                  }
-                }}
-              />
-
-              {/* Father's Name and Occupation */}
-              <HStack space={2} width="100%">
-                {/* Father's Name */}
-                <Box flex={0.5} style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
-                    Father's Name
-                  </TextNB>
-                  <TextInput
-                    placeholder="Enter Father's Name"
-                    value={fatherName}
-                    onChangeText={(t) => {
-                      setFatherName(onlyAlphabets(t));
-                      if (errors.fatherName) {
-                        setErrors(prev => ({ ...prev, fatherName: '' }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!fatherName.trim()) {
-                        setErrors(prev => ({
-                          ...prev,
-                          fatherName: "Father's name is required"
-                        }));
-                      }
-                    }}
-                    style={[styles.input, errors.fatherName && styles.inputError]}
-                  />
-                  {errors.fatherName ? (
-                    <TextNB style={styles.error}>{errors.fatherName}</TextNB>
-                  ) : (
-                    <TextNB style={styles.hiddenError}> </TextNB>
-                  )}
+                {/* 8. Employed In (multiline) */}
+                <TextNB color="#130057" fontSize={13} marginBottom={2} fontWeight="bold">
+                  Employing In
+                </TextNB>
+                <Box width="100%" marginBottom={4}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    {employmentOptions.map((option) => (
+                      <View
+                        key={option.value}
+                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16, marginBottom: 8 }}
+                      >
+                        <Checkbox
+                          value={option.value}
+                          isChecked={employmentStatus === option.value}
+                          onChange={() => setEmploymentStatus(option.value)}
+                          size="sm"
+                          colorScheme="amber"
+                          accessibilityLabel={option.label}
+                          _checked={{
+                            bg: "#130057",
+                            borderColor: "#130057"
+                          }}
+                        />
+                        <TextNB fontSize="sm" marginLeft={2}>
+                          {option.label}
+                        </TextNB>
+                      </View>
+                    ))}
+                  </View>
                 </Box>
+
+                {/* 11. Income (annual CTC) (multiline) */}
+                {/* <Box style={styles.inputContainer}> */}
+                <CustomModalPicker
+                  label="Annual Income"
+                  placeholder="Select Your Annual Income"
+                  data={incomeOptions}
+                  selected={income}
+                  onSelect={(val) => {
+                    setIncome(val);
+                    // Find the numeric value for this label
+                    const selected = incomeOptions.find((o: any) => o.value === val);
+                    setIncomeNumeric(selected?.numericValue || val);
+                    if (errors.income) {
+                      setErrors(prev => ({ ...prev, income: '' }));
+                    }
+                  }}
+                />
+
+                {/* Father's Name and Occupation */}
+                <HStack space={2} width="100%">
+                  {/* Father's Name */}
+                  <Box flex={0.5} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      Father's Name
+                    </TextNB>
+                    <TextInput
+                      placeholder="Enter Father's Name"
+                      value={fatherName}
+                      onChangeText={(t) => {
+                        setFatherName(onlyAlphabets(t));
+                        if (errors.fatherName) {
+                          setErrors(prev => ({ ...prev, fatherName: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!fatherName.trim()) {
+                          setErrors(prev => ({
+                            ...prev,
+                            fatherName: "Father's name is required"
+                          }));
+                        }
+                      }}
+                      style={[styles.input, errors.fatherName && styles.inputError]}
+                    />
+                    {errors.fatherName ? (
+                      <TextNB style={styles.error}>{errors.fatherName}</TextNB>
+                    ) : (
+                      <TextNB style={styles.hiddenError}> </TextNB>
+                    )}
+                  </Box>
 
                   {/* Father's Occupation */}
                   <Box flex={1} style={styles.inputContainer}>
@@ -1272,32 +1285,41 @@ useEffect(() => {
                   </Box>
                 </HStack>
 
-               <Box style={styles.inputContainer}>
-  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
-    Job Place
-  </TextNB>
-  <TextInput
-    placeholder="Enter Job Place"
-    value={jobPlace}
-    onChangeText={(t) => {
-      setJobPlace(onlyAlphabets(t));
-      if (errors.jobPlace) {
-        setErrors(prev => ({ ...prev, jobPlace: '' }));
-      }
-    }}
-    onBlur={() => {
-      if (!jobPlace.trim()) {
-        setErrors(prev => ({ ...prev, jobPlace: 'Job place is required' }));
-      }
-    }}
-    style={[styles.input, errors.jobPlace && styles.inputError]}
-  />
-  {errors.jobPlace ? (
-    <TextNB style={styles.error}>{errors.jobPlace}</TextNB>
-  ) : (
-    <TextNB style={styles.hiddenError}> </TextNB>
-  )}
-</Box>
+                {/* City / District dropdown */}
+                <CustomModalPicker
+                  label="City / District"
+                  placeholder="Select Your City"
+                  data={districtOptions}
+                  selected={selectedCity}
+                  onSelect={(val) => setSelectedCity(val)}
+                />
+
+                <Box style={styles.inputContainer}>
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    Job Place
+                  </TextNB>
+                  <TextInput
+                    placeholder="Enter Job Place"
+                    value={jobPlace}
+                    onChangeText={(t) => {
+                      setJobPlace(onlyAlphabets(t));
+                      if (errors.jobPlace) {
+                        setErrors(prev => ({ ...prev, jobPlace: '' }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!jobPlace.trim()) {
+                        setErrors(prev => ({ ...prev, jobPlace: 'Job place is required' }));
+                      }
+                    }}
+                    style={[styles.input, errors.jobPlace && styles.inputError]}
+                  />
+                  {errors.jobPlace ? (
+                    <TextNB style={styles.error}>{errors.jobPlace}</TextNB>
+                  ) : (
+                    <TextNB style={styles.hiddenError}> </TextNB>
+                  )}
+                </Box>
 
 
                 {/* 21. Current Address (multiline) */}
@@ -1339,123 +1361,123 @@ useEffect(() => {
                 </Box>
 
                 {/* 19. Native Place (multiline) */}
-               <Box style={styles.inputContainer}>
-  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
-    Native Place
-  </TextNB>
-  <TextInput
-    placeholder="Enter Native Place"
-    value={nativePlace}
-    onChangeText={(t) => {
-      setNativePlace(onlyAlphabets(t));
-      if (errors.nativePlace) {
-        setErrors(prev => ({ ...prev, nativePlace: '' }));
-      }
-    }}
-    onBlur={() => {
-      if (!nativePlace.trim()) {
-        setErrors(prev => ({ ...prev, nativePlace: 'Native place is required' }));
-      }
-    }}
-    style={[styles.input, errors.nativePlace && styles.inputError]}
-  />
-  {errors.nativePlace ? (
-    <TextNB style={styles.error}>{errors.nativePlace}</TextNB>
-  ) : (
-    <TextNB style={styles.hiddenError}> </TextNB>
-  )}
-</Box>
-
-              {/* 12. PIN and Confirm PIN */}
-              <HStack space={2} width="100%">
-                {/* PIN */}
-                <Box flex={0.5} style={styles.inputContainer}>
+                <Box style={styles.inputContainer}>
                   <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
-                    PIN
+                    Native Place
                   </TextNB>
                   <TextInput
-                    placeholder="Enter 4-digit PIN"
-                    value={pin}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    secureTextEntry
+                    placeholder="Enter Native Place"
+                    value={nativePlace}
                     onChangeText={(t) => {
-                      setPin(onlyNumbers(t));
-                      if (errors.pin) {
-                        setErrors(prev => ({ ...prev, pin: '' }));
+                      setNativePlace(onlyAlphabets(t));
+                      if (errors.nativePlace) {
+                        setErrors(prev => ({ ...prev, nativePlace: '' }));
                       }
                     }}
                     onBlur={() => {
-                      if (!pin) {
-                        setErrors(prev => ({
-                          ...prev,
-                          pin: 'PIN is required'
-                        }));
-                      } else if (pin.length !== 4) {
-                        setErrors(prev => ({
-                          ...prev,
-                          pin: 'PIN must be 4 digits'
-                        }));
+                      if (!nativePlace.trim()) {
+                        setErrors(prev => ({ ...prev, nativePlace: 'Native place is required' }));
                       }
                     }}
-                    style={[styles.input, errors.pin && styles.inputError]}
+                    style={[styles.input, errors.nativePlace && styles.inputError]}
                   />
-                  {errors.pin ? (
-                    <TextNB style={styles.error}>{errors.pin}</TextNB>
+                  {errors.nativePlace ? (
+                    <TextNB style={styles.error}>{errors.nativePlace}</TextNB>
                   ) : (
                     <TextNB style={styles.hiddenError}> </TextNB>
                   )}
                 </Box>
 
-                {/* Confirm PIN */}
-                <Box flex={0.5} style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
-                    Confirm PIN
-                  </TextNB>
-                  <TextInput
-                    placeholder="Confirm 4-digit PIN"
-                    value={confirmPin}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    secureTextEntry
-                    onChangeText={(t) => {
-                      setConfirmPin(onlyNumbers(t));
-                      if (errors.confirmPin) {
-                        setErrors(prev => ({ ...prev, confirmPin: '' }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!confirmPin) {
-                        setErrors(prev => ({
-                          ...prev,
-                          confirmPin: 'Please confirm your PIN'
-                        }));
-                      } else if (confirmPin !== pin) {
-                        setErrors(prev => ({
-                          ...prev,
-                          confirmPin: 'PINs do not match'
-                        }));
-                      }
-                    }}
-                    style={[styles.input, errors.confirmPin && styles.inputError]}
-                  />
-                  {errors.confirmPin ? (
-                    <TextNB style={styles.error}>{errors.confirmPin}</TextNB>
-                  ) : (
-                    <TextNB style={styles.hiddenError}> </TextNB>
-                  )}
-                </Box>
-              </HStack>
-            </View>
-</KeyboardAwareScrollView>
+                {/* 12. PIN and Confirm PIN */}
+                <HStack space={2} width="100%">
+                  {/* PIN */}
+                  <Box flex={0.5} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      PIN
+                    </TextNB>
+                    <TextInput
+                      placeholder="Enter 4-digit PIN"
+                      value={pin}
+                      keyboardType="numeric"
+                      maxLength={4}
+                      secureTextEntry
+                      onChangeText={(t) => {
+                        setPin(onlyNumbers(t));
+                        if (errors.pin) {
+                          setErrors(prev => ({ ...prev, pin: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!pin) {
+                          setErrors(prev => ({
+                            ...prev,
+                            pin: 'PIN is required'
+                          }));
+                        } else if (pin.length !== 4) {
+                          setErrors(prev => ({
+                            ...prev,
+                            pin: 'PIN must be 4 digits'
+                          }));
+                        }
+                      }}
+                      style={[styles.input, errors.pin && styles.inputError]}
+                    />
+                    {errors.pin ? (
+                      <TextNB style={styles.error}>{errors.pin}</TextNB>
+                    ) : (
+                      <TextNB style={styles.hiddenError}> </TextNB>
+                    )}
+                  </Box>
+
+                  {/* Confirm PIN */}
+                  <Box flex={0.5} style={styles.inputContainer}>
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                      Confirm PIN
+                    </TextNB>
+                    <TextInput
+                      placeholder="Confirm 4-digit PIN"
+                      value={confirmPin}
+                      keyboardType="numeric"
+                      maxLength={4}
+                      secureTextEntry
+                      onChangeText={(t) => {
+                        setConfirmPin(onlyNumbers(t));
+                        if (errors.confirmPin) {
+                          setErrors(prev => ({ ...prev, confirmPin: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!confirmPin) {
+                          setErrors(prev => ({
+                            ...prev,
+                            confirmPin: 'Please confirm your PIN'
+                          }));
+                        } else if (confirmPin !== pin) {
+                          setErrors(prev => ({
+                            ...prev,
+                            confirmPin: 'PINs do not match'
+                          }));
+                        }
+                      }}
+                      style={[styles.input, errors.confirmPin && styles.inputError]}
+                    />
+                    {errors.confirmPin ? (
+                      <TextNB style={styles.error}>{errors.confirmPin}</TextNB>
+                    ) : (
+                      <TextNB style={styles.hiddenError}> </TextNB>
+                    )}
+                  </Box>
+                </HStack>
+              </View>
+            </KeyboardAwareScrollView>
             <View
               style={{
                 display: 'flex',
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 paddingHorizontal: 15,
-                marginTop: 0,
-                marginBottom: 65,
+                marginTop: 15,
+                marginBottom: 28,
               }}
             >
               {/* Back Button */}
@@ -1463,9 +1485,9 @@ useEffect(() => {
                 style={{
                   width: '30%',
                   borderRadius: 24,
-                  backgroundColor: '#420001',
+                  backgroundColor: '#1F7FE5',
                   paddingVertical: 12,
-                  shadowColor: '#420001',
+                  shadowColor: '#1F7FE5',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.25,
                   shadowRadius: 6,
@@ -1486,21 +1508,21 @@ useEffect(() => {
                 style={{
                   width: '30%',
                   borderRadius: 24,
-                  backgroundColor: '#420001',
+                  backgroundColor: '#1F7FE5',
                   paddingVertical: 12,
-                  shadowColor: '#420001',
+                  shadowColor: '#1F7FE5',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.25,
                   shadowRadius: 6,
                   elevation: 4,
                 }}
-                onPress={() => handleFormSubmit()} // or change to submit handler
+                onPress={() => swiperRef.current?.scrollBy(1)}
               >
                 <HStack space={1} alignItems="center">
                   <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>
-                    Submit
+                    Next
                   </TextNB>
-                  {/* <AntDesign name="arrowright" size={20} color="rgba(30,64,175,1.00)" /> */}
+                  <ArrowRight size={20} color="#fff" />
                 </HStack>
               </ButtonNB>
             </View>
@@ -1509,6 +1531,106 @@ useEffect(() => {
           </SafeAreaView>
         </View>
 
+
+        {/* Page 4 — Select Your Interests */}
+        <View style={{ flex: 1 }}>
+          <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'smokewhite', height: '100%' }}>
+            <ScrollView
+              contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={{ alignItems: 'center', marginBottom: 20, marginTop: 10 }}>
+                <TextNB fontSize={22} fontWeight="800" color="#1F7FE5" textAlign="center">
+                  What are you passionate about?
+                </TextNB>
+                <TextNB fontSize={13} color="#6b7280" textAlign="center" mt={2}>
+                  Select at least 3 interests to help us find better matches
+                </TextNB>
+                <View style={{
+                  backgroundColor: selectedInterests.length >= 3 ? '#d1fae5' : '#fef3c7',
+                  paddingHorizontal: 14,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  marginTop: 12,
+                }}>
+                  <TextNB
+                    fontSize={12}
+                    fontWeight="700"
+                    color={selectedInterests.length >= 3 ? '#065f46' : '#92400e'}
+                  >
+                    {selectedInterests.length} of {(masterData?.interestTags || INTEREST_TAGS).length} selected
+                    {selectedInterests.length >= 3 ? ' ✓' : ' (min 3)'}
+                  </TextNB>
+                </View>
+              </View>
+
+              <InterestChipGrid
+                selected={selectedInterests}
+                masterTags={masterData?.interestTags}
+                onToggle={(code) => {
+                  setSelectedInterests((prev) =>
+                    prev.includes(code)
+                      ? prev.filter((c) => c !== code)
+                      : [...prev, code]
+                  );
+                }}
+              />
+            </ScrollView>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingHorizontal: 15,
+                marginBottom: 28,
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+              }}
+            >
+              <ButtonNB
+                style={{
+                  width: '30%',
+                  borderRadius: 24,
+                  backgroundColor: '#1F7FE5',
+                  paddingVertical: 12,
+                  shadowColor: '#1F7FE5',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 6,
+                  elevation: 4,
+                }}
+                onPress={() => swiperRef.current?.scrollBy(-1)}
+              >
+                <HStack space={1} alignItems="center">
+                  <ArrowLeft size={20} color="#fff" />
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>Back</TextNB>
+                </HStack>
+              </ButtonNB>
+
+              <ButtonNB
+                style={{
+                  width: '30%',
+                  borderRadius: 24,
+                  backgroundColor: selectedInterests.length >= 3 ? '#1F7FE5' : '#9ca3af',
+                  paddingVertical: 12,
+                  shadowColor: '#1F7FE5',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 6,
+                  elevation: 4,
+                }}
+                isDisabled={selectedInterests.length < 3}
+                onPress={() => handleFormSubmit()}
+              >
+                <HStack space={1} alignItems="center">
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>Submit</TextNB>
+                </HStack>
+              </ButtonNB>
+            </View>
+          </SafeAreaView>
+        </View>
 
       </Swiper>
     </NativeBaseProvider>
@@ -1577,7 +1699,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "100%",
     alignItems: "center",
-    marginBottom: 30
+    marginTop: 20,
+    marginBottom: 30,
+    paddingTop: 12,
   },
   getStartedButton: {
     borderWidth: 1.5, // Adds a border width
@@ -1611,7 +1735,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     fontSize: 14,
     color: '#333',
-    shadowColor: '#420001',
+    shadowColor: '#1F7FE5',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 2,
@@ -1650,7 +1774,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "bold",
     marginBottom: 5,
-    color: "#420001",
+    color: "#130057",
   },
   inputBox: {
     flexDirection: "row",
@@ -1663,7 +1787,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     backgroundColor: "#ffffff",
     height: 44,
-    shadowColor: "#420001",
+    shadowColor: "#1F7FE5",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 2,

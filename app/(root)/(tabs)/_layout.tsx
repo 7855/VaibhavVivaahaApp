@@ -2,8 +2,26 @@ import React, { useCallback, useState } from 'react';
 import { Tabs, useFocusEffect } from "expo-router";
 import { View } from 'react-native';
 import { useUserData } from '../contexts/UserDataContext';
-import CustomNavBar from "../../../components/CustomNav";
-import PremiumNavBar from "../../../components/PremiumNavBar";
+import VVMFooterNav from "../../../components/VVMFooterNav";
+
+type TabKey = 'home' | 'explore' | 'matches' | 'requests' | 'profile';
+
+// Map VVMFooterNav tab keys to Expo Router tab names
+const TAB_KEY_TO_ROUTE: Record<TabKey, number> = {
+  home: 0,
+  explore: 1,
+  matches: 2,    // myChatList (matches/chat)
+  requests: 3,   // mailBox
+  profile: 4,
+};
+
+const ROUTE_TO_TAB_KEY: Record<string, TabKey> = {
+  index: 'home',
+  explore: 'explore',
+  myChatList: 'matches',
+  mailBox: 'requests',
+  profile: 'profile',
+};
 
 const TabsLayout = () => {
   const { userData } = useUserData();
@@ -11,7 +29,6 @@ const TabsLayout = () => {
 
   useFocusEffect(
     useCallback(() => {
-      // Use userData.hasStarted from context
       setHasStarted(userData.hasStarted === 'true');
     }, [userData.hasStarted])
   );
@@ -25,16 +42,33 @@ const TabsLayout = () => {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarStyle: hasStarted
-            ? {
-                backgroundColor: 'transparent',
-                borderTopWidth: 0,
-                elevation: 0,
-                shadowOpacity: 0,
-              }
-            : { display: 'none' },
+          tabBarStyle: { display: 'none' }, // Hide default tab bar — VVMFooterNav replaces it
         }}
-        tabBar={hasStarted ? (props) => <PremiumNavBar {...props} /> : undefined}
+        tabBar={hasStarted ? (props) => {
+          // Determine active tab from Expo Router state
+          const routeName = props.state.routes[props.state.index]?.name || 'index';
+          const activeTab = ROUTE_TO_TAB_KEY[routeName] || 'home';
+
+          return (
+            <VVMFooterNav
+              activeTab={activeTab}
+              onTabChange={(key) => {
+                const routes = ['index', 'explore', 'myChatList', 'mailBox', 'profile'];
+                const idx = TAB_KEY_TO_ROUTE[key];
+                if (idx !== undefined && routes[idx]) {
+                  const event = props.navigation.emit({
+                    type: 'tabPress',
+                    target: props.state.routes[idx]?.key,
+                    canPreventDefault: true,
+                  });
+                  if (!event.defaultPrevented) {
+                    props.navigation.navigate(routes[idx]);
+                  }
+                }
+              }}
+            />
+          );
+        } : undefined}
       >
         <Tabs.Screen name="index" options={{ title: "Home" }} />
         <Tabs.Screen name="explore" options={{ title: "Explore" }} />

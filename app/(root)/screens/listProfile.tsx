@@ -125,6 +125,12 @@ const ListProfile = () => {
           setProfileData(response.data.data);
           break;
         }
+        case 'interestMatches': {
+          const oppositeGender = storedGender === 'M' ? 'F' : 'M';
+          const response = await userApi.getInterestMatchesByUser(parseInt(casteId!), oppositeGender, userData.userId);
+          setProfileData(response.data.data || []);
+          break;
+        }
         default: {
           const response = await userApi.getNewConnections(parseInt(casteId!), storedGender);
           setProfileData(response.data.data);
@@ -159,6 +165,8 @@ const ListProfile = () => {
         return 'Daily Recommendations';
       case 'nearYou':
         return 'Near Your Location';
+      case 'interestMatches':
+        return 'Matches Based on Interests';
       default:
         return 'New Profiles';
     }

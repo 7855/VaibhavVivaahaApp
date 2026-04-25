@@ -129,7 +129,7 @@ const userApi = {
     axiosClient.get(`/mailbox/rejected/${userId}`),
 
   updateInterestRequestStatus: (interestId, approvalStatus) =>
-    axiosClient.put(`/mailbox/updateInterestRequestStatus/${interestId}/${approvalStatus}`),
+    axiosClient.get(`/mailbox/updateInterestRequestStatus/${interestId}/${approvalStatus}`),
 
   deleteInterestRequest: (interestId) =>
     axiosClient.delete(`/mailbox/deleteInterestRequest/${interestId}`),
@@ -282,26 +282,23 @@ const userApi = {
   updateProfileImage: (formData) => {
     return axiosClient.post('/user/updateProfileImage', formData, {
       headers: {
-        // DO NOT set Content-Type manually, Axios will set boundary
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 60000, // 60s for image uploads
     });
   },
 
   uploadGalleryImage: (formData) => {
     return axiosClient.post('/gallery/uploadGalleryImage', formData, {
-      headers: {
-        // DO NOT set Content-Type manually, Axios will set boundary
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
     });
   },
 
   uploadScreenshot: (formData) => {
     return axiosClient.post('/paymentrequest/create', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
     });
   },
 
@@ -311,10 +308,8 @@ const userApi = {
 
   uploadHoroscopeImage: (formData) => {
     return axiosClient.post('/gallery/uploadHoroscopeImage', formData, {
-      headers: {
-        // DO NOT set Content-Type manually, Axios will set boundary
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
     });
   },
 
@@ -344,6 +339,25 @@ const userApi = {
   },
   getIdVerificationStatus: (encodedUserId) =>
     axiosClient.get(`/id-verification/status/${encodedUserId}`),
+
+  // Interest / Hobbies
+  getUserHobbies: (encodedUserId) =>
+    axiosClient.get(`/user-details/hobbies/${encodedUserId}`),
+  updateUserHobbies: (encodedUserId, hobbies) =>
+    axiosClient.post(`/user-details/hobbies/${encodedUserId}`, { hobbies }),
+  getCommonInterests: (viewerEncodedId, profileUserId) =>
+    axiosClient.get(`/user-details/commonInterests/${viewerEncodedId}/${profileUserId}`),
+  getInterestBasedMatches: (encodedUserId, limit = 10) =>
+    axiosClient.get(`/user-details/interestMatches/${encodedUserId}`, { params: { limit } }),
+  // Interest matches — same pattern as getDailyRecommendation (returns UserEntity list)
+  getInterestMatchesByUser: (casteId, gender, encodedUserId) =>
+    axiosClient.get(`/user/getInterestMatches/${casteId}/${gender}/${encodedUserId}`),
+
+  // Profile Boost
+  startBoost: (encodedUserId, source = 'MONTHLY_CREDIT') =>
+    axiosClient.post(`/boost/start/${encodedUserId}`, { source }),
+  getBoostStatus: (encodedUserId) =>
+    axiosClient.get(`/boost/status/${encodedUserId}`),
   saveDeviceInfo: (requestBody) => {
     return axiosClient.post(`/pushNotification/saveDeviceInfo`, requestBody);
   },
@@ -368,6 +382,12 @@ const userApi = {
   updateSendRequestCount: (userId, subscriptionId, featureId) => {
     return axiosClient.post(`/userFeatureUsage/updateUsedCount/${userId}/${subscriptionId}/${featureId}`)
   },
+  getRequestQuota: (encodedUserId) =>
+    axiosClient.get(`/userFeatureUsage/requestQuota/${encodedUserId}`),
+  getConversationQuota: (encodedUserId) =>
+    axiosClient.get(`/userFeatureUsage/conversationQuota/${encodedUserId}`),
+  revealContact: (viewerEncodedId, profileUserId) =>
+    axiosClient.get(`/user/revealContact/${viewerEncodedId}/${profileUserId}`),
   getAllKeyValues: () => {
     return axiosClient.get(`/keyValue/getAllKeyValues`)
   },

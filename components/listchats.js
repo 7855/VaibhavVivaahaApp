@@ -8,7 +8,7 @@ import Search from '@/components/Search';
 import { Grid3X3, Eye, Heart, MessageCircle, Users, Star, Bookmark } from 'lucide-react-native';
 import VerifiedBadges from './VerifiedBadges';
 
-const ListChats = ({ allChats, onPress }) => {
+const ListChats = ({ allChats, onPress, chatQuota }) => {
   // Using allChats as the data source
   // console.log("received data =================>", allChats);
 
@@ -151,13 +151,30 @@ const ListChats = ({ allChats, onPress }) => {
       {/* Top section - 30% */}
       <Box flex={1.5}>
         <HStack paddingLeft={4} paddingRight={4} marginTop={3} justifyContent="space-between" alignItems="center">
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Heart size={28} color="#E91E63" fill="#E91E63" />
-            <NBText fontWeight="semibold" fontSize="lg" ml={2}>My Connections</NBText>
-          </View>
+          <NBText fontWeight="semibold" fontSize="lg">My Connections</NBText>
+          {chatQuota && !chatQuota.unlimited && chatQuota.total > 0 && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: chatQuota.remaining <= 1 ? '#fef2f2' : '#f0f9ff',
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: chatQuota.remaining <= 1 ? '#fecaca' : '#bae6fd',
+            }}>
+              <NBText style={{
+                fontSize: 11,
+                fontWeight: '700',
+                color: chatQuota.remaining <= 1 ? '#dc2626' : '#0369a1',
+              }}>
+                {chatQuota.used}/{chatQuota.total} chats used
+              </NBText>
+            </View>
+          )}
         </HStack>
   
-        <View style={{ paddingHorizontal: 3, marginTop: 7 }}>
+        <View style={{ paddingHorizontal: 3, marginTop: 7, marginBottom: 10 }}>
           <Search onSearch={handleSearch} />
         </View>
       </Box>

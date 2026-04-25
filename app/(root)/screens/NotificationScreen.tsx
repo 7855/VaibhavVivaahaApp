@@ -1,5 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, ScrollView, Text, StyleSheet, FlatList } from 'react-native';
+import { View, ScrollView, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import NotificationHeader from '../../../components/NotificationHeader';
 import NotificationFilterComponent from '../../../components/NotificationFilter';
 import NotificationCard from '../../../components/NotificationCard';
@@ -133,6 +137,14 @@ const NotificationScreen: React.FC = () => {
         console.log("formattedData ===========================>", formattedData);
 
         setNotifications(formattedData);
+
+        // Auto mark all as read when screen opens
+        const hasUnread = formattedData.some((n: any) => !n.isRead);
+        if (hasUnread && userId) {
+          try {
+            await userApi.markAllAsReadByReceiverId(userId);
+          } catch (_) {}
+        }
       } catch (error) {
         console.error('Error fetching notifications:', error);
       }
@@ -233,7 +245,16 @@ const NotificationScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#d0dfeb' }} edges={['top']}>
+    <LinearGradient colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']} locations={[0, 0.3, 0.6, 1.0]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ flex: 1 }}>
+      {/* Custom header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity style={styles.headerBackBtn} onPress={() => router.back()}>
+          <MaterialIcons name="chevron-left" size={22} color="#1e293b" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Notifications</Text>
+        <View style={{ width: 40 }} />
+      </View>
       <NotificationHeader
         unreadCount={notificationCounts.all}
         onMarkAllAsRead={handleMarkAllAsRead}
@@ -274,14 +295,40 @@ const NotificationScreen: React.FC = () => {
         )}
         contentContainerStyle={styles.content}
       />
-    </View>
+    </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  headerBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'rgba(15,35,70,0.06)',
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0f1724',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: 'transparent',
   },
   content: {
     paddingTop: 16,

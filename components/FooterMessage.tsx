@@ -13,7 +13,7 @@ const FooterMessage = () => {
           <MaterialIcons
             name="favorite"
             size={16}
-            color="#420001"
+            color="#1F7FE5"
           />
         </View>
       </View>
@@ -32,16 +32,16 @@ const styles = StyleSheet.create({
   footerCard: {
     width: Math.min(SCREEN_WIDTH - 32, 400),
     height: 56,
-    backgroundColor: '#ebe0e0',
+    backgroundColor: '#fff',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(66, 0, 1, 0.05)',
+    borderColor: '#e2e8f0',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowColor: 'rgba(15,35,70,0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
     elevation: 1,
   },
   textContainer: {

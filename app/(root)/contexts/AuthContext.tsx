@@ -170,7 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
     if (nextAppState === 'background' || nextAppState === 'inactive') {
       if (userId) {
-        await userApi.lastSeen(userId);
+        try { await userApi.lastSeen(userId); } catch (_) {}
       }
     }
   };
@@ -181,21 +181,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const storedAuthToken = await AsyncStorage.getItem('authToken');
 
       // Zombie session guard: if we have a userId but no authToken,
-      // the stored session is stale (pre-JWT-rollout or token expired).
-      // Wipe everything and force a fresh login.
+      // the stored session is stale. Clear silently — don't redirect
+      // (the user might already be on register/login page).
       if (storedUserId && !storedAuthToken) {
-        console.warn('⚠️ Stale session detected (userId without authToken). Clearing and routing to login.');
+        console.warn('⚠️ Stale session detected (userId without authToken). Clearing.');
         try { await AsyncStorage.clear(); } catch (_) {}
         setUserId(null);
         setIsOnline(false);
-        try { router.replace('/(root)/(main)/LoginScreen'); } catch (_) {}
         return;
       }
 
-      if (storedUserId) {
+      if (storedUserId && storedAuthToken) {
         setUserId(storedUserId);
         setIsOnline(true);
-        userApi.lastSeen(storedUserId);
+        userApi.lastSeen(storedUserId).catch(() => {});
         webSocketService.connect(storedUserId);
       }
     } catch (error) {

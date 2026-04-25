@@ -28,6 +28,7 @@ import EvilIcons from 'react-native-vector-icons/EvilIcons';
 
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import userApi from '../api/userApi';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Checkbox } from 'native-base';
 import {
   MapPin,
@@ -154,8 +155,11 @@ interface ReceivedProfile {
   profileImage: string;
   status: 'pending' | 'accepted' | 'rejected';
   interestId: number;
-  isSent: boolean; // Add this field to distinguish between sent and received profiles
+  isSent: boolean;
   shortlistedId: number;
+  idVerified?: boolean;
+  educationVerified?: boolean;
+  incomeVerified?: boolean;
 }
 
 
@@ -227,15 +231,12 @@ const ReceivedTab = () => {
 
   const handleAccept = async (item: ReceivedProfile) => {
     try {
-      if (!isPremium) {
-        popup.premiumRequired(
-          'Upgrade to Premium to accept connection requests and start chatting.',
-          () => router.push('/(root)/screens/PremiumTab')
-        );
-        return;
+      // Accept is free for all users — no plan gate
+      // Chat after accept is gated to Silver+ (handled in chatscreen)
+      const res = await userApi.updateInterestRequestStatus(item.interestId, 'APPROVED');
+      if (res.data?.code === 200) {
+        popup.success('Request Accepted', `You've accepted ${item.firstName}'s interest request.`);
       }
-
-      await userApi.updateInterestRequestStatus(item.interestId, 'APPROVED');
 
       // Refresh data by fetching latest profiles
       if (!userData.userId) {
@@ -269,13 +270,16 @@ const ReceivedTab = () => {
       setData(combinedProfiles);
     } catch (error) {
       console.error('Error accepting profile:', error);
-      setError('Failed to accept profile');
+      popup.error('Failed', 'Could not accept the request. Please try again.');
     }
   };
 
   const handleDecline = async (item: ReceivedProfile) => {
     try {
-      await userApi.updateInterestRequestStatus(item.interestId, 'REJECTED');
+      const res = await userApi.updateInterestRequestStatus(item.interestId, 'REJECTED');
+      if (res.data?.code === 200) {
+        popup.success('Request Declined', `You've declined ${item.firstName}'s interest request.`);
+      }
 
       // Refresh data by fetching latest profiles
       if (!userData.userId) {
@@ -376,17 +380,72 @@ const ReceivedTab = () => {
   return (
     <View style={styles.container}>
       <View style={styles.filterContainer}>
-        {['pending', 'accepted', 'rejected'].map(filter => (
-          <TouchableOpacity
-            key={filter}
-            style={[styles.filterButton, selectedFilter === filter && styles.filterButtonActive]}
-            onPress={() => setSelectedFilter(filter as any)}
-          >
-            <Text style={[styles.filterButtonText, selectedFilter === filter && styles.filterButtonTextActive]}>
-              {filter.charAt(0).toUpperCase() + filter.slice(1)} ({statusCounts[filter as 'pending' | 'accepted' | 'rejected']})
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {([
+          { key: 'pending', label: 'Pending', icon: 'time', iconOutline: 'time-outline', color: '#f59e0b', bg: '#fffbeb' },
+          { key: 'accepted', label: 'Accepted', icon: 'checkmark-circle', iconOutline: 'checkmark-circle-outline', color: '#10b981', bg: '#ecfdf5' },
+          { key: 'rejected', label: 'Declined', icon: 'close-circle', iconOutline: 'close-circle-outline', color: '#ef4444', bg: '#fef2f2' },
+        ] as const).map(filter => {
+          const isActive = selectedFilter === filter.key;
+          const count = statusCounts[filter.key as 'pending' | 'accepted' | 'rejected'];
+          return (
+            <TouchableOpacity
+              key={filter.key}
+              onPress={() => setSelectedFilter(filter.key as any)}
+              activeOpacity={0.8}
+              style={[
+                styles.filterCard,
+                {
+                  backgroundColor: isActive ? filter.bg : '#fff',
+                  borderBottomWidth: isActive ? 3 : 0,
+                  borderBottomColor: filter.color,
+                },
+              ]}
+            >
+              {/* Count badge — top right corner */}
+              {count > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -4,
+                  backgroundColor: isActive ? filter.color : '#d1d5db',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 5,
+                  borderWidth: 2,
+                  borderColor: '#F5F5F5',
+                  zIndex: 1,
+                }}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>{count}</Text>
+                </View>
+              )}
+              {/* Icon left, label right */}
+              <View style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: isActive ? filter.color + '20' : '#f3f4f6',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Ionicons
+                  name={(isActive ? filter.icon : filter.iconOutline) as any}
+                  size={16}
+                  color={isActive ? filter.color : '#9ca3af'}
+                />
+              </View>
+              <Text style={{
+                fontSize: 11,
+                fontWeight: isActive ? '800' : '600',
+                color: isActive ? filter.color : '#6b7280',
+              }}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <FlatList
@@ -407,9 +466,12 @@ const ReceivedTab = () => {
               imageStyle={styles.image}
             >
               <View style={styles.overlay} />
+              <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+                <VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" color="gold" />
+              </View>
               <View style={styles.matchInfo}>
                 <View style={styles.infoText}>
-                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text><View style={{marginLeft:6}}><VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" /></View></View>
+                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text></View>
                   <Text style={styles.occupation}>
                     {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
                   </Text>
@@ -521,9 +583,12 @@ const SentTab = () => {
               imageStyle={styles.image}
             >
               <View style={styles.overlay} />
+              <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+                <VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" color="gold" />
+              </View>
               <View style={styles.matchInfo}>
                 <View style={styles.infoText}>
-                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text><View style={{marginLeft:6}}><VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" /></View></View>
+                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text></View>
                   <Text style={styles.occupation}>
                     {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
                   </Text>
@@ -953,8 +1018,8 @@ const RequestsTab = () => {
             <View style={styles.titleRow}>
               {/* Left Section */}
               <View style={styles.titleContainer}>
-                <Text style={styles.titleText}>Request received to view your Information</Text>
-                <Text style={styles.subtitleText}>Member who would like to view your Information</Text>
+                <Text style={styles.titleText}>Info Access Requests</Text>
+                <Text style={styles.subtitleText}>Members requesting to view your details</Text>
               </View>
 
               {/* Right Icon Trigger */}
@@ -1408,21 +1473,17 @@ const MailBox = () => {
       { key: 'sent', title: 'Sent By You' },
       { key: 'request', title: 'Permissions' },
     ];
-    if (isGoldPlus) {
-      base.push({ key: 'whoShortlistedMe', title: 'Shortlisted You' });
-    }
     return base;
-  }, [isGoldPlus]);
+  }, []);
 
   const renderScene = SceneMap({
     received: ReceivedTab,
     sent: SentTab,
     request: RequestsTab,
-    whoShortlistedMe: WhoShortlistedMeTab,
   });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F5F5' }} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#d0dfeb' }} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <TabView
           navigationState={{ index, routes }}
@@ -1504,7 +1565,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff'
+    backgroundColor: '#dde8f1'
   },
   filterIconContainer: {
     position: 'absolute',
@@ -1600,13 +1661,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   tabBar: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#e8eef5',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#dde4ed',
   },
   indicator: {
-    backgroundColor: '#420001',
-    height: 2,
+    backgroundColor: '#1F7FE5',
+    height: 2.5,
   },
   // matchCard: {
   //   paddingHorizontal: 16,
@@ -1702,36 +1763,25 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 5,
-    // backgroundColor: '#f5f5f5',
-    // borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 6,
+    gap: 8,
   },
-  filterButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    width: '31%',
+  filterCard: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterButtonActive: {
-    backgroundColor: '#420001',
-  },
-  filterButtonTextActive: {
-    color: '#fff',
-  },
-  filterButtonText: {
-    color: '#333',
-    fontSize: 13.5,
-    fontWeight: '600',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   titleRow: {
     flexDirection: 'row',
@@ -1774,19 +1824,22 @@ const styles = StyleSheet.create({
   },
   filterButtonReq: {
     padding: 15,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    backgroundColor: '#fff',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowColor: 'rgba(15,35,70,0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
     width: '48%',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   filterButtonActiveReq: {
-    backgroundColor: '#420001',
+    backgroundColor: '#1F7FE5',
+    borderColor: '#1F7FE5',
   },
   filterButtonTextReq: {
     color: '#333',

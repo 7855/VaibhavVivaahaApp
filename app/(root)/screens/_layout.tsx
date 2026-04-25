@@ -6,18 +6,18 @@ export default function ScreensLayout() {
   const segments = useSegments();
   const currentRoute = segments[segments.length - 1]; // Get current screen segment
 
-  const showHeader = currentRoute !== "chatscreen" && currentRoute !== "PaymentScreen";
+  const showHeader = currentRoute !== "chatscreen" && currentRoute !== "PaymentScreen" && currentRoute !== "ProfileDetail" && currentRoute !== "NotificationScreen" && currentRoute !== "SettingPageChangePin" && currentRoute !== "StarMatch" && currentRoute !== "BlockedUsersScreen";
 
   return (
     <Stack
       screenOptions={{
         headerShown: showHeader,
         headerStyle: {
-          backgroundColor: "#420001",
+          backgroundColor: "#d0dfeb",
         },
-        headerTintColor: "#DADADA",
+        headerTintColor: "#0f1724",
         headerTitleStyle: {
-          fontWeight: "bold",
+          fontWeight: "600",
         },
         title: "",
         headerLeft: () => (showHeader ? <CustomBackButton /> : null),
@@ -42,8 +42,8 @@ function CustomBackButton() {
         width: '100%',
       }}
     >
-      <Ionicons name="chevron-left" size={22} color="#DADADA" />
-      <Text style={{ color: "#DADADA", fontSize: 16 }}>Back</Text>
+      <Ionicons name="chevron-left" size={22} color="#0f1724" />
+      <Text style={{ color: "#0f1724", fontSize: 16 }}>Back</Text>
     </TouchableOpacity>
   );
 }

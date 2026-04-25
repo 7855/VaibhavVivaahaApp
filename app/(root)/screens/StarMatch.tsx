@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUserData } from '../contexts/UserDataContext';
 import userApi from '../api/userApi';
 
@@ -459,18 +460,23 @@ const handleSubmit = async () => {
   if (isLoadingData) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-        <ActivityIndicator size="large" color="#420001" />
+        <ActivityIndicator size="large" color="#1e293b" />
         <Text style={{ marginTop: 12, color: '#64748b', fontSize: 16 }}>Loading profile data...</Text>
       </View>
     );
   }
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#d0dfeb' }} edges={['top']}>
+    <LinearGradient colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']} locations={[0, 0.3, 0.6, 1.0]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ flex: 1 }}>
     <View style={styles.container}>
-      {/* Header */}
+      {/* Custom header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+          <MaterialIcons name="chevron-left" size={22} color="#1e293b" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Star Match</Text>
-        {/* <View style={{ width: 24 }} /> */}
+        <View style={{ width: 40 }} />
       </View>
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
@@ -588,7 +594,7 @@ const handleSubmit = async () => {
         </View>
         {/* Submit Button */}
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <MaterialIcons name="stars" size={24} color="#DADADA" />
+            <MaterialIcons name="stars" size={24} color="#fff" />
           <Text style={styles.submitButtonText}>Check Result</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -762,29 +768,29 @@ const handleSubmit = async () => {
         </View>
       </Modal>
     </View>
+    </LinearGradient>
+    </SafeAreaView>
   );
 };
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    backgroundColor: 'white',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#420001',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0f1724',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -801,7 +807,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   activeTab: {
-    backgroundColor: '#420001',
+    backgroundColor: '#1e293b',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -814,7 +820,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   activeTabText: {
-    color: '#DADADA',
+    color: '#fff',
   },
   scrollView: {
     flex: 1,
@@ -887,7 +893,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
   },
   submitButton: {
-    backgroundColor: '#420001',
+    backgroundColor: '#1e293b',
     borderRadius: 999,
     padding: 15,
     flexDirection: 'row',
@@ -901,7 +907,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   submitButtonText: {
-    color: '#DADADA',
+    color: '#fff',
     fontSize: 17,
     fontWeight: 'bold',
     marginLeft: 8,
@@ -1001,7 +1007,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   doneButtonText: {
-    color: '#DADADA',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

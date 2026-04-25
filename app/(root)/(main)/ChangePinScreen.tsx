@@ -142,11 +142,11 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               
               {/* Divine lock with crown */}
               <View style={{ position: 'relative' }}>
-                <Icon name="lock" size={40} color="#420001" />
+                <Icon name="lock" size={40} color="#1F7FE5" />
                 <Icon 
                   name="star" 
                   size={20} 
-                  color="#420001" 
+                  color="#1F7FE5" 
                   style={{ position: 'absolute', top: -8, right: -4 }} 
                 />
               </View>
@@ -175,7 +175,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               bottom: -12,
               borderRadius: 56,
               borderWidth: 1,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
             }} />
             <View style={{
               position: 'absolute',
@@ -185,7 +185,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               bottom: -20,
               borderRadius: 64,
               borderWidth: 1,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
             }} />
             
             {/* Sacred ornaments */}
@@ -196,7 +196,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               marginLeft: -8,
               width: 16,
               height: 16,
-              backgroundColor: '#420001',
+              backgroundColor: '#1F7FE5',
               borderRadius: 8,
             }} />
             <View style={{
@@ -206,7 +206,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               marginLeft: -6,
               width: 12,
               height: 12,
-              backgroundColor: '#420001',
+              backgroundColor: '#1F7FE5',
               borderRadius: 6,
             }} />
           </View>
@@ -214,7 +214,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
           <Text style={{
             fontSize: 28,
             fontWeight: 'bold',
-            color: '#420001',
+            color: '#1F7FE5',
             marginBottom: 12,
             textAlign: 'center',
             // textShadowColor: 'rgba(0, 0, 0, 0.3)',
@@ -243,13 +243,13 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
             <View style={{
               width: 32,
               height: 2,
-              backgroundColor: '#420001',
+              backgroundColor: '#1F7FE5',
             }} />
-            <Icon name="security" size={16} color="#420001" style={{ marginHorizontal: 8 }} />
+            <Icon name="security" size={16} color="#1F7FE5" style={{ marginHorizontal: 8 }} />
             <View style={{
               width: 32,
               height: 2,
-              backgroundColor: '#420001',
+              backgroundColor: '#1F7FE5',
             }} />
           </View>
         </View>
@@ -275,7 +275,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               height: 40,
               borderLeftWidth: 3,
               borderTopWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderTopLeftRadius: 16,
             }} />
             <View style={{
@@ -286,7 +286,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               height: 40,
               borderRightWidth: 3,
               borderTopWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderTopRightRadius: 16,
             }} />
             <View style={{
@@ -297,7 +297,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               height: 40,
               borderLeftWidth: 3,
               borderBottomWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderBottomLeftRadius: 16,
             }} />
             <View style={{
@@ -308,7 +308,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               height: 40,
               borderRightWidth: 3,
               borderBottomWidth: 3,
-              borderColor: '#420001',
+              borderColor: '#1F7FE5',
               borderBottomRightRadius: 16,
             }} />
             
@@ -572,7 +572,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   }}
                 >
                   <LinearGradient
-                    colors={isFormValid && !isLoading ? ['#420001', '#420001', '#420001'] : ['#cccccc', '#cccccc']}
+                    colors={isFormValid && !isLoading ? ['#1F7FE5', '#1F7FE5', '#1F7FE5'] : ['#cccccc', '#cccccc']}
                     style={{
                       paddingVertical: 16,
                       paddingHorizontal: 24,

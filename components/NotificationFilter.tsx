@@ -42,13 +42,14 @@ const NotificationFilterComponent: React.FC<NotificationFilterProps> = ({
                 isActive ? styles.activeButton : styles.inactiveButton,
               ]}
             >
-              <Icon size={16} color={isActive ? '#DADADA' : '#130001'} />
+              <Icon size={16} color={isActive ? '#fff' : '#130001'} />
               <Text style={[styles.label, isActive && styles.activeLabel]}>{label}</Text>
               {counts[key] > 0 && (
                 <View style={[styles.countBadge, isActive ? styles.activeCountBadge : styles.inactiveCountBadge]}>
-                  <Text style={[styles.countText, isActive && { color: '#DADADA' }]}>
+                  <Text style={[styles.countText, isActive && { color: '#fff' }]}>
                     {counts[key]}
                   </Text>
+
                 </View>
               )}
             </TouchableOpacity>
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   activeButton: {
-    backgroundColor: '#F43F5E',
+    backgroundColor: '#1F7FE5',
     transform: [{ scale: 1.05 }],
   },
   inactiveButton: {
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   activeLabel: {
-    color: '#DADADA',
+    color: '#fff',
   },
   countBadge: {
     marginLeft: 8,
@@ -110,12 +111,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   inactiveCountBadge: {
-    backgroundColor: '#FECACA',
+    backgroundColor: '#dfecfb',
   },
   countText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#B91C1C',
+    color: '#1862b8',
   },
 });
 

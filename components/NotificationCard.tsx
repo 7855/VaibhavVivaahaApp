@@ -107,7 +107,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onMar
 
                         {/* Right side: Delete icon */}
                         <TouchableOpacity onPress={() => onDelete(notification.id)} style={styles.deleteButton}>
-                            <AntDesign name="delete" size={15} color="#DADADA" />
+                            <AntDesign name="delete" size={14} color="#d1d5db" />
                         </TouchableOpacity>
                     </View>
 
@@ -119,31 +119,30 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onMar
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: 'white',
-        borderRadius: 12,
-        marginBottom: 12,
+        backgroundColor: '#fff',
+        borderRadius: 14,
+        marginBottom: 10,
         flexDirection: 'row',
         position: 'relative',
         overflow: 'hidden',
-        elevation: 1,
+        borderWidth: 1,
+        borderColor: '#f3f4f6',
     },
     unreadCard: {
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
+        backgroundColor: '#fdf8f8',
+        borderColor: '#f3d5d6',
+        shadowColor: '#420001',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        elevation: 3,
     },
     sideBar: {
-        width: 4,
+        width: 3,
         backgroundColor: 'transparent',
     },
     activeSideBar: {
-        backgroundColor: '#EC4899',
+        backgroundColor: '#420001',
     },
     contentWrapper: {
         flex: 1,
@@ -155,22 +154,22 @@ const styles = StyleSheet.create({
         position: 'relative',
     },
     avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         borderWidth: 2,
-        borderColor: '#E5E7EB',
+        borderColor: '#F6B733',
     },
     avatarFallback: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#F43F5E',
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        backgroundColor: '#420001',
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarInitial: {
-        color: '#DADADA',
+        color: '#F6B733',
         fontSize: 16,
         fontWeight: 'bold',
     },
@@ -194,20 +193,21 @@ const styles = StyleSheet.create({
         paddingRight: 8,
     },
     title: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '600',
-        color: '#374151',
+        color: '#4b5563',
     },
     unreadText: {
-        color: '#130001',
+        color: '#420001',
+        fontWeight: '700',
     },
     message: {
         fontSize: 12,
-        color: '#6B7280',
+        color: '#9ca3af',
         marginTop: 2,
     },
     unreadSubText: {
-        color: '#374151',
+        color: '#6b7280',
     },
     userInfo: {
         flexDirection: 'row',
@@ -250,20 +250,14 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 0,
         right: 0,
-        backgroundColor: '#F43F5E',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        // borderRadius: 999,
-        borderBottomLeftRadius: 999,
+        backgroundColor: '#420001',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderBottomLeftRadius: 10,
         zIndex: 1,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.15,
-        shadowRadius: 2,
     },
     newBadgeText: {
-        color: '#DADADA',
+        color: '#F6B733',
         fontSize: 10,
         fontWeight: '500',
         letterSpacing: 0.5,

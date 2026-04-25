@@ -1,4 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import ChatList from '@/components/listchats';
 import { router, useFocusEffect } from 'expo-router';
 import userApi from '../api/userApi';
@@ -58,6 +60,7 @@ const MyChatList = () => {
   const [chatList, setChatList] = useState<ChatItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const dataLoadedRef = useRef(false);
+  const [chatQuota, setChatQuota] = useState<any>(null);
 
   const handleChatPress = (item: ChatItem) => {
     router.push({
@@ -73,9 +76,6 @@ const MyChatList = () => {
 
   useFocusEffect(
     useCallback(() => {
-      // Skip if data already loaded (avoid re-fetch on every tab switch)
-      if (dataLoadedRef.current) return;
-
       const fetchUserDetail = async () => {
         try {
           if (!userData.userId) return;
@@ -100,6 +100,15 @@ const MyChatList = () => {
             unreadCount: chat.unreadMessageCount
           }));
           setChatList(formattedChats);
+
+          // Fetch conversation quota
+          try {
+            const quotaRes = await userApi.getConversationQuota(userData.userId);
+            if (quotaRes.data?.code === 200) {
+              setChatQuota(quotaRes.data.data);
+            }
+          } catch (_) {}
+
           dataLoadedRef.current = true;
         } catch (error: any) {
           console.error('API call error:', error);
@@ -116,13 +125,28 @@ const MyChatList = () => {
 
 
   return (
-    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: '#d0dfeb' }}>
       {isLoading ? (
         <ChatListSkeleton />
+      ) : chatList.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
+          <Ionicons name="chatbubbles-outline" size={64} color="#d1d5db" />
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#374151', marginTop: 16 }}>No conversations yet</Text>
+          <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
+            Start connecting with your matches! Send an interest request and begin a conversation.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/(root)/(tabs)/explore' as any)}
+            style={{ marginTop: 20, backgroundColor: '#420001', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 }}
+          >
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Explore Matches</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <ChatList
           allChats={chatList}
           onPress={handleChatPress}
+          chatQuota={chatQuota}
         />
       )}
     </SafeAreaView>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ImageBackground, StyleSheet } from 'react-native';
 import VerifiedBadges from './VerifiedBadges';
+import { getInterestEmoji, getInterestLabel } from '../constants/interests';
 
 interface ExploreProfileCardProps {
   imageUrl: string;
@@ -12,11 +13,14 @@ interface ExploreProfileCardProps {
   idVerified?: boolean;
   educationVerified?: boolean;
   incomeVerified?: boolean;
+  sharedInterests?: string[];
+  hasActiveBoost?: boolean;
 }
 
 const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({
   imageUrl, name, age, job, location, gender,
   idVerified, educationVerified, incomeVerified,
+  sharedInterests, hasActiveBoost,
 }) => {
   return (
     <View style={styles.card}>
@@ -33,7 +37,14 @@ const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({
         style={styles.image}
         imageStyle={styles.imageStyle}
       >
-        {/* Trust shield at bottom-right corner */}
+        {/* ⭐ Boosted badge at top-left */}
+        {hasActiveBoost ? (
+          <View style={styles.boostBadge}>
+            <Text style={styles.boostBadgeText}>⭐ Boosted</Text>
+          </View>
+        ) : null}
+
+        {/* Trust shield at top-right corner */}
         <View style={styles.shieldWrap}>
           <VerifiedBadges
             idVerified={idVerified}
@@ -50,6 +61,22 @@ const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({
           </Text>
           <Text style={styles.job}>{job}</Text>
           <Text style={styles.job}>{location}</Text>
+          {sharedInterests && sharedInterests.length > 0 ? (
+            <View style={styles.interestRow}>
+              {sharedInterests.slice(0, 3).map((code) => (
+                <View key={code} style={styles.interestTag}>
+                  <Text style={styles.interestTagText}>
+                    {getInterestEmoji(code)} {getInterestLabel(code)}
+                  </Text>
+                </View>
+              ))}
+              {sharedInterests.length > 3 ? (
+                <View style={styles.interestTag}>
+                  <Text style={styles.interestTagText}>+{sharedInterests.length - 3}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </ImageBackground>
     </View>
@@ -80,6 +107,38 @@ const styles = StyleSheet.create({
   },
   nameAge: { color: '#DADADA', fontSize: 16, fontWeight: '600' },
   job: { color: '#ccc', fontSize: 13, marginTop: 4 },
+  interestRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 6,
+  },
+  interestTag: {
+    backgroundColor: 'rgba(245,158,11,0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  interestTagText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fef3c7',
+  },
+  boostBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(245,158,11,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    zIndex: 3,
+  },
+  boostBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
+  },
   shieldWrap: {
     position: 'absolute',
     top: 8,

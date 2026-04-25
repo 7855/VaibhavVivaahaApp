@@ -18,8 +18,10 @@ import { loadUserSubscription, loadMasterData } from '../services/masterService'
 import { useSubscription } from '../contexts/subscriptionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import FooterMessage from '@/components/FooterMessage';
+import VVMWelcomeHeader from '@/components/VVMWelcomeHeader';
 import PromotionalPopup from '@/components/PromotionalPopup';
 import { useUserData } from '../contexts/UserDataContext';
+import { usePopup } from '../contexts/PopupContext';
 import * as WebBrowser from 'expo-web-browser';
 
 interface ConnectionCount {
@@ -204,6 +206,7 @@ const LoadingState = () => (
 
 const Index = () => {
   const { userData } = useUserData();
+  const popup = usePopup();
   const [hasStarted, setHasStarted] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const dataLoadedRef = useRef(false);
@@ -211,10 +214,12 @@ const Index = () => {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [newConnection, setNewConnection] = useState<any[]>([]);
   const [nearYouProfile, setNearYouProfile] = useState<any[]>([]);
+  const [interestMatches, setInterestMatches] = useState<any[]>([]);
   const [userConnectionCount, setUserConnectionCount] = useState<ConnectionCount>({});
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [happyStories, setHappyStories] = useState<any[]>([]);
   const [percentage, setPercentage] = useState<number>(0);
+  const [memberId, setMemberId] = useState<string>('');
 
   const [timeLeft, setTimeLeft] = useState('');
   const { subscriptionData = {}, setSubscription } = useSubscription() || {};
@@ -240,7 +245,19 @@ const Index = () => {
         }
       };
 
+      // Re-fetch profile completion on every focus so updates (e.g. adding interests) reflect immediately
+      const refreshProfileCompletion = async () => {
+        if (!userData.userId) return;
+        try {
+          const response = await userApi.getProfileCompletion(userData.userId);
+          if (isActive && response.data?.data?.data) {
+            setPercentage(response.data.data.data.percentage);
+          }
+        } catch (_) {}
+      };
+
       fetchUnreadCount();
+      refreshProfileCompletion();
 
       return () => {
         isActive = false;
@@ -364,20 +381,30 @@ const Index = () => {
         setHasStarted(true);
         const casteIdValue = parseInt(userData.casteId!);
 
-        const [rec, conn, near, count] = await Promise.all([
+        const [rec, conn, near, count, intMatch] = await Promise.all([
           userApi.getDailyRecommendation(casteIdValue, userData.gender),
           userApi.getNewConnections(casteIdValue, userData.gender),
           userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location),
           userApi.userConnectionCount(userData.userId),
+          userApi.getInterestMatchesByUser(
+            casteIdValue,
+            userData.gender === 'M' ? 'F' : 'M',
+            userData.userId
+          ).catch(() => ({ data: { data: [] } })),
         ]);
 
         setRecommendations(rec.data?.data?.slice(0, 7) || []);
         setNewConnection(conn.data?.data?.slice(0, 7) || []);
         setNearYouProfile(near.data?.data?.slice(0, 7) || []);
         setUserConnectionCount(count.data?.data || {});
+        setInterestMatches(intMatch.data?.data?.slice(0, 7) || []);
 
-        const unreadRes = await userApi.getUnreadNotificationCount(userData.userId);
+        const [unreadRes, profileRes] = await Promise.all([
+          userApi.getUnreadNotificationCount(userData.userId),
+          userApi.getProfileDetails(userData.userId).catch(() => null),
+        ]);
         setUnreadCount(unreadRes.data?.data);
+        if (profileRes?.data?.data?.memberId) setMemberId(profileRes.data.data.memberId);
 
         dataLoadedRef.current = true;
         setIsLoading(false);
@@ -422,51 +449,62 @@ const Index = () => {
       case 'PLATINUM':
         return {
           ...baseStyle,
-          icon: <Crown size={16} color="#E5E4E2" />, // Platinum metallic color
-          background: 'rgba(229, 228, 226, 0.2)', // Light platinum background
-          textColor: '#E5E4E2', // Platinum text color
-          gradient: ['#E5E4E2', '#C0C0C0'], // Platinum gradient
-          borderColor: '#E5E4E2', // Platinum border
+          icon: <Crown size={14} color="#fff" />,
+          background: '#7c3aed',
+          textColor: '#fff',
+          gradient: ['#7c3aed', '#6d28d9'],
+          borderColor: '#7c3aed',
           name: 'Platinum'
         };
       case 'GOLD':
         return {
           ...baseStyle,
-          icon: <Award size={16} color="#FFD700" />,
-          background: 'rgba(255, 215, 0, 0.2)',
-          textColor: '#FFD700',
-          gradient: ['#FFD700', '#FFA500'],
-          borderColor: '#FFD700',
+          icon: <Award size={14} color="#4a2e06" />,
+          background: '#F5A425',
+          textColor: '#4a2e06',
+          gradient: ['#F5A425', '#e08d10'],
+          borderColor: '#F5A425',
           name: 'Gold'
         };
       case 'SILVER':
         return {
           ...baseStyle,
-          icon: <Award size={16} color="#E0E0E0" />,
-          background: 'rgba(224, 224, 224, 0.2)',
-          textColor: '#E0E0E0',
-          gradient: ['#E0E0E0', '#A0A0A0'],
-          borderColor: '#E0E0E0',
+          icon: <Award size={14} color="#374151" />,
+          background: '#d1d5db',
+          textColor: '#374151',
+          gradient: ['#d1d5db', '#9ca3af'],
+          borderColor: '#d1d5db',
           name: 'Silver'
         };
+      case 'STARTER':
+        return {
+          ...baseStyle,
+          icon: <Award size={14} color="#fff" />,
+          background: '#1F7FE5',
+          textColor: '#fff',
+          gradient: ['#1F7FE5', '#1862b8'],
+          borderColor: '#1F7FE5',
+          name: 'Starter'
+        };
+      case 'CLASSIC':
       case 'BRONZE':
         return {
           ...baseStyle,
-          icon: <Award size={16} color="#CD7F32" />,
-          background: 'rgba(205, 127, 50, 0.2)',
-          textColor: '#CD7F32',
-          gradient: ['#CD7F32', '#8B4513'],
-          borderColor: '#CD7F32',
-          name: 'Bronze'
+          icon: <Award size={14} color="#fff" />,
+          background: '#d97706',
+          textColor: '#fff',
+          gradient: ['#d97706', '#b45309'],
+          borderColor: '#d97706',
+          name: 'Classic'
         };
       default: // FREE
         return {
           ...baseStyle,
-          icon: <User size={16} color="#4A90E2" />,
-          background: 'rgba(74, 144, 226, 0.2)',
-          textColor: '#2DD4BF',
-          gradient: ['#4A90E2', '#1E3A8A'],
-          borderColor: '#4A90E2',
+          icon: <User size={14} color="#fff" />,
+          background: '#64748b',
+          textColor: '#fff',
+          gradient: ['#64748b', '#475569'],
+          borderColor: '#64748b',
           name: 'Free'
         };
     }
@@ -500,91 +538,63 @@ const Index = () => {
       {/* {!hasStarted || hasStarted == null ? ( */}
       {/* // <Getstart onStart={onStart} /> */}
       {/* ) : ( */}
-      <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'linear-gradient(0deg,rgba(254, 254, 254, 1) 18%, rgba(219, 177, 211, 1) 100%)' }}>
-
+      <SafeAreaView edges={['right', 'left']} style={{ flex: 1, backgroundColor: '#d0dfeb' }}>
+        <LinearGradient
+          colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
+          locations={[0, 0.3, 0.6, 1.0]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ flex: 1 }}
+        >
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
 
-          <View style={{ marginTop: 12 }}>
-            {/* <View style={styles.container}>
-                 <Text>Token: {expoPushToken?.data ?? ""}</Text>
-                 <Text>Notification: {data}</Text>
-               </View> */}
-            {/* ----------------------index page content  */}
-
-            <View style={{ height: 90, marginHorizontal: 5 }}>
-              <View style={[styles.container, { borderRadius: 999, paddingStart: 12 }]}>
-                <Image
-                  source={userData.profileImage ? { uri: userData.profileImage } :
-                    userData.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
-                      userData.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
-                        require('../../../assets/images/defaultAvatar.png')}
-                  style={{ ...styles.profileImage, borderWidth: 2 }}
-                />
-
-                <View style={{ flex: 1, marginLeft: 6 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                    <TextNative style={[styles.greeting, { color: '#FFD700' }]}>
-                      Welcome,{' '}
-                    </TextNative>
-
-                  </View>
-
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <TextNative style={[styles.greetingName, { color: '#DADADA' }]}>
-                      {userData.firstName} {userData.lastName}
-                    </TextNative>
-
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
-                    <View style={[styles.tierDisplay, { backgroundColor: tierStyle.background, marginRight: 0 }]}>
-                      <View style={[styles.tierIcon, { backgroundColor: '#2D3748' }]}>
-                        {tierStyle.name === 'Platinum' ? (
-                          <Crown size={16} strokeWidth={2.5} color={tierStyle.textColor} />
-                        ) : tierStyle.name === 'Gold' ? (
-                          <Award size={16} strokeWidth={2.5} color={tierStyle.textColor} />
-                        ) : tierStyle.name === 'Silver' ? (
-                          <Award size={16} strokeWidth={2.5} color={tierStyle.textColor} />
-                        ) : tierStyle.name === 'Bronze' ? (
-                          <Award size={16} strokeWidth={2.5} color={tierStyle.textColor} />
-                        ) : (
-                          <User size={16} strokeWidth={2.5} color={tierStyle.textColor} />
-                        )}
-                      </View>
-                      <Text style={[styles.tierTitle, { color: tierStyle.textColor }]}>
-                        {tierStyle.name} Member
-                      </Text>
-                      {tierStyle.name === 'Free' && (
-                        <TouchableOpacity
-                          onPress={() => router.push('/(root)/screens/PremiumTab')}
-                          style={[styles.upgradeButton, { backgroundColor: '#FFD700' }]}
-                        >
-                          <Text style={styles.upgradeText}>Upgrade Plan</Text>
-                          <ArrowRight size={14} color="#130001" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-
-                  </View>
-
-                </View>
-
-                <TouchableOpacity
-                  onPress={() => router.push('/screens/NotificationScreen')}
-                  style={{ marginLeft: 'auto' }}
-                >
-                  <View style={styles.bellWrapper}>
-                    <Bell size={28} color="#F43F5E" />
-                    {unreadCount > 0 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>
-                          {unreadCount > 9 ? '9+' : unreadCount}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
+          <View>
+            <VVMWelcomeHeader
+              userData={userData}
+              tierName={tierStyle?.name}
+              unreadCount={unreadCount}
+              router={router}
+              isVerified={false}
+              memberId={memberId}
+              stats={{
+                likes: userConnectionCount.Hearts || 0,
+                proposals: userConnectionCount.Proposals || 0,
+                views: userConnectionCount.Admirers || 0,
+                matches: userConnectionCount.Matches || 0,
+              }}
+              onStatRefresh={async () => {
+                try {
+                  const casteIdValue = parseInt(userData.casteId!);
+                  const [count, rec, conn, near, intMatch, unreadRes] = await Promise.all([
+                    userApi.userConnectionCount(userData.userId),
+                    userApi.getDailyRecommendation(casteIdValue, userData.gender),
+                    userApi.getNewConnections(casteIdValue, userData.gender),
+                    userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location),
+                    userApi.getInterestMatchesByUser(casteIdValue, userData.gender === 'M' ? 'F' : 'M', userData.userId).catch(() => ({ data: { data: [] } })),
+                    userApi.getUnreadNotificationCount(userData.userId),
+                  ]);
+                  setUserConnectionCount(count.data?.data || {});
+                  setRecommendations(rec.data?.data?.slice(0, 7) || []);
+                  setNewConnection(conn.data?.data?.slice(0, 7) || []);
+                  setNearYouProfile(near.data?.data?.slice(0, 7) || []);
+                  setInterestMatches(intMatch.data?.data?.slice(0, 7) || []);
+                  setUnreadCount(unreadRes.data?.data);
+                  popup.success('Refreshed', 'All sections updated successfully.');
+                } catch (e) {
+                  console.error(e);
+                  popup.error('Refresh failed', 'Please try again.');
+                }
+              }}
+              onStatsPress={(key) => {
+                if (key === 'likes' || key === 'matches') {
+                  router.push({ pathname: '/screens/ListUser', params: { type: 'connection' } });
+                } else if (key === 'proposals') {
+                  router.push('/(tabs)/mailBox');
+                } else if (key === 'views') {
+                  router.push({ pathname: '/screens/ListUser', params: { type: 'viewed' } });
+                }
+              }}
+            />
 
             <Box alignItems="center">
               <Box
@@ -595,7 +605,7 @@ const Index = () => {
                 m={0}
                 borderTopLeftRadius={30}
                 borderTopRightRadius={30}
-                borderWidth={1}
+                borderWidth={0}
                 _dark={{
                   borderColor: 'coolGray.600',
                   backgroundColor: 'gray.700',
@@ -605,154 +615,13 @@ const Index = () => {
                   borderWidth: 1,
                 }}
                 _light={{
-                  backgroundColor: '#F5F5F5',
-                  borderColor: '#fff',
+                  backgroundColor: 'transparent',
+                  borderColor: 'transparent',
                 }}
                 style={{
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
+                  borderWidth: 0,
                 }}
               >
-
-                <View style={{ paddingHorizontal: 8, paddingVertical: 10 }}>
-
-                  {/* Card */}
-                  <LinearGradient
-                    colors={['#F5F5F5', '#F9F3FC']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 0.5 }}
-                    style={{
-                      borderRadius: 24,
-                      paddingVertical: 10,
-                      paddingHorizontal: 0,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 4,
-                      elevation: 4,
-                      borderWidth: 1,
-                      borderColor: '#F3F4F6',
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      {/* Hearts */}
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        <LinearGradient
-                          colors={['#420001', '#8B0000']}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 999,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            marginBottom: 8,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 4,
-                            elevation: 3,
-                          }}
-                        >
-                          <Heart stroke="#ffffff" width={20} height={20} />
-                        </LinearGradient>
-                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#130001' }}>{userConnectionCount.Hearts}</Text>
-                        <Text style={{ fontSize: 12, color: '#130001', textAlign: 'center', fontWeight: '500' }}>
-                          Hearts
-                        </Text>
-                      </View>
-
-                      {/* Divider */}
-                      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
-
-                      {/* Proposals */}
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        <LinearGradient
-                          colors={['#420001', '#8B0000']}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 999,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            marginBottom: 8,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 4,
-                            elevation: 3,
-                          }}
-                        >
-                          <Send stroke="#ffffff" width={20} height={20} />
-                        </LinearGradient>
-                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#130001' }}>{userConnectionCount.Proposals}</Text>
-                        <Text style={{ fontSize: 12, color: '#130001', textAlign: 'center', fontWeight: '500' }}>
-                          Proposals
-                        </Text>
-                      </View>
-
-                      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
-
-                      {/* Admirers */}
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        <LinearGradient
-                          colors={['#420001', '#8B0000']}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 999,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            marginBottom: 8,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 4,
-                            elevation: 3,
-                          }}
-                        >
-                          <Eye stroke="#ffffff" width={20} height={20} />
-                        </LinearGradient>
-                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#130001' }}>{userConnectionCount.Admirers}</Text>
-                        <Text style={{ fontSize: 12, color: '#130001', textAlign: 'center', fontWeight: '500' }}>
-                          Admirers
-                        </Text>
-                      </View>
-
-                      <View style={{ width: 1, height: 48, backgroundColor: '#E5E7EB' }} />
-
-                      {/* Matches */}
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        <LinearGradient
-                          colors={['#420001', '#8B0000']}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 999,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            marginBottom: 8,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 4,
-                            elevation: 3,
-                          }}
-                        >
-                          <UserCheck stroke="#ffffff" width={20} height={20} />
-                        </LinearGradient>
-                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#130001' }}>{userConnectionCount.Matches}</Text>
-                        <Text style={{ fontSize: 12, color: '#130001', textAlign: 'center', fontWeight: '500' }}>
-                          Matches
-                        </Text>
-                      </View>
-                    </View>
-                  </LinearGradient>
-                </View>
 
                 <View>
                   <ProfileCompletionWidget />
@@ -793,7 +662,7 @@ const Index = () => {
         </Text>
         <View
           style={{
-            backgroundColor: '#420001',
+            backgroundColor: '#1F7FE5',
             paddingHorizontal: 8,
             paddingVertical: 2,
             borderRadius: 999,
@@ -824,7 +693,7 @@ const Index = () => {
           }}
         >
           <LinearGradient
-            colors={['#420001', '#420001']}
+            colors={['#1F7FE5', '#1862b8']}
             style={{ height: '100%', borderRadius: 999, position: 'relative' }}
           >
             <View
@@ -841,7 +710,7 @@ const Index = () => {
         </View>
         <Text
           style={{
-            color: '#130001',
+            color: '#0f1724',
             fontWeight: 'bold',
             fontSize: 10,
             textAlign: 'right',
@@ -858,7 +727,7 @@ const Index = () => {
                 {/*  New Connections Section */}
                 <Box
                   overflow="hidden"
-                  backgroundColor="whitesmoke"
+                  backgroundColor="transparent"
                   borderColor="black"
                   p={2}
                   borderRadius={20}
@@ -878,17 +747,17 @@ const Index = () => {
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize={14} fontWeight="bold" textTransform="uppercase" color="#130001">
+                          <Text fontSize={16} fontWeight="600" color="#130001">
                             New Connections
                           </Text>
                           <HStack alignItems="center" space={1}>
-                            <Icon name="bullseye" size={17} color="green" />
-                            <Text fontSize="xs">
+                            <Icon name="bullseye" size={15} color="#1F7FE5" />
+                            <Text fontSize="xs" color="#64748b">
                               Explore Profiles, Spark New Connections
                             </Text>
                           </HStack>
                         </VStack>
-                        <Icon name="chevron-circle-right" size={30} color="green" />
+                        <Icon name="chevron-circle-right" size={26} color="#1F7FE5" />
                       </HStack>
                     </TouchableOpacity>
 
@@ -914,7 +783,7 @@ const Index = () => {
                 {/* Daily Recommendations Section */}
                 <Box
                   overflow="hidden"
-                  backgroundColor="whitesmoke"
+                  backgroundColor="transparent"
                   borderColor="black"
                   p={2}
                   borderRadius={20}
@@ -934,17 +803,17 @@ const Index = () => {
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize={14} fontWeight="bold" textTransform="uppercase" color="#130001">
+                          <Text fontSize={16} fontWeight="600" color="#130001">
                             Daily Recommendations
                           </Text>
                           <HStack alignItems="center" space={1}>
-                            <Icon name="clock-o" size={15} color="green" />
-                            <Text fontSize="xs">
+                            <Icon name="clock-o" size={15} color="#1F7FE5" />
+                            <Text fontSize="xs" color="#64748b">
                               {timeLeft || 'Calculating...'} left to view these profiles
                             </Text>
                           </HStack>
                         </VStack>
-                        <Icon name="chevron-circle-right" size={30} color="green" />
+                        <Icon name="chevron-circle-right" size={26} color="#1F7FE5" />
                       </HStack>
                     </TouchableOpacity>
 
@@ -971,7 +840,7 @@ const Index = () => {
                 {/* Near You Section */}
                 <Box
                   overflow="hidden"
-                  backgroundColor="whitesmoke"
+                  backgroundColor="transparent"
                   borderColor="black"
                   p={2}
                   borderRadius={20}
@@ -991,17 +860,17 @@ const Index = () => {
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize={14} fontWeight="bold" textTransform="uppercase" color="#130001">
+                          <Text fontSize={16} fontWeight="600" color="#130001">
                             Near You
                           </Text>
                           <HStack alignItems="center" space={1}>
-                            <Icon name="map-marker" size={15} color="green" />
-                            <Text fontSize="xs">
+                            <Icon name="map-marker" size={15} color="#1F7FE5" />
+                            <Text fontSize="xs" color="#64748b">
                               Discover profiles in your area
                             </Text>
                           </HStack>
                         </VStack>
-                        <Icon name="chevron-circle-right" size={30} color="green" />
+                        <Icon name="chevron-circle-right" size={26} color="#1F7FE5" />
                       </HStack>
                     </TouchableOpacity>
 
@@ -1024,10 +893,59 @@ const Index = () => {
                   </VStack>
                 </Box>
 
+                {/* Interest-Based Matches shelf */}
+                {interestMatches.length > 0 ? (
+                  <Box
+                    overflow="hidden"
+                    backgroundColor="transparent"
+                    borderColor="black"
+                    padding={2}
+                    borderRadius={20}
+                    margin={1}
+                  >
+                    <VStack space={3}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          router.push({
+                            pathname: '/screens/listProfile',
+                            params: {
+                              type: 'interestMatches',
+                              title: 'Matches Based on Interests'
+                            }
+                          });
+                        }}
+                      >
+                        <HStack justifyContent="space-between" alignItems="center">
+                          <VStack>
+                            <Text fontSize={16} fontWeight="600" color="#130001">
+                              Matches Based on Interests
+                            </Text>
+                            <HStack alignItems="center" space={1}>
+                              <Icon name="heart" size={15} color="#1F7FE5" />
+                              <Text fontSize="xs" color="#64748b">
+                                Profiles who share your passions
+                              </Text>
+                            </HStack>
+                          </VStack>
+                          <Icon name="chevron-circle-right" size={26} color="#1F7FE5" />
+                        </HStack>
+                      </TouchableOpacity>
+                      <Center marginLeft={1} marginBottom={2}>
+                        <SwiperProfile users={interestMatches} onUserPress={(userId: any) => {
+                          router.push({
+                            pathname: '/screens/ProfileDetail',
+                            params: { userId: userId }
+                          });
+                        }} />
+                      </Center>
+                    </VStack>
+                  </Box>
+                ) : null}
+
                 {/* last convo section  */}
                 {/* <Box
                   overflow="hidden"
-                  backgroundColor="whitesmoke"
+                  backgroundColor="transparent"
                   borderColor="black"
                   padding={2}
                   borderRadius={20}
@@ -1186,6 +1104,7 @@ const Index = () => {
             </Box>
           </View>
         </ScrollView>
+        </LinearGradient>
       </SafeAreaView>
 
       {/* )} */}
@@ -1280,10 +1199,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#420001',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f1724',
     marginLeft: 8,
+    letterSpacing: -0.3,
   },
   viewAllText: {
     color: '#E58E15',
@@ -1311,7 +1231,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(66, 0, 1, 0.7)', // Semi-transparent primary color background for text
+    backgroundColor: 'rgba(15, 23, 36, 0.65)',
     paddingVertical: 5,
     alignItems: 'center',
     borderTopEndRadius: 10,
@@ -1344,20 +1264,18 @@ const styles = StyleSheet.create({
     gap: 10
   },
   headerText: {
-    // fontSize: 24, // Equivalent to text-xl
     marginTop: 10,
     marginBottom: 10,
-    color: '#420001',
+    color: '#0f1724',
   },
   sideLine: {
     height: 1,
-    backgroundColor: '#420001',
-    flex: 1, // Makes the line stretch to fill the available space
-    // marginTop: 10,
+    backgroundColor: '#e2e8f0',
+    flex: 1,
   },
   safeArea: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#f1f5f9',
     width: '100%',
   },
   scrollViewContent: {
@@ -1367,8 +1285,10 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#420001',
-    padding: 7
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    padding: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
   },
   profileImage: {
     width: 60,
@@ -1512,7 +1432,7 @@ const styles = StyleSheet.create({
     marginLeft: 4
   },
   upgradeText: {
-    color: '#130001',
+    color: '#0f1724',
     fontSize: 11,
     fontWeight: '700',
     marginRight: 4,

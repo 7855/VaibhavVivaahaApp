@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSubscription } from '../contexts/subscriptionContext';
+import VerifiedBadges from '../../../components/VerifiedBadges';
 import { useRoute } from '@react-navigation/native';
 import userApi from '../api/userApi';
 
@@ -35,6 +36,9 @@ interface Profile {
   gender: string;
   isLiked: boolean;
   subscriptionTag: string;
+  idVerified: boolean;
+  educationVerified: boolean;
+  incomeVerified: boolean;
 }
 
 interface SearchData {
@@ -102,8 +106,10 @@ export default function ResultsScreen() {
           image: user.profileImage || '',
           gender: user.gender || '',
           isLiked: false,
-          subscriptionTag: user.subscriptionTag || 'FREE' // Add this line
-
+          subscriptionTag: user.subscriptionTag || 'FREE',
+          idVerified: user.idVerified === true || user.idVerified === 1,
+          educationVerified: user.educationVerified === true || user.educationVerified === 1,
+          incomeVerified: user.incomeVerified === true || user.incomeVerified === 1,
         }));
         // console.log(formattedProfiles);
 
@@ -373,6 +379,18 @@ export default function ResultsScreen() {
                   profile.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
                     profile.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
                       require('../../../assets/images/defaultAvatar.png')} style={styles.profileImage} />
+                {/* Verified shield */}
+                {(profile.idVerified || profile.educationVerified || profile.incomeVerified) && (
+                  <View style={{ position: 'absolute', top: 6, right: 6 }}>
+                    <VerifiedBadges
+                      idVerified={profile.idVerified}
+                      educationVerified={profile.educationVerified}
+                      incomeVerified={profile.incomeVerified}
+                      mode="compact"
+                      size="sm"
+                    />
+                  </View>
+                )}
               </View>
               {/* <Image source={{ uri: profile.image }} style={styles.profileImage} /> */}
               {/* Inside your profile card map function */}

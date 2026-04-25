@@ -95,6 +95,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [education, setEducation] = useState<any>(null);
     const [educationOptions, setEducationOptions] = useState<string[]>([]);
     const { subscriptionData } = useSubscription();
+    const [viewerHobbies, setViewerHobbies] = useState<string[]>([]);
 
     const [height, setHeight] = useState('');
     const [age, setAge] = useState('');
@@ -203,11 +204,11 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             if (!filters.jobSector || filters.jobSector.length === 0) return null;
             return filters.jobSector.map(sector => {
                 const s = sector.toLowerCase();
-                if (s.includes('govt')) return 'GOVT';
+                if (s.includes('government') || s.includes('govt')) return 'GOVT';
                 if (s.includes('private')) return 'PRIVATE';
-                if (s.includes('no job')) return 'UNEMPLOYED';
+                if (s.includes('no job') || s.includes('unemployed')) return 'UNEMPLOYED';
                 if (s.includes('self')) return 'SELF';
-                return 'OTHER';
+                return s.toUpperCase();
             });
         };
 
@@ -222,7 +223,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             degree: filters.education.length > 0 ? filters.education : null,
             star: filters.star.length > 0 ? filters.star : null,
             dosham: filters.dosham.length > 0 ? filters.dosham : null,
-            profileImageStatus: 'Y', // or based on your filter
+            profileImageStatus: photoOnly ? 'Y' : 'N',
             profilesWithHoroscope: 'N', // or based on your filter
             casteId: userData.casteId,
             gender: userData.gender === 'M' ? 'F' : 'M',
@@ -236,6 +237,17 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         return searchData;
     };
 
+
+    // Fetch viewer's hobbies once on mount for shared-interest computation
+    useEffect(() => {
+        if (userData.userId) {
+            userApi.getUserHobbies(userData.userId).then((res: any) => {
+                if (res.data?.code === 200 && res.data?.data?.hobbies) {
+                    setViewerHobbies(res.data.data.hobbies);
+                }
+            }).catch(() => { });
+        }
+    }, [userData.userId]);
 
     useEffect(() => {
         const fetchSavedSearches = async () => {
@@ -809,8 +821,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 <View style={styles.cardContainer}>
                     <View style={styles.filterCard}>
                         <Text style={styles.sectionHeader}>Profile Search</Text>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Profile ID</Text>
+                        <View style={[styles.inputContainer, { marginTop: 12 }]}>
                             <View style={styles.inputField}>
                                 <TextInput
                                     style={styles.input}
@@ -933,7 +944,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         <Text style={styles.sectionHeader}>Basic Details</Text>
                         <ChevronDown
                             size={20}
-                            color="#420001"
+                            color="#1F7FE5"
                             style={[
                                 styles.chevronIcon,
                                 expandedSections.basic && styles.chevronRotated,
@@ -997,7 +1008,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             size="sm"
                                             value={photoOnly}
                                             onValueChange={setPhotoOnly}
-                                            trackColor={{ false: "#767577", true: "#420001" }}
+                                            trackColor={{ false: "#767577", true: "#1F7FE5" }}
                                             thumbColor={photoOnly ? "#f5dd4b" : "#f4f3f4"}
                                         />
                                     </HStack>
@@ -1016,7 +1027,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                             <Text style={styles.sectionHeader}>Job Details</Text>
                             <ChevronDown
                                 size={20}
-                                color="#420001"
+                                color="#1F7FE5"
                                 style={[
                                     styles.chevronIcon,
                                     expandedSections.job && styles.chevronRotated,
@@ -1055,7 +1066,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                         <ChevronDown size={16} color="#666" />
                                     </TouchableOpacity>
                                 </View> */}
-                                <View style={styles.filterRow}>
+                                <View style={[styles.filterRow, styles.filterRowFirst]}>
                                     <View style={styles.singleRowContainer}>
                                         <View style={styles.labelContainer1}>
                                             <Text style={styles.filterLabel}>Education</Text>
@@ -1172,7 +1183,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                             <Text style={styles.sectionHeader}>Religious Details</Text>
                             <ChevronDown
                                 size={20}
-                                color="#420001"
+                                color="#1F7FE5"
                                 style={[
                                     styles.chevronIcon,
                                     expandedSections.religious && styles.chevronRotated,
@@ -1183,7 +1194,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         {expandedSections.religious && (
                             <View style={{ marginBottom: 35 }}>
                                 {/* Star Multi-Select Dropdown */}
-                                <View style={styles.filterRow}>
+                                <View style={[styles.filterRow, styles.filterRowFirst]}>
                                     <View style={styles.singleRowContainer}>
                                         <View style={styles.labelContainer1}>
                                             <Text style={styles.filterLabel}>Star</Text>
@@ -1273,7 +1284,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             }
                                         }}
                                         disabled={!isPremiumUser}
-                                        trackColor={{ false: "#767577", true: "#420001" }}
+                                        trackColor={{ false: "#767577", true: "#1F7FE5" }}
                                         thumbColor={horoscopeOnly ? "#f5dd4b" : "#f4f3f4"}
                                     />
                                 </View>
@@ -1369,6 +1380,16 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
             const response = await userApi.filterUsers(request);
             const rawData = response.data.data;
+            if (rawData?.length > 0) {
+                console.log('🔍 First result verified flags:', {
+                    name: rawData[0].firstName,
+                    idVerified: rawData[0].idVerified,
+                    educationVerified: rawData[0].educationVerified,
+                    incomeVerified: rawData[0].incomeVerified,
+                    hasActiveBoost: rawData[0].hasActiveBoost,
+                    keys: Object.keys(rawData[0]).join(', ')
+                });
+            }
             setProfiles(response.data.data);
             handleDropdownClose();
         } catch (error: any) {
@@ -1424,20 +1445,21 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         {matchesCount.toLocaleString()} matches based on your preferences
                     </Text>
                 </View> */}
+                {activeTab !== 'saved' && (
+                    <View style={[styles.basesearchButtonContainer, { marginTop: 10, paddingBottom: 150, borderTopWidth: 0, backgroundColor: 'transparent' }]}>
+                        <TouchableOpacity onPress={activeTab === 'profile' ? handleProfileIdSearch : handleSearch} style={styles.basesearchButtonWrapper}>
+                            <LinearGradient
+                                colors={['#1F7FE5', '#1862b8']}
+                                style={styles.basesearchButton}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                            >
+                                <Text style={styles.basesearchButtonText}>Search</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </ScrollView>
-
-            <View style={[styles.basesearchButtonContainer, { paddingBottom: searchBarBottomPad }]}>
-                <TouchableOpacity onPress={activeTab === 'profile' ? handleProfileIdSearch : handleSearch} style={styles.basesearchButtonWrapper}>
-                    <LinearGradient
-                        colors={['#420001', '#8B0000', '#420001']}
-                        style={styles.basesearchButton}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                    >
-                        <Text style={styles.basesearchButtonText}>Search</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
-            </View>
 
             {/* <DropdownModal
                 visible={showAgeModal}
@@ -1709,45 +1731,55 @@ const FindPartner = () => {
                         const profilePlan = item.subscriptionTitle;
                         const badgeColor =
                             profilePlan === 'Platinum' ? '#7c3aed' :
-                            profilePlan === 'Gold' ? '#d4a017' :
-                            profilePlan === 'Silver' ? '#9ca3af' : null;
+                                profilePlan === 'Gold' ? '#d4a017' :
+                                    profilePlan === 'Silver' ? '#9ca3af' : null;
                         const isVerified = profilePlan === 'Silver' || profilePlan === 'Gold' || profilePlan === 'Platinum';
                         return (
-                        <View style={styles.cardWrapper}>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    router.push({
-                                        pathname: '/screens/ProfileDetail',
-                                        params: { userId: item.userId }
-                                    });
-                                }}
-                            >
-                                <ExploreProfileCard
-                                    imageUrl={item.profileImage}
-                                    name={item.firstName}
-                                    age={item.age}
-                                    job={item.userDetail?.[0]?.occupation || ''}
-                                    location={item.location}
-                                    gender={item.gender}
-                                    idVerified={item.idVerified}
-                                    educationVerified={item.educationVerified}
-                                    incomeVerified={item.incomeVerified}
-                                />
-                                {badgeColor ? (
-                                    <View style={{
-                                        position: 'absolute', top: 8, left: 8,
-                                        flexDirection: 'row', alignItems: 'center',
-                                        paddingHorizontal: 6, paddingVertical: 2,
-                                        borderRadius: 10, backgroundColor: badgeColor,
-                                    }}>
-                                        {isVerified ? <Ionicons name="checkmark-circle" size={10} color="#fff" /> : null}
-                                        <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', marginLeft: 2 }}>
-                                            {profilePlan?.toUpperCase()}
-                                        </Text>
-                                    </View>
-                                ) : null}
-                            </TouchableOpacity>
-                        </View>
+                            <View style={styles.cardWrapper}>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        router.push({
+                                            pathname: '/screens/ProfileDetail',
+                                            params: { userId: item.userId }
+                                        });
+                                    }}
+                                >
+                                    <ExploreProfileCard
+                                        imageUrl={item.profileImage}
+                                        name={item.firstName}
+                                        age={item.age}
+                                        job={item.userDetail?.[0]?.occupation || ''}
+                                        location={item.location}
+                                        gender={item.gender}
+                                        idVerified={item.idVerified === 1 || item.idVerified === true}
+                                        educationVerified={item.educationVerified === 1 || item.educationVerified === true}
+                                        incomeVerified={item.incomeVerified === 1 || item.incomeVerified === true}
+                                        sharedInterests={(() => {
+                                            try {
+                                                const theirRaw = item.userDetail?.[0]?.hobbies;
+                                                if (!theirRaw) return undefined;
+                                                const theirHobbies = typeof theirRaw === 'string' ? JSON.parse(theirRaw) : [];
+                                                if (!Array.isArray(theirHobbies) || theirHobbies.length === 0) return undefined;
+                                                // Viewer's hobbies will be populated once we wire it via props — for now return all of theirs as display
+                                                return theirHobbies.slice(0, 3);
+                                            } catch { return undefined; }
+                                        })()}
+                                    />
+                                    {badgeColor ? (
+                                        <View style={{
+                                            position: 'absolute', top: 8, left: 8,
+                                            flexDirection: 'row', alignItems: 'center',
+                                            paddingHorizontal: 6, paddingVertical: 2,
+                                            borderRadius: 10, backgroundColor: badgeColor,
+                                        }}>
+                                            {isVerified ? <Ionicons name="checkmark-circle" size={10} color="#fff" /> : null}
+                                            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', marginLeft: 2 }}>
+                                                {profilePlan?.toUpperCase()}
+                                            </Text>
+                                        </View>
+                                    ) : null}
+                                </TouchableOpacity>
+                            </View>
                         );
                     }}
                     ListEmptyComponent={() => (
@@ -1870,7 +1902,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
     },
     indicatorTab: {
-        backgroundColor: '#420001',
+        backgroundColor: '#1F7FE5',
         height: '100%',
         borderRadius: 4,
     },
@@ -1896,8 +1928,8 @@ const styles = StyleSheet.create({
     },
     ageLabelText: {
         fontSize: 15,
-        fontWeight: 'bold',
-        color: '#420001',
+        fontWeight: '500',
+        color: '#1F7FE5',
     },
     ageInputContainer: {
         flexDirection: 'row',
@@ -1926,8 +1958,8 @@ const styles = StyleSheet.create({
     },
     salaryLabelText: {
         fontSize: 15,
-        fontWeight: 'bold',
-        color: '#420001',
+        fontWeight: '500',
+        color: '#1F7FE5',
     },
     salaryInputContainer: {
         flexDirection: 'row',
@@ -2006,7 +2038,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 5,
     },
     indicator: {
-        backgroundColor: "#420001",
+        backgroundColor: "#1F7FE5",
         height: "100%",
         borderRadius: 30,
     },
@@ -2196,8 +2228,8 @@ const styles = StyleSheet.create({
     },
     educationLabelText: {
         fontSize: 15,
-        fontWeight: 'bold',
-        color: '#420001',
+        fontWeight: '500',
+        color: '#1F7FE5',
     },
     educationInputWrapper: {
         flex: 1,
@@ -2242,7 +2274,7 @@ const styles = StyleSheet.create({
         borderBottomColor: 'transparent',
     },
     activeTab: {
-        borderBottomColor: '#420001',
+        borderBottomColor: '#1F7FE5',
     },
     tabText: {
         color: '#666',
@@ -2250,8 +2282,8 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     activeTabText: {
-        color: '#420001',
-        fontWeight: 'bold',
+        color: '#1F7FE5',
+        fontWeight: '600',
     },
     contentSearch: {
         flex: 1,
@@ -2264,10 +2296,10 @@ const styles = StyleSheet.create({
     filterCard: {
         backgroundColor: '#fff',
         borderRadius: 16,
-        padding: 16,
-        marginBottom: 14,
+        padding: 10,
+        marginBottom: 4,
         elevation: 2,
-        shadowColor: '#420001',
+        shadowColor: '#1F7FE5',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
@@ -2278,12 +2310,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 4,
+        paddingVertical: 2,
     },
     sectionHeader: {
-        color: '#420001',
+        color: '#130001',
         fontSize: 16,
-        fontWeight: '700',
+        fontWeight: '500',
         letterSpacing: 0.3,
     },
     chevronIcon: {
@@ -2296,20 +2328,20 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 14,
-        paddingTop: 14,
+        marginTop: 6,
+        paddingTop: 6,
         borderTopWidth: 1,
         borderTopColor: '#F5EEEF',
     },
     filterRowFirst: {
-        marginTop: 6,
-        paddingTop: 6,
+        marginTop: 2,
+        paddingTop: 2,
         borderTopWidth: 0,
     },
     filterLabel: {
         color: '#130001',
         fontSize: 14,
-        fontWeight: '600',
+        fontWeight: '500',
         flex: 1,
     },
     dropdownButton: {
@@ -2340,7 +2372,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     viewMoreText: {
-        color: '#420001',
+        color: '#1F7FE5',
         fontSize: 14,
         fontWeight: '600',
         marginRight: 4,
@@ -2367,23 +2399,23 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     upgradeNowText: {
-        color: '#420001',
+        color: '#1F7FE5',
         fontWeight: 'bold',
     },
     inputContainer: {
-        marginBottom: 16,
+        marginBottom: 8,
     },
     inputLabel: {
         color: '#130001',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '500',
-        marginBottom: 8,
+        marginBottom: 2,
     },
     inputField: {
         backgroundColor: '#f8f9fa',
         borderRadius: 8,
         paddingHorizontal: 12,
-        paddingVertical: 12,
+        paddingVertical: 8,
         borderWidth: 1,
         borderColor: '#e9ecef',
     },
@@ -2416,7 +2448,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     matchesText: {
-        color: '#420001',
+        color: '#1F7FE5',
         fontSize: 16,
         fontWeight: 'bold',
         textAlign: 'center',
@@ -2464,7 +2496,7 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#420001',
+        color: '#1F7FE5',
         textAlign: 'center',
         marginBottom: 20,
     },
@@ -2475,7 +2507,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     selectedOption: {
-        backgroundColor: '#420001',
+        backgroundColor: '#1F7FE5',
     },
     modalOptionText: {
         fontSize: 16,
@@ -2645,7 +2677,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     basesearchButtonText: {
-        color: '#DADADA',
+        color: '#FFFFFF',
         fontSize: 15,
         fontWeight: 'bold',
     },
@@ -2701,12 +2733,12 @@ const styles = StyleSheet.create({
         color: '#130001',
     },
     closeButton: {
-        color: '#420001',
+        color: '#1F7FE5',
         fontSize: 18,
         fontWeight: 'bold',
     },
     applyButton: {
-        backgroundColor: '#420001',
+        backgroundColor: '#1F7FE5',
         padding: 12,
         borderRadius: 8,
         marginTop: 20,

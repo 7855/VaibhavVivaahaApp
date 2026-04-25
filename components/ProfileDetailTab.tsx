@@ -7,10 +7,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../app/(root)/api/userApi';
 import { Alert } from 'react-native';
 import FIcon from '@expo/vector-icons/Feather'
+import { Ionicons } from '@expo/vector-icons'
+import { router } from 'expo-router'
 import { ScrollView } from 'react-native';
+import InterestChipGrid from './InterestChipGrid';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionsheetBackdrop } from './ActionSheet';
 import { LinearGradient } from 'expo-linear-gradient';
+import { usePopup } from '../app/(root)/contexts/PopupContext';
 
 
 const FirstRoute = ({
@@ -18,17 +22,21 @@ const FirstRoute = ({
   isPremium = false,
   hiddenFieldsValue = [],
   profileDetailIdValue,
+  interestsData = [],
 }: {
   data: any;
   isPremium?: boolean;
   hiddenFieldsValue?: any;
   profileDetailIdValue?: any;
+  interestsData?: string[];
 }) => {
 
   // 🔹 1. Add state to manage permission requests
   const [permissionRequests, setPermissionRequests] = useState<{ [key: string]: boolean }>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const popup = usePopup();
+  const [revealedContact, setRevealedContact] = useState<{ mobile?: string; email?: string } | null>(null);
 
   useEffect(() => {
     const loadUserId = async () => {
@@ -154,7 +162,6 @@ const FirstRoute = ({
   };
 
   return (
-    <NativeBaseProvider>
       <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
           <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
@@ -179,7 +186,7 @@ const FirstRoute = ({
 
                 <FormControl mt={0}>
                   <Stack space={1}>
-                    {Object.entries(data).map(([key, value], index) => {
+                    {Object.entries(data || {}).map(([key, value], index) => {
                       const normalizedKey = key
                         .replace(/\s/g, '')
                         .replace(/[^a-zA-Z0-9]/g, '')
@@ -194,32 +201,64 @@ const FirstRoute = ({
                           <TextBase marginBottom={2} fontWeight={500} fontSize={13}>{key}</TextBase>
 
                           {normalizedKey === 'mobileNumber' && !isPremium ? (
-                            // 🔒 Non-premium & mobile field → Show lock
-                            <View
-                              style={{
-                                backgroundColor: '#FFD700',
-                                padding: 6,
-                                borderRadius: 6,
-                                alignItems: 'center',
-                                flexDirection: 'row',
-                                marginBottom: 8,
-                                width: '75%'
-                              }}
-                            >
-                              <FIcon name="lock" size={16} color="#1e40af" marginRight={4} />
-                              <Text
-                                style={{
-                                  color: '#1e40af',
-                                  fontWeight: 'bold',
-                                  fontSize: 12,
-                                  textAlign: 'center'
-                                }}
-                              >
-                                Only Premium Members can see
+                            // 🔒 Free/Starter — no contact access at all
+                            <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons name="diamond-outline" size={14} color="#c2410c" />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
+                                <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to Classic or above to view contact</Text>
+                              </View>
+                              <Ionicons name="chevron-forward" size={14} color="#ea580c" />
+                            </TouchableOpacity>
+                          ) : normalizedKey === 'mobileNumber' && isPremium && (!value || value === '-' || value === 'null') && !revealedContact ? (
+                            // 🔓 Classic plan — contact hidden, show "View Contact" button
+                            <TouchableOpacity activeOpacity={0.7} onPress={async () => {
+                              try {
+                                const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                                const myUserId = await AsyncStorage.getItem('userId');
+                                if (!myUserId || !profileDetailIdValue) return;
+                                const res = await userApi.revealContact(myUserId, profileDetailIdValue);
+                                if (res.data?.code === 200) {
+                                  const { mobile, email, remaining, total, unlimited } = res.data.data;
+                                  setRevealedContact({ mobile, email });
+                                  const remainingText = unlimited ? '' : `\n\n${remaining} of ${total} contact reveals remaining`;
+                                  popup.success('Contact Revealed', `📞 ${mobile || 'N/A'}${remainingText}`);
+                                } else if (res.data?.message === 'CONTACT_VIEW_LIMIT_EXCEEDED') {
+                                  const limit = res.data?.data?.limit || 40;
+                                  popup.premiumRequired(
+                                    `You've used all ${limit} contact reveals. Upgrade to Silver for unlimited access.`,
+                                    () => router.push('/(root)/screens/PremiumTab' as any)
+                                  );
+                                } else {
+                                  popup.premiumRequired(
+                                    'Upgrade to Classic or above to view contacts.',
+                                    () => router.push('/(root)/screens/PremiumTab' as any)
+                                  );
+                                }
+                              } catch (e) {
+                                popup.error('Error', 'Failed to reveal contact. Try again.');
+                              }
+                            }} style={{ backgroundColor: '#eff6ff', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#bfdbfe' }}>
+                              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons name="call" size={14} color="#2563eb" />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: '#1e40af', fontSize: 12, fontWeight: '700' }}>View Contact</Text>
+                                <Text style={{ color: '#3b82f6', fontSize: 10, fontWeight: '500' }}>Tap to reveal phone & email</Text>
+                              </View>
+                              <Ionicons name="eye" size={16} color="#2563eb" />
+                            </TouchableOpacity>
+                          ) : normalizedKey === 'mobileNumber' && revealedContact ? (
+                            // ✅ Contact just revealed in this session — show the number
+                            <View style={{ marginBottom: 8 }}>
+                              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e40af' }}>
+                                {revealedContact.mobile || 'N/A'}
                               </Text>
                             </View>
                           ) : (
-                            // ✅ Premium users OR non-premium for non-mobile fields
+                            // ✅ Silver+ users OR non-mobile fields
                             isHidden ? (
                               <View>
                                 <View
@@ -233,55 +272,42 @@ const FirstRoute = ({
                                     width: '75%'
                                   }}
                                 >
-                                  <FIcon name="eye-off" size={16} color="#b91c1c" style={{ marginRight: 4 }} />
-                                  <Text
-                                    style={{
-                                      color: '#b91c1c',
-                                      fontWeight: 'bold',
-                                      fontSize: 12,
-                                      textAlign: 'center'
-                                    }}
-                                  >
-                                    The user restricted this field
+                                  <Ionicons name="lock-closed" size={14} color="#9ca3af" />
+                                  <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600' }}>
+                                    This field is private
                                   </Text>
                                 </View>
 
                                 <TouchableOpacity
                                   style={{
-                                    borderRadius: 6,
-                                    alignItems: 'center',
                                     flexDirection: 'row',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 6,
+                                    backgroundColor: permissionRequested ? '#fef2f2' : '#f0f0ff',
+                                    paddingVertical: 8,
+                                    paddingHorizontal: 14,
+                                    borderRadius: 10,
+                                    borderWidth: 1,
+                                    borderColor: permissionRequested ? '#fecaca' : '#e0e0ff',
                                     marginBottom: 8,
                                   }}
                                   onPress={() =>
                                     handlePermissionToggle(normalizedKey, permissionRequests[normalizedKey], data.userId)
                                   }
                                 >
-                                    <LinearGradient
-                                      colors={['#6c5ce7', '#a29bfe']}
-                                      style={{
-                                        padding: 10,
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        borderRadius: 12,
-
-                                      }}
-                                      start={{ x: 0, y: 0 }}
-                                      end={{ x: 1, y: 0 }}
-                                    >
-
-                                      <Text
-                                        style={{
-                                          borderRadius: 6,
-                                          fontWeight: 'bold',
-                                          fontSize: 12,
-                                        }}
-                                      >
-                                        {permissionRequested ? 'Cancel Request' : 'Click to Ask Permission'}
-                                      </Text>
-                                    </LinearGradient>
-
+                                  <Ionicons
+                                    name={permissionRequested ? 'close-circle-outline' : 'key-outline'}
+                                    size={14}
+                                    color={permissionRequested ? '#ef4444' : '#6c5ce7'}
+                                  />
+                                  <Text style={{
+                                    fontSize: 12,
+                                    fontWeight: '700',
+                                    color: permissionRequested ? '#ef4444' : '#6c5ce7',
+                                  }}>
+                                    {permissionRequested ? 'Cancel Request' : 'Request Access'}
+                                  </Text>
                                 </TouchableOpacity>
                               </View>
                             ) : (
@@ -310,10 +336,32 @@ const FirstRoute = ({
                 </FormControl>
               </Box>
             </Box>
+
+            {/* Interests section — below Personal Details */}
+            <Box width="100%" alignItems="center" mt={4}>
+              <Box
+                width="full"
+                rounded="lg"
+                borderWidth={0.2}
+                borderColor="#fff"
+                p={2}
+                style={{ elevation: 6, shadowColor: "#fff", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0, shadowRadius: 0 }}
+              >
+                <HStack justifyContent="space-between" alignItems="center" style={{ marginBottom: 10 }}>
+                  <TextBase fontSize="md" fontWeight="bold">Interests</TextBase>
+                </HStack>
+                {interestsData && interestsData.length > 0 ? (
+                  <InterestChipGrid selected={interestsData} readOnly />
+                ) : (
+                  <TextBase fontSize="sm" color="#9ca3af" fontStyle="italic">
+                    No interests added yet
+                  </TextBase>
+                )}
+              </Box>
+            </Box>
           </View>
         </ScrollView>
       </SafeAreaView>
-    </NativeBaseProvider>
   );
 };
 
@@ -345,20 +393,27 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
               {key === 'Horoscope' || key === 'Mobile Number' ? (
                 isPremium ? (
                   key === 'Horoscope' ? (
-                    <TouchableOpacity
-                      onPress={() => onHoroscopePress?.(value)}
-                      style={{
-                        backgroundColor: '#FFD700',
-                        padding: 6,
-                        borderRadius: 6,
-                        alignItems: 'center',
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text style={{ color: '#1e40af', fontWeight: 'bold', fontSize: 12 }}>
-                        View Horoscope
-                      </Text>
-                    </TouchableOpacity>
+                    value && value !== 'null' && value !== '-' ? (
+                      <TouchableOpacity
+                        onPress={() => onHoroscopePress?.(value)}
+                        style={{
+                          backgroundColor: '#FFD700',
+                          padding: 6,
+                          borderRadius: 6,
+                          alignItems: 'center',
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text style={{ color: '#1e40af', fontWeight: 'bold', fontSize: 12 }}>
+                          View Horoscope
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                        <Ionicons name="lock-closed" size={14} color="#c2410c" />
+                        <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '600' }}>Available after interest accepted</Text>
+                      </View>
+                    )
                   ) : (
                     <Input
                       type="text"
@@ -373,29 +428,16 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
                     />
                   )
                 ) : (
-                  <View
-                    style={{
-                      backgroundColor: '#FFD700',
-                      padding: 6,
-                      borderRadius: 6,
-                      alignItems: 'center',
-                      flexDirection: 'row',
-                      marginBottom: 8,
-                      width: '75%'
-                    }}
-                  >
-                    <FIcon name="lock" size={16} color="#1e40af" marginRight={4} />
-                    <Text
-                      style={{
-                        color: '#1e40af',
-                        fontWeight: 'bold',
-                        fontSize: 12,
-                        textAlign: 'center'
-                      }}
-                    >
-                      Only Premium Members can see
-                    </Text>
-                  </View>
+                  <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="diamond-outline" size={14} color="#c2410c" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
+                      <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to view this info</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={14} color="#ea580c" />
+                  </TouchableOpacity>
                 )
               ) : (
                 <Input
@@ -549,7 +591,6 @@ const SecondRoute = ({
   };
 
   return (
-  <NativeBaseProvider>
     <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5', height: '100%' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
@@ -573,7 +614,7 @@ const SecondRoute = ({
               </HStack>
               <FormControl mt={2}>
                 <Stack space={1}>
-                  {Object.entries(data).map(([key, value], index) => {
+                  {Object.entries(data || {}).map(([key, value], index) => {
                     const normalizedKey = key
                     .replace(/\s/g, '')
                     .replace(/[^a-zA-Z0-9]/g, '')
@@ -602,25 +643,23 @@ const SecondRoute = ({
                                       width: '75%'
                                     }}
                                   >
-                                    <FIcon name="eye-off" size={16} color="#b91c1c" marginRight={4} />
-                                    <View>
-                                      <Text
-                                        style={{
-                                          color: '#b91c1c',
-                                          fontWeight: 'bold',
-                                          fontSize: 12,
-                                          textAlign: 'center'
-                                        }}
-                                      >
-                                        The user restricted this field
-                                      </Text>
-                                    </View>
+                                    <Ionicons name="lock-closed" size={14} color="#9ca3af" />
+                                    <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600' }}>
+                                      Horoscope is private
+                                    </Text>
                                   </View>
                                   <TouchableOpacity
                                     style={{
-                                      borderRadius: 6,
-                                      alignItems: 'center',
                                       flexDirection: 'row',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: 6,
+                                      backgroundColor: horoscopePermission ? '#fef2f2' : '#f0f0ff',
+                                      paddingVertical: 8,
+                                      paddingHorizontal: 14,
+                                      borderRadius: 10,
+                                      borderWidth: 1,
+                                      borderColor: horoscopePermission ? '#fecaca' : '#e0e0ff',
                                       marginBottom: 8,
                                     }}
                                     onPress={() => {
@@ -629,30 +668,18 @@ const SecondRoute = ({
                                         : handleHoroscopePermissionRequest();
                                     }}
                                   >
-                                    <LinearGradient
-                                      colors={['#6c5ce7', '#a29bfe']}
-                                      style={{
-                                        padding: 10,
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        borderRadius: 12,
-
-                                      }}
-                                      start={{ x: 0, y: 0 }}
-                                      end={{ x: 1, y: 0 }}
-                                    >
-
-                                      <Text
-                                        style={{
-                                          borderRadius: 6,
-                                          fontWeight: 'bold',
-                                          fontSize: 12,
-                                        }}
-                                      >
-                                        {horoscopePermission ? 'Cancel Request' : 'Click to Ask Permission'}
-                                      </Text>
-                                    </LinearGradient>
+                                    <Ionicons
+                                      name={horoscopePermission ? 'close-circle-outline' : 'key-outline'}
+                                      size={14}
+                                      color={horoscopePermission ? '#ef4444' : '#6c5ce7'}
+                                    />
+                                    <Text style={{
+                                      fontSize: 12,
+                                      fontWeight: '700',
+                                      color: horoscopePermission ? '#ef4444' : '#6c5ce7',
+                                    }}>
+                                      {horoscopePermission ? 'Cancel Request' : 'Request Access'}
+                                    </Text>
                                    
                                   </TouchableOpacity>
 
@@ -674,56 +701,30 @@ const SecondRoute = ({
                                 </TouchableOpacity>
                               )
                             ) : (
-                              <View
-                                style={{
-                                  backgroundColor: '#FFD700',
-                                  padding: 6,
-                                  borderRadius: 6,
-                                  alignItems: 'center',
-                                  flexDirection: 'row',
-                                  marginBottom: 8,
-                                  width: '75%'
-                                }}
-                              >
-                                <FIcon name="lock" size={16} color="#1e40af" marginRight={4} />
-                                <Text
-                                  style={{
-                                    color: '#1e40af',
-                                    fontWeight: 'bold',
-                                    fontSize: 12,
-                                    textAlign: 'center'
-                                  }}
-                                >
-                                  Only Premium Members can see
-                                </Text>
-                              </View>
+                              <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Ionicons name="diamond-outline" size={14} color="#c2410c" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
+                                  <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to view this info</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={14} color="#ea580c" />
+                              </TouchableOpacity>
                             )
                           ) : key === 'Star' || key === 'Moonsign' || key === 'Dosham' ? (
                             isPremium ? (
                               isHidden ? (
-                                <View
-                                  style={{
-                                    backgroundColor: '#FFD700',
-                                    padding: 6,
-                                    borderRadius: 6,
-                                    alignItems: 'center',
-                                    flexDirection: 'row',
-                                    marginBottom: 8,
-                                    width: '75%'
-                                  }}
-                                >
-                                  <FIcon name="lock" size={16} color="#1e40af" marginRight={4} />
-                                  <Text
-                                    style={{
-                                      color: '#1e40af',
-                                      fontWeight: 'bold',
-                                      fontSize: 12,
-                                      textAlign: 'center'
-                                    }}
-                                  >
-                                    Only Premium Members can see
-                                  </Text>
-                                </View>
+                                <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Ionicons name="diamond-outline" size={14} color="#c2410c" />
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
+                                    <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to view this info</Text>
+                                  </View>
+                                  <Ionicons name="chevron-forward" size={14} color="#ea580c" />
+                                </TouchableOpacity>
                               ) : (
                                 <Input
                                   type="text"
@@ -738,29 +739,16 @@ const SecondRoute = ({
                                 />
                               )
                             ) : (
-                              <View
-                                style={{
-                                  backgroundColor: '#FFD700',
-                                  padding: 6,
-                                  borderRadius: 6,
-                                  alignItems: 'center',
-                                  flexDirection: 'row',
-                                  marginBottom: 8,
-                                  width: '75%'
-                                }}
-                              >
-                                <FIcon name="lock" size={16} color="#1e40af" marginRight={4} />
-                                <Text
-                                  style={{
-                                    color: '#1e40af',
-                                    fontWeight: 'bold',
-                                    fontSize: 12,
-                                    textAlign: 'center'
-                                  }}
-                                >
-                                  Only Premium Members can see
-                                </Text>
-                              </View>
+                              <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Ionicons name="diamond-outline" size={14} color="#c2410c" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
+                                  <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to view this info</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={14} color="#ea580c" />
+                              </TouchableOpacity>
                             )
                           ) : (
                             <Input
@@ -788,12 +776,10 @@ const SecondRoute = ({
           </View>
         </ScrollView>
       </SafeAreaView>
-    </NativeBaseProvider>
   );
 };
 
 const ThirdRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
-  <NativeBaseProvider>
     <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
@@ -801,11 +787,9 @@ const ThirdRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
         </View>
       </ScrollView>
     </SafeAreaView>
-  </NativeBaseProvider>
 );
 
 const FourthRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
-  <NativeBaseProvider>
     <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
@@ -813,8 +797,44 @@ const FourthRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => 
         </View>
       </ScrollView>
     </SafeAreaView>
-  </NativeBaseProvider>
 );
+
+const FifthRoute = ({ data }: { data: any }) => {
+  const hobbies: string[] = data?._hobbies || [];
+  return (
+      <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
+          <View style={{ flexGrow: 1, padding: 16, alignItems: 'center' }}>
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              width: '100%',
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 2,
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#420001', marginBottom: 12 }}>
+                Interests
+              </Text>
+              {hobbies.length > 0 ? (
+                <InterestChipGrid
+                  selected={hobbies}
+                  readOnly
+                />
+              ) : (
+                <Text style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>
+                  No interests added yet
+                </Text>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+  );
+};
 
 const routes = [
   { key: 'first', title: 'Personal' },
@@ -833,36 +853,63 @@ interface ProfileDetailTabProps {
 }
 
 const ProfileDetailTab = ({ personalDetail, isPremium, hiddenFields, onImagePress, profileDetailId }: ProfileDetailTabProps) => {
-  // console.log("Received hidden fields in ProfileDetailTab:", hiddenFields);
-  // console.log("Received premium fields in ProfileDetailTab:", isPremium);
-  // console.log("Received profile detail ID in ProfileDetailTab:", profileDetailId);
   const layout = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [horoscopeUri, setHoroscopeUri] = useState<string | null>(null);
-  const [profileDetailIdValue, setProfileDetailIdValue] = useState<any>(null);
+  const popup = usePopup();
 
-  useEffect(() => {
-    setProfileDetailIdValue(profileDetailId);
-  }, [profileDetailId]);  
-  const handleHoroscopePress = (uri: string) => {
+  // Use prop directly — no state copy needed (was causing extra re-render)
+  const handleHoroscopePress = React.useCallback((uri: string) => {
+    if (!uri || uri === 'null' || uri === '-' || uri === '') {
+      popup.info('Horoscope Locked', 'Send an interest request first. Horoscope will be available after the request is accepted.');
+      return;
+    }
     setHoroscopeUri(uri);
     setIsModalVisible(true);
-  };
+  }, [popup]);
 
   const personalDetail1 = personalDetail?.[0]?.data;
   const religiousDetail = personalDetail?.[1]?.data;
   const educationDetail = personalDetail?.[2]?.data;
   const familyDetail = personalDetail?.[3]?.data;
+  const interestsData = personalDetail?.[4]?.data?._hobbies || [];
 
-  // console.log("family detail ---------------------------- =============>", familyDetail);
+  // Stable renderScene — prevents TabView from unmounting/remounting scenes on every render.
+  // SceneMap was the root cause of loading spinners on every tab switch.
+  const renderScene = React.useCallback(({ route }: { route: { key: string } }) => {
+    switch (route.key) {
+      case 'first':
+        return <FirstRoute data={personalDetail1} isPremium={isPremium} hiddenFieldsValue={hiddenFields} onImagePress={onImagePress} profileDetailIdValue={profileDetailId} interestsData={interestsData} />;
+      case 'second':
+        return <SecondRoute data={religiousDetail} onHoroscopePress={handleHoroscopePress} isPremium={isPremium} hiddenFieldsValue={hiddenFields} profileDetailIdValue={profileDetailId} />;
+      case 'third':
+        return <ThirdRoute data={educationDetail} isPremium={isPremium} hiddenFieldsValue={hiddenFields} />;
+      case 'fourth':
+        return <FourthRoute data={familyDetail} isPremium={isPremium} hiddenFieldsValue={hiddenFields} />;
+      default:
+        return null;
+    }
+  }, [personalDetail1, religiousDetail, educationDetail, familyDetail, isPremium, hiddenFields, interestsData, profileDetailId, handleHoroscopePress, onImagePress]);
 
-  const renderScene = SceneMap({
-    first: (props: any) => <FirstRoute {...props} data={personalDetail1} isPremium={isPremium} hiddenFieldsValue={hiddenFields} onImagePress={onImagePress} profileDetailIdValue={profileDetailIdValue} />,
-    second: (props: any) => <SecondRoute {...props} data={religiousDetail} onHoroscopePress={handleHoroscopePress} isPremium={isPremium} hiddenFieldsValue={hiddenFields} profileDetailIdValue={profileDetailIdValue}/>,
-    third: (props: any) => <ThirdRoute {...props} data={educationDetail} isPremium={isPremium} hiddenFieldsValue={hiddenFields} />,
-    fourth: (props: any) => <FourthRoute {...props} data={familyDetail} isPremium={isPremium} hiddenFieldsValue={hiddenFields} />
-  });
+  // Stable tab bar renderer
+  const renderTabBar = React.useCallback((props: any) => (
+    <TabBar
+      {...props}
+      style={{
+        backgroundColor: '#800000',
+        borderBottomColor: '#FFD700',
+        borderTopColor: '#fff',
+        borderTopEndRadius: 30,
+        borderTopStartRadius: 30,
+        marginTop: 0
+      }}
+      indicatorStyle={{
+        backgroundColor: '#FFD700',
+        height: 2,
+      }}
+    />
+  ), []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -871,23 +918,8 @@ const ProfileDetailTab = ({ personalDetail, isPremium, hiddenFields, onImagePres
         renderScene={renderScene}
         onIndexChange={setIndex}
         initialLayout={{ width: layout.width }}
-        renderTabBar={props => (
-          <TabBar
-            {...props}
-            style={{
-              backgroundColor: '#800000',
-              borderBottomColor: '#FFD700',
-              borderTopColor: '#fff',
-              borderTopEndRadius: 30,
-              borderTopStartRadius: 30,
-              marginTop: 0
-            }}
-            indicatorStyle={{
-              backgroundColor: '#FFD700',
-              height: 2,
-            }}
-          />
-        )}
+        lazy={true}
+        renderTabBar={renderTabBar}
       />
 
       <Modal

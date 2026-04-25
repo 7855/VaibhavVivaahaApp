@@ -171,7 +171,7 @@ export default function ProfileUnderVerificationScreen() {
                     )}
 
                     <TouchableOpacity style={styles.secondaryBtn} onPress={handleContactSupport}>
-                        <MessageCircle size={18} color="#420001" />
+                        <MessageCircle size={18} color="#1F7FE5" />
                         <Text style={styles.secondaryBtnText}>Contact Support</Text>
                     </TouchableOpacity>
 
@@ -207,13 +207,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginBottom: 20,
         elevation: 6,
-        shadowColor: '#420001',
+        shadowColor: '#1F7FE5',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 12,
     },
     iconCircleMaroon: {
-        backgroundColor: '#420001',
+        backgroundColor: '#1F7FE5',
     },
     iconCircleRed: {
         backgroundColor: '#dc2626',
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#F2E8E9',
         elevation: 1,
-        shadowColor: '#420001',
+        shadowColor: '#1F7FE5',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
         shadowRadius: 8,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     stepsTitle: {
         fontSize: 15,
         fontWeight: '700',
-        color: '#420001',
+        color: '#1F7FE5',
         marginBottom: 14,
     },
     stepItem: {
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
         width: 26,
         height: 26,
         borderRadius: 13,
-        backgroundColor: '#420001',
+        backgroundColor: '#1F7FE5',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12,
@@ -347,11 +347,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        backgroundColor: '#420001',
+        backgroundColor: '#1F7FE5',
         paddingVertical: 15,
         borderRadius: 12,
         elevation: 3,
-        shadowColor: '#420001',
+        shadowColor: '#1F7FE5',
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.25,
         shadowRadius: 6,
@@ -370,10 +370,10 @@ const styles = StyleSheet.create({
         paddingVertical: 15,
         borderRadius: 12,
         borderWidth: 1.5,
-        borderColor: '#420001',
+        borderColor: '#1F7FE5',
     },
     secondaryBtnText: {
-        color: '#420001',
+        color: '#1F7FE5',
         fontSize: 15,
         fontWeight: '600',
     },

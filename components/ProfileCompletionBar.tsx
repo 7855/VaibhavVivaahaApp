@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import userApi from '@/app/(root)/api/userApi';
 import ProgressRing from './ProgressRing';
 
@@ -27,26 +27,27 @@ const ProfileCompletionBar = () => {
   const [completion, setCompletion] = useState<CompletionData | null>(null);
   const [meta, setMeta] = useState<MetaData | null>(null);
   const [nextAction, setNextAction] = useState<NextAction | null>(null);
-  useEffect(() => {
-    const fetchProfileCompletion = async () => {
-      try {
-        const userId = await AsyncStorage.getItem('userId');
-        if (!userId) return;
-        const response = await userApi.getProfileCompletion(userId);
-        // console.log("profilerc", response?.data?.data.data);
-
-        if (response?.data?.data) {
-          const { completion, meta, nextAction } = response.data.data.data;
-          setCompletion(completion);
-          setMeta(meta);
-          setNextAction(nextAction);
+  // Re-fetch on every screen focus so changes (horoscope add/delete, photo upload, etc.) reflect immediately
+  useFocusEffect(
+    useCallback(() => {
+      const fetchProfileCompletion = async () => {
+        try {
+          const userId = await AsyncStorage.getItem('userId');
+          if (!userId) return;
+          const response = await userApi.getProfileCompletion(userId);
+          if (response?.data?.data) {
+            const { completion, meta, nextAction } = response.data.data.data;
+            setCompletion(completion);
+            setMeta(meta);
+            setNextAction(nextAction);
+          }
+        } catch (error) {
+          console.error('Error fetching profile completion:', error);
         }
-      } catch (error) {
-        console.error('Error fetching profile completion:', error);
-      }
-    };
-    fetchProfileCompletion();
-  }, []);
+      };
+      fetchProfileCompletion();
+    }, [])
+  );
   if (!completion || !meta) {
     return null; // or a loading spinner
   }
@@ -69,7 +70,7 @@ const ProfileCompletionBar = () => {
                 percentage={completion.percentage}
                 size={43}
                 strokeWidth={4}
-                color="#420001"
+                color="#1F7FE5"
                 bgColor="#e5e7eb"
               />
               <Text style={styles.progressText}>{completion.percentage}%</Text>
@@ -95,9 +96,15 @@ const ProfileCompletionBar = () => {
               onPress={() => {
                 const route = nextAction.route;
                 if (route === '/(root)/(tabs)/profile') {
+                  // Map action title to the correct tab index
+                  const title = nextAction.title?.toLowerCase() || '';
+                  let tabIndex = 0; // default: personal details
+                  if (title.includes('horoscope')) tabIndex = 2;
+                  else if (title.includes('gallery')) tabIndex = 1;
+                  else if (title.includes('interest') || title.includes('hobbie')) tabIndex = 0;
                   router.push({
                     pathname: route,
-                    params: { tabIndex: 2 },
+                    params: { tabIndex },
                   } as any);
                 } else {
                   router.push(route as any);
@@ -119,11 +126,11 @@ const ProfileCompletionBar = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f6f7f8',
+    backgroundColor: 'transparent',
   },
   widgetContainer: {
     paddingHorizontal: 8,
-    paddingVertical: 0,
+    paddingVertical: 4,
   },
   profileCompletionWidget: {
     flexDirection: 'row',
@@ -159,7 +166,7 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 20,
     borderWidth: 3,
-    borderColor: '#420001', // Your primary color
+    borderColor: '#1F7FE5',
     borderRightColor: 'transparent',
     borderBottomColor: 'transparent',
     transform: [{ rotate: '0deg' }],
@@ -176,7 +183,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#420001',
+    color: '#1F7FE5',
   },
   progressInfo: {
     justifyContent: 'center',
@@ -211,20 +218,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ebe0e0',
+    backgroundColor: '#dfecfb',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(66, 0, 1, 0.2)',
+    borderColor: 'rgba(31, 127, 229, 0.2)',
   },
   actionButtonText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#420001',
+    color: '#1F7FE5',
   },
   badge: {
-    backgroundColor: '#420001',
+    backgroundColor: '#1F7FE5',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,

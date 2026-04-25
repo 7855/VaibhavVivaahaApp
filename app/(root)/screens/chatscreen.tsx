@@ -91,10 +91,11 @@ function ChatScreen() {
       // console.log("subscriptionData.entitlements:", subscriptionData.entitlements);
 
       const hasPremiumAccess =
-        subscriptionData.entitlements.advSearch === true &&
-        subscriptionData.entitlements.basicSearch === true;
+        subscriptionData.entitlements.message === true ||
+        subscriptionData.entitlements.message === 'unlimited' ||
+        (typeof subscriptionData.entitlements.message === 'object' && subscriptionData.entitlements.message !== null);
 
-      // console.log("hasPremiumAccess ===>", hasPremiumAccess);
+      // MESSAGE entitlement: true/unlimited/object{limit} = can chat, false = blocked
       setIsPremium(hasPremiumAccess);
     } else {
       // console.log("No subscription data or entitlements found");
@@ -554,17 +555,50 @@ function ChatScreen() {
 
       // Send to API
       try {
-        await userApi.updateUserConversation({
+        const sendRes = await userApi.updateUserConversation({
           conversationId: parseInt(conversationId),
           senderId: parseInt(decryptedUserId),
           message: inputText,
           isRead: false
         });
-      } catch (error) {
+
+        // Backend returns HTTP 200 but with code 403 in body for plan gates
+        const resData = sendRes?.data;
+        if (resData?.code === 403) {
+          // Revert optimistic update
+          setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
+
+          if (resData?.message === 'CHAT_LIMIT_REACHED') {
+            const limit = resData?.data?.limit || 5;
+            popup.premiumRequired(
+              `You've used all ${limit} conversations in your plan. Upgrade to Classic or above for unlimited chats.`,
+              () => router.push('/(root)/screens/PremiumTab' as any)
+            );
+          } else {
+            popup.premiumRequired(
+              'Upgrade your plan to send messages.',
+              () => router.push('/(root)/screens/PremiumTab' as any)
+            );
+          }
+          return;
+        }
+      } catch (error: any) {
         console.error('Error sending message:', error);
         // Revert the optimistic update if API call fails
         setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
-        throw error;
+
+        // Handle HTTP-level errors (actual 403 from server)
+        const errData = error?.response?.data;
+        if (errData?.message === 'CHAT_LIMIT_REACHED' || errData?.message === 'PLAN_UPGRADE_REQUIRED') {
+          popup.premiumRequired(
+            errData?.message === 'CHAT_LIMIT_REACHED'
+              ? `You've used all ${errData?.data?.limit || 5} conversations. Upgrade for unlimited chats.`
+              : 'Upgrade your plan to send messages.',
+            () => router.push('/(root)/screens/PremiumTab' as any)
+          );
+          return;
+        }
+        popup.error('Send failed', 'Unable to send message. Please try again.');
       }
 
       // Refresh messages
@@ -713,7 +747,11 @@ function ChatScreen() {
               <TouchableOpacity onPress={() => router.back()}>
                 <Ionicons name="arrow-back" size={24} color="#DADADA" />
               </TouchableOpacity>
-              <View style={styles.headerContent}>
+              <TouchableOpacity
+                style={styles.headerContent}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/screens/ProfileDetail?userId=${otherUserId}`)}
+              >
                 <Image
                   source={otherProfile ? { uri: otherProfile } : require('../../../assets/images/defaultAvatar.png')}
                   style={styles.profileImage}
@@ -741,7 +779,7 @@ function ChatScreen() {
                     )
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Side menu option  */}
               <Menu>

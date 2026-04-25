@@ -200,7 +200,7 @@ const SettingsPage: React.FC = () => {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerIcon}>
-              <Ionicons name="settings" size={28} color="#DADADA" />
+              <Ionicons name="settings" size={28} color="#fff" />
             </View>
             <View>
               <Text style={styles.headerTitle}>Settings</Text>
@@ -267,13 +267,13 @@ const SettingsPage: React.FC = () => {
           {isParent ? null : (
             <>
               <SettingItem
-                icon={<MaterialIcons name="security" size={20} color="#e11d48" />}
+                icon={<MaterialIcons name="security" size={20} color="#dc2626" />}
                 title="Privacy Settings"
                 subtitle="Control what others can see"
                 onPress={() => router.push('/screens/PrivacySettingsPage')}
               />
               <SettingItem
-                icon={<Ionicons name="lock-closed" size={20} color="#e11d48" />}
+                icon={<Ionicons name="lock-closed" size={20} color="#dc2626" />}
                 title="Change PIN"
                 subtitle="Update your security PIN"
                 onPress={() => router.push('/screens/SettingPageChangePin')}
@@ -333,19 +333,27 @@ const SettingsPage: React.FC = () => {
                   }
                 />
               )}
-              {(subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum') ? (
-                <SettingItem
+              <SettingItem
                   icon={<Ionicons name="people-circle" size={20} color="#d4a017" />}
                   title="Family Access"
                   subtitle="Add a parent / family login"
-                  onPress={() => router.push('/(root)/screens/FamilyAccessScreen' as any)}
+                  onPress={() => {
+                    const isGoldPlus = subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum';
+                    if (!isGoldPlus) {
+                      popup.premiumRequired(
+                        'Upgrade to Gold or Platinum to add family members who can help find your match.',
+                        () => router.push('/(root)/screens/PremiumTab' as any)
+                      );
+                      return;
+                    }
+                    router.push('/(root)/screens/FamilyAccessScreen' as any);
+                  }}
                   rightElement={
                     <View style={[styles.premiumBadge, { backgroundColor: '#d4a017' }]}>
                       <Text style={styles.premiumText}>Gold+</Text>
                     </View>
                   }
                 />
-              ) : null}
             </>
           )}
 
@@ -367,10 +375,10 @@ const SettingsPage: React.FC = () => {
             title="Star Match"
             subtitle="Check horoscope compatibility"
             onPress={() => {
-              if (!subscriptionData?.planTitle || subscriptionData.planTitle === 'Free') {
+              if (!subscriptionData?.entitlements?.starMatch) {
                 popup.premiumRequired(
-                  'Star Match is a premium feature. Upgrade your plan to discover horoscope compatibility and find your perfect match.',
-                  () => router.push('/(root)/screens/PremiumTab')
+                  'Star Match is available from Classic plan onwards. Upgrade to discover your compatibility score!',
+                  () => router.push('/(root)/screens/PremiumTab' as any)
                 );
                 return;
               }
@@ -379,25 +387,40 @@ const SettingsPage: React.FC = () => {
             rightElement={<MaterialIcons name="chevron-right" size={24} color="#9ca3af" />}
           />
           <SettingItem
-            icon={<Ionicons name="people" size={20} color="#e11d48" />}
+            icon={<Ionicons name="people" size={20} color="#dc2626" />}
             title="Your Connections"
             subtitle="View and manage connections"
             onPress={() => router.push('/screens/ListUser?type=connection')}
           />
           <SettingItem
-            icon={<Ionicons name="eye" size={20} color="#e11d48" />}
+            icon={<Ionicons name="eye" size={20} color="#dc2626" />}
             title="Viewed You"
             subtitle="See who viewed your profile"
             onPress={() => router.push('/screens/ListUser?type=viewed')}
           />
 
           <SettingItem
-            icon={<Ionicons name="heart" size={20} color="#e11d48" />}
+            icon={<Ionicons name="heart" size={20} color="#dc2626" />}
             title="Shortlisted Profiles"
             subtitle="Your saved profiles"
             onPress={() => router.push('/screens/ListUser?type=shortlisted')}
           />
-
+          <SettingItem
+            icon={<Ionicons name="people" size={20} color="#7c3aed" />}
+            title="Who Shortlisted You"
+            subtitle="See who saved your profile"
+            onPress={() => {
+              const isGoldPlus = subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum';
+              if (!isGoldPlus) {
+                popup.premiumRequired(
+                  'Upgrade to Gold or Platinum to see who shortlisted you.',
+                  () => router.push('/(root)/screens/PremiumTab' as any)
+                );
+                return;
+              }
+              router.push('/screens/ListUser?type=whoShortlistedMe');
+            }}
+          />
 
           {/* Others */}
           <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center' }]}>
@@ -413,19 +436,19 @@ const SettingsPage: React.FC = () => {
         Others
       </Text> */}
           <SettingItem
-            icon={<Ionicons name="alert-circle-sharp" size={20} color="#e11d48" />}
+            icon={<Ionicons name="alert-circle-sharp" size={20} color="#dc2626" />}
             title="FAQ"
             subtitle="Frequently asked questions"
             onPress={() => router.push('/screens/FAQPage')}
           />
           <SettingItem
-            icon={<Ionicons name="help-circle-sharp" size={20} color="#e11d48" />}
+            icon={<Ionicons name="help-circle-sharp" size={20} color="#dc2626" />}
             title="Help and Support"
             subtitle="Get help when you need it"
             onPress={() => router.push('/screens/HelpSupportPage')}
           />
           <SettingItem
-            icon={<Ionicons name="document-text" size={20} color="#e11d48" />}
+            icon={<Ionicons name="document-text" size={20} color="#dc2626" />}
             title="Terms and Conditions"
             subtitle="Read our terms"
             onPress={() => router.push('/screens/TermsPage')}
@@ -588,7 +611,7 @@ const styles = StyleSheet.create({
   headerIcon: {
     width: 56,
     height: 56,
-    backgroundColor: '#f43f5e',
+    backgroundColor: '#1F7FE5',
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
@@ -618,7 +641,7 @@ const styles = StyleSheet.create({
   sectionIcon: {
     width: 32,
     height: 32,
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#fef2f2',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 8,

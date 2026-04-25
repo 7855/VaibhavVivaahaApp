@@ -19,9 +19,9 @@ const QuickAction = () => {
         router.push('/screens/ListUser?type=connection');
         break;
       case 'Star Match':
-        if (!subscriptionData?.planTitle || subscriptionData.planTitle === 'Free') {
+        if (!subscriptionData?.entitlements?.starMatch) {
           popup.premiumRequired(
-            'Star Match is a premium feature! Upgrade your plan to discover your compatibility score and find your perfect match.',
+            'Star Match is available from Classic plan onwards. Upgrade to discover your compatibility score!',
             () => router.push('/(root)/screens/PremiumTab' as any)
           );
           return;
@@ -29,6 +29,13 @@ const QuickAction = () => {
         router.push('/(root)/screens/StarMatch');
         break;
       case 'Viewed You':
+        if (!subscriptionData?.planTitle || subscriptionData.planTitle === 'Free') {
+          popup.premiumRequired(
+            'Upgrade to Starter or above to see who viewed your profile.',
+            () => router.push('/(root)/screens/PremiumTab' as any)
+          );
+          return;
+        }
         router.push('/screens/ListUser?type=viewed');
         break;
       case 'Shortlisted':
@@ -76,7 +83,7 @@ const QuickAction = () => {
               <MaterialIcons
                 name={action.icon as any}
                 size={20}
-                color="#420001"
+                color="#1F7FE5"
               />
               {/* {action.notificationCount && (
                 <View style={styles.badge}>
@@ -103,10 +110,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#420001', // slate-400
-    textTransform: 'uppercase',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#130001',
   },
   grid: {
     flexDirection: 'row',
@@ -116,27 +122,27 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: CARD_WIDTH,
-    backgroundColor: '#ebe0e0',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: 'rgba(66, 0, 1, 0.05)',
+    borderColor: '#e2e8f0',
     borderRadius: 16,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    shadowColor: 'rgba(15,35,70,0.06)',
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   iconContainer: {
     width: 40,
     height: 40,
-    backgroundColor: 'white',
+    backgroundColor: '#dfecfb',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
     position: 'relative',
   },
   badge: {
@@ -158,8 +164,8 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#130001', // slate-800
+    fontWeight: '600',
+    color: '#1e293b',
     flex: 1,
   },
 });

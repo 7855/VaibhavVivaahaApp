@@ -22,7 +22,7 @@ import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
 import VerifiedBadges from '../../../components/VerifiedBadges';
 
-type TabType = 'viewed' | 'connection' | 'shortlisted';
+type TabType = 'viewed' | 'connection' | 'shortlisted' | 'whoShortlistedMe';
 
 interface ShortlistedProfile {
     userId: number;
@@ -93,6 +93,15 @@ const TAB_META: Record<TabType, {
         gradient: ['#9c4040', '#7a2d2d'],
         accent: '#9c4040',
     },
+    whoShortlistedMe: {
+        title: 'Who Shortlisted You',
+        subtitle: 'People who saved your profile',
+        emptyTitle: 'No one yet',
+        emptyText: 'When someone shortlists your profile, they\'ll appear here.',
+        icon: 'bookmark',
+        gradient: ['#9c4040', '#7a2d2d'],
+        accent: '#ef4444',
+    },
 };
 
 export default function ListUser() {
@@ -101,7 +110,7 @@ export default function ListUser() {
 
     // Lazy-init from URL param to prevent double fetch on mount
     const initialType: TabType =
-        (typeof urlType === 'string' && ['viewed', 'connection', 'shortlisted'].includes(urlType))
+        (typeof urlType === 'string' && ['viewed', 'connection', 'shortlisted', 'whoShortlistedMe'].includes(urlType))
             ? (urlType as TabType)
             : 'viewed';
 
@@ -147,6 +156,9 @@ export default function ListUser() {
             } else if (type === 'connection') {
                 const response = await userApi.getAcceptedInterestRequests(userId);
                 handleResponse(response, 'Failed to load connections');
+            } else if (type === 'whoShortlistedMe') {
+                const response = await userApi.getWhoShortlistedMe(userId);
+                handleResponse(response, 'Failed to load who shortlisted you');
             } else {
                 const response = await userApi.getShortlistedMailbox(userId);
                 handleResponse(response, 'Failed to load shortlisted profiles');

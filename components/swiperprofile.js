@@ -104,14 +104,7 @@ const SwiperProfile = ({ users, onUserPress }) => {
             item.gender === 'M' ? require('../assets/images/avatarMen.png') :
               item.gender === 'F' ? require('../assets/images/avatarWomen.png') :
                 require('../assets/images/defaultAvatar.png')} />
-          {isFreeViewer && item.profileImage ? (
-            <View style={styles.blurOverlay}>
-              <Ionicons name="lock-closed" size={28} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 9, marginTop: 4, textAlign: 'center', paddingHorizontal: 4 }}>
-                Upgrade to view
-              </Text>
-            </View>
-          ) : null}
+          {/* Blur removed — Free users can see carousel photos */}
           {badgeColor ? (
             <View style={[styles.badge, { backgroundColor: badgeColor }]}>
               {isVerified ? <Ionicons name="checkmark-circle" size={10} color="#fff" /> : null}

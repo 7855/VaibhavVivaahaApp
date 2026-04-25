@@ -1,11 +1,14 @@
 
-import { View, Text, Button, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Index() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const checkUserStatus = async () => {
@@ -18,7 +21,6 @@ export default function Index() {
         const casteId = await AsyncStorage.getItem('casteId');
 
         if (userId && firstName && lastName && location && storedGender && casteId) {
-          // Check approval status — route to verification screen if not approved
           const approvalStatus = await AsyncStorage.getItem('userStatus');
           if (approvalStatus === 'APPROVED') {
             router.replace('/(root)/(tabs)');
@@ -33,35 +35,50 @@ export default function Index() {
 
     checkUserStatus();
   }, [router]);
+
   return (
     <View style={styles.container}>
       <Image
         source={require("../../../assets/images/wedding.webp")}
         style={styles.backgroundImage}
       />
-      <View style={styles.cardContainer}>
-        <Text style={styles.title}>Find Your Best Friend With Us</Text>
+
+      {/* Dark gradient overlay from bottom */}
+      <LinearGradient
+        colors={['transparent', 'rgba(15,23,36,0.4)', 'rgba(15,23,36,0.85)', 'rgba(15,23,36,0.95)']}
+        locations={[0, 0.35, 0.65, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Bottom content */}
+      <View style={[styles.bottomSection, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
+        {/* Brand */}
+        <Text style={styles.brand}>Vaibhav Vivaaha</Text>
+
+        {/* Headline */}
+        <Text style={styles.title}>Find Your{'\n'}Life Partner</Text>
+
+        {/* Subtitle */}
         <Text style={styles.subtitle}>
-          Let's find your life partner to enjoy every moment of your life.
+          Where meaningful connections begin.{'\n'}Your journey to a beautiful life starts here.
         </Text>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={() => router.push('/(root)/(main)/LoginScreen')}
+
+        {/* Buttons */}
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => router.push('/(root)/(main)/sign-up')}
+            activeOpacity={0.85}
           >
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.primaryBtnText}>Get Started</Text>
           </TouchableOpacity>
-           {/* <TouchableOpacity 
-            style={styles.button} 
-            onPress={() => router.push("/(root)/(tabs)")}
+
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            onPress={() => router.push('/(root)/(main)/LoginScreen')}
+            activeOpacity={0.85}
           >
-            <Text style={styles.buttonText}>Home</Text>
-          </TouchableOpacity> */}
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={() => router.push('/sign-up')}
-          >
-            <Text style={styles.buttonText}>Get Start</Text>
+            <Text style={styles.secondaryBtnText}>Sign In</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -72,57 +89,74 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: '#0f1724',
   },
   backgroundImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-    position: "absolute",
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    position: 'absolute',
   },
-  cardContainer: {
-    position: "absolute",
+  bottomSection: {
+    position: 'absolute',
     bottom: 0,
-    width: "100%",
-    backgroundColor: "#420001",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 20,
-    alignItems: "center",
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "gold",
-    textAlign: "center",
+  brand: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
     marginBottom: 10,
   },
+  title: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.5,
+    lineHeight: 40,
+    marginBottom: 12,
+  },
   subtitle: {
-    fontSize: 16,
-    color: "#DADADA",
-    textAlign: "center",
-    marginBottom: 30,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.65)',
+    lineHeight: 21,
+    marginBottom: 28,
   },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    paddingHorizontal: 20,
-    marginBottom: 30,
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  button: {
-    borderWidth: 1.5,
-    borderColor: 'white',
-    backgroundColor: 'transparent',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 20,
+  primaryBtn: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingVertical: 15,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonText: {
-    color: '#DADADA',
-    fontSize: 16,
-    fontWeight: '500',
+  primaryBtnText: {
+    color: '#0f1724',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  secondaryBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 15,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  secondaryBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

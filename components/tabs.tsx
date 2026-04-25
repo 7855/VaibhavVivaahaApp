@@ -3,9 +3,9 @@ import { Box, AspectRatio, Center, Heading, Image, HStack, Stack, Text, FormCont
 import { Ionicons } from '@expo/vector-icons';
 import EditProfileModal from './editProfileModal';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Alert, Dimensions, Modal, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Alert, Dimensions, Modal, TouchableOpacity, View, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { TabView, TabBar } from 'react-native-tab-view';
-import { ScrollView, Image as RNImage } from 'react-native';
+import { ScrollView, Image as RNImage, Text as RNText } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import userApi from '../app/(root)/api/userApi';
@@ -14,6 +14,7 @@ import { usePopup } from '../app/(root)/contexts/PopupContext';
 import { ALERT_TYPE, Dialog } from 'react-native-alert-notification';
 import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
+import InterestChipGrid from './InterestChipGrid';
 import Toast from 'react-native-toast-message';
 
 interface GalleryItem {
@@ -24,6 +25,9 @@ interface GalleryItem {
 const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refreshProfile?: () => void; userId?: string | null }) => {
   const popup = usePopup();
   const [editSection, setEditSection] = useState<any>(null);
+  const [interestsEditVisible, setInterestsEditVisible] = useState(false);
+  const [editableInterests, setEditableInterests] = useState<string[]>([]);
+  const [savingInterests, setSavingInterests] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isParent, setIsParent] = useState(false);
 
@@ -60,22 +64,28 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
 
       // Map section title to field formatter
       const sectionMap: Record<string, (data: any) => any> = {
-        PersonalDetail: (data) => ({
-          userId,
-          firstName: data['First Name'] || '',
-          lastName: data['Last Name'] || '',
-          height: data['Height'] || '',
-          weight: data['Weight'] || '',
-          physicalStatus: data['Physical Status'] || '',
-          maritalStatus: data['Marital Status'] || '',
-          motherLanguage: data['Mother Language'] || ''
-        }),
-        ReligiousDetail: (data) => ({
-          userId,
-          star: data['Star'] || '',
-          moonSign: data['Moon Sign'] || '',
-          dosham: data['Dosham'] || ''
-        }),
+        PersonalDetail: (data) => {
+          const clean = (v: string) => (!v || v === '-' || v === 'Not specified') ? '' : v;
+          return {
+            userId,
+            firstName: clean(data['First Name']),
+            lastName: clean(data['Last Name']),
+            height: clean(data['Height']),
+            weight: clean(data['Weight']),
+            physicalStatus: clean(data['Physical Status']),
+            maritalStatus: clean(data['Marital Status']),
+            motherLanguage: clean(data['Mother Language']),
+          };
+        },
+        ReligiousDetail: (data) => {
+          const clean = (v: string) => (!v || v === '-' || v === 'Not specified') ? '' : v;
+          return {
+            userId,
+            star: clean(data['Star']),
+            moonSign: clean(data['Moon Sign']),
+            dosham: clean(data['Dosham']),
+          };
+        },
         EducationalDetail: (data) => ({
           userId,
           education: data['Education'] || '',
@@ -83,20 +93,23 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
           employedAt: data['Employing In'] == 'Private' ? 'PRIVATE' : data['Employing In'] == 'Government' ? 'GOVT' : data['Employing In'] == 'Self Employment' ? 'SELF' : '',
           annualIncome: data['Annual Income'] || ''
         }),
-        FamilyDetail: (data) => ({
-          userId,
-          house: data['Family Type'] || '',
-          familyStatus: data['Family Status'] || '',
-          fatherName: data['Fathers Name'] || '',
-          fatherOccupation: data['Fathers Occupation'] || '',
-          motherName: data['Mothers Name'] || '',
-          motherOccupation: data['Mothers Occupation'] || '',
-          noOfSiblings: data['No of Siblings'] || '',
-          noOfBrothers: data['No of Brothers'] || '',
-          noOfSisters: data['No of Sisters'] || '',
-          noOfBrothersMarried: data['Brother Married'] || '',
-          noOfSistersMarried: data['Sister Married'] || '',
-        }),
+        FamilyDetail: (data) => {
+          const clean = (v: string) => (!v || v === '-' || v === 'Not specified') ? '' : v;
+          return {
+            userId,
+            house: clean(data['Family Type']),
+            familyStatus: clean(data['Family Status']),
+            fatherName: clean(data['Fathers Name']),
+            fatherOccupation: clean(data['Fathers Occupation']),
+            motherName: clean(data['Mothers Name']),
+            motherOccupation: clean(data['Mothers Occupation']),
+            noOfSiblings: clean(data['No of Siblings']),
+            noOfBrothers: clean(data['No of Brothers']),
+            noOfSisters: clean(data['No of Sisters']),
+            noOfBrothersMarried: clean(data['Brother Married']),
+            noOfSistersMarried: clean(data['Sister Married']),
+          };
+        },
       };
 
       // Map section title to API function
@@ -144,7 +157,53 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}>
           <View style={{ flexGrow: 1, padding: 0, alignItems: 'center', backgroundColor: '#F5F5F5' }}>
             {data && Array.isArray(data) && data.length > 0 ? (
-              data.map((section: any, idx: number) => (
+              data.map((section: any, idx: number) => {
+                // Special render for InterestsDetail — show chip grid instead of key-value form
+                if (section.title === 'InterestsDetail') {
+                  const hobbies: string[] = section.data?._hobbies || [];
+                  return (
+                    <Box key={idx} width="100%" alignItems="center" mt={idx > 0 ? 6 : 0}>
+                      <Box
+                        width="full"
+                        rounded="lg"
+                        borderWidth={0.2}
+                        borderColor="#fff"
+                        p={4}
+                        _dark={{ borderColor: "#800000", backgroundColor: "#800000" }}
+                        _light={{ backgroundColor: "#F5F5F5" }}
+                        style={{ elevation: 6, shadowColor: "#fff", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 2, shadowRadius: 3 }}
+                      >
+                        <HStack justifyContent="space-between" alignItems="center">
+                          <Text fontSize="md" fontWeight="bold" color={"#130001"}>Interests</Text>
+                          <TouchableOpacity
+                            style={{ backgroundColor: '#fff', padding: 5, borderRadius: 999 }}
+                            onPress={() => {
+                              if (isParent) {
+                                popup.error('Not allowed', 'Family members cannot edit interests.');
+                                return;
+                              }
+                              setEditableInterests(hobbies);
+                              setInterestsEditVisible(true);
+                            }}
+                          >
+                            <MaterialDesignIcons name="circle-edit-outline" size={24} color="#130001" />
+                          </TouchableOpacity>
+                        </HStack>
+                        <View style={{ marginTop: 12 }}>
+                          {hobbies.length > 0 ? (
+                            <InterestChipGrid selected={hobbies} readOnly />
+                          ) : (
+                            <Text fontSize="sm" color="#9ca3af" fontStyle="italic">
+                              No interests added yet. Tap edit to add your interests.
+                            </Text>
+                          )}
+                        </View>
+                      </Box>
+                    </Box>
+                  );
+                }
+
+                return (
                 <Box key={idx} width="100%" alignItems="center" mt={idx > 0 ? 6 : 0}>
                   <Box
                     width="full"
@@ -200,7 +259,7 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
                     </FormControl>
                   </Box>
                 </Box>
-              ))
+              );})
             ) : (
               <Text color="#DADADA">No data available</Text>
             )}
@@ -214,6 +273,106 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
         onUpdate={handleUpdate}
         refreshProfile={refreshProfile}
       />
+
+      {/* Interests Edit Modal */}
+      <Modal
+        visible={interestsEditVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setInterestsEditVisible(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'flex-end',
+        }}>
+          <View style={{
+            backgroundColor: '#fff',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingTop: 16,
+            paddingBottom: 40,
+            paddingHorizontal: 20,
+            maxHeight: '80%',
+          }}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <View>
+                <RNText style={{ fontSize: 18, fontWeight: '800', color: '#420001' }}>
+                  Edit Your Interests
+                </RNText>
+                <RNText style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                  Select at least 3 interests
+                </RNText>
+              </View>
+              <TouchableOpacity onPress={() => setInterestsEditVisible(false)}>
+                <Ionicons name="close" size={24} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Counter */}
+            <View style={{
+              backgroundColor: editableInterests.length >= 3 ? '#d1fae5' : '#fef3c7',
+              paddingHorizontal: 12,
+              paddingVertical: 5,
+              borderRadius: 14,
+              alignSelf: 'flex-start',
+              marginBottom: 14,
+            }}>
+              <RNText style={{
+                fontSize: 11,
+                fontWeight: '700',
+                color: editableInterests.length >= 3 ? '#065f46' : '#92400e',
+              }}>
+                {editableInterests.length} selected {editableInterests.length >= 3 ? '✓' : '(min 3)'}
+              </RNText>
+            </View>
+
+            {/* Chip grid */}
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              <InterestChipGrid
+                selected={editableInterests}
+                onToggle={(code) => {
+                  setEditableInterests((prev) =>
+                    prev.includes(code)
+                      ? prev.filter((c) => c !== code)
+                      : [...prev, code]
+                  );
+                }}
+              />
+            </ScrollView>
+
+            {/* Save button */}
+            <TouchableOpacity
+              style={{
+                backgroundColor: editableInterests.length >= 3 ? '#420001' : '#9ca3af',
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+              }}
+              disabled={editableInterests.length < 3 || savingInterests}
+              onPress={async () => {
+                if (!userId) return;
+                setSavingInterests(true);
+                try {
+                  await userApi.updateUserHobbies(userId, editableInterests);
+                  popup.success('Updated', 'Your interests have been updated.');
+                  setInterestsEditVisible(false);
+                  if (refreshProfile) refreshProfile();
+                } catch (err) {
+                  popup.error('Error', 'Failed to update interests. Please try again.');
+                } finally {
+                  setSavingInterests(false);
+                }
+              }}
+            >
+              <RNText style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+                {savingInterests ? 'Saving...' : 'Save Interests'}
+              </RNText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </NativeBaseProvider>
   );
 };
@@ -504,6 +663,7 @@ const SecondRoute = ({
 const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refreshProfile?: () => void; userId?: string | null }) => {
   const popup = usePopup();
   const [horoscopeImage, setHoroscopeImage] = useState<string | null>(null);
+  const [horoscopeUploading, setHoroscopeUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isParent, setIsParent] = useState(false);
@@ -587,44 +747,25 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
           userId: userIdConvert,
         });
 
-        // Upload the image
-        const response = await userApi.uploadHoroscopeImage(formData);
-        console.log("Horoscope upload response:", response);
-
-        if (response && response.data) {
-          if (response.data.data.code === 200 || response.data.data.code === 201) {  // Accept both 200 and 201 as success
-            Alert.alert(
-              'Success',
-              response.data.data.message || 'Horoscope uploaded successfully!',
-              [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    console.log('Horoscope uploaded successfully');
-                    if (refreshProfile) {
-                      refreshProfile();  // Refresh the profile to show the new horoscope
-                    }
-                  }
-                }
-              ]
-            );
+        // Upload the image with loading
+        setHoroscopeUploading(true);
+        try {
+          const response = await userApi.uploadHoroscopeImage(formData);
+          if (response?.data?.code === 200 || response?.data?.code === 201) {
+            popup.success('Success', response.data.message || 'Horoscope uploaded successfully!', () => {
+              if (refreshProfile) refreshProfile();
+            });
           } else {
-            throw new Error(response.data.data.message || 'Failed to upload horoscope');
+            throw new Error(response?.data?.message || 'Failed to upload horoscope');
           }
+        } finally {
+          setHoroscopeUploading(false);
         }
       }
     } catch (error) {
       console.error('Error adding horoscope:', error);
-      Alert.alert(
-        'Error',
-        'Failed to upload horoscope. Please try again.',
-        [
-          {
-            text: 'OK',
-            onPress: () => console.log('Error acknowledged')
-          }
-        ]
-      );
+      setHoroscopeUploading(false);
+      popup.error('Error', 'Failed to upload horoscope. Please try again.');
     }
   };
 
@@ -668,30 +809,19 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
         //   userId: userIdConvert,
         // });
 
-        // Upload the image
-        const response = await userApi.uploadHoroscopeImage(formData);
-        // console.log("Horoscope upload response:", response);
-
-        if (response && response.data) {
-          if (response.data.data.code === 200 || response.data.data.code === 201) {  // Accept both 200 and 201 as success
-            Alert.alert(
-              'Success',
-              response.data.data.message || 'Horoscope uploaded successfully!',
-              [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    // console.log('Horoscope uploaded successfully');
-                    if (refreshProfile) {
-                      refreshProfile();  // Refresh the profile to show the new horoscope
-                    }
-                  }
-                }
-              ]
-            );
+        // Upload with loading
+        setHoroscopeUploading(true);
+        try {
+          const response = await userApi.uploadHoroscopeImage(formData);
+          if (response?.data?.code === 200 || response?.data?.code === 201) {
+            popup.success('Success', response.data.message || 'Horoscope updated successfully!', () => {
+              if (refreshProfile) refreshProfile();
+            });
           } else {
-            throw new Error(response.data.data.message || 'Failed to upload horoscope');
+            throw new Error(response?.data?.message || 'Failed to upload horoscope');
           }
+        } finally {
+          setHoroscopeUploading(false);
         }
       }
     } catch (error) {
@@ -786,11 +916,17 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
           </HStack>
 
           <Center>
-            {horoscopeImage ? (
+            {horoscopeUploading ? (
+              <View style={{ width: '100%', height: 250, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', borderRadius: 12 }}>
+                <ActivityIndicator size="large" color="#420001" />
+                <RNText style={{ marginTop: 12, fontSize: 13, color: '#6b7280', fontWeight: '600' }}>Uploading horoscope...</RNText>
+              </View>
+            ) : horoscopeImage ? (
               <Image
                 source={{ uri: horoscopeImage }}
                 alt="Horoscope Image"
-                style={{ width: '100%', height: 400 }}
+                style={{ width: '100%', height: 300, maxWidth: '100%' }}
+                resizeMode="contain"
                 resizeMode="contain"
               />
             ) : (
@@ -860,6 +996,7 @@ const Tabs = ({ personalDetail, refreshProfile, initialTabIndex = 0, userId }: P
       renderScene={renderScene}
       onIndexChange={setIndex}
       initialLayout={{ width: layout.width }}
+      lazy={true}
       renderTabBar={props => (
         <TabBar
           {...props}
