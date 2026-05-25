@@ -22,6 +22,8 @@ import { SubscriptionProvider } from './(root)/contexts/subscriptionContext';
 import { UserDataProvider } from './(root)/contexts/UserDataContext';
 import { PopupProvider } from './(root)/contexts/PopupContext';
 import { NativeBaseProvider } from 'native-base';
+import NoInternetOverlay from '../components/NoInternetOverlay';
+import SupportFAB from '../components/SupportFAB';
 // ... other imports
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -57,6 +59,8 @@ export default function RootLayout() {
                   <AlertNotificationRoot>
                     <StatusBar style="auto" />
                     <Stack screenOptions={{ headerShown: false }} />
+                    <SupportFAB />
+                    <NoInternetOverlay />
                   </AlertNotificationRoot>
                 </PopupProvider>
               </NativeBaseProvider>

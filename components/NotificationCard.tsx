@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     avatarInitial: {
         color: '#F6B733',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
     },
     iconWrapper: {
 
@@ -194,15 +194,16 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 13,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         color: '#4b5563',
     },
     unreadText: {
         color: '#420001',
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
     },
     message: {
         fontSize: 12,
+        fontFamily: 'Rubik-Regular',
         color: '#9ca3af',
         marginTop: 2,
     },
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     newBadgeText: {
         color: '#F6B733',
         fontSize: 10,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         letterSpacing: 0.5,
     },
     bottomRow: {

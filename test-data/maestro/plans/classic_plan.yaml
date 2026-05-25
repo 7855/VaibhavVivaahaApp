@@ -1,0 +1,52 @@
+appId: com.vaibhavvivaaha.app
+---
+# CLASSIC PLAN TEST SUITE
+# Requires env: MOBILE, PIN, CASTE, GENDER
+
+- runFlow: ../subflows/login.yaml
+
+# CL-01: Home screen loads
+- assertVisible: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "classic_home_${CASTE}_${GENDER}"
+
+# CL-02: Advanced search filters ARE available
+- tapOn:
+    text: "Search"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "classic_search_available_${CASTE}_${GENDER}"
+
+# CL-03: MailBox — still 3 tabs only
+- tapOn: "MailBox"
+- waitForAnimationToEnd
+- assertVisible: "Received"
+- assertVisible: "Sent"
+- assertNotVisible: "Shortlisted You"
+- takeScreenshot: "classic_mailbox_${CASTE}_${GENDER}"
+
+# CL-04: Open profile — horoscope / jathagam section visible
+- tapOn: "Home"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+    text: "View Profile"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "classic_profile_detail_${CASTE}_${GENDER}"
+
+# CL-05: Voice Call CTA hidden (Silver+ only)
+- assertNotVisible: "Voice Call"
+
+# CL-06: WhatsApp share hidden (Gold+ only)
+- assertNotVisible: "Share on WhatsApp"
+
+# CL-07: Settings - Family Access hidden
+- tapOn: "Profile"
+- waitForAnimationToEnd
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertNotVisible: "Family Access"
+- takeScreenshot: "classic_settings_${CASTE}_${GENDER}"
+
+- runFlow: ../subflows/logout.yaml

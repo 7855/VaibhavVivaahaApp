@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
   },
   closeButton: {
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#666',
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     fontSize: 16,
   },
   applyButton: {
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   applyButtonText: {
     color: '#DADADA',
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     fontSize: 16,
   },
 });

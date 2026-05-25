@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#0f1724',
   },
   tabContainer: {
@@ -816,7 +816,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#64748b',
   },
   activeTabText: {
@@ -834,7 +834,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#64748b',
     marginBottom: 8,
     textTransform: 'uppercase',
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#fff',
     fontSize: 17,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginLeft: 8,
   },
   modalOverlay: {
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#0f1a2e',
   },
   timePickerContainer: {
@@ -969,7 +969,7 @@ const styles = StyleSheet.create({
   },
   timePickerTextActive: {
     color: '#0f52ba',
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   periodContainer: {
     flexDirection: 'row',
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
   },
   periodText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#64748b',
   },
   periodTextActive: {
@@ -1009,7 +1009,7 @@ const styles = StyleSheet.create({
   doneButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   pickerInput: {
     flexDirection: 'row',
@@ -1045,7 +1045,7 @@ const styles = StyleSheet.create({
   },
   // modalTitle: {
   //   fontSize: 18,
-  //   fontWeight: 'bold',
+  //   fontFamily: 'Rubik-Bold',
   //   color: '#0f1a2e',
   // },
   modalScrollView: {
@@ -1065,7 +1065,7 @@ const styles = StyleSheet.create({
   },
   modalItemTextActive: {
     color: '#0f52ba',
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
 });
 

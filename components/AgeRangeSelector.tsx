@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     marginBottom: 8,
     color: '#130001',
   },

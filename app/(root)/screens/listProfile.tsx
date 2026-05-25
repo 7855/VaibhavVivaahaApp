@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
   heading: {
     color: '#DADADA',
     fontSize: 19,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginTop: 5,
     textAlign: 'center',
     paddingTop: 3,

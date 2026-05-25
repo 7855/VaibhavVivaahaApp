@@ -155,10 +155,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 12, paddingVertical: 10,
   },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#0f1724' },
+  headerTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: '#0f1724' },
   subtitle: { fontSize: 13, color: '#6b7280', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, lineHeight: 18 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyText: { marginTop: 12, fontSize: 15, fontWeight: '600', color: '#111' },
+  emptyText: { marginTop: 12, fontSize: 15, fontFamily: 'Rubik-Medium', color: '#111' },
   emptySub: { marginTop: 6, fontSize: 12, color: '#6b7280' },
   card: {
     flexDirection: 'row', alignItems: 'center',
@@ -166,13 +166,13 @@ const styles = StyleSheet.create({
     marginBottom: 10, borderWidth: 1, borderColor: '#f3f4f6',
   },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#e5e7eb' },
-  name: { fontSize: 14, fontWeight: '600', color: '#111' },
+  name: { fontSize: 14, fontFamily: 'Rubik-Medium', color: '#111' },
   meta: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
   unblockBtn: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     borderWidth: 1.5, borderColor: '#9c4040',
   },
-  unblockText: { color: '#9c4040', fontSize: 12, fontWeight: '700' },
+  unblockText: { color: '#9c4040', fontSize: 12, fontFamily: 'Rubik-Bold' },
 });
 
 export default BlockedUsersScreen;

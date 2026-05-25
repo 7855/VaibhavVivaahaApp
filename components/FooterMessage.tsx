@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   footerText: {
     color: '#7A6B5D',
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     letterSpacing: 0.1,
     lineHeight: 20, // Added lineHeight to match icon height
   },

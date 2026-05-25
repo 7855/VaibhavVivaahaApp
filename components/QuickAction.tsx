@@ -110,9 +110,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#130001',
+    fontSize: 15,
+    fontFamily: 'Rubik-Bold',
+    color: '#162336',
   },
   grid: {
     flexDirection: 'row',
@@ -160,11 +160,11 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#DADADA',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   actionText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#1e293b',
     flex: 1,
   },

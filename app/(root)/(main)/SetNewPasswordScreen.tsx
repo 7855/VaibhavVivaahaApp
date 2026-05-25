@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 24,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#130001',
         textAlign: 'center',
         marginBottom: 6,
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 13,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         color: '#374151',
         marginBottom: 8,
     },
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         fontSize: 20,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         color: '#130001',
         paddingVertical: 14,
         letterSpacing: 6,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     matchText: {
         color: '#10b981',
         fontSize: 12,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     submitBtn: {
         backgroundColor: '#1F7FE5',
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     submitBtnText: {
         color: '#fff',
         fontSize: 15,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
     },
     backBtn: {
         alignItems: 'center',
@@ -261,6 +261,6 @@ const styles = StyleSheet.create({
     backBtnText: {
         color: '#1F7FE5',
         fontSize: 14,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
 });

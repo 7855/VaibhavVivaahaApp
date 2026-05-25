@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   tabLabelTab: {
     color: '#DADADA',
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   sceneTab: {
     backgroundColor: "#FFFFFF",
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
   },
   ageLabelText: {
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#420001',
   },
   ageInputContainer: {
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
   },
   salaryLabelText: {
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#420001',
   },
   salaryInputContainer: {
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
   // tabLabelTab: {
   //   color: '#fff',
   //   fontSize: 16,
-  //   fontWeight: '500',
+  //   fontFamily: 'Rubik-Medium',
   // },
   scene: {
     flex: 1,
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
   // },
   profileWphototext: {
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: "#DADADA"
   },
   tabBar: {
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
   headerText: {
     color: "#DADADA",
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: 'Rubik-Bold',
   },
   content: {
     width: "100%",
@@ -851,12 +851,12 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#130057",
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: 'Rubik-Bold',
   },
   sliderLabel: {
     color: "#DADADA",
     fontSize: 14,
-    fontWeight: "bold",
+    fontFamily: 'Rubik-Bold',
     marginBottom: 5,
   },
   slider: {
@@ -899,7 +899,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   container: { padding: 5, paddingLeft: 0 },
-  title: { fontSize: 15, fontWeight: "bold", color: "#DADADA" },
+  title: { fontSize: 15, fontFamily: 'Rubik-Bold', color: "#DADADA" },
   dropdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -961,7 +961,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   job: {
     fontSize: 14,
@@ -985,7 +985,7 @@ const styles = StyleSheet.create({
   },
   educationLabelText: {
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#420001',
   },
   educationInputWrapper: {

@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   text: {
     color: PRIMARY_COLOR,
     marginLeft: 8,
-    fontWeight: "500",
+    fontFamily: "Rubik-Medium",
   },
 });
 

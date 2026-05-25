@@ -409,20 +409,20 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ringPercent: { fontSize: 22, fontWeight: '800', color: '#111827', lineHeight: 24 },
-  ringOf: { fontSize: 10, color: '#6b7280', fontWeight: '600' },
+  ringPercent: { fontSize: 22, fontFamily: 'Rubik-ExtraBold', color: '#111827', lineHeight: 24 },
+  ringOf: { fontSize: 10, color: '#6b7280', fontFamily: 'Rubik-Medium' },
 
   heroInfo: { flex: 1, marginLeft: 16 },
   heroEyebrow: {
     fontSize: 10,
-    fontWeight: '800',
+    fontFamily: 'Rubik-ExtraBold',
     letterSpacing: 1.2,
     color: '#9ca3af',
     marginBottom: 3,
   },
   heroTitle: {
     fontSize: 19,
-    fontWeight: '800',
+    fontFamily: 'Rubik-ExtraBold',
     color: '#111827',
     marginBottom: 4,
   },
@@ -444,7 +444,7 @@ const s = StyleSheet.create({
     borderColor: '#f1f5f9',
   },
   statDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
-  statText: { fontSize: 10, fontWeight: '600', color: '#374151' },
+  statText: { fontSize: 10, fontFamily: 'Rubik-Medium', color: '#374151' },
 
   barTrack: {
     height: 6,
@@ -472,7 +472,7 @@ const s = StyleSheet.create({
   },
   benefitText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#047857',
     marginLeft: 5,
   },
@@ -487,13 +487,13 @@ const s = StyleSheet.create({
   },
   sectionHeaderText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: 'Rubik-ExtraBold',
     letterSpacing: 1,
     color: '#6b7280',
   },
   sectionHeaderCount: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#10b981',
   },
 
@@ -534,7 +534,7 @@ const s = StyleSheet.create({
   },
   rowMiddle: { flex: 1 },
   rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  rowTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  rowTitle: { fontSize: 14, fontFamily: 'Rubik-Bold', color: '#111827' },
   rowDesc: { fontSize: 11, color: '#6b7280', marginTop: 1 },
   rowStatusRow: {
     flexDirection: 'row',
@@ -549,7 +549,7 @@ const s = StyleSheet.create({
   },
   statusPillText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
   },
   lockPill: {
     flexDirection: 'row',
@@ -560,7 +560,7 @@ const s = StyleSheet.create({
   },
   lockPillText: {
     fontSize: 9,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#7c3aed',
     marginLeft: 3,
   },

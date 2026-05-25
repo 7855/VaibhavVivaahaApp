@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#130001',
   },
   subtitle: {
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
   },
   sectionContent: {

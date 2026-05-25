@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   countText: {
     color: '#fff',
     fontSize: 10,
-    fontWeight: '800',
+    fontFamily: 'Rubik-ExtraBold',
   },
   fullRow: {
     flexDirection: 'row',
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   fullChipText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     marginLeft: 4,
   },
 });
@@ -324,7 +324,7 @@ const collStyles = StyleSheet.create({
   },
   labelText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: 'Rubik-ExtraBold',
     color: '#10b981',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
@@ -352,7 +352,7 @@ const collStyles = StyleSheet.create({
   },
   expandedText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
   },
 });
 

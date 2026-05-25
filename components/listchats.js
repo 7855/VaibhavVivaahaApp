@@ -136,7 +136,7 @@ const ListChats = ({ allChats, onPress, chatQuota }) => {
       >
         <VStack alignItems="center" space={2}>
           <Icon name="trash" color="#DADADA" size={12} />
-          <NBText color="#DADADA" fontSize={12} fontWeight="medium">
+          <NBText color="#DADADA" fontSize={12} fontWeight="medium" fontFamily="Rubik-Medium">
             Delete
           </NBText>
         </VStack>
@@ -151,7 +151,7 @@ const ListChats = ({ allChats, onPress, chatQuota }) => {
       {/* Top section - 30% */}
       <Box flex={1.5}>
         <HStack paddingLeft={4} paddingRight={4} marginTop={3} justifyContent="space-between" alignItems="center">
-          <NBText fontWeight="semibold" fontSize="lg">My Connections</NBText>
+          <NBText fontWeight="semibold" fontFamily="Rubik-Medium" fontSize="lg">My Connections</NBText>
           {chatQuota && !chatQuota.unlimited && chatQuota.total > 0 && (
             <View style={{
               flexDirection: 'row',
@@ -165,7 +165,7 @@ const ListChats = ({ allChats, onPress, chatQuota }) => {
             }}>
               <NBText style={{
                 fontSize: 11,
-                fontWeight: '700',
+                fontFamily: 'Rubik-Bold',
                 color: chatQuota.remaining <= 1 ? '#dc2626' : '#0369a1',
               }}>
                 {chatQuota.used}/{chatQuota.total} chats used

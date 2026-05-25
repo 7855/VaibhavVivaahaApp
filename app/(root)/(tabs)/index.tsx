@@ -728,10 +728,10 @@ const Index = () => {
                 <Box
                   overflow="hidden"
                   backgroundColor="transparent"
-                  borderColor="black"
-                  p={2}
+                  px={2}
+                  pt={2}
                   borderRadius={20}
-                  m={1}
+                  mt={3}
                 >
                   <VStack space={3}>
                     <TouchableOpacity
@@ -747,17 +747,17 @@ const Index = () => {
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize={16} fontWeight="600" color="#130001">
+                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
                             New Connections
                           </Text>
                           <HStack alignItems="center" space={1}>
-                            <Icon name="bullseye" size={15} color="#1F7FE5" />
-                            <Text fontSize="xs" color="#64748b">
+                            <Icon name="bullseye" size={13} color="#8B3A3A" />
+                            <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
                               Explore Profiles, Spark New Connections
                             </Text>
                           </HStack>
                         </VStack>
-                        <Icon name="chevron-circle-right" size={26} color="#1F7FE5" />
+                        <Icon name="chevron-right" size={22} color="#94a3b8" />
                       </HStack>
                     </TouchableOpacity>
 
@@ -784,10 +784,10 @@ const Index = () => {
                 <Box
                   overflow="hidden"
                   backgroundColor="transparent"
-                  borderColor="black"
-                  p={2}
+                  px={2}
+                  pt={2}
                   borderRadius={20}
-                  m={1}
+                  mt={3}
                 >
                   <VStack space={3}>
                     <TouchableOpacity
@@ -803,17 +803,17 @@ const Index = () => {
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize={16} fontWeight="600" color="#130001">
+                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
                             Daily Recommendations
                           </Text>
                           <HStack alignItems="center" space={1}>
-                            <Icon name="clock-o" size={15} color="#1F7FE5" />
-                            <Text fontSize="xs" color="#64748b">
+                            <Icon name="clock-o" size={13} color="#8B3A3A" />
+                            <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
                               {timeLeft || 'Calculating...'} left to view these profiles
                             </Text>
                           </HStack>
                         </VStack>
-                        <Icon name="chevron-circle-right" size={26} color="#1F7FE5" />
+                        <Icon name="chevron-right" size={22} color="#94a3b8" />
                       </HStack>
                     </TouchableOpacity>
 
@@ -837,14 +837,13 @@ const Index = () => {
                 </Box>
 
                 {/* Near You Section */}
-                {/* Near You Section */}
                 <Box
                   overflow="hidden"
                   backgroundColor="transparent"
-                  borderColor="black"
-                  p={2}
+                  px={2}
+                  pt={2}
                   borderRadius={20}
-                  m={1}
+                  mt={3}
                 >
                   <VStack space={3}>
                     <TouchableOpacity
@@ -860,17 +859,17 @@ const Index = () => {
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize={16} fontWeight="600" color="#130001">
+                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
                             Near You
                           </Text>
                           <HStack alignItems="center" space={1}>
-                            <Icon name="map-marker" size={15} color="#1F7FE5" />
-                            <Text fontSize="xs" color="#64748b">
+                            <Icon name="map-marker" size={13} color="#8B3A3A" />
+                            <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
                               Discover profiles in your area
                             </Text>
                           </HStack>
                         </VStack>
-                        <Icon name="chevron-circle-right" size={26} color="#1F7FE5" />
+                        <Icon name="chevron-right" size={22} color="#94a3b8" />
                       </HStack>
                     </TouchableOpacity>
 
@@ -898,10 +897,10 @@ const Index = () => {
                   <Box
                     overflow="hidden"
                     backgroundColor="transparent"
-                    borderColor="black"
-                    padding={2}
+                    px={2}
+                    pt={2}
                     borderRadius={20}
-                    margin={1}
+                    mt={3}
                   >
                     <VStack space={3}>
                       <TouchableOpacity
@@ -917,17 +916,17 @@ const Index = () => {
                       >
                         <HStack justifyContent="space-between" alignItems="center">
                           <VStack>
-                            <Text fontSize={16} fontWeight="600" color="#130001">
+                            <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
                               Matches Based on Interests
                             </Text>
                             <HStack alignItems="center" space={1}>
-                              <Icon name="heart" size={15} color="#1F7FE5" />
-                              <Text fontSize="xs" color="#64748b">
+                              <Icon name="heart" size={13} color="#8B3A3A" />
+                              <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
                                 Profiles who share your passions
                               </Text>
                             </HStack>
                           </VStack>
-                          <Icon name="chevron-circle-right" size={26} color="#1F7FE5" />
+                          <Icon name="chevron-right" size={22} color="#94a3b8" />
                         </HStack>
                       </TouchableOpacity>
                       <Center marginLeft={1} marginBottom={2}>
@@ -965,7 +964,7 @@ const Index = () => {
                     >
                       <HStack justifyContent="space-between" alignItems="center">
                         <VStack>
-                          <Text fontSize={14} fontWeight="bold" textTransform="uppercase" color="#130001">
+                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
                             Near You
                           </Text>
                           <HStack alignItems="center" space={1}>
@@ -973,7 +972,7 @@ const Index = () => {
                             <Text fontSize="xs">Discover profiles near your location..</Text>
                           </HStack>
                         </VStack>
-                        <Icon name="chevron-circle-right" size={30} color="green" />
+                        <Icon name="chevron-right" size={22} color="#94a3b8" />
                       </HStack>
                     </TouchableOpacity>
 
@@ -1200,7 +1199,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#0f1724',
     marginLeft: 8,
     letterSpacing: -0.3,
@@ -1208,7 +1207,7 @@ const styles = StyleSheet.create({
   viewAllText: {
     color: '#E58E15',
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   carouselList: {
     paddingVertical: 4,
@@ -1241,7 +1240,7 @@ const styles = StyleSheet.create({
   userText: {
     color: '#DADADA',
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginTop: 4,
     marginBottom: 4
   },
@@ -1305,12 +1304,12 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 11,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     fontStyle: 'italic',
   },
   greetingName: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   title: {
     textAlign: 'center',
@@ -1318,7 +1317,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 20,
     color: '#E58E15',
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   bellWrapper: {
     marginRight: 12,
@@ -1354,7 +1353,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#DADADA',
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   tierContainer: {
     marginTop: 2,
@@ -1397,7 +1396,7 @@ const styles = StyleSheet.create({
   },
   tierTitle: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     letterSpacing: 0.4,
     marginEnd: 5
   },
@@ -1416,7 +1415,7 @@ const styles = StyleSheet.create({
   freeTierText: {
     color: '#A0A0A0',
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   upgradeButton: {
     flexDirection: 'row',
@@ -1434,7 +1433,7 @@ const styles = StyleSheet.create({
   upgradeText: {
     color: '#0f1724',
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     marginRight: 4,
   },
 

@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   brand: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: 'rgba(255,255,255,0.5)',
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 34,
-    fontWeight: '800',
+    fontFamily: 'Rubik-ExtraBold',
     color: '#fff',
     letterSpacing: -0.5,
     lineHeight: 40,
@@ -123,6 +123,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: 'Rubik-Regular',
     color: 'rgba(255,255,255,0.65)',
     lineHeight: 21,
     marginBottom: 28,
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     color: '#0f1724',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
   },
   secondaryBtn: {
     flex: 1,
@@ -157,6 +158,6 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
 });

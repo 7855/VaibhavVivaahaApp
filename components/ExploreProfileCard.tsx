@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
     padding: 6,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  nameAge: { color: '#DADADA', fontSize: 16, fontWeight: '600' },
-  job: { color: '#ccc', fontSize: 13, marginTop: 4 },
+  nameAge: { color: '#DADADA', fontSize: 16, fontFamily: 'Rubik-Medium' },
+  job: { color: '#ccc', fontSize: 13, fontFamily: 'Rubik-Regular', marginTop: 4 },
   interestRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   },
   interestTagText: {
     fontSize: 9,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Medium',
     color: '#fef3c7',
   },
   boostBadge: {
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   },
   boostBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontFamily: 'Rubik-Bold',
     color: '#fff',
   },
   shieldWrap: {

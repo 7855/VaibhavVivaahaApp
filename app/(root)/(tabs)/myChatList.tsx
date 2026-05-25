@@ -131,7 +131,7 @@ const MyChatList = () => {
       ) : chatList.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
           <Ionicons name="chatbubbles-outline" size={64} color="#d1d5db" />
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#374151', marginTop: 16 }}>No conversations yet</Text>
+          <Text style={{ fontSize: 18, fontFamily: 'Rubik-Bold', color: '#374151', marginTop: 16 }}>No conversations yet</Text>
           <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
             Start connecting with your matches! Send an interest request and begin a conversation.
           </Text>
@@ -139,7 +139,7 @@ const MyChatList = () => {
             onPress={() => router.push('/(root)/(tabs)/explore' as any)}
             style={{ marginTop: 20, backgroundColor: '#420001', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 }}
           >
-            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Explore Matches</Text>
+            <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Rubik-Medium' }}>Explore Matches</Text>
           </TouchableOpacity>
         </View>
       ) : (

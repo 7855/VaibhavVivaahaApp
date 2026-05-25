@@ -2,11 +2,11 @@
   "expo": {
     "name": "Vaibhav Vivaaha Matrimony",
     "scheme": "vaibhavvivaaha",
-    "slug": "VaibhavVivaaha",
+    "slug": "MatrimonyApp",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/vaibhavsplash.jpeg",
+    "icon": "./assets/images/LotusLogo.jpeg",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
@@ -20,17 +20,18 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/UMO1024x1024.png"
+        "foregroundImage": "./assets/images/LotusLogo.jpeg",
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.vaibhavvivaaha.app",
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]    
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/UMO1024x1024.png"
+      "favicon": "./assets/images/LotusLogo.jpeg"
     },
     "plugins": [
       "expo-router",
@@ -161,6 +162,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/vaibhavsplash.jpeg",
+          "imageWidth": 280,
           "resizeMode": "contain",
           "backgroundColor": "#420001",
           "dark": {
@@ -180,6 +182,7 @@
       "eas": {
         "projectId": "408db710-364b-4916-bed4-d60051570adb"
       }
-    }
+    },
+    "owner": "6379829750"
   }
 }

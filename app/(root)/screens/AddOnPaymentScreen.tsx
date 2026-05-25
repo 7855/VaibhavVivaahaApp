@@ -279,8 +279,8 @@ const s = StyleSheet.create({
     marginBottom: 18,
   },
   featureEmoji: { fontSize: 36, marginBottom: 8 },
-  featureTitle: { fontSize: 18, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  featurePrice: { fontSize: 28, fontWeight: '800', color: '#f59e0b' },
+  featureTitle: { fontSize: 18, fontFamily: 'Rubik-ExtraBold', color: '#fff', marginBottom: 4 },
+  featurePrice: { fontSize: 28, fontFamily: 'Rubik-ExtraBold', color: '#f59e0b' },
   featureDesc: { fontSize: 12, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 6 },
 
   stepCard: {
@@ -299,27 +299,27 @@ const s = StyleSheet.create({
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: '#420001', alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
-  stepBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  stepTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  stepBadgeText: { color: '#fff', fontSize: 12, fontFamily: 'Rubik-ExtraBold' },
+  stepTitle: { fontSize: 14, fontFamily: 'Rubik-Bold', color: '#111827' },
   stepDesc: { fontSize: 12, color: '#6b7280', lineHeight: 17, marginBottom: 10 },
 
   upiRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#f9fafb', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#e5e7eb',
   },
-  upiId: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1 },
+  upiId: { fontSize: 14, fontFamily: 'Rubik-Bold', color: '#111827', flex: 1 },
   copyBtn: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#420001',
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, gap: 4,
   },
-  copyBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  copyBtnText: { color: '#fff', fontSize: 11, fontFamily: 'Rubik-Bold' },
 
   uploadBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 16, borderRadius: 10, borderWidth: 1.5,
     borderStyle: 'dashed', borderColor: '#420001', backgroundColor: '#fff', gap: 8,
   },
-  uploadBtnText: { color: '#420001', fontWeight: '700', fontSize: 13 },
+  uploadBtnText: { color: '#420001', fontFamily: 'Rubik-Bold', fontSize: 13 },
 
   previewBox: { position: 'relative', marginBottom: 4 },
   preview: { width: '100%', height: 200, borderRadius: 10, resizeMode: 'cover', backgroundColor: '#e5e7eb' },
@@ -334,19 +334,19 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#420001', paddingVertical: 14, borderRadius: 12, marginTop: 6, gap: 8,
   },
-  submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  submitBtnText: { color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 14 },
 
   pendingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
   pendingIcon: {
     width: 80, height: 80, borderRadius: 40, backgroundColor: '#fef3c7',
     alignItems: 'center', justifyContent: 'center', marginBottom: 20,
   },
-  pendingTitle: { fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 8 },
+  pendingTitle: { fontSize: 20, fontFamily: 'Rubik-ExtraBold', color: '#111827', marginBottom: 8 },
   pendingDesc: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 19, marginBottom: 12 },
   pendingNote: { fontSize: 11, color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' },
   backButton: {
     marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10,
     backgroundColor: '#420001',
   },
-  backButtonText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  backButtonText: { color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 13 },
 });

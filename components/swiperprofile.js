@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   userText: {
     color: '#DADADA',
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginVertical: 4,
     textAlign: 'center',
     lineHeight: 17,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#fff',
     fontSize: 9,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Medium',
     marginLeft: 2,
   },
 });

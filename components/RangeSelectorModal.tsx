@@ -162,13 +162,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
   },
   closeButton: {
     color: '#420001',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   pickersContainer: {
     flexDirection: 'row',
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   applyButtonText: {
     color: '#DADADA',
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     fontSize: 16,
   },
 });

@@ -418,7 +418,7 @@ const ReceivedTab = () => {
                   borderColor: '#F5F5F5',
                   zIndex: 1,
                 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>{count}</Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'Rubik-ExtraBold', color: '#fff' }}>{count}</Text>
                 </View>
               )}
               {/* Icon left, label right */}
@@ -1300,7 +1300,7 @@ const ShortlistedTab = () => {
       <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
         <ScrollView className='mb-3'>
           <View className='ml-5 mt-2 mb-2'>
-            <NBText fontSize={'lg'} fontWeight={'semibold'}> Shortlisted</NBText>
+            <NBText fontSize={'lg'} fontWeight={'semibold'} fontFamily="Rubik-Medium"> Shortlisted</NBText>
           </View>
 
           <View className='mb-10'>
@@ -1323,7 +1323,7 @@ const ShortlistedTab = () => {
                     {/* Profile Details */}
                     <VStack flex={1} space={1}>
                       <NBHStack alignItems="center" space={1}>
-                        <NBText fontSize="md" fontWeight="semibold" isTruncated maxWidth="85%">
+                        <NBText fontSize="md" fontWeight="semibold" fontFamily="Rubik-Medium" isTruncated maxWidth="85%">
                           {member.firstName} {member.lastName}
                         </NBText>
                         <VerifiedBadges idVerified={member.idVerified} educationVerified={member.educationVerified} incomeVerified={member.incomeVerified} mode="compact" size="sm" />
@@ -1423,7 +1423,7 @@ const WhoShortlistedMeTab = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
       <ScrollView className='mb-3'>
         <View className='ml-5 mt-2 mb-2'>
-          <NBText fontSize={'lg'} fontWeight={'semibold'}>Who Shortlisted You</NBText>
+          <NBText fontSize={'lg'} fontWeight={'semibold'} fontFamily="Rubik-Medium">Who Shortlisted You</NBText>
         </View>
         <View className='mb-10'>
           {data.map((member: any) => (
@@ -1440,7 +1440,7 @@ const WhoShortlistedMeTab = () => {
                   </Center>
                   <VStack flex={1} space={1}>
                     <NBHStack alignItems="center" space={1}>
-                      <NBText fontSize="md" fontWeight="semibold" isTruncated maxWidth="85%">
+                      <NBText fontSize="md" fontWeight="semibold" fontFamily="Rubik-Medium" isTruncated maxWidth="85%">
                         {member.firstName} {member.lastName}
                       </NBText>
                       <VerifiedBadges idVerified={member.idVerified} educationVerified={member.educationVerified} incomeVerified={member.incomeVerified} mode="compact" size="sm" />
@@ -1535,7 +1535,7 @@ const styles = StyleSheet.create({
   },
   premiumTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#1d4ed8',
     marginTop: 20,
   },
@@ -1556,7 +1556,7 @@ const styles = StyleSheet.create({
   upgradeButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   tabStyle: {
     flex: 1,
@@ -1620,7 +1620,7 @@ const styles = StyleSheet.create({
   profileImageLabelText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   profileCard: {
     marginHorizontal: 16,
@@ -1644,7 +1644,7 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#fff',
   },
   profileDetails: {
@@ -1688,7 +1688,7 @@ const styles = StyleSheet.create({
   // profileImageLabelText: {
   //   color: 'white',
   //   fontSize: 12,
-  //   fontWeight: '500',
+  //   fontFamily: 'Rubik-Medium',
   // },
   // profileImageLabel: {
   //   position: 'absolute',
@@ -1703,7 +1703,7 @@ const styles = StyleSheet.create({
   // profileImageLabelText: {
   //   color: 'white',
   //   fontSize: 12,
-  //   fontWeight: '500',
+  //   fontFamily: 'Rubik-Medium',
   // },
   imageBackground: {
     height: 260,
@@ -1732,13 +1732,13 @@ const styles = StyleSheet.create({
   name: {
     color: '#fff',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginBottom: 4,
   },
   occupation: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   iconActions: {
     flexDirection: 'row',
@@ -1795,7 +1795,7 @@ const styles = StyleSheet.create({
   },
   // titleText: {
   //   fontSize: 16,
-  //   fontWeight: '600',
+  //   fontFamily: 'Rubik-Medium',
   //   color: '#000',
   // },
   subtitleText: {
@@ -1808,9 +1808,9 @@ const styles = StyleSheet.create({
     color: '#000',
     marginTop: 10,
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginBottom: 4,
-    // fontWeight: '600',
+    // fontFamily: 'Rubik-Medium',
 
   },
   filterContainerReq: {
@@ -1844,7 +1844,7 @@ const styles = StyleSheet.create({
   filterButtonTextReq: {
     color: '#333',
     fontSize: 13,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   filterButtonTextActiveReq: {
     color: '#fff',
@@ -1861,7 +1861,7 @@ const styles = StyleSheet.create({
   //   gap: 8,
   // },
   menuTitle: {
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginBottom: 15,
   },
   input: {
@@ -1880,7 +1880,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   requestCard: {
     backgroundColor: '#FFFFFF',
@@ -1999,7 +1999,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#1F2937',
     // marginBottom: 4,
   },
@@ -2038,7 +2038,7 @@ const styles = StyleSheet.create({
   viewProfileText: {
     color: '#007AFF',
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
 
 });

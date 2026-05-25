@@ -373,6 +373,18 @@ const userApi = {
   getKeyValueByKey: (key) => {
     return axiosClient.get(`/keyValue/getKeyValueByKey/${key}`)
   },
+  getPaymentMode: () => {
+    return axiosClient.get(`/keyValue/getKeyValueByKey/PAYMENT_MODE`)
+  },
+  getAdminContact: () => {
+    return axiosClient.get(`/keyValue/getKeyValueByKey/ADMIN_CONTACT`)
+  },
+  createCallbackRequest: (encodedUserId, body) => {
+    return axiosClient.post(`/callback-request/create/${encodedUserId}`, body)
+  },
+  getMyCallbackRequests: (encodedUserId, page = 0, size = 10) => {
+    return axiosClient.get(`/callback-request/my/${encodedUserId}?page=${page}&size=${size}`)
+  },
   getProfileDetailByMemberId: (memberId, gender, casteId) => {
     return axiosClient.get(`/user/getProfileDetailByMemberId/${memberId}/${gender}/${casteId}`)
   },
@@ -402,6 +414,26 @@ const userApi = {
   },
   starMatching: (requestBody) => {
     return axiosClient.post(`/matching/porutham`, requestBody)
+  },
+
+  // ===== Support Tickets =====
+  createSupportTicket: (encodedUserId, body) => {
+    return axiosClient.post(`/support-ticket/create/${encodedUserId}`, body)
+  },
+  getMySupportTickets: (encodedUserId, page = 0, size = 10) => {
+    return axiosClient.get(`/support-ticket/my/${encodedUserId}`, { params: { page, size } })
+  },
+  getTicketMessages: (ticketId) => {
+    return axiosClient.get(`/support-ticket/${ticketId}/messages`)
+  },
+  replyToSupportTicket: (ticketId, encodedUserId, body) => {
+    return axiosClient.post(`/support-ticket/${ticketId}/reply/${encodedUserId}`, body)
+  },
+  getActiveSupportTicket: (encodedUserId) => {
+    return axiosClient.get(`/support-ticket/active/${encodedUserId}`)
+  },
+  getSupportUnreadCount: (encodedUserId) => {
+    return axiosClient.get(`/support-ticket/unread-count/${encodedUserId}`)
   }
 
 };

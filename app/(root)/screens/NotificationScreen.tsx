@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#0f1724',
   },
   container: {
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
     marginBottom: 4,
   },

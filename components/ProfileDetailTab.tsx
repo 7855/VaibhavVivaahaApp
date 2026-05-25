@@ -207,8 +207,8 @@ const FirstRoute = ({
                                 <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                               </View>
                               <View style={{ flex: 1 }}>
-                                <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
-                                <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to Classic or above to view contact</Text>
+                                <Text style={{ color: '#9a3412', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Premium Only</Text>
+                                <Text style={{ color: '#c2410c', fontSize: 10, fontFamily: 'Rubik-Medium' }}>Upgrade to Classic or above to view contact</Text>
                               </View>
                               <Ionicons name="chevron-forward" size={14} color="#ea580c" />
                             </TouchableOpacity>
@@ -245,15 +245,15 @@ const FirstRoute = ({
                                 <Ionicons name="call" size={14} color="#2563eb" />
                               </View>
                               <View style={{ flex: 1 }}>
-                                <Text style={{ color: '#1e40af', fontSize: 12, fontWeight: '700' }}>View Contact</Text>
-                                <Text style={{ color: '#3b82f6', fontSize: 10, fontWeight: '500' }}>Tap to reveal phone & email</Text>
+                                <Text style={{ color: '#1e40af', fontSize: 12, fontFamily: 'Rubik-Bold' }}>View Contact</Text>
+                                <Text style={{ color: '#3b82f6', fontSize: 10, fontFamily: 'Rubik-Medium' }}>Tap to reveal phone & email</Text>
                               </View>
                               <Ionicons name="eye" size={16} color="#2563eb" />
                             </TouchableOpacity>
                           ) : normalizedKey === 'mobileNumber' && revealedContact ? (
                             // ✅ Contact just revealed in this session — show the number
                             <View style={{ marginBottom: 8 }}>
-                              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e40af' }}>
+                              <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#1e40af' }}>
                                 {revealedContact.mobile || 'N/A'}
                               </Text>
                             </View>
@@ -273,7 +273,7 @@ const FirstRoute = ({
                                   }}
                                 >
                                   <Ionicons name="lock-closed" size={14} color="#9ca3af" />
-                                  <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600' }}>
+                                  <Text style={{ color: '#9ca3af', fontSize: 12, fontFamily: 'Rubik-Medium' }}>
                                     This field is private
                                   </Text>
                                 </View>
@@ -303,7 +303,7 @@ const FirstRoute = ({
                                   />
                                   <Text style={{
                                     fontSize: 12,
-                                    fontWeight: '700',
+                                    fontFamily: 'Rubik-Bold',
                                     color: permissionRequested ? '#ef4444' : '#6c5ce7',
                                   }}>
                                     {permissionRequested ? 'Cancel Request' : 'Request Access'}
@@ -404,14 +404,14 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
                           marginBottom: 8,
                         }}
                       >
-                        <Text style={{ color: '#1e40af', fontWeight: 'bold', fontSize: 12 }}>
+                        <Text style={{ color: '#1e40af', fontFamily: 'Rubik-Bold', fontSize: 12 }}>
                           View Horoscope
                         </Text>
                       </TouchableOpacity>
                     ) : (
                       <View style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
                         <Ionicons name="lock-closed" size={14} color="#c2410c" />
-                        <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '600' }}>Available after interest accepted</Text>
+                        <Text style={{ color: '#9a3412', fontSize: 11, fontFamily: 'Rubik-Medium' }}>Available after interest accepted</Text>
                       </View>
                     )
                   ) : (
@@ -433,8 +433,8 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
                       <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
-                      <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to view this info</Text>
+                      <Text style={{ color: '#9a3412', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Premium Only</Text>
+                      <Text style={{ color: '#c2410c', fontSize: 10, fontFamily: 'Rubik-Medium' }}>Upgrade to view this info</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={14} color="#ea580c" />
                   </TouchableOpacity>
@@ -644,7 +644,7 @@ const SecondRoute = ({
                                     }}
                                   >
                                     <Ionicons name="lock-closed" size={14} color="#9ca3af" />
-                                    <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600' }}>
+                                    <Text style={{ color: '#9ca3af', fontSize: 12, fontFamily: 'Rubik-Medium' }}>
                                       Horoscope is private
                                     </Text>
                                   </View>
@@ -675,7 +675,7 @@ const SecondRoute = ({
                                     />
                                     <Text style={{
                                       fontSize: 12,
-                                      fontWeight: '700',
+                                      fontFamily: 'Rubik-Bold',
                                       color: horoscopePermission ? '#ef4444' : '#6c5ce7',
                                     }}>
                                       {horoscopePermission ? 'Cancel Request' : 'Request Access'}
@@ -695,7 +695,7 @@ const SecondRoute = ({
                                     marginBottom: 8,
                                   }}
                                 >
-                                  <Text style={{ color: '#1e40af', fontWeight: 'bold', fontSize: 12 }}>
+                                  <Text style={{ color: '#1e40af', fontFamily: 'Rubik-Bold', fontSize: 12 }}>
                                     View Horoscope
                                   </Text>
                                 </TouchableOpacity>
@@ -706,8 +706,8 @@ const SecondRoute = ({
                                   <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                  <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
-                                  <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to view this info</Text>
+                                  <Text style={{ color: '#9a3412', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Premium Only</Text>
+                                  <Text style={{ color: '#c2410c', fontSize: 10, fontFamily: 'Rubik-Medium' }}>Upgrade to view this info</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={14} color="#ea580c" />
                               </TouchableOpacity>
@@ -720,8 +720,8 @@ const SecondRoute = ({
                                     <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                                   </View>
                                   <View style={{ flex: 1 }}>
-                                    <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
-                                    <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to view this info</Text>
+                                    <Text style={{ color: '#9a3412', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Premium Only</Text>
+                                    <Text style={{ color: '#c2410c', fontSize: 10, fontFamily: 'Rubik-Medium' }}>Upgrade to view this info</Text>
                                   </View>
                                   <Ionicons name="chevron-forward" size={14} color="#ea580c" />
                                 </TouchableOpacity>
@@ -744,8 +744,8 @@ const SecondRoute = ({
                                   <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                  <Text style={{ color: '#9a3412', fontSize: 11, fontWeight: '700' }}>Premium Only</Text>
-                                  <Text style={{ color: '#c2410c', fontSize: 10, fontWeight: '500' }}>Upgrade to view this info</Text>
+                                  <Text style={{ color: '#9a3412', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Premium Only</Text>
+                                  <Text style={{ color: '#c2410c', fontSize: 10, fontFamily: 'Rubik-Medium' }}>Upgrade to view this info</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={14} color="#ea580c" />
                               </TouchableOpacity>
@@ -816,7 +816,7 @@ const FifthRoute = ({ data }: { data: any }) => {
               shadowOffset: { width: 0, height: 2 },
               elevation: 2,
             }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#420001', marginBottom: 12 }}>
+              <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#420001', marginBottom: 12 }}>
                 Interests
               </Text>
               {hobbies.length > 0 ? (

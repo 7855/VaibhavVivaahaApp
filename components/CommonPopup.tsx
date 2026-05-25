@@ -123,7 +123,7 @@ const CommonPopup: React.FC<CommonPopupProps> = ({
                         {btn.loading ? (
                           <ActivityIndicator size="small" color="#ffffff" />
                         ) : (
-                          <View><Text style={{ fontSize: 14, fontWeight: '700', color: '#ffffff' }}>{btn.text || 'OK'}</Text></View>
+                          <View><Text style={{ fontSize: 14, fontFamily: 'Rubik-Bold', color: '#ffffff' }}>{btn.text || 'OK'}</Text></View>
                         )}
                       </TouchableOpacity>
                     );
@@ -149,7 +149,7 @@ const CommonPopup: React.FC<CommonPopupProps> = ({
                       {btn.loading ? (
                         <ActivityIndicator size="small" color="#374151" />
                       ) : (
-                        <View><Text style={{ fontSize: 14, fontWeight: '600', color: '#374151' }}>{btn.text || 'Cancel'}</Text></View>
+                        <View><Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#374151' }}>{btn.text || 'Cancel'}</Text></View>
                       )}
                     </TouchableOpacity>
                   );
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     textAlign: 'center',
     letterSpacing: 0.2,
     marginBottom: 10,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     letterSpacing: 0.3,
     color: '#374151',
   },

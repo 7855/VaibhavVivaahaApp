@@ -33,11 +33,6 @@ const getGreetWord = () => {
   return 'night';
 };
 
-const getDate = () =>
-  new Date().toLocaleDateString('en-IN', {
-    weekday: 'short', day: 'numeric',
-    month: 'short', year: 'numeric',
-  });
 
 const resolveTier = (name = '') => {
   const k = name.toLowerCase();
@@ -158,17 +153,17 @@ const VVMWelcomeHeader: React.FC<Props> = ({
         : require('../assets/images/defaultAvatar.png'));
 
   const STAT_CONFIG = [
-    { key: 'likes',     label: 'Likes',     value: stats.likes,     bg: '#fde0e7', Icon: Heart,     ic: '#e85a7a', filled: true  },
-    { key: 'proposals', label: 'Proposals', value: stats.proposals, bg: '#dfecfb', Icon: Send,      ic: '#1F7FE5', filled: false },
-    { key: 'views',     label: 'Views',     value: stats.views,     bg: '#ebe5fb', Icon: Eye,       ic: '#8b6fd9', filled: false },
-    { key: 'matches',   label: 'Matches',   value: stats.matches,   bg: '#dcf0e2', Icon: UserCheck, ic: '#2e9a5c', filled: false },
+    { key: 'likes',     label: 'Likes',     value: stats.likes,     bg: '#8B3A3A', Icon: Heart,     ic: '#ffffff', filled: false },
+    { key: 'proposals', label: 'Proposals', value: stats.proposals, bg: '#8B3A3A', Icon: Send,      ic: '#ffffff', filled: false },
+    { key: 'views',     label: 'Views',     value: stats.views,     bg: '#8B3A3A', Icon: Eye,       ic: '#ffffff', filled: false },
+    { key: 'matches',   label: 'Matches',   value: stats.matches,   bg: '#8B3A3A', Icon: UserCheck, ic: '#ffffff', filled: false },
   ];
 
   return (
-    <View style={{ paddingTop: insets.top }}>
+    <View>
 
       {/* ── HEADER ─────────────────────────── */}
-      <View style={S.headerShell}>
+      <View style={[S.headerShell, { paddingTop: insets.top + 8 }]}>
         <LinearGradient
           colors={['#d0dfeb', '#d8e5ef', '#E0EAF2', '#E8EEF5']}
           locations={[0, 0.35, 0.70, 1]}
@@ -177,27 +172,32 @@ const VVMWelcomeHeader: React.FC<Props> = ({
         />
         {/* Gradient only — no bubble overlays */}
 
-        {/* ROW 1 — greeting + bell */}
+        {/* ROW 1 — Premium brand bar */}
         <View style={S.row1}>
-          <View>
-            <View style={S.eyebrow}>
-              <View style={S.eyebrowDot} />
-              <Text style={S.eyebrowTxt}>Vaibhav Vivaha</Text>
+          <View style={S.brandRow}>
+            <View style={S.logoRing}>
+              <LinearGradient
+                colors={['#D4AF6A', '#C59A40', '#B8860B', '#C59A40', '#D4AF6A']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={S.logoGrad}
+              />
+              <View style={S.logoInner}>
+                <Image source={require('../assets/images/LotusLogo.jpeg')} style={S.brandLogo} />
+              </View>
             </View>
-            <Text style={S.greetMain}>
-              {'Good '}
-              <Text style={S.greetAccent}>{getGreetWord()}</Text>
-            </Text>
-            <View style={S.greetSub}>
-              <Text style={S.greetSubTxt}>{getDate()}</Text>
-              <View style={S.subDot} />
-              <Text style={S.greetSubTxt}>{userData.location || 'Chennai'}</Text>
+            <View>
+              <Text style={S.brandTitle}>Vaibhav Vivaaha</Text>
+              <View style={S.brandAccent}>
+                <View style={S.accentLine} />
+                <Text style={S.brandSub}>MATRIMONY</Text>
+                <View style={S.accentLine} />
+              </View>
             </View>
           </View>
 
           <TouchableOpacity onPress={() => router?.push('/screens/NotificationScreen')} activeOpacity={0.8}>
             <View style={S.bellBtn}>
-              <Bell size={20} color="#3D5A80" strokeWidth={2} />
+              <Bell size={19} color="#3D5A80" strokeWidth={2} />
               {unreadCount > 0 && (
                 <View style={S.bellBadge}>
                   <Text style={S.bellBadgeTxt}>
@@ -209,7 +209,7 @@ const VVMWelcomeHeader: React.FC<Props> = ({
           </TouchableOpacity>
         </View>
 
-        {/* ROW 2 — avatar + name + tier */}
+        {/* ROW 2 — avatar + greeting + name + tier */}
         <View style={S.row2}>
           <View style={S.avWrap}>
             <RotatingRing />
@@ -220,7 +220,7 @@ const VVMWelcomeHeader: React.FC<Props> = ({
           </View>
 
           <View style={S.nameCol}>
-            <Text style={S.welcomeLbl}>Welcome back,</Text>
+            <Text style={S.welcomeLbl}>Good {getGreetWord()},</Text>
             <Text style={S.nameFull} numberOfLines={1}>
               {userData.firstName}{' '}
               <Text style={S.nameLast}>{userData.lastName}</Text>
@@ -242,14 +242,9 @@ const VVMWelcomeHeader: React.FC<Props> = ({
               </LinearGradient>
             </View>
             {isVerified && (
-              <View style={[S.pillShadow, { shadowColor: 'rgba(31,127,229,0.3)' }]}>
-                <LinearGradient
-                  colors={['#2B8AE8', '#1A6DC4']}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                  style={S.verPill}
-                >
-                  <Text style={S.verPillTxt}>✓ Verified</Text>
-                </LinearGradient>
+              <View style={S.verPill}>
+                <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: '#1F7FE5' }} />
+                <Text style={S.verPillTxt}>Verified</Text>
               </View>
             )}
           </View>
@@ -288,7 +283,7 @@ const VVMWelcomeHeader: React.FC<Props> = ({
                 <st.Icon
                   size={18} color={st.ic}
                   fill={st.filled ? st.ic : 'none'}
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                 />
               </View>
               <Text style={S.statCount}>{st.value}</Text>
@@ -317,7 +312,7 @@ const VVMWelcomeHeader: React.FC<Props> = ({
 // ─────────────────────────────��───────────────
 //  Styles
 // ──────────────────────���──────────────────────
-const AV = 56; const RP = 3;
+const AV = 46; const RP = 2.5;
 
 const S = StyleSheet.create({
 
@@ -332,16 +327,17 @@ const S = StyleSheet.create({
     }),
   },
 
-  // Row 1
-  row1: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, paddingTop: 4 },
-  eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  eyebrowDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#C59A40' },
-  eyebrowTxt: { fontSize: 10, fontWeight: '600', letterSpacing: 1.5, color: '#7B8FA1', textTransform: 'uppercase' },
-  greetMain: { fontSize: 20, fontWeight: '800', color: '#162336', letterSpacing: -0.4, lineHeight: 25 },
-  greetAccent: { color: '#C59A40' },
-  greetSub: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  subDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#B0BEC5' },
-  greetSubTxt: { fontSize: 10, fontWeight: '500', color: '#8A9BAC' },
+  // Row 1 — Instagram-style brand bar
+  row1: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingTop: 4 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  logoRing: { width: 42, height: 42, borderRadius: 21, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  logoGrad: { position: 'absolute', width: 42, height: 42, borderRadius: 21 },
+  logoInner: { width: 38, height: 38, borderRadius: 19, overflow: 'hidden', backgroundColor: '#fff', padding: 1 },
+  brandLogo: { width: '100%', height: '100%', borderRadius: 18 },
+  brandTitle: { fontSize: 18, fontFamily: 'Rubik-ExtraBold', color: '#162336', letterSpacing: -0.2 },
+  brandAccent: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  accentLine: { width: 14, height: 1, backgroundColor: '#C59A40' },
+  brandSub: { fontSize: 8, fontFamily: 'Rubik-Medium', color: '#C59A40', letterSpacing: 2.5 },
   bellBtn: {
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: '#EDF1F7', borderWidth: 1, borderColor: '#DDE4ED',
@@ -352,46 +348,46 @@ const S = StyleSheet.create({
     backgroundColor: '#EF4444', borderWidth: 2, borderColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
   },
-  bellBadgeTxt: { fontSize: 9, fontWeight: '800', color: '#FFFFFF', lineHeight: 11 },
+  bellBadgeTxt: { fontSize: 9, fontFamily: 'Rubik-ExtraBold', color: '#FFFFFF', lineHeight: 11 },
 
-  // Row 2
-  row2: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  // Row 2 — User section
+  row2: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avWrap: { width: AV + RP * 2, height: AV + RP * 2, position: 'relative', flexShrink: 0 },
-  ring: { position: 'absolute', top: 0, left: 0, width: AV + RP * 2, height: AV + RP * 2, borderRadius: 19, overflow: 'hidden' },
-  avFrame: { position: 'absolute', top: RP, left: RP, width: AV, height: AV, borderRadius: 15, overflow: 'hidden', backgroundColor: '#FFFFFF', padding: 1.5 },
-  avImg: { width: '100%', height: '100%', borderRadius: 13, resizeMode: 'cover' },
-  onlineWrap: { position: 'absolute', top: -2, right: -2, width: 14, height: 14, alignItems: 'center', justifyContent: 'center', zIndex: 5 },
-  onlineCore: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#34D399', borderWidth: 2.5, borderColor: '#F4F7FB' },
-  onlinePulse: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#34D399' },
+  ring: { position: 'absolute', top: 0, left: 0, width: AV + RP * 2, height: AV + RP * 2, borderRadius: 16, overflow: 'hidden' },
+  avFrame: { position: 'absolute', top: RP, left: RP, width: AV, height: AV, borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFFFFF', padding: 1.5 },
+  avImg: { width: '100%', height: '100%', borderRadius: 12, resizeMode: 'cover' },
+  onlineWrap: { position: 'absolute', bottom: 0, right: 0, width: 13, height: 13, alignItems: 'center', justifyContent: 'center', zIndex: 5 },
+  onlineCore: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#34D399', borderWidth: 2, borderColor: '#E8EEF5' },
+  onlinePulse: { position: 'absolute', width: 10, height: 10, borderRadius: 5, backgroundColor: '#34D399' },
 
   nameCol: { flex: 1, minWidth: 0 },
-  welcomeLbl: { fontSize: 12, fontWeight: '500', color: '#7B8FA1', letterSpacing: 0.3, marginBottom: 1 },
-  nameFull: { fontSize: 17, fontWeight: '700', color: '#162336', letterSpacing: -0.3, lineHeight: 21 },
-  nameLast: { fontWeight: '400', color: '#4A6274' },
-  midRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  midDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#1F7FE5' },
-  midTxt: { fontSize: 10, fontWeight: '500', color: '#94A3B8', letterSpacing: 0.5 },
+  welcomeLbl: { fontSize: 11, fontFamily: 'Rubik-Medium', color: '#94A3B8', letterSpacing: 0.4, marginBottom: 1 },
+  nameFull: { fontSize: 16, fontFamily: 'Rubik-Bold', color: '#162336', letterSpacing: -0.3, lineHeight: 20 },
+  nameLast: { fontFamily: 'Rubik-Medium', color: '#3E5871' },
+  midRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  midDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#C59A40' },
+  midTxt: { fontSize: 9, fontFamily: 'Rubik-Medium', color: '#A0ADB8', letterSpacing: 1 },
 
-  tierCol: { flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 },
-  pillShadow: { borderRadius: 100, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.9, shadowRadius: 8, elevation: 3 },
-  tierPill: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 100, alignItems: 'center', justifyContent: 'center' },
-  tierPillTxt: { fontSize: 11, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.1 },
-  verPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, alignItems: 'center', justifyContent: 'center' },
-  verPillTxt: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+  tierCol: { flexDirection: 'column', alignItems: 'flex-end', gap: 5, flexShrink: 0 },
+  pillShadow: { borderRadius: 100, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 2 },
+  tierPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100 },
+  tierPillTxt: { fontSize: 10, fontFamily: 'Rubik-Bold', color: '#FFFFFF', letterSpacing: 0.3 },
+  verPill: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100, backgroundColor: 'rgba(31,127,229,0.08)', borderWidth: 1, borderColor: 'rgba(31,127,229,0.12)' },
+  verPillTxt: { fontSize: 9, fontFamily: 'Rubik-Medium', color: '#1F7FE5', letterSpacing: 0.2 },
 
   // Row 3
   actBar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, padding: 8, paddingHorizontal: 12, backgroundColor: 'rgba(31,127,229,0.055)', borderWidth: 1, borderColor: 'rgba(31,127,229,0.10)', borderRadius: 12 },
   actDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#34D399', flexShrink: 0 },
-  actTxt: { flex: 1, fontSize: 12, fontWeight: '500', color: '#3E5871', lineHeight: 17 },
-  actBold: { fontWeight: '700', color: '#162336' },
-  actCta: { fontSize: 11, fontWeight: '700', color: '#1F7FE5', flexShrink: 0 },
+  actTxt: { flex: 1, fontSize: 12, fontFamily: 'Rubik-Medium', color: '#3E5871', lineHeight: 17 },
+  actBold: { fontFamily: 'Rubik-Bold', color: '#162336' },
+  actCta: { fontSize: 11, fontFamily: 'Rubik-Bold', color: '#1F7FE5', flexShrink: 0 },
 
   // Stats card
   statsCard: {
     marginHorizontal: 14, marginTop: 10,
     backgroundColor: '#FFFFFF', borderRadius: 24, overflow: 'hidden',
     ...Platform.select({
-      ios: { shadowColor: 'rgba(15,35,70,1)', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 24 },
+      ios: { shadowColor: '#0f2346', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 },
       android: { elevation: 4 },
     }),
   },
@@ -400,13 +396,13 @@ const S = StyleSheet.create({
   statCell: { flex: 1, alignItems: 'center', gap: 6 },
   statBorder: { borderRightWidth: 1, borderRightColor: '#e2e8f0' },
   statIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  statCount: { fontSize: 20, fontWeight: '700', color: '#0f1724', letterSpacing: -0.8, lineHeight: 22 },
-  statLbl: { fontSize: 11, fontWeight: '500', color: '#64748b' },
+  statCount: { fontSize: 20, fontFamily: 'Rubik-Bold', color: '#0f1724', letterSpacing: -0.8, lineHeight: 22 },
+  statLbl: { fontSize: 11, fontFamily: 'Rubik-Medium', color: '#64748b' },
   statsFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 13, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
   sfLeft:  { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  sfMetaTxt: { fontSize: 10, fontWeight: '500', color: '#94a3b8' },
+  sfMetaTxt: { fontSize: 10, fontFamily: 'Rubik-Regular', color: '#94a3b8' },
   sfRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  sfCtaTxt: { fontSize: 10, fontWeight: '700', color: '#1F7FE5' },
+  sfCtaTxt: { fontSize: 10, fontFamily: 'Rubik-Medium', color: '#1F7FE5' },
 });
 
 export default VVMWelcomeHeader;

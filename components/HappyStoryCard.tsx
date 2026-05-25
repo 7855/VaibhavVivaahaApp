@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     badgeText: {
         fontSize: 10,
         color: '#DADADA',
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     textWrapper: {
         flex: 1,
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 16,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
         color: '#130001',
         marginBottom: 4,
     },

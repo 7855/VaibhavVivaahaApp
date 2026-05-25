@@ -1,0 +1,16 @@
+appId: com.vaibhavvivaaha.app
+---
+# Reusable logout subflow
+- tapOn:
+    text: "Profile"
+    optional: true
+- tapOn:
+    text: "Settings"
+    optional: true
+- tapOn:
+    text: "Logout"
+    optional: true
+- tapOn:
+    text: "Yes"
+    optional: true
+- waitForAnimationToEnd

@@ -81,7 +81,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
         <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
           <Icon name="chevron-left" size={22} color="#1e293b" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: '#0f1724' }}>Change PIN</Text>
+        <Text style={{ fontSize: 17, fontFamily: 'Rubik-Bold', color: '#0f1724' }}>Change PIN</Text>
         <View style={{ width: 40 }} />
       </View>
       <KeyboardAvoidingView
@@ -221,7 +221,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
           
           <Text style={{
             fontSize: 22,
-            fontWeight: '700',
+            fontFamily: 'Rubik-Bold',
             color: '#0f1724',
             marginBottom: 10,
             textAlign: 'center',
@@ -231,7 +231,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
           <Text style={{
             color: '#64748b',
             fontSize: 14,
-            fontWeight: '500',
+            fontFamily: 'Rubik-Medium',
             textAlign: 'center',
           }}>
             Establish your security PIN
@@ -346,7 +346,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                     <Icon name="lock" size={16} color="#0f1724" />
                     <Text style={{
                       fontSize: 12,
-                      fontWeight: 'bold',
+                      fontFamily: 'Rubik-Bold',
                       color: '#0f1724',
                       letterSpacing: 1,
                       textTransform: 'uppercase',
@@ -378,7 +378,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                         borderColor: 'rgba(31, 127, 229, 0.1)',
                         borderRadius: 16,
                         fontSize: 14,
-                        fontWeight: 'bold',
+                        fontFamily: 'Rubik-Bold',
                         color: '#0f1724',
                         letterSpacing: 8,
                       }}
@@ -433,7 +433,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                       <Text style={{
                         fontSize: 14,
                         color: '#f44336',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         PIN must be exactly 4 digits
                       </Text>
@@ -447,7 +447,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                     <Icon name="security" size={16} color="#0f1724" />
                     <Text style={{
                       fontSize: 12,
-                      fontWeight: 'bold',
+                      fontFamily: 'Rubik-Bold',
                       color: '#0f1724',
                       letterSpacing: 1,
                       textTransform: 'uppercase',
@@ -479,7 +479,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                         borderColor: pinsMatch ? 'rgba(31, 127, 229, 0.1)' : 'rgba(244, 67, 54, 0.3)',
                         borderRadius: 16,
                         fontSize: 14,
-                        fontWeight: 'bold',
+                        fontFamily: 'Rubik-Bold',
                         color: '#0f1724',
                         letterSpacing: 8,
                       }}
@@ -529,7 +529,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                       <Text style={{
                         fontSize: 14,
                         color: '#f44336',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         PIN must be exactly 4 digits
                       </Text>
@@ -547,7 +547,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                       <Text style={{
                         fontSize: 14,
                         color: '#f44336',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         Your PIN do not match
                       </Text>
@@ -559,7 +559,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                       <Text style={{
                         fontSize: 14,
                         color: '#4CAF50',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         PINs match perfectly!
                       </Text>
@@ -594,7 +594,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                         <Text style={{
                           color: '#DADADA',
                           fontSize: 18,
-                          fontWeight: 'bold',
+                          fontFamily: 'Rubik-Bold',
                           marginLeft: 12,
                         }}>
                           Securing PIN...
@@ -606,7 +606,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                         <Text style={{
                           color: '#DADADA',
                           fontSize: 18,
-                          fontWeight: 'bold',
+                          fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
                         }}>
                           Change VVM PIN
@@ -635,7 +635,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                   <Text style={{
                     color: '#1F7FE5',
                     fontSize: 16,
-                    fontWeight: '600',
+                    fontFamily: 'Rubik-Medium',
                     marginLeft: 8,
                   }}>
                     Return to Previous Step

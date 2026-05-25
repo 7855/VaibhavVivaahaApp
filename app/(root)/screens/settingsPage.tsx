@@ -240,15 +240,15 @@ const SettingsPage: React.FC = () => {
                   <Ionicons name="people" size={15} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#7a2d2d', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
+                  <Text style={{ color: '#7a2d2d', fontSize: 9, fontFamily: 'Rubik-Bold', letterSpacing: 0.5 }}>
                     FAMILY ACCESS MODE
                   </Text>
-                  <Text style={{ color: '#111', fontSize: 13, fontWeight: '700', marginTop: 1 }} numberOfLines={1}>
+                  <Text style={{ color: '#111', fontSize: 13, fontFamily: 'Rubik-Bold', marginTop: 1 }} numberOfLines={1}>
                     {parentName || 'Family Member'}
                     {relationship ? ` · ${relationship}` : ''}
                   </Text>
                   <Text style={{ color: '#7a2d2d', fontSize: 10, marginTop: 1 }} numberOfLines={1}>
-                    Helping <Text style={{ fontWeight: '700' }}>{primaryFirstName || 'your family'}</Text> find their match
+                    Helping <Text style={{ fontFamily: 'Rubik-Bold' }}>{primaryFirstName || 'your family'}</Text> find their match
                   </Text>
                 </View>
               </View>
@@ -527,13 +527,13 @@ const SettingsPage: React.FC = () => {
               </View>
             </View>
 
-            <Text style={{ fontSize: 18, fontWeight: '700', color: '#111', textAlign: 'center', marginBottom: 8 }}>
+            <Text style={{ fontSize: 18, fontFamily: 'Rubik-Bold', color: '#111', textAlign: 'center', marginBottom: 8 }}>
               Delete account permanently?
             </Text>
 
             <Text style={{ fontSize: 13, color: '#4b5563', textAlign: 'center', marginBottom: 16, lineHeight: 19 }}>
               This will{' '}
-              <Text style={{ fontWeight: '700', color: '#dc2626' }}>permanently remove</Text>
+              <Text style={{ fontFamily: 'Rubik-Bold', color: '#dc2626' }}>permanently remove</Text>
               {' '}your profile, photos, messages, matches, subscriptions and family logins. This cannot be undone.
             </Text>
 
@@ -546,8 +546,8 @@ const SettingsPage: React.FC = () => {
               </Text>
             </View>
 
-            <Text style={{ fontSize: 12, color: '#4b5563', marginBottom: 6, fontWeight: '600' }}>
-              Type <Text style={{ color: '#dc2626', fontWeight: '800' }}>DELETE</Text> to confirm
+            <Text style={{ fontSize: 12, color: '#4b5563', marginBottom: 6, fontFamily: 'Rubik-Medium' }}>
+              Type <Text style={{ color: '#dc2626', fontFamily: 'Rubik-ExtraBold' }}>DELETE</Text> to confirm
             </Text>
             <TextInput
               value={deleteConfirmText}
@@ -572,7 +572,7 @@ const SettingsPage: React.FC = () => {
                   backgroundColor: '#fff',
                 }}
               >
-                <Text style={{ color: '#4b5563', fontWeight: '700' }}>Cancel</Text>
+                <Text style={{ color: '#4b5563', fontFamily: 'Rubik-Bold' }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 disabled={deleteConfirmText !== 'DELETE' || deleteAccountLoading}
@@ -584,7 +584,7 @@ const SettingsPage: React.FC = () => {
               >
                 {deleteAccountLoading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={{ color: '#fff', fontWeight: '700' }}>Delete Forever</Text>}
+                  : <Text style={{ color: '#fff', fontFamily: 'Rubik-Bold' }}>Delete Forever</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#130001',
   },
   headerSubtitle: {
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   },
   sectionTitleText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
   },
   sectionIcon: {
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
   },
   settingTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
   },
   settingSubtitle: {
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   premiumText: {
     color: '#DADADA',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
 });
 

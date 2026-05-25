@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     color: '#130001',
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     marginLeft: 6,
   },
   activeLabel: {
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   },
   countText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#1862b8',
   },
 });

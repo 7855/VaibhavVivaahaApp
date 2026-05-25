@@ -343,7 +343,7 @@ const FamilyAccessScreen = () => {
                     <View style={styles.inputWrap}>
                       <Ionicons name="lock-closed-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
                       <TextInput
-                        style={[styles.input, { letterSpacing: 8, fontSize: 18, fontWeight: '600' }]}
+                        style={[styles.input, { letterSpacing: 8, fontSize: 18, fontFamily: 'Rubik-Medium' }]}
                         value={pin}
                         onChangeText={(t) => setPin(t.replace(/[^0-9]/g, ''))}
                         placeholder="••••"
@@ -404,17 +404,17 @@ const FamilyAccessScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderColor: '#f3f4f6' },
-  title: { fontSize: 18, fontWeight: '600', color: '#111' },
+  title: { fontSize: 18, fontFamily: 'Rubik-Medium', color: '#111' },
   subtitle: { fontSize: 13, color: '#6b7280', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: { marginTop: 12, color: '#6b7280', fontSize: 15 },
-  lockText: { marginTop: 12, fontSize: 16, fontWeight: '600', color: '#111' },
+  lockText: { marginTop: 12, fontSize: 16, fontFamily: 'Rubik-Medium', color: '#111' },
   lockSub: { marginTop: 8, fontSize: 13, color: '#6b7280', textAlign: 'center' },
   upgradeBtn: { marginTop: 20, backgroundColor: '#9c4040', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
-  upgradeText: { color: '#fff', fontWeight: '700' },
+  upgradeText: { color: '#fff', fontFamily: 'Rubik-Bold' },
 
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fafafa', padding: 14, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#f3f4f6' },
-  cardName: { fontSize: 15, fontWeight: '600', color: '#111' },
+  cardName: { fontSize: 15, fontFamily: 'Rubik-Medium', color: '#111' },
   cardMeta: { fontSize: 13, color: '#4b5563', marginTop: 2 },
   cardMetaSmall: { fontSize: 11, color: '#9ca3af', marginTop: 4 },
   revokeBtn: { padding: 4 },
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     marginRight: 12,
   },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
+  modalTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: '#111' },
   modalSubtitle: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   closeBtn: { padding: 4 },
   label: {
@@ -462,10 +462,10 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginBottom: 6,
     marginTop: 4,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     letterSpacing: 0.5,
   },
-  optional: { fontWeight: '400', textTransform: 'none', color: '#9ca3af' },
+  optional: { fontFamily: 'Rubik-Regular', textTransform: 'none', color: '#9ca3af' },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 8 },
   countryCode: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#4b5563',
     marginRight: 6,
     paddingRight: 8,
@@ -510,8 +510,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   chipActive: { backgroundColor: '#9c4040', borderColor: '#9c4040' },
-  chipText: { fontSize: 13, color: '#4b5563', fontWeight: '500' },
-  chipTextActive: { color: '#fff', fontWeight: '700' },
+  chipText: { fontSize: 13, color: '#4b5563', fontFamily: 'Rubik-Medium' },
+  chipTextActive: { color: '#fff', fontFamily: 'Rubik-Bold' },
   infoBox: {
     flexDirection: 'row',
     backgroundColor: '#fef3f2',
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 8,
   },
-  submitText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  submitText: { color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 15 },
   helperText: { marginTop: 12, fontSize: 11, color: '#9ca3af', textAlign: 'center', lineHeight: 16 },
 });
 

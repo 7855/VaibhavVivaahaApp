@@ -174,7 +174,7 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
                         style={{ elevation: 6, shadowColor: "#fff", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 2, shadowRadius: 3 }}
                       >
                         <HStack justifyContent="space-between" alignItems="center">
-                          <Text fontSize="md" fontWeight="bold" color={"#130001"}>Interests</Text>
+                          <Text fontSize="md" fontWeight="bold" fontFamily="Rubik-Bold" color={"#130001"}>Interests</Text>
                           <TouchableOpacity
                             style={{ backgroundColor: '#fff', padding: 5, borderRadius: 999 }}
                             onPress={() => {
@@ -223,7 +223,7 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
                     }}
                   >
                     <HStack justifyContent="space-between" alignItems="center">
-                      <Text fontSize="md" fontWeight="bold" color={"#130001"}>{section.title}</Text>
+                      <Text fontSize="md" fontWeight="bold" fontFamily="Rubik-Bold" color={"#130001"}>{section.title}</Text>
                       <TouchableOpacity style={{ backgroundColor: '#fff', padding: 5, borderRadius: 999 }} onPress={() => handleEdit(section)}>
                         <MaterialDesignIcons name="circle-edit-outline" size={24} color="#130001" />
                       </TouchableOpacity>
@@ -233,14 +233,14 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
                       <Stack space={1}>
                         {Object.entries(section.data).map(([key, value], index) => (
                           <View key={index}>
-                            <Text marginBottom={2} fontWeight={500} fontSize={13}>{key}</Text>
+                            <Text marginBottom={2} fontWeight={500} fontFamily="Rubik-Medium" fontSize={13}>{key}</Text>
                             <Input
                               type="text"
                               defaultValue={value}
                               isReadOnly={true}
                               borderWidth={0}
                               p={0}
-                              fontWeight="bold"
+                              fontWeight="bold" fontFamily="Rubik-Bold"
                               fontSize={14}
                               color={'#800000'}
                               _dark={{ color: "#DADADA" }}
@@ -298,7 +298,7 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
             {/* Header */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <View>
-                <RNText style={{ fontSize: 18, fontWeight: '800', color: '#420001' }}>
+                <RNText style={{ fontSize: 18, fontFamily: 'Rubik-ExtraBold', color: '#420001' }}>
                   Edit Your Interests
                 </RNText>
                 <RNText style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
@@ -321,7 +321,7 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
             }}>
               <RNText style={{
                 fontSize: 11,
-                fontWeight: '700',
+                fontFamily: 'Rubik-Bold',
                 color: editableInterests.length >= 3 ? '#065f46' : '#92400e',
               }}>
                 {editableInterests.length} selected {editableInterests.length >= 3 ? '✓' : '(min 3)'}
@@ -366,7 +366,7 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
                 }
               }}
             >
-              <RNText style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+              <RNText style={{ color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 14 }}>
                 {savingInterests ? 'Saving...' : 'Save Interests'}
               </RNText>
             </TouchableOpacity>
@@ -898,7 +898,7 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
             >
               <HStack alignItems="center" space={2}>
                 <Ionicons name={horoscopeImage ? 'refresh-circle' : 'add-circle'} size={24} color="#059669" />
-                <Text color="#059669" fontWeight="600">{horoscopeImage ? 'Update' : 'Add Horoscope'}</Text>
+                <Text color="#059669" fontWeight="600" fontFamily="Rubik-Medium">{horoscopeImage ? 'Update' : 'Add Horoscope'}</Text>
               </HStack>
             </Pressable>
             {horoscopeImage ? (
@@ -909,7 +909,7 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
               >
                 <HStack alignItems="center" space={2}>
                   <Ionicons name="trash" size={22} color="#dc2626" />
-                  <Text color="#dc2626" fontWeight="600">Delete</Text>
+                  <Text color="#dc2626" fontWeight="600" fontFamily="Rubik-Medium">Delete</Text>
                 </HStack>
               </Pressable>
             ) : null}
@@ -919,7 +919,7 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
             {horoscopeUploading ? (
               <View style={{ width: '100%', height: 250, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', borderRadius: 12 }}>
                 <ActivityIndicator size="large" color="#420001" />
-                <RNText style={{ marginTop: 12, fontSize: 13, color: '#6b7280', fontWeight: '600' }}>Uploading horoscope...</RNText>
+                <RNText style={{ marginTop: 12, fontSize: 13, color: '#6b7280', fontFamily: 'Rubik-Medium' }}>Uploading horoscope...</RNText>
               </View>
             ) : horoscopeImage ? (
               <Image

@@ -276,6 +276,7 @@ See backend `CLAUDE.md` section 7.4 — single source of truth.
 | `SkeletonCard.tsx` | Loading skeleton |
 | `FooterMessage.tsx` | Footer text |
 | `listchats.js` | Chat list rendering |
+| **`RelationshipManagerView.tsx`** ⭐ NEW | Play Store-safe alternative to QR payment screen. Renders inside `PaymentScreen.tsx` when `PAYMENT_MODE='CONTACT'`. Hero card + plan summary + callback request form (name, mobile, time slot, note) + tap-to-call/WhatsApp + success state. |
 
 ### 8.5 Contexts (`app/(root)/contexts/`)
 | File | Exports | Notes |
@@ -340,6 +341,12 @@ See backend `CLAUDE.md` section 7.4 — single source of truth.
 - **`getMyFamilyLogins(encodedUserId)`** → `GET /family-login/mine/{encodedUserId}`
 - **`revokeFamilyLogin(encodedUserId, familyLoginId)`** → `DELETE /family-login/{encodedUserId}/{familyLoginId}`
 
+#### Payment Mode + Callback Request ⭐ NEW (Play Store gating)
+- **`getPaymentMode()`** → `GET /keyValue/getKeyValueByKey/PAYMENT_MODE` — returns `{mode: 'QR' | 'CONTACT'}`
+- **`getAdminContact()`** → `GET /keyValue/getKeyValueByKey/ADMIN_CONTACT` — returns `{phone, whatsapp, rmName, rmTitle, rmPhotoUrl, callbackHours}`
+- **`createCallbackRequest(encodedUserId, body)`** → `POST /callback-request/create/{encodedUserId}` body `{ name, mobile, email?, planInterested, note?, bestTimeToCall? }` (encodedUserId may be `'guest'` for unauthed leads)
+- **`getMyCallbackRequests(encodedUserId, page=0, size=10)`** → `GET /callback-request/my/{encodedUserId}`
+
 ### 8.7 Services (`app/(root)/services/`)
 - **`webSocketService.ts`** — `connect(userId)`, `disconnect()`, `sendChatMessagePublic(convId, msg)`, `addChatListenerPublic(cb)`, `removeChatListenerPublic()`, `clearListeners()`. Wraps SockJS + STOMP. `socket` property exposed for null check.
 - **`masterService.tsx`** — preload caste/star/dosham/education master lists.
@@ -367,6 +374,7 @@ Full enumeration in section 8.6. Cross-reference with backend `CLAUDE.md` sectio
 | **Saved-search premium filter** | `app/(root)/screens/SearchTabs.tsx` `handleUseSearch` | `hasPremiumFeatures && !isPremiumUser` | `popup.premiumRequired(...)` + return |
 | **Adv search filter UI** | `app/(root)/screens/SearchTabs.tsx` | `subscriptionData.entitlements.advSearch === true` (sets `isPremiumUser`) | (silent backend degrade in `filterUsers`) |
 | **Photo viewer / Horoscope / SecureConnect** | Backend masks fields directly; frontend just renders whatever comes back | (no frontend gate needed) | `mobile`/`email`/`horoscope` are null or masked from server |
+| **Payment mode toggle (Play Store gating)** | `app/(root)/screens/PaymentScreen.tsx` early return | Backend `keyValue.PAYMENT_MODE === 'CONTACT'` (default; cached 5 min in AsyncStorage `paymentModeCache`) | Render `<RelationshipManagerView/>` instead of QR/UPI screen. Existing `paymentRequestId` route param forces QR view regardless (resume in-flight payments). |
 
 ## 11. Auth & roles
 ### Login flow
@@ -440,6 +448,7 @@ N/A — see backend `CLAUDE.md` section 12.
 | `deviceId` | `utils/deviceInfo.saveDeviceInfo` | `utils/deviceInfo.updatePushToken` | unique device identifier for push targeting |
 | `masterData` | `MasterDataContext` (`loadMasterData`) | dropdowns across forms | JSON cache of caste/star/dosham/education master lists |
 | `promo_seen_{bannerId}` | `components/PromotionalPopup` | `components/PromotionalPopup` | tracks `every_open` / `once_per_day` / `once_ever` display frequency |
+| **`paymentModeCache`** ⭐ | `app/(root)/screens/PaymentScreen.tsx` | `app/(root)/screens/PaymentScreen.tsx` | JSON `{mode: 'QR'\|'CONTACT', expiresAt: epochMs}`. 5-min TTL. Avoids hitting `/keyValue/PAYMENT_MODE` on every PaymentScreen open. |
 
 ## 15. Navigation
 ### Expo Router tree
@@ -498,6 +507,33 @@ See backend `CLAUDE.md` section 16.
 - **Stale `userRole` after logout-then-relogin** — make sure LoginScreen always overwrites `userRole` (it does, via `|| 'USER'` fallback).
 
 ## 18. Recent changes log (rolling, newest first)
+### 2026-05-06 — Payment mode toggle (Play Store gating)
+**Why:** Google Play Store may reject apps that show direct off-platform payment for digital subscriptions (QR/UPI). Strategy: gate the QR view behind a backend feature flag, ship with `CONTACT` mode (a "Talk to a Relationship Manager" callback flow) for review, then flip to `QR` once approved.
+
+**New files:**
+- `components/RelationshipManagerView.tsx` — hero + plan summary + callback form + tap-to-call/WhatsApp + success state
+- `VaibhavVivaahaBackend/.../models/CallbackRequest.java`, `repositories/CallbackRequestRepository.java`, `services/CallbackRequestService.java`, `controllers/CallbackRequestController.java`
+- `VaibhavVivaahaBackend/seed-payment-mode.sql` — seed rows for `PAYMENT_MODE` and `ADMIN_CONTACT` keyValue entries
+
+**Modified:**
+- `app/(root)/screens/PaymentScreen.tsx` — fetches `PAYMENT_MODE` keyValue on mount, caches in AsyncStorage 5 min, early-returns `<RelationshipManagerView/>` when mode is CONTACT. Existing QR/verification views untouched. `paymentRequestId` route param forces QR mode (so resuming pending payments still works).
+- `app/(root)/api/userApi.js` — added `getPaymentMode`, `getAdminContact`, `createCallbackRequest`, `getMyCallbackRequests`
+
+**New endpoints:**
+- `GET /keyValue/getKeyValueByKey/PAYMENT_MODE` — returns `{mode: 'QR'\|'CONTACT'}`
+- `GET /keyValue/getKeyValueByKey/ADMIN_CONTACT` — returns `{phone, whatsapp, rmName, rmTitle, rmPhotoUrl, callbackHours}`
+- `POST /callback-request/create/{encodedUserId}` — body `{name, mobile, email?, planInterested, note?, bestTimeToCall?}`
+- `GET /callback-request/my/{encodedUserId}` — paginated user's own callback requests
+- `GET /callback-request/admin/list` + `POST /callback-request/admin/{id}/status` — admin list + status update
+
+**New AsyncStorage key:** `paymentModeCache`
+
+**Deploy steps:**
+1. Deploy backend (Hibernate auto-creates `callback_requests` table)
+2. Run `seed-payment-mode.sql` to insert default keyValue rows (mode = `CONTACT`)
+3. Submit app to Play Store; users see RM view
+4. After approval: `UPDATE keyValue SET valueColumn = '{"mode":"QR"}' WHERE keyColumn = 'PAYMENT_MODE'` — existing app users transition to QR view within 5 min (cache TTL)
+
 ### 2026-04-09 — Deeper PARENT scope guard + edit-modal cleanup
 - `components/tabs.tsx` — `FirstRoute` reads `userRole` from AsyncStorage, blocks all section-edit entry points (`PersonalDetail`, `ReligiousDetail`, `EducationalDetail`, `FamilyDetail`) with `popup.error('Not allowed', ...)` for parent sessions
 - `components/tabs.tsx` — wrong `Alert.alert('Image updated successfully')` after a text-section save replaced with `popup.success('Updated', '{section} updated successfully.')` using dynamic section label map

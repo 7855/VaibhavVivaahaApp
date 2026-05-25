@@ -172,7 +172,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
           
           <Text style={{
             fontSize: 22,
-            fontWeight: '600',
+            fontFamily: 'Rubik-Medium',
             color: '#5C1A1B',
             marginBottom: 8,
             textAlign: 'center',
@@ -182,7 +182,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
           <Text style={{
             // color: '#f5f5f5',
             fontSize: 16,
-            fontWeight: '500',
+            fontFamily: 'Rubik-Medium',
             textAlign: 'center',
             opacity: 0.9,
           }}>
@@ -298,7 +298,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                     <Icon name="email" size={16} color="#130057" />
                     <Text style={{
                       fontSize: 12,
-                      fontWeight: 'bold',
+                      fontFamily: 'Rubik-Bold',
                       color: '#130057',
                       letterSpacing: 1,
                       textTransform: 'uppercase',
@@ -330,7 +330,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         borderColor: 'rgba(19, 0, 87, 0.1)',
                         borderRadius: 16,
                         fontSize: 14,
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                         color: '#130057',
                       }}
                       placeholder="Enter your email"
@@ -367,7 +367,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       <Text style={{
                         fontSize: 14,
                         color: '#f44336',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         Please enter a valid email address
                       </Text>
@@ -400,7 +400,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         <Text style={{
                           color: '#DADADA',
                           fontSize: 18,
-                          fontWeight: 'bold',
+                          fontFamily: 'Rubik-Bold',
                           marginLeft: 12,
                         }}>
                           Sending Code...
@@ -412,7 +412,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         <Text style={{
                           color: '#DADADA',
                           fontSize: 16,
-                          fontWeight: 'bold',
+                          fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
                         }}>
                           Send Verification Code
@@ -441,7 +441,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                   <Text style={{
                     color: '#130057',
                     fontSize: 14,
-                    fontWeight: '600',
+                    fontFamily: 'Rubik-Medium',
                     marginLeft: 8,
                   }}>
                     Return to Login Screen

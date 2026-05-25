@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   progressText: {
     position: 'absolute',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#1F7FE5',
   },
   progressInfo: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   progressStatus: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#130001',
   },
   dot: {
@@ -207,11 +207,12 @@ const styles = StyleSheet.create({
   profileLabel: {
     fontSize: 12,
     color: '#6b7280',
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   completionText: {
     fontSize: 10,
     color: '#6b7280',
+    fontFamily: 'Rubik-Regular',
     marginTop: 2,
   },
   actionButton: {
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#1F7FE5',
   },
   badge: {
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#DADADA',
   },
   completedContainer: {
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
   },
   completedText: {
     color: '#166534',
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     fontSize: 12,
     textAlign: 'center',
   },

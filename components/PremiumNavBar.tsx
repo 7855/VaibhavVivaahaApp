@@ -216,11 +216,11 @@ const styles = StyleSheet.create({
   },
   labelOn: {
     color: ACTIVE_LABEL,    // gold
-    fontWeight: "700",
+    fontFamily: "Rubik-Bold",
   },
   labelOff: {
     color: INACTIVE_LB,     // soft white
-    fontWeight: "500",
+    fontFamily: "Rubik-Medium",
   },
 
   // Gold dot under active label

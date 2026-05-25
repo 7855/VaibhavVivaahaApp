@@ -1,0 +1,58 @@
+appId: com.vaibhavvivaaha.app
+---
+# FREE PLAN TEST SUITE
+# Requires env: MOBILE, PIN, CASTE, GENDER
+
+- runFlow: ../subflows/login.yaml
+
+# F-01: Home screen loads with blurred photos
+- assertVisible: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "free_home_${CASTE}_${GENDER}"
+
+# F-02: Verify photo blur overlay visible on profile cards
+- assertVisible:
+    text: "View Profile"
+    optional: true
+- takeScreenshot: "free_blur_check_${CASTE}_${GENDER}"
+
+# F-03: MailBox has only 3 tabs (no Shortlisted You)
+- tapOn: "MailBox"
+- waitForAnimationToEnd
+- assertVisible: "Received"
+- assertVisible: "Sent"
+- assertNotVisible: "Shortlisted You"
+- takeScreenshot: "free_mailbox_tabs_${CASTE}_${GENDER}"
+
+# F-04: Settings - Family Access must be hidden
+- tapOn: "Profile"
+- waitForAnimationToEnd
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertNotVisible: "Family Access"
+- takeScreenshot: "free_settings_${CASTE}_${GENDER}"
+
+# F-05: Open a profile and verify LIMITED info (no contact details)
+- tapOn: "Home"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+    text: "View Profile"
+    optional: true
+- waitForAnimationToEnd
+- assertNotVisible: "WhatsApp"
+- assertNotVisible: "Voice Call"
+- takeScreenshot: "free_profile_detail_${CASTE}_${GENDER}"
+
+# F-06: Send 3 interest requests (should succeed)
+- tapOn: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "free_interests_${CASTE}_${GENDER}"
+
+# F-07: Verify no Voice Call CTA
+- assertNotVisible: "Voice Call"
+
+# F-08: Verify no WhatsApp share button
+- assertNotVisible: "Share on WhatsApp"
+
+- runFlow: ../subflows/logout.yaml

@@ -10,7 +10,7 @@ interface WebSocketMessage {
   };
 }
 
-const WS_BASE_URL = process.env.EXPO_PUBLIC_WS_URL || 'ws://10.254.25.151:9100';
+const WS_BASE_URL = process.env.EXPO_PUBLIC_WS_URL || 'wss://vaibhavvivaahamatrimony.com/BE';
 
 export class WebSocketService {
   private static instance: WebSocketService;

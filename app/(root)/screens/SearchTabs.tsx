@@ -840,7 +840,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         if (activeTab === 'saved') {
             return (
                 <ScrollView style={{ flex: 1, padding: 5, backgroundColor: '#F9FAFB' }}>
-                    {/* <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 16 }}>
+                    {/* <Text style={{ fontSize: 16, fontFamily: 'Rubik-Medium', color: '#111827', marginBottom: 16 }}>
                         Saved Searches
                     </Text> */}
 
@@ -1773,7 +1773,7 @@ const FindPartner = () => {
                                             borderRadius: 10, backgroundColor: badgeColor,
                                         }}>
                                             {isVerified ? <Ionicons name="checkmark-circle" size={10} color="#fff" /> : null}
-                                            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', marginLeft: 2 }}>
+                                            <Text style={{ color: '#fff', fontSize: 9, fontFamily: 'Rubik-Bold', marginLeft: 2 }}>
                                                 {profilePlan?.toUpperCase()}
                                             </Text>
                                         </View>
@@ -1909,7 +1909,7 @@ const styles = StyleSheet.create({
     tabLabelTab: {
         color: '#DADADA',
         fontSize: 16,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     sceneTab: {
         backgroundColor: "#FFFFFF",
@@ -1928,7 +1928,7 @@ const styles = StyleSheet.create({
     },
     ageLabelText: {
         fontSize: 15,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         color: '#1F7FE5',
     },
     ageInputContainer: {
@@ -1958,7 +1958,7 @@ const styles = StyleSheet.create({
     },
     salaryLabelText: {
         fontSize: 15,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         color: '#1F7FE5',
     },
     salaryInputContainer: {
@@ -1993,7 +1993,7 @@ const styles = StyleSheet.create({
     // tabLabelTab: {
     //   color: '#fff',
     //   fontSize: 16,
-    //   fontWeight: '500',
+    //   fontFamily: 'Rubik-Medium',
     // },
     scene: {
         flex: 1,
@@ -2011,7 +2011,7 @@ const styles = StyleSheet.create({
     // },
     profileWphototext: {
         fontSize: 15,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
         // color:"#"
     },
     tabBar: {
@@ -2072,7 +2072,7 @@ const styles = StyleSheet.create({
     headerText: {
         color: "#DADADA",
         fontSize: 16,
-        fontWeight: "bold",
+        fontFamily: 'Rubik-Bold',
     },
     content: {
         width: "100%",
@@ -2094,12 +2094,12 @@ const styles = StyleSheet.create({
     buttonText: {
         color: "#130057",
         fontSize: 16,
-        fontWeight: "bold",
+        fontFamily: 'Rubik-Bold',
     },
     sliderLabel: {
         color: "#DADADA",
         fontSize: 14,
-        fontWeight: "bold",
+        fontFamily: 'Rubik-Bold',
         marginBottom: 5,
     },
     slider: {
@@ -2142,7 +2142,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     container: { padding: 5, paddingLeft: 0 },
-    title: { fontSize: 15, fontWeight: "semibold" },
+    title: { fontSize: 15, fontFamily: 'Rubik-Medium' },
     dropdownRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -2204,7 +2204,7 @@ const styles = StyleSheet.create({
     },
     name: {
         fontSize: 16,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
     },
     job: {
         fontSize: 14,
@@ -2228,7 +2228,7 @@ const styles = StyleSheet.create({
     },
     educationLabelText: {
         fontSize: 15,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         color: '#1F7FE5',
     },
     educationInputWrapper: {
@@ -2253,7 +2253,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         color: '#DADADA',
         fontSize: 24,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
         textAlign: 'center',
     },
     tabContainer: {
@@ -2279,11 +2279,11 @@ const styles = StyleSheet.create({
     tabText: {
         color: '#666',
         fontSize: 14,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     activeTabText: {
         color: '#1F7FE5',
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
     },
     contentSearch: {
         flex: 1,
@@ -2315,7 +2315,7 @@ const styles = StyleSheet.create({
     sectionHeader: {
         color: '#130001',
         fontSize: 16,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         letterSpacing: 0.3,
     },
     chevronIcon: {
@@ -2341,7 +2341,7 @@ const styles = StyleSheet.create({
     filterLabel: {
         color: '#130001',
         fontSize: 14,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         flex: 1,
     },
     dropdownButton: {
@@ -2359,7 +2359,7 @@ const styles = StyleSheet.create({
     dropdownText: {
         color: '#130001',
         fontSize: 13,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     expandedContent: {
         marginTop: 10,
@@ -2374,7 +2374,7 @@ const styles = StyleSheet.create({
     viewMoreText: {
         color: '#1F7FE5',
         fontSize: 14,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         marginRight: 4,
     },
     premiumLockCard: {
@@ -2400,7 +2400,7 @@ const styles = StyleSheet.create({
     },
     upgradeNowText: {
         color: '#1F7FE5',
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
     },
     inputContainer: {
         marginBottom: 8,
@@ -2408,7 +2408,7 @@ const styles = StyleSheet.create({
     inputLabel: {
         color: '#130001',
         fontSize: 15,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         marginBottom: 2,
     },
     inputField: {
@@ -2434,7 +2434,7 @@ const styles = StyleSheet.create({
     // emptyStateText: {
     //     color: '#666',
     //     fontSize: 16,
-    //     fontWeight: '500',
+    //     fontFamily: 'Rubik-Medium',
     //     marginBottom: 8,
     // },
     // emptyStateSubtext: {
@@ -2450,7 +2450,7 @@ const styles = StyleSheet.create({
     matchesText: {
         color: '#1F7FE5',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
         textAlign: 'center',
     },
     searchButtonContainer: {
@@ -2477,7 +2477,7 @@ const styles = StyleSheet.create({
     searchButtonText: {
         color: '#DADADA',
         fontSize: 15,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
     },
     modalOverlay: {
         flex: 1,
@@ -2495,7 +2495,7 @@ const styles = StyleSheet.create({
     },
     modalTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
         color: '#1F7FE5',
         textAlign: 'center',
         marginBottom: 20,
@@ -2515,7 +2515,7 @@ const styles = StyleSheet.create({
     },
     selectedOptionText: {
         color: '#DADADA',
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
     },
     modalCloseButton: {
         backgroundColor: '#f8f9fa',
@@ -2527,7 +2527,7 @@ const styles = StyleSheet.create({
     modalCloseText: {
         color: '#666',
         fontSize: 16,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
     },
     filterContent: {
         paddingVertical: 10,
@@ -2547,14 +2547,14 @@ const styles = StyleSheet.create({
     },
     upgradeButtonText: {
         color: '#DADADA',
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
     },
     cancelButtonText: {
         color: '#130001',
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
     },
     lockIcon: {
         color: '#FF9800',
@@ -2581,7 +2581,7 @@ const styles = StyleSheet.create({
     },
     searchName: {
         fontSize: 16,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         color: '#1F2937',
         marginBottom: 2,
     },
@@ -2618,7 +2618,7 @@ const styles = StyleSheet.create({
     },
     emptyStateText: {
         fontSize: 16,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         color: '#6B7280',
         marginBottom: 8,
         textAlign: 'center',
@@ -2641,7 +2641,7 @@ const styles = StyleSheet.create({
         marginLeft: 4,
         fontSize: 12,
         color: '#4F46E5',
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     deleteButton: {
         borderWidth: 1,
@@ -2679,7 +2679,7 @@ const styles = StyleSheet.create({
     basesearchButtonText: {
         color: '#FFFFFF',
         fontSize: 15,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
     },
     clearButton: {
         flexDirection: 'row',
@@ -2692,7 +2692,7 @@ const styles = StyleSheet.create({
     clearButtonText: {
         color: '#666',
         fontSize: 14,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
         marginLeft: 4,
     },
 
@@ -2729,13 +2729,13 @@ const styles = StyleSheet.create({
     },
     modalTitleAge: {
         fontSize: 18,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         color: '#130001',
     },
     closeButton: {
         color: '#1F7FE5',
         fontSize: 18,
-        fontWeight: 'bold',
+        fontFamily: 'Rubik-Bold',
     },
     applyButton: {
         backgroundColor: '#1F7FE5',
@@ -2746,7 +2746,7 @@ const styles = StyleSheet.create({
     },
     applyButtonText: {
         color: '#DADADA',
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         fontSize: 16,
     },
     // Add this to your StyleSheet in SearchTabs.tsx
@@ -2766,7 +2766,7 @@ const styles = StyleSheet.create({
     filterButtonText: {
         fontSize: 13,
         color: '#130001',
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     singleRowContainer: {
         flexDirection: 'row',
@@ -2800,6 +2800,6 @@ const styles = StyleSheet.create({
     disabledText: {
         color: '#9B8284',
         fontSize: 13,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
 });

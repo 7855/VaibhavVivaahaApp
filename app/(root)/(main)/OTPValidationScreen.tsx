@@ -266,7 +266,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
           
           <Text style={{
             fontSize: 22,
-            fontWeight: '600',
+            fontFamily: 'Rubik-Medium',
             color: '#5C1A1B',
             marginBottom: 8,
             textAlign: 'center',
@@ -276,13 +276,13 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
           <Text style={{
             // color: '#f5f5f5',
             fontSize: 16,
-            fontWeight: '500',
+            fontFamily: 'Rubik-Medium',
             textAlign: 'center',
             lineHeight: 24,
             opacity: 0.9,
           }}>
             4-Digit code sent to your Mobile number{'\n'}
-            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>+91 {maskedPhone}</Text>
+            <Text style={{ fontFamily: 'Rubik-Bold', fontSize: 18 }}>+91 {maskedPhone}</Text>
           </Text>
           
           {/* Sacred divider with stars */}
@@ -395,7 +395,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                     <Icon name="message" size={16} color="#130057" />
                     <Text style={{
                       fontSize: 12,
-                      fontWeight: 'bold',
+                      fontFamily: 'Rubik-Bold',
                       color: '#130057',
                       letterSpacing: 1,
                       textTransform: 'uppercase',
@@ -421,7 +421,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                             height: 56,
                             textAlign: 'center',
                             fontSize: 20,
-                            fontWeight: 'bold',
+                            fontFamily: 'Rubik-Bold',
                             backgroundColor: 'rgba(245, 245, 245, 0.9)',
                             borderWidth: 2,
                             borderColor: 'rgba(19, 0, 87, 0.1)',
@@ -472,7 +472,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                         <Text style={{
                           color: '#DADADA',
                           fontSize: 18,
-                          fontWeight: 'bold',
+                          fontFamily: 'Rubik-Bold',
                           marginLeft: 12,
                         }}>
                           Verifying Code...
@@ -484,7 +484,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                         <Text style={{
                           color: '#DADADA',
                           fontSize: 18,
-                          fontWeight: 'bold',
+                          fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
                         }}>
                           Verify & Continue 
@@ -504,7 +504,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                       <Icon name="refresh" size={16} color="#130057" />
                       <Text style={{
                         color: '#130057',
-                        fontWeight: '600',
+                        fontFamily: 'Rubik-Medium',
                         marginLeft: 8,
                         textDecorationLine: 'underline',
                       }}>
@@ -522,9 +522,9 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                       }} />
                       <Text style={{
                         color: 'rgba(19, 0, 87, 0.7)',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
-                        Resend available in <Text style={{ fontWeight: 'bold', color: '#130057' }}>{resendTimer}s</Text>
+                        Resend available in <Text style={{ fontFamily: 'Rubik-Bold', color: '#130057' }}>{resendTimer}s</Text>
                       </Text>
                       <View style={{
                         width: 8,
@@ -556,7 +556,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                   <Text style={{
                     color: '#130057',
                     fontSize: 16,
-                    fontWeight: '600',
+                    fontFamily: 'Rubik-Medium',
                     marginLeft: 8,
                   }}>
                     Return to Previous Step

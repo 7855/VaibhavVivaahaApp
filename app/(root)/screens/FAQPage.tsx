@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#130001'
   },
   subtitle: {
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   },
   faqQuestion: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
     flex: 1,
     marginRight: 8,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   noResultsTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
     marginTop: 12
   },

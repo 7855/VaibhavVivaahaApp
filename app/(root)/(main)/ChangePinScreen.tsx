@@ -213,7 +213,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
           
           <Text style={{
             fontSize: 28,
-            fontWeight: 'bold',
+            fontFamily: 'Rubik-Bold',
             color: '#1F7FE5',
             marginBottom: 12,
             textAlign: 'center',
@@ -226,7 +226,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
           <Text style={{
             // color: '#f5f5f5',
             fontSize: 16,
-            fontWeight: '500',
+            fontFamily: 'Rubik-Medium',
             textAlign: 'center',
             opacity: 0.9,
           }}>
@@ -342,7 +342,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                     <Icon name="lock" size={16} color="#130057" />
                     <Text style={{
                       fontSize: 12,
-                      fontWeight: 'bold',
+                      fontFamily: 'Rubik-Bold',
                       color: '#130057',
                       letterSpacing: 1,
                       textTransform: 'uppercase',
@@ -374,7 +374,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         borderColor: 'rgba(19, 0, 87, 0.1)',
                         borderRadius: 16,
                         fontSize: 14,
-                        fontWeight: 'bold',
+                        fontFamily: 'Rubik-Bold',
                         color: '#130057',
                         letterSpacing: 8,
                       }}
@@ -429,7 +429,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <Text style={{
                         fontSize: 14,
                         color: '#f44336',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         Sacred PIN must be exactly 4 digits
                       </Text>
@@ -443,7 +443,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                     <Icon name="security" size={16} color="#130057" />
                     <Text style={{
                       fontSize: 12,
-                      fontWeight: 'bold',
+                      fontFamily: 'Rubik-Bold',
                       color: '#130057',
                       letterSpacing: 1,
                       textTransform: 'uppercase',
@@ -475,7 +475,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         borderColor: pinsMatch ? 'rgba(19, 0, 87, 0.1)' : 'rgba(244, 67, 54, 0.3)',
                         borderRadius: 16,
                         fontSize: 14,
-                        fontWeight: 'bold',
+                        fontFamily: 'Rubik-Bold',
                         color: '#130057',
                         letterSpacing: 8,
                       }}
@@ -525,7 +525,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <Text style={{
                         fontSize: 14,
                         color: '#f44336',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         Sacred PIN must be exactly 4 digits
                       </Text>
@@ -543,7 +543,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <Text style={{
                         fontSize: 14,
                         color: '#f44336',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         Your PIN do not match
                       </Text>
@@ -555,7 +555,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <Text style={{
                         fontSize: 14,
                         color: '#4CAF50',
-                        fontWeight: '500',
+                        fontFamily: 'Rubik-Medium',
                       }}>
                         PINs match perfectly!
                       </Text>
@@ -590,7 +590,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         <Text style={{
                           color: '#DADADA',
                           fontSize: 18,
-                          fontWeight: 'bold',
+                          fontFamily: 'Rubik-Bold',
                           marginLeft: 12,
                         }}>
                           Securing PIN...
@@ -602,7 +602,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         <Text style={{
                           color: '#DADADA',
                           fontSize: 18,
-                          fontWeight: 'bold',
+                          fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
                         }}>
                           Change PIN
@@ -631,7 +631,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   <Text style={{
                     color: '#130057',
                     fontSize: 16,
-                    fontWeight: '600',
+                    fontFamily: 'Rubik-Medium',
                     marginLeft: 8,
                   }}>
                     Return to Previous Step

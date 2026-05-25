@@ -838,7 +838,7 @@ function ChatScreen() {
 
                       <MenuOption onSelect={handleBlockUser}>
                         <View style={{ paddingVertical: 4, paddingHorizontal: 6 }}>
-                          <Text style={[styles.item, { fontWeight: '600', paddingHorizontal: 0, paddingVertical: 0, marginBottom: 0 }]}>Block</Text>
+                          <Text style={[styles.item, { fontFamily: 'Rubik-Medium', paddingHorizontal: 0, paddingVertical: 0, marginBottom: 0 }]}>Block</Text>
                           <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
                             Hide each other. Reversible.
                           </Text>
@@ -847,7 +847,7 @@ function ChatScreen() {
 
                       <MenuOption onSelect={handleReportUser}>
                         <View style={{ paddingVertical: 4, paddingHorizontal: 6 }}>
-                          <Text style={[styles.item, { fontWeight: '600', color: '#dc2626', paddingHorizontal: 0, paddingVertical: 0, marginBottom: 0 }]}>Report User</Text>
+                          <Text style={[styles.item, { fontFamily: 'Rubik-Medium', color: '#dc2626', paddingHorizontal: 0, paddingVertical: 0, marginBottom: 0 }]}>Report User</Text>
                           <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
                             Flag for moderator review. Anonymous.
                           </Text>
@@ -979,7 +979,7 @@ function ChatScreen() {
                     {statusMessage}
                   </Text>
                   <TouchableOpacity onPress={() => setShowStatusModal(false)}>
-                    <Text style={{ color: '#007AFF', fontWeight: 'bold' }}>OK</Text>
+                    <Text style={{ color: '#007AFF', fontFamily: 'Rubik-Bold' }}>OK</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1058,7 +1058,7 @@ function ChatScreen() {
 const styles = StyleSheet.create({
   container: { height: '100%' },
   menuTitle: {
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginBottom: 15,
   },
   item: {
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#DADADA',
     marginTop: 4,
     marginBottom: 2,
@@ -1212,7 +1212,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#130001',
     marginBottom: 10,
   },
@@ -1300,7 +1300,7 @@ const styles = StyleSheet.create({
   },
   premiumTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#130001',
     marginBottom: 10,
   },
@@ -1320,7 +1320,7 @@ const styles = StyleSheet.create({
   upgradeButtonText: {
     color: '#DADADA',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   modalOverlay: {
     flex: 1,

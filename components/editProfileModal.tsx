@@ -263,7 +263,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Gender':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <TextInput
@@ -277,7 +277,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Date of Birth':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <View>
@@ -308,7 +308,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Marital Status':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -329,7 +329,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Height':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label} "f.t"
             </Text>
             <SelectList
@@ -350,7 +350,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Mother Language':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -371,7 +371,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Physical Status':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -392,7 +392,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Religion':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <TextInput
@@ -406,7 +406,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Caste':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <TextInput
@@ -420,7 +420,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Star':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -439,7 +439,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Moon Sign':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -458,7 +458,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Dosham':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -477,7 +477,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Education':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -496,7 +496,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Occupation':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -521,7 +521,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -540,7 +540,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Annual Income':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -559,7 +559,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Family Type':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -578,7 +578,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
         case 'Family Status':
           return (
             <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-              <Text fontSize="sm" fontWeight="semibold" mb="1">
+              <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
                 {label}
               </Text>
               <SelectList
@@ -597,7 +597,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Fathers Occupation':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -616,7 +616,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Mothers Occupation':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -635,7 +635,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'No of Siblings':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <SelectList
@@ -654,7 +654,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       default:
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" mb="1">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
             <TextInput
@@ -683,7 +683,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
           <Box style={styles.modalContainer}>
             <Box style={styles.modalContent}>
               <HStack justifyContent="space-between" alignItems="center" mb={2}>
-                <Text fontSize="md" fontWeight="bold" color="coolGray.800">
+                <Text fontSize="md" fontWeight="bold" fontFamily="Rubik-Bold" color="coolGray.800">
                   {section.title}
                 </Text>
                 <EIcon name="cross" size={28} color="#6b7280" onPress={onClose} />
@@ -705,7 +705,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   onPress={handleSubmit}
                   bg="#1F7FE5"
                   borderRadius="lg"
-                  _text={{ color: "#fff", fontWeight: "700" }}
+                  _text={{ color: "#fff", fontFamily: 'Rubik-Bold' }}
                   _pressed={{ bg: "#1862B8" }}
                 >
                   Save Changes

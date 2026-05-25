@@ -650,11 +650,11 @@ export default function SignUp({ onStart }: GetstartProps) {
                       onPress={() => router.replace('/(root)/(main)/LoginScreen')}
                       style={{ backgroundColor: '#1F7FE5', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
                     >
-                      <TextNB style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Sign In</TextNB>
+                      <TextNB style={{ color: '#fff', fontSize: 12, fontFamily: 'Rubik-Bold' }}>Sign In</TextNB>
                     </TouchableOpacity>
                   </View>
                   {/* Title + subtitle */}
-                  <TextNB style={{ color: '#1a1a1a', fontSize: 22, fontWeight: '800' }}>
+                  <TextNB style={{ color: '#1a1a1a', fontSize: 22, fontFamily: 'Rubik-ExtraBold' }}>
                     Create your account
                   </TextNB>
                   <TextNB style={{ color: '#9ca3af', fontSize: 12, marginTop: 3 }}>
@@ -665,7 +665,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 <HStack space={2} width="100%">
                   {/* First Name Field */}
                   <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       First Name
                     </TextNB>
                     <TextInput
@@ -695,7 +695,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                   {/* Last Name Field */}
                   <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       Last Name
                     </TextNB>
                     <TextInput
@@ -732,7 +732,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                       color="#130057"
                       fontSize={13}
                       marginBottom={1}
-                      fontWeight="bold"
+                      fontWeight="bold" fontFamily="Rubik-Bold"
                     >
                       Date of Birth <TextNB color="red">*</TextNB>
                     </TextNB>
@@ -809,7 +809,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                                 borderRadius: 8,
                               }}
                             >
-                              <TextNB color="#fff" fontWeight="bold">Confirm</TextNB>
+                              <TextNB color="#fff" fontWeight="bold" fontFamily="Rubik-Bold">Confirm</TextNB>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -821,7 +821,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                   {/* Gender */}
                   <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={3} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={3} fontWeight="bold" fontFamily="Rubik-Bold">
                       Gender
                     </TextNB>
                     <Box alignItems="flex-start" width="100%">
@@ -865,7 +865,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                 {/* Mobile Number - 10 digits only */}
                 <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                     Mobile Number
                   </TextNB>
                   <TextInput
@@ -900,7 +900,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 <HStack space={2} width="100%">
                   {/* Age Field */}
                   <Box flex={0.3} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       Age
                     </TextNB>
                     <TextInput
@@ -917,7 +917,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                   {/* Email Field */}
                   <Box flex={0.7} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       Email
                     </TextNB>
                     {emailVerified ? (
@@ -937,7 +937,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                           zIndex: 2,
                         }}
                       >
-                        <TextNB style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>Change</TextNB>
+                        <TextNB style={{ color: '#fff', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Change</TextNB>
                       </TouchableOpacity>
                     ) : (
                       <TouchableOpacity
@@ -957,7 +957,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                         {sendingEmailOtp ? (
                           <ActivityIndicator size="small" color="#fff" />
                         ) : (
-                          <TextNB style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>Verify</TextNB>
+                          <TextNB style={{ color: '#fff', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Verify</TextNB>
                         )}
                       </TouchableOpacity>
                     )}
@@ -1015,7 +1015,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                 {/* Occupation Field */}
                 <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                     Occupation
                   </TextNB>
                   <TextInput
@@ -1046,7 +1046,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                 {/* Education In Detail Field */}
                 <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                     Education in Detail
                   </TextNB>
                   <TextInput
@@ -1086,7 +1086,7 @@ export default function SignUp({ onStart }: GetstartProps) {
             <View style={{ display: 'flex', alignItems: 'flex-end', marginRight: 25 }}>
               <ButtonNB style={{ marginBottom: 28, marginTop: 15, width: '30%', borderRadius: 24, backgroundColor: '#1F7FE5', paddingVertical: 12, shadowColor: '#1F7FE5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 }} onPress={() => swiperRef.current?.scrollBy(1)}>
                 <HStack space={2} alignItems="center">
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>Next</TextNB>
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">Next</TextNB>
                   <ArrowRight size={20} color="#fff" fontWeight={'semibold'} />
                 </HStack>
               </ButtonNB>
@@ -1120,7 +1120,7 @@ export default function SignUp({ onStart }: GetstartProps) {
               <View >
 
                 {/* 8. Employed In (multiline) */}
-                <TextNB color="#130057" fontSize={13} marginBottom={2} fontWeight="bold">
+                <TextNB color="#130057" fontSize={13} marginBottom={2} fontWeight="bold" fontFamily="Rubik-Bold">
                   Employing In
                 </TextNB>
                 <Box width="100%" marginBottom={4}>
@@ -1172,7 +1172,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 <HStack space={2} width="100%">
                   {/* Father's Name */}
                   <Box flex={0.5} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       Father's Name
                     </TextNB>
                     <TextInput
@@ -1203,7 +1203,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                   {/* Father's Occupation */}
                   <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       Father's Occupation
                     </TextNB>
                     <TextInput
@@ -1231,7 +1231,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 <HStack space={2} width="100%">
                   {/* Mother's Name */}
                   <Box flex={0.5} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       Mother's Name
                     </TextNB>
                     <TextInput
@@ -1262,7 +1262,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                   {/* Mother's Occupation */}
                   <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       Mother's Occupation
                     </TextNB>
                     <TextInput
@@ -1295,7 +1295,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 />
 
                 <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                     Job Place
                   </TextNB>
                   <TextInput
@@ -1324,7 +1324,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                 {/* 21. Current Address (multiline) */}
                 <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                     Current Address
                   </TextNB>
                   <TextInput
@@ -1362,7 +1362,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                 {/* 19. Native Place (multiline) */}
                 <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                     Native Place
                   </TextNB>
                   <TextInput
@@ -1392,7 +1392,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 <HStack space={2} width="100%">
                   {/* PIN */}
                   <Box flex={0.5} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       PIN
                     </TextNB>
                     <TextInput
@@ -1431,7 +1431,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                   {/* Confirm PIN */}
                   <Box flex={0.5} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold">
+                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
                       Confirm PIN
                     </TextNB>
                     <TextInput
@@ -1497,7 +1497,7 @@ export default function SignUp({ onStart }: GetstartProps) {
               >
                 <HStack space={1} alignItems="center">
                   <ArrowLeft size={20} color="#fff" />
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">
                     Back
                   </TextNB>
                 </HStack>
@@ -1519,7 +1519,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 onPress={() => swiperRef.current?.scrollBy(1)}
               >
                 <HStack space={1} alignItems="center">
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">
                     Next
                   </TextNB>
                   <ArrowRight size={20} color="#fff" />
@@ -1540,7 +1540,7 @@ export default function SignUp({ onStart }: GetstartProps) {
               showsVerticalScrollIndicator={false}
             >
               <View style={{ alignItems: 'center', marginBottom: 20, marginTop: 10 }}>
-                <TextNB fontSize={22} fontWeight="800" color="#1F7FE5" textAlign="center">
+                <TextNB fontSize={22} fontWeight="800" fontFamily="Rubik-ExtraBold" color="#1F7FE5" textAlign="center">
                   What are you passionate about?
                 </TextNB>
                 <TextNB fontSize={13} color="#6b7280" textAlign="center" mt={2}>
@@ -1555,7 +1555,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 }}>
                   <TextNB
                     fontSize={12}
-                    fontWeight="700"
+                    fontWeight="700" fontFamily="Rubik-Bold"
                     color={selectedInterests.length >= 3 ? '#065f46' : '#92400e'}
                   >
                     {selectedInterests.length} of {(masterData?.interestTags || INTEREST_TAGS).length} selected
@@ -1605,7 +1605,7 @@ export default function SignUp({ onStart }: GetstartProps) {
               >
                 <HStack space={1} alignItems="center">
                   <ArrowLeft size={20} color="#fff" />
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>Back</TextNB>
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">Back</TextNB>
                 </HStack>
               </ButtonNB>
 
@@ -1625,7 +1625,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                 onPress={() => handleFormSubmit()}
               >
                 <HStack space={1} alignItems="center">
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'}>Submit</TextNB>
+                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">Submit</TextNB>
                 </HStack>
               </ButtonNB>
             </View>
@@ -1682,7 +1682,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontFamily: 'Rubik-Bold',
     color: "#DADADA",
     textAlign: "center",
     marginBottom: 10,
@@ -1716,7 +1716,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#DADADA', // Text color is white
     fontSize: 16, // Adjust font size as needed
-    fontWeight: 'medium', // Optional: Make the text bold
+    fontFamily: 'Rubik-Medium', // Optional: Make the text bold
   },
   linkText: {
     color: "#DADADA",
@@ -1772,7 +1772,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: "bold",
+    fontFamily: 'Rubik-Bold',
     marginBottom: 5,
     color: "#130057",
   },
@@ -1811,7 +1811,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modalTitle: {
-    fontWeight: "bold",
+    fontFamily: 'Rubik-Bold',
     fontSize: 16,
     color: "#130057",
   },

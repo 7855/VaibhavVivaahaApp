@@ -436,12 +436,12 @@ export default function PremiumTab() {
             shadowRadius: 8,
             elevation: 3,
           }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#130001', marginBottom: 16 }}>Payment Details</Text>
+            <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#130001', marginBottom: 16 }}>Payment Details</Text>
 
             {paymentData?.createdAt && (
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
                 <Text style={{ color: '#6b7280', fontSize: 14 }}>Submitted</Text>
-                <Text style={{ color: '#130001', fontSize: 14, fontWeight: '600' }}>
+                <Text style={{ color: '#130001', fontSize: 14, fontFamily: 'Rubik-Medium' }}>
                   {new Date(paymentData.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
               </View>
@@ -450,14 +450,14 @@ export default function PremiumTab() {
             {paymentData?.utrNumber && (
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
                 <Text style={{ color: '#6b7280', fontSize: 14 }}>UTR Number</Text>
-                <Text style={{ color: '#130001', fontSize: 14, fontWeight: '600' }}>{paymentData.utrNumber}</Text>
+                <Text style={{ color: '#130001', fontSize: 14, fontFamily: 'Rubik-Medium' }}>{paymentData.utrNumber}</Text>
               </View>
             )}
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: '#6b7280', fontSize: 14 }}>Status</Text>
               <View style={{ backgroundColor: '#fef3c7', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
-                <Text style={{ color: '#d97706', fontSize: 12, fontWeight: '700' }}>PENDING</Text>
+                <Text style={{ color: '#d97706', fontSize: 12, fontFamily: 'Rubik-Bold' }}>PENDING</Text>
               </View>
             </View>
           </View>
@@ -474,13 +474,13 @@ export default function PremiumTab() {
             shadowRadius: 8,
             elevation: 3,
           }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#130001', marginBottom: 16 }}>Verification Progress</Text>
+            <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#130001', marginBottom: 16 }}>Verification Progress</Text>
 
             {/* Step 1 - Done */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <CheckCircle size={24} color="#10b981" />
               <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#130001' }}>Screenshot Uploaded</Text>
+                <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#130001' }}>Screenshot Uploaded</Text>
                 <Text style={{ fontSize: 12, color: '#6b7280' }}>Payment proof received</Text>
               </View>
             </View>
@@ -489,7 +489,7 @@ export default function PremiumTab() {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <CircleDot size={24} color="#f97316" />
               <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#f97316' }}>Payment Verification</Text>
+                <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#f97316' }}>Payment Verification</Text>
                 <Text style={{ fontSize: 12, color: '#6b7280' }}>Admin is reviewing your payment</Text>
               </View>
             </View>
@@ -498,7 +498,7 @@ export default function PremiumTab() {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Circle size={24} color="#d1d5db" />
               <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#9ca3af' }}>Premium Activation</Text>
+                <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#9ca3af' }}>Premium Activation</Text>
                 <Text style={{ fontSize: 12, color: '#6b7280' }}>Will activate after approval</Text>
               </View>
             </View>
@@ -553,18 +553,18 @@ export default function PremiumTab() {
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <CheckCircle size={24} color="#10b981" />
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#130001', marginLeft: 10 }}>Active Subscription</Text>
+              <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#130001', marginLeft: 10 }}>Active Subscription</Text>
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
               <Text style={{ color: '#6b7280', fontSize: 14 }}>Plan</Text>
-              <Text style={{ color: '#130001', fontSize: 14, fontWeight: '600' }}>{planName}</Text>
+              <Text style={{ color: '#130001', fontSize: 14, fontFamily: 'Rubik-Medium' }}>{planName}</Text>
             </View>
 
             {subscriptionData?.endDate && (
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#6b7280', fontSize: 14 }}>Valid Until</Text>
-                <Text style={{ color: '#130001', fontSize: 14, fontWeight: '600' }}>
+                <Text style={{ color: '#130001', fontSize: 14, fontFamily: 'Rubik-Medium' }}>
                   {new Date(subscriptionData.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
               </View>
@@ -581,7 +581,7 @@ export default function PremiumTab() {
             }}
             onPress={() => router.back()}
           >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Go Back</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Rubik-Medium' }}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: '#DADADA',
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     fontSize: 16,
   },
   selectedPlan: {
@@ -926,7 +926,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#130001',
     textAlign: 'center',
     marginBottom: 8,
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
     textAlign: 'center',
   },
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
   },
   featureTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
     marginBottom: 2,
   },
@@ -1073,7 +1073,7 @@ const styles = StyleSheet.create({
   },
   popularText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#ec4899', // Primary active color
     letterSpacing: 0.5,
     textAlign: 'center',
@@ -1086,7 +1086,7 @@ const styles = StyleSheet.create({
   },
   planTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
   },
   planTagline: {
@@ -1113,7 +1113,7 @@ const styles = StyleSheet.create({
   },
   discountText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#16a34a',
   },
   priceSection: {
@@ -1127,7 +1127,7 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#130001',
   },
   popularPrice: {
@@ -1174,7 +1174,7 @@ const styles = StyleSheet.create({
   },
   urgencyText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#be185d',
     textAlign: 'center',
   },
@@ -1197,7 +1197,7 @@ const styles = StyleSheet.create({
   },
   upgradeText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#DADADA',
   },
   guaranteeSection: {
@@ -1229,7 +1229,7 @@ const styles = StyleSheet.create({
   },
   statsTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
     textAlign: 'center',
   },
@@ -1243,14 +1243,14 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#be185d',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     color: '#6b7280',
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   statDivider: {
     width: 1,

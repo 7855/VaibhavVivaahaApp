@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 16,
   },
-  statusText: { marginLeft: 8, fontSize: 13, fontWeight: '600' },
+  statusText: { marginLeft: 8, fontSize: 13, fontFamily: 'Rubik-Medium' },
   explainCard: {
     backgroundColor: '#fff',
     borderRadius: 14,
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   },
   explainTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#420001',
     marginLeft: 10,
     flex: 1,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#420001',
     marginBottom: 8,
     marginTop: 4,
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   docTypeLabel: {
     marginLeft: 6,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#420001',
   },
   input: {
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   },
   uploadBtnText: {
     color: '#420001',
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     marginLeft: 6,
     fontSize: 13,
   },
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   },
   submitBtnText: {
     color: '#fff',
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     fontSize: 14,
     marginLeft: 8,
   },

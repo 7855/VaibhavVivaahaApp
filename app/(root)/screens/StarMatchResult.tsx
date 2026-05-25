@@ -798,7 +798,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#420001',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     textAlign: 'center',
     flex: 1,
   },
@@ -831,13 +831,13 @@ const styles = StyleSheet.create({
   },
   scorePercentage: {
     fontSize: 42,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#DADADA',
   },
   scoreLabel: {
     fontSize: 14,
     color: '#a5b4fc',
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -854,13 +854,13 @@ const styles = StyleSheet.create({
   },
   verdictText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   verdictTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     color: '#420001',
     marginBottom: 4,
   },
@@ -885,14 +885,14 @@ const styles = StyleSheet.create({
   scoreHeaderText: {
     color: '#b91c1c',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   scoreValue: {
     color: '#420001',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   progressBar: {
     height: 6,
@@ -915,12 +915,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: '#420001',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   sectionSubtitle: {
     color: '#6b7280',
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   resultsContainer: {
     paddingHorizontal: 12,
@@ -953,18 +953,18 @@ const styles = StyleSheet.create({
   },
   resultBadgeText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     textTransform: 'uppercase',
   },
   resultScore: {
     color: '#fbbf24',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   resultName: {
     color: '#DADADA',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     marginBottom: 4,
   },
   resultReason: {
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: '#420001',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   spacer: {
     height: 100,

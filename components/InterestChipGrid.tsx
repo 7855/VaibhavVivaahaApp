@@ -197,11 +197,11 @@ const styles = StyleSheet.create({
   // ── Labels ──
   chipLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   chipLabelCompact: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
   },
   chipLabelSelected: {
     color: '#fff',
@@ -214,11 +214,11 @@ const styles = StyleSheet.create({
   },
   chipLabelHighlighted: {
     color: '#92400e',
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
   },
   chipLabelOverflow: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#6b7280',
   },
 });

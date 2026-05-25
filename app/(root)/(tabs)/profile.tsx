@@ -523,7 +523,7 @@ const ProfileScreen = () => {
                 {userDetails?.profileImage ? (
                   <Image source={{ uri: userDetails.profileImage }} style={{ width: '100%', height: '100%' }} />
                 ) : (
-                  <Text style={{ fontSize: 22, color: '#fff', fontWeight: '500' }}>
+                  <Text style={{ fontSize: 22, color: '#fff', fontFamily: 'Rubik-Medium' }}>
                     {(userDetails?.firstName || 'U').charAt(0)}{(userDetails?.lastName || '').charAt(0)}
                   </Text>
                 )}
@@ -562,7 +562,7 @@ const ProfileScreen = () => {
 
                 {planEnd && planTitle !== 'Free' && (
                   <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100 }}>
-                    <Text style={{ fontSize: 9, fontWeight: '600', color: '#64748b', letterSpacing: -0.1 }}>
+                    <Text style={{ fontSize: 9, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: -0.1 }}>
                       Until {new Date(planEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
                     </Text>
                   </View>
@@ -582,7 +582,7 @@ const ProfileScreen = () => {
             <View style={s.statCell}>
               <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
                 <ProgressRing size={48} strokeWidth={3.5} percentage={profileScore} color={C.brand} bgColor="rgba(31,127,229,0.12)" />
-                <Text style={{ position: 'absolute', fontSize: 12, fontWeight: '700', color: C.ink }}>{profileScore}%</Text>
+                <Text style={{ position: 'absolute', fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{profileScore}%</Text>
               </View>
               <Text style={s.statLabel}>Profile</Text>
             </View>
@@ -591,7 +591,7 @@ const ProfileScreen = () => {
             <TouchableOpacity style={s.statCell} activeOpacity={0.7} onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}>
               <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
                 <ProgressRing size={48} strokeWidth={3.5} percentage={Math.round((trustCount / 4) * 100)} color={C.green} bgColor="rgba(46,154,92,0.12)" />
-                <Text style={{ position: 'absolute', fontSize: 12, fontWeight: '700', color: C.ink }}>{trustCount}/4</Text>
+                <Text style={{ position: 'absolute', fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{trustCount}/4</Text>
               </View>
               <Text style={s.statLabel}>Trust</Text>
             </TouchableOpacity>
@@ -632,7 +632,7 @@ const ProfileScreen = () => {
                   <View style={s.liveDot} />
                   <Text style={s.boostTitle}>Boost is live</Text>
                 </View>
-                <Text style={s.boostSub}>10× visibility · <Text style={{ color: '#fff', fontWeight: '600' }}>{countdown}</Text> left</Text>
+                <Text style={s.boostSub}>10× visibility · <Text style={{ color: '#fff', fontFamily: 'Rubik-Medium' }}>{countdown}</Text> left</Text>
               </View>
             </LinearGradient>
           ) : canBoost || (boostData?.creditsPerMonth > 0) ? (
@@ -644,7 +644,7 @@ const ProfileScreen = () => {
                   <Text style={s.boostSub}>Get 10× visibility for 24 hours</Text>
                 </View>
                 <View style={s.boostCta}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: C.ink }}>{boostData?.remainingCredits > 0 ? `${boostData.remainingCredits} left` : '₹149'}</Text>
+                  <Text style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{boostData?.remainingCredits > 0 ? `${boostData.remainingCredits} left` : '₹149'}</Text>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -717,7 +717,7 @@ const ProfileScreen = () => {
           {/* Contact */}
           <LinearGradient colors={[C.brand, C.brandDeep]} style={s.contactCard}>
             <View style={s.contactHead}>
-              <View style={s.contactBadge}><MaterialIcons name="verified" size={10} color="#fff" /><Text style={{ fontSize: 10, fontWeight: '600', color: '#fff', marginLeft: 4 }}>VERIFIED</Text></View>
+              <View style={s.contactBadge}><MaterialIcons name="verified" size={10} color="#fff" /><Text style={{ fontSize: 10, fontFamily: 'Rubik-Medium', color: '#fff', marginLeft: 4 }}>VERIFIED</Text></View>
               <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>Mobile · Primary</Text>
             </View>
             <View style={s.contactBody}>
@@ -752,18 +752,18 @@ const ProfileScreen = () => {
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                   <TouchableOpacity style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: '#f6f8fa', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 5 }} onPress={handleAddHoroscope}>
                     <MaterialIcons name="upload" size={14} color={C.ink3} />
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: C.ink2 }}>Update</Text>
+                    <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: C.ink2 }}>Update</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: '#f6f8fa', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 5 }} onPress={handleDeleteHoroscope}>
                     <MaterialIcons name="delete-outline" size={14} color="#dc2626" />
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#dc2626' }}>Remove</Text>
+                    <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: '#dc2626' }}>Remove</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
               <TouchableOpacity onPress={handleAddHoroscope} style={{ alignItems: 'center', paddingVertical: 24, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.brand, borderRadius: 14, backgroundColor: C.brandSoft }}>
                 <MaterialIcons name="add-photo-alternate" size={28} color={C.brand} />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: C.brand, marginTop: 6 }}>Upload Horoscope</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: C.brand, marginTop: 6 }}>Upload Horoscope</Text>
                 <Text style={{ fontSize: 10, color: C.ink4, marginTop: 2 }}>Rasi chart or Jathagam image</Text>
               </TouchableOpacity>
             )}
@@ -890,7 +890,7 @@ const s = StyleSheet.create({
   // Topbar
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12 },
   circleBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.6)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)', ...SHADOW },
-  topbarTitle: { fontSize: 20, fontWeight: '700', color: C.ink, letterSpacing: -0.4 },
+  topbarTitle: { fontSize: 20, fontFamily: 'Rubik-Bold', color: C.ink, letterSpacing: -0.4 },
 
   // Hero
   hero: { paddingHorizontal: 16, paddingTop: 8 },
@@ -903,32 +903,32 @@ const s = StyleSheet.create({
   avatarEdit: { position: 'absolute', bottom: -3, right: -3, width: 24, height: 24, borderRadius: 12, backgroundColor: C.white, borderWidth: 2, borderColor: '#b8d0e8', justifyContent: 'center', alignItems: 'center', zIndex: 3, ...SHADOW },
   onlineDot: { position: 'absolute', top: 4, right: 4, width: 12, height: 12, borderRadius: 6, backgroundColor: C.green, borderWidth: 2, borderColor: '#b8d0e8', zIndex: 3 },
   heroInfo: { flex: 1, minWidth: 0 },
-  heroName: { fontSize: 18, fontWeight: '700', color: C.ink, letterSpacing: -0.4, lineHeight: 22 },
-  heroAge: { fontWeight: '400', color: C.ink3, fontSize: 15, letterSpacing: -0.2 },
+  heroName: { fontSize: 18, fontFamily: 'Rubik-Bold', color: C.ink, letterSpacing: -0.4, lineHeight: 22 },
+  heroAge: { fontFamily: 'Rubik-Regular', color: C.ink3, fontSize: 15, letterSpacing: -0.2 },
   heroLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  heroLocationText: { fontSize: 12, fontWeight: '500', color: C.ink4, letterSpacing: -0.1 },
+  heroLocationText: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.ink4, letterSpacing: -0.1 },
   heroTags: { flexDirection: 'row', gap: 6, marginTop: 8 },
   tagPillAmber: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, shadowColor: C.amberGlow, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
-  tagPillAmberText: { fontSize: 10, fontWeight: '700', color: '#4a2e06', letterSpacing: 0.1 },
+  tagPillAmberText: { fontSize: 10, fontFamily: 'Rubik-Bold', color: '#4a2e06', letterSpacing: 0.1 },
   tagPillBlue: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, shadowColor: C.brandGlow, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
-  tagPillBlueText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  tagPillBlueText: { fontSize: 10, fontFamily: 'Rubik-Bold', color: '#fff' },
 
   // Stats
   statsRow: { flexDirection: 'row', paddingVertical: 14, paddingHorizontal: 10, marginTop: 8 },
   statCell: { flex: 1, alignItems: 'center', position: 'relative', paddingVertical: 4, paddingHorizontal: 2, borderRightWidth: 1, borderRightColor: 'rgba(15,35,70,0.14)' },
-  statNum: { fontSize: 26, fontWeight: '700', color: C.ink, letterSpacing: -1, lineHeight: 28 },
-  statPct: { fontSize: 16, fontWeight: '500', color: C.ink4, marginLeft: 1 },
-  statFrac: { fontSize: 16, fontWeight: '500', color: C.ink4, marginLeft: 1 },
-  statLabel: { marginTop: 5, fontSize: 11, fontWeight: '500', color: C.ink4, letterSpacing: -0.1 },
+  statNum: { fontSize: 26, fontFamily: 'Rubik-Bold', color: C.ink, letterSpacing: -1, lineHeight: 28 },
+  statPct: { fontSize: 16, fontFamily: 'Rubik-Medium', color: C.ink4, marginLeft: 1 },
+  statFrac: { fontSize: 16, fontFamily: 'Rubik-Medium', color: C.ink4, marginLeft: 1 },
+  statLabel: { marginTop: 5, fontSize: 11, fontFamily: 'Rubik-Medium', color: C.ink4, letterSpacing: -0.1 },
 
   // Content
   content: { paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: C.ink, marginTop: 10, marginBottom: 8, letterSpacing: -0.3 },
+  sectionTitle: { fontSize: 16, fontFamily: 'Rubik-Bold', color: C.ink, marginTop: 10, marginBottom: 8, letterSpacing: -0.3 },
 
   // Boost banner
   boostBanner: { borderRadius: 18, padding: 12, paddingHorizontal: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12, overflow: 'hidden', shadowColor: 'rgba(31,16,48,0.25)', shadowOpacity: 1, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 8 },
   boostIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: C.amber, justifyContent: 'center', alignItems: 'center', zIndex: 2, shadowColor: C.amberGlow, shadowOpacity: 1, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  boostTitle: { fontSize: 14, fontWeight: '700', color: C.white, letterSpacing: -0.2 },
+  boostTitle: { fontSize: 14, fontFamily: 'Rubik-Bold', color: C.white, letterSpacing: -0.2 },
   boostSub: { fontSize: 11.5, color: 'rgba(255,255,255,0.65)', marginTop: 2, letterSpacing: -0.1 },
   boostCta: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, backgroundColor: C.white, zIndex: 2 },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: C.amber },
@@ -937,8 +937,8 @@ const s = StyleSheet.create({
   listCard: { backgroundColor: C.white, borderRadius: 18, padding: 12, paddingHorizontal: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12, ...SHADOW },
   listCardIcon: { width: 46, height: 46, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   listCardBody: { flex: 1, minWidth: 0 },
-  listCardTitle: { fontSize: 15, fontWeight: '700', color: C.ink, letterSpacing: -0.3, marginBottom: 3 },
-  listCardSub: { fontSize: 12.5, fontWeight: '400', color: C.ink4, letterSpacing: -0.1 },
+  listCardTitle: { fontSize: 15, fontFamily: 'Rubik-Bold', color: C.ink, letterSpacing: -0.3, marginBottom: 3 },
+  listCardSub: { fontSize: 12.5, fontFamily: 'Rubik-Regular', color: C.ink4, letterSpacing: -0.1 },
   listCardChev: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#f6f8fa', justifyContent: 'center', alignItems: 'center' },
 
   // Detail cards
@@ -946,56 +946,56 @@ const s = StyleSheet.create({
   detailHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   detailHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   detailIconSm: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  detailTitle: { fontSize: 14.5, fontWeight: '700', color: C.ink, letterSpacing: -0.2 },
-  detailSub: { fontSize: 11, fontWeight: '400', color: C.ink4, letterSpacing: -0.1, marginTop: 1 },
+  detailTitle: { fontSize: 14.5, fontFamily: 'Rubik-Bold', color: C.ink, letterSpacing: -0.2 },
+  detailSub: { fontSize: 11, fontFamily: 'Rubik-Regular', color: C.ink4, letterSpacing: -0.1, marginTop: 1 },
   editMini: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.lineSoft, justifyContent: 'center', alignItems: 'center' },
   detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   detailField: { width: '47%', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: '#f6f8fa', borderRadius: 12 },
-  detailLabel: { fontSize: 10, fontWeight: '500', color: C.ink4, letterSpacing: 0.3, textTransform: 'uppercase', marginBottom: 2 },
-  detailValue: { fontSize: 13.5, fontWeight: '600', color: C.ink, letterSpacing: -0.2, lineHeight: 18 },
+  detailLabel: { fontSize: 10, fontFamily: 'Rubik-Medium', color: C.ink4, letterSpacing: 0.3, textTransform: 'uppercase', marginBottom: 2 },
+  detailValue: { fontSize: 13.5, fontFamily: 'Rubik-Medium', color: C.ink, letterSpacing: -0.2, lineHeight: 18 },
 
   // Chips
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 100, backgroundColor: '#f6f8fa' },
-  chipText: { fontSize: 12, fontWeight: '600', color: C.ink2, letterSpacing: -0.1 },
+  chipText: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.ink2, letterSpacing: -0.1 },
 
   // Contact
   contactCard: { borderRadius: 18, padding: 14, marginBottom: 8, overflow: 'hidden', shadowColor: C.brandGlow, shadowOpacity: 1, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
   contactHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, zIndex: 2 },
   contactBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 3, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 100 },
   contactBody: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 },
-  contactNum: { fontSize: 22, fontWeight: '700', color: C.white, letterSpacing: -0.5 },
+  contactNum: { fontSize: 22, fontFamily: 'Rubik-Bold', color: C.white, letterSpacing: -0.5 },
   contactBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.white, justifyContent: 'center', alignItems: 'center' },
 
   // Action tiles
   actionRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   actionTile: { flex: 1, backgroundColor: C.white, borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9, ...SHADOW },
   actionTileIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  actionTileTitle: { fontSize: 13, fontWeight: '600', color: C.ink, letterSpacing: -0.2 },
-  actionTileSub: { fontSize: 10.5, fontWeight: '400', color: C.ink4, marginTop: 1 },
+  actionTileTitle: { fontSize: 13, fontFamily: 'Rubik-Medium', color: C.ink, letterSpacing: -0.2 },
+  actionTileSub: { fontSize: 10.5, fontFamily: 'Rubik-Regular', color: C.ink4, marginTop: 1 },
 
   // Gallery
   galWrap: { backgroundColor: C.white, borderRadius: 18, padding: 14, marginBottom: 8, ...SHADOW },
   galHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, paddingHorizontal: 2 },
   galProgress: { flexDirection: 'row', gap: 4, alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: C.brandSoft, borderRadius: 100 },
-  galProgressText: { fontSize: 10.5, fontWeight: '600', color: C.brandDeep },
+  galProgressText: { fontSize: 10.5, fontFamily: 'Rubik-Medium', color: C.brandDeep },
   galProgressBar: { width: 30, height: 3, borderRadius: 100, backgroundColor: 'rgba(31,127,229,0.2)', overflow: 'hidden' },
   galGrid: { flexDirection: 'row', gap: 8 },
   galSlot: { flex: 1, aspectRatio: 3 / 4, borderRadius: 14, overflow: 'hidden', position: 'relative', backgroundColor: '#e8ddd4' },
   galSlotEmpty: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.brand, backgroundColor: C.brandSoft, justifyContent: 'center', alignItems: 'center' },
-  galSlotEmptyText: { fontSize: 10, fontWeight: '600', color: C.brand, marginTop: 5, letterSpacing: -0.1 },
+  galSlotEmptyText: { fontSize: 10, fontFamily: 'Rubik-Medium', color: C.brand, marginTop: 5, letterSpacing: -0.1 },
   slotTag: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 100 },
-  slotTagText: { fontSize: 9, fontWeight: '600', color: C.white, letterSpacing: 0.2 },
+  slotTagText: { fontSize: 9, fontFamily: 'Rubik-Medium', color: C.white, letterSpacing: 0.2 },
 
   // Footer
   footer: { alignItems: 'center', paddingTop: 16, paddingBottom: 6 },
   footerLine: { width: 30, height: 2, backgroundColor: C.brand, borderRadius: 2, marginBottom: 12 },
-  footerBrand: { fontSize: 15, fontWeight: '500', color: C.ink3, letterSpacing: -0.3 },
+  footerBrand: { fontSize: 15, fontFamily: 'Rubik-Medium', color: C.ink3, letterSpacing: -0.3 },
   footerVersion: { fontSize: 10, color: C.ink5, marginTop: 4, letterSpacing: 0.3 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 24 },
   modalCard: { backgroundColor: C.white, borderRadius: 22, padding: 22 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: C.ink, marginBottom: 4 },
+  modalTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: C.ink, marginBottom: 4 },
   modalInput: { backgroundColor: '#f6f8fa', borderRadius: 14, padding: 14, fontSize: 14, color: C.ink, textAlignVertical: 'top', minHeight: 100, borderWidth: 1, borderColor: C.line },
   modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
 });

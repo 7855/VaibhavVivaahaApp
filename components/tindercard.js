@@ -34,7 +34,7 @@ const styles = {
     margin: 10,
     color: '#DADADA',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     padding: 10,
     borderRadius: 20,
   },

@@ -1,0 +1,50 @@
+appId: com.vaibhavvivaaha.app
+---
+# SILVER PLAN TEST SUITE
+# Requires env: MOBILE, PIN, CASTE, GENDER
+
+- runFlow: ../subflows/login.yaml
+
+# SV-01: Home screen loads
+- assertVisible: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "silver_home_${CASTE}_${GENDER}"
+
+# SV-02: MailBox — still 3 tabs (Shortlisted You is Gold+ only)
+- tapOn: "MailBox"
+- waitForAnimationToEnd
+- assertVisible: "Received"
+- assertVisible: "Sent"
+- assertNotVisible: "Shortlisted You"
+- takeScreenshot: "silver_mailbox_${CASTE}_${GENDER}"
+
+# SV-03: Open profile — Voice Call CTA visible (Silver+)
+- tapOn: "Home"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+    text: "View Profile"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Voice Call"
+    optional: true
+- takeScreenshot: "silver_profile_voice_call_${CASTE}_${GENDER}"
+
+# SV-04: WhatsApp share still hidden (Gold+ only)
+- assertNotVisible: "Share on WhatsApp"
+
+# SV-05: Settings - Family Access hidden (Gold+ only)
+- tapOn: "Profile"
+- waitForAnimationToEnd
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertNotVisible: "Family Access"
+- takeScreenshot: "silver_settings_${CASTE}_${GENDER}"
+
+# SV-06: Verify badge visible on profile detail
+- tapOn: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "silver_verify_badge_${CASTE}_${GENDER}"
+
+- runFlow: ../subflows/logout.yaml

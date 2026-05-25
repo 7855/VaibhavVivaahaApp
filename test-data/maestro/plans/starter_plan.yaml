@@ -1,0 +1,55 @@
+appId: com.vaibhavvivaaha.app
+---
+# STARTER PLAN TEST SUITE
+# Requires env: MOBILE, PIN, CASTE, GENDER
+
+- runFlow: ../subflows/login.yaml
+
+# ST-01: Home screen loads normally
+- assertVisible: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "starter_home_${CASTE}_${GENDER}"
+
+# ST-02: Full photos viewable (no blur)
+- takeScreenshot: "starter_no_blur_${CASTE}_${GENDER}"
+
+# ST-03: MailBox — only 3 tabs (Shortlisted You still absent)
+- tapOn: "MailBox"
+- waitForAnimationToEnd
+- assertVisible: "Received"
+- assertVisible: "Sent"
+- assertNotVisible: "Shortlisted You"
+- takeScreenshot: "starter_mailbox_${CASTE}_${GENDER}"
+
+# ST-04: Advanced search filters NOT available
+- tapOn: "Home"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Search"
+    optional: true
+- waitForAnimationToEnd
+- assertNotVisible: "Star"
+- assertNotVisible: "Dosham"
+- takeScreenshot: "starter_search_filters_${CASTE}_${GENDER}"
+
+# ST-05: Open a profile — FULL view, contact info still hidden
+- tapOn: "Home"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+    text: "View Profile"
+    optional: true
+- waitForAnimationToEnd
+- assertNotVisible: "WhatsApp"
+- assertNotVisible: "Voice Call"
+- takeScreenshot: "starter_profile_detail_${CASTE}_${GENDER}"
+
+# ST-06: Settings - Family Access hidden
+- tapOn: "Profile"
+- waitForAnimationToEnd
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertNotVisible: "Family Access"
+- takeScreenshot: "starter_settings_${CASTE}_${GENDER}"
+
+- runFlow: ../subflows/logout.yaml

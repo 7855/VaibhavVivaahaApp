@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   ribbonText: {
     color: '#420001',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'Rubik-ExtraBold',
     letterSpacing: 2.5,
   },
   // Outer card — gold border ring
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   ctaText: {
     color: '#FFE7B5',
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: 'Rubik-ExtraBold',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   dismissText: {
     color: '#9a7f7f',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     letterSpacing: 0.4,
     textDecorationLine: 'underline',
   },

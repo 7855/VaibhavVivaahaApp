@@ -1,0 +1,36 @@
+appId: com.vaibhavvivaaha.app
+---
+# Reusable login subflow
+# Requires env vars: MOBILE, PIN
+
+# Step 1: Stop any running instance, then launch fresh
+- stopApp
+- launchApp
+- waitForAnimationToEnd
+
+# Step 2: Handle Expo DevClient server picker if it appears (dev builds only)
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+- waitForAnimationToEnd
+
+# Step 3: Landing screen — tap "Sign In" to go to LoginScreen
+- tapOn: "Sign In"
+- waitForAnimationToEnd
+
+# Step 4: Type mobile number (accessibilityLabel set in LoginScreen.tsx)
+- tapOn:
+    text: "input-mobile"
+- inputText: ${MOBILE}
+
+# Step 5: Type PIN
+- tapOn:
+    text: "input-pin"
+- inputText: ${PIN}
+
+# Step 6: Submit login form
+- waitForAnimationToEnd
+- tapOn:
+    text: "btn-sign-in"
+- waitForAnimationToEnd
+- waitForAnimationToEnd

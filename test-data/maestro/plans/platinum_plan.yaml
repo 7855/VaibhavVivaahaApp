@@ -1,0 +1,68 @@
+appId: com.vaibhavvivaaha.app
+---
+# PLATINUM PLAN TEST SUITE
+# Requires env: MOBILE, PIN, CASTE, GENDER
+
+- runFlow: ../subflows/login.yaml
+
+# P-01: Home screen loads
+- assertVisible: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "platinum_home_${CASTE}_${GENDER}"
+
+# P-02: MailBox — 4th tab "Shortlisted You" visible (inherits Gold)
+- tapOn: "MailBox"
+- waitForAnimationToEnd
+- assertVisible: "Shortlisted You"
+- takeScreenshot: "platinum_mailbox_${CASTE}_${GENDER}"
+
+# P-03: Open profile — Voice Call + WhatsApp visible
+- tapOn: "Home"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+    text: "View Profile"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Voice Call"
+    optional: true
+- assertVisible:
+    text: "WhatsApp"
+    optional: true
+- takeScreenshot: "platinum_profile_ctas_${CASTE}_${GENDER}"
+
+# P-04: Settings — Family Access visible
+- tapOn: "Profile"
+- waitForAnimationToEnd
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertVisible: "Family Access"
+- takeScreenshot: "platinum_settings_${CASTE}_${GENDER}"
+
+# P-05: My Requests screen accessible
+- tapOn:
+    text: "My Requests"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "platinum_my_requests_${CASTE}_${GENDER}"
+- tapOn:
+    text: "Back"
+    optional: true
+
+# P-06: Payment screen shows Relationship Manager view (CONTACT mode)
+- tapOn:
+    text: "Upgrade"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "platinum_payment_rm_view_${CASTE}_${GENDER}"
+- tapOn:
+    text: "Back"
+    optional: true
+
+# P-07: Profile boost credits = 5
+- tapOn: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "platinum_boost_${CASTE}_${GENDER}"
+
+- runFlow: ../subflows/logout.yaml

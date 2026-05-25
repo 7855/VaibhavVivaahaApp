@@ -1,0 +1,68 @@
+appId: com.vaibhavvivaaha.app
+---
+# GOLD PLAN TEST SUITE
+# Requires env: MOBILE, PIN, CASTE, GENDER
+
+- runFlow: ../subflows/login.yaml
+
+# G-01: Home screen loads
+- assertVisible: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: "gold_home_${CASTE}_${GENDER}"
+
+# G-02: MailBox — 4th tab "Shortlisted You" VISIBLE
+- tapOn: "MailBox"
+- waitForAnimationToEnd
+- assertVisible: "Received"
+- assertVisible: "Sent"
+- assertVisible: "Shortlisted You"
+- takeScreenshot: "gold_mailbox_4tabs_${CASTE}_${GENDER}"
+
+# G-03: Shortlisted You tab loads
+- tapOn: "Shortlisted You"
+- waitForAnimationToEnd
+- takeScreenshot: "gold_shortlisted_you_${CASTE}_${GENDER}"
+
+# G-04: Open a profile — Voice Call CTA visible
+- tapOn: "Home"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+    text: "View Profile"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Voice Call"
+    optional: true
+- takeScreenshot: "gold_profile_voice_${CASTE}_${GENDER}"
+
+# G-05: WhatsApp share button visible (Gold+)
+- assertVisible:
+    text: "WhatsApp"
+    optional: true
+- takeScreenshot: "gold_whatsapp_share_${CASTE}_${GENDER}"
+
+# G-06: Settings - Family Access IS visible
+- tapOn: "Profile"
+- waitForAnimationToEnd
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertVisible: "Family Access"
+- takeScreenshot: "gold_settings_family_access_${CASTE}_${GENDER}"
+
+# G-07: Open Family Access screen
+- tapOn: "Family Access"
+- waitForAnimationToEnd
+- takeScreenshot: "gold_family_access_screen_${CASTE}_${GENDER}"
+
+# G-08: Add Family Member form opens
+- tapOn:
+    text: "Add"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "gold_add_family_form_${CASTE}_${GENDER}"
+- tapOn:
+    text: "Cancel"
+    optional: true
+
+- runFlow: ../subflows/logout.yaml

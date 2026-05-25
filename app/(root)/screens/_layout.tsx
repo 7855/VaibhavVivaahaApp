@@ -17,7 +17,7 @@ export default function ScreensLayout() {
         },
         headerTintColor: "#0f1724",
         headerTitleStyle: {
-          fontWeight: "600",
+          fontFamily: 'Rubik-Medium',
         },
         title: "",
         headerLeft: () => (showHeader ? <CustomBackButton /> : null),

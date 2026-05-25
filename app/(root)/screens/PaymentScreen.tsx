@@ -45,6 +45,11 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { NativeBaseProvider } from 'native-base';
+import RelationshipManagerView, { type AdminContact } from '../../../components/RelationshipManagerView';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+type PaymentMode = 'QR' | 'CONTACT' | 'LOADING';
+const PAYMENT_MODE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const TIMER_DURATION = 30 * 60; // 30 minutes in seconds
 
@@ -89,7 +94,7 @@ const CircularTimer = ({ timeLeft, totalTime }: { timeLeft: number; totalTime: n
             <View style={{ position: 'absolute', alignItems: 'center' }}>
                 <Text style={{
                     fontSize: 36,
-                    fontWeight: '900',
+                    fontFamily: 'Rubik-ExtraBold',
                     color: timeLeft > 300 ? '#130001' : '#ef4444',
                     letterSpacing: 2,
                 }}>
@@ -97,7 +102,7 @@ const CircularTimer = ({ timeLeft, totalTime }: { timeLeft: number; totalTime: n
                 </Text>
                 <Text style={{
                     fontSize: 10,
-                    fontWeight: '700',
+                    fontFamily: 'Rubik-Bold',
                     color: '#94a3b8',
                     letterSpacing: 2,
                     textTransform: 'uppercase',
@@ -144,7 +149,7 @@ const VerificationStep = ({
             <Text style={[
                 verifyStyles.stepLabel,
                 status === 'done' && { color: '#22c55e' },
-                status === 'active' && { color: '#FF9933', fontWeight: '700' },
+                status === 'active' && { color: '#FF9933', fontFamily: 'Rubik-Bold' },
                 status === 'pending' && { color: '#cbd5e1' },
             ]}>
                 {label}
@@ -182,6 +187,56 @@ const PaymentScreen = () => {
     const [timeLeft, setTimeLeft] = useState(TIMER_DURATION);
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Payment mode toggle (Play Store-safe gating) — see virtual-crunching-swan plan
+    const [paymentMode, setPaymentMode] = useState<PaymentMode>('LOADING');
+    const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
+
+    useEffect(() => {
+        // If user is resuming a pending payment, force QR view so they can complete verification
+        if (paymentRequestId || showVerificationOnInit) {
+            setPaymentMode('QR');
+            return;
+        }
+        (async () => {
+            // Optimistic load from cache
+            try {
+                const cached = await AsyncStorage.getItem('paymentModeCache');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (parsed?.expiresAt && Date.now() < parsed.expiresAt && parsed.mode) {
+                        setPaymentMode(parsed.mode);
+                    }
+                }
+            } catch {}
+
+            // Fetch fresh
+            try {
+                const [modeRes, contactRes] = await Promise.all([
+                    userApi.getPaymentMode().catch(() => null),
+                    userApi.getAdminContact().catch(() => null),
+                ]);
+                let mode: PaymentMode = 'CONTACT'; // Play Store-safe fallback
+                if (modeRes?.data?.data?.valueColumn) {
+                    try {
+                        const parsed = JSON.parse(modeRes.data.data.valueColumn);
+                        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT') mode = parsed.mode;
+                    } catch {}
+                }
+                if (contactRes?.data?.data?.valueColumn) {
+                    try {
+                        setAdminContact(JSON.parse(contactRes.data.data.valueColumn));
+                    } catch {}
+                }
+                setPaymentMode(mode);
+                await AsyncStorage.setItem('paymentModeCache', JSON.stringify({
+                    mode, expiresAt: Date.now() + PAYMENT_MODE_CACHE_TTL,
+                }));
+            } catch {
+                setPaymentMode('CONTACT'); // safer default if network fails
+            }
+        })();
+    }, [paymentRequestId, showVerificationOnInit]);
 
     // Parent scope guard — bounce back, parents cannot make payments
     useEffect(() => {
@@ -368,6 +423,34 @@ const PaymentScreen = () => {
             router.back();
         }
     }, [showVerification, popup]);
+
+    // ─── PAYMENT MODE GATING ───
+    // Loading: show simple skeleton while we resolve mode from backend
+    if (paymentMode === 'LOADING') {
+        return (
+            <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color="#1F7FE5" />
+            </View>
+        );
+    }
+
+    // CONTACT mode: show "Talk to a Relationship Manager" view (Play Store-safe)
+    if (paymentMode === 'CONTACT') {
+        const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
+        return (
+            <RelationshipManagerView
+                planTitle={planTitle}
+                planPrice={planPrice}
+                planPeriod={planPeriod}
+                encodedUserId={userData?.userId || null}
+                defaultName={fullName}
+                defaultMobile={(userData as any)?.mobileNumber || ''}
+                defaultEmail={(userData as any)?.email}
+                adminContact={adminContact}
+                popupError={(title, msg) => popup.error(title, msg)}
+            />
+        );
+    }
 
     // ─── VERIFICATION STATUS VIEW ───
     if (showVerification) {
@@ -834,7 +917,7 @@ const verifyStyles = StyleSheet.create({
     },
     title: {
         fontSize: 22,
-        fontWeight: '900',
+        fontFamily: 'Rubik-ExtraBold',
         color: '#130001',
         textAlign: 'center',
         marginBottom: 8,
@@ -862,7 +945,7 @@ const verifyStyles = StyleSheet.create({
     },
     planBadgeText: {
         fontSize: 13,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#92750C',
     },
     stepsCard: {
@@ -879,7 +962,7 @@ const verifyStyles = StyleSheet.create({
     },
     stepsTitle: {
         fontSize: 15,
-        fontWeight: '800',
+        fontFamily: 'Rubik-ExtraBold',
         color: '#130001',
         letterSpacing: 0.3,
     },
@@ -911,7 +994,7 @@ const verifyStyles = StyleSheet.create({
     },
     stepLabel: {
         fontSize: 13,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         color: '#475569',
         marginTop: 2,
     },
@@ -924,7 +1007,7 @@ const verifyStyles = StyleSheet.create({
     },
     screenshotLabel: {
         fontSize: 12,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#64748b',
         letterSpacing: 0.5,
         marginBottom: 10,
@@ -950,7 +1033,7 @@ const verifyStyles = StyleSheet.create({
     },
     screenshotBadgeText: {
         fontSize: 12,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         color: '#16a34a',
     },
     infoCard: {
@@ -1003,13 +1086,13 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#B22222',
         letterSpacing: 0.3,
     },
     headerSubtitle: {
         fontSize: 9,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#94a3b8',
         letterSpacing: 3,
         marginTop: 2,
@@ -1072,17 +1155,17 @@ const styles = StyleSheet.create({
     },
     stepNumber: {
         fontSize: 14,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#DADADA',
     },
     stepNumberInactive: {
         fontSize: 14,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#94a3b8',
     },
     stepLabel: {
         fontSize: 10,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
     },
     stepLabelCompleted: {
         color: '#16a34a',
@@ -1130,7 +1213,7 @@ const styles = StyleSheet.create({
     },
     planSummaryTitle: {
         fontSize: 15,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#130001',
     },
     planSummaryDetail: {
@@ -1140,7 +1223,7 @@ const styles = StyleSheet.create({
     },
     changeButton: {
         fontSize: 12,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#B22222',
         textDecorationLine: 'underline',
     },
@@ -1179,13 +1262,13 @@ const styles = StyleSheet.create({
     },
     currentStepText: {
         fontSize: 9,
-        fontWeight: '900',
+        fontFamily: 'Rubik-ExtraBold',
         color: '#FF9933',
         letterSpacing: 3,
     },
     scanPayTitle: {
         fontSize: 26,
-        fontWeight: '900',
+        fontFamily: 'Rubik-ExtraBold',
         color: '#130001',
         marginBottom: 6,
     },
@@ -1223,7 +1306,7 @@ const styles = StyleSheet.create({
     },
     orCopyText: {
         fontSize: 10,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#94a3b8',
         letterSpacing: 3,
         marginBottom: 12,
@@ -1242,7 +1325,7 @@ const styles = StyleSheet.create({
     },
     upiIdText: {
         fontSize: 15,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#130001',
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },
@@ -1257,7 +1340,7 @@ const styles = StyleSheet.create({
     copiedText: {
         fontSize: 12,
         color: '#16a34a',
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         marginTop: 8,
     },
 
@@ -1280,7 +1363,7 @@ const styles = StyleSheet.create({
         lineHeight: 18,
     },
     infoTextBold: {
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#130001',
         textDecorationLine: 'underline',
         textDecorationColor: 'rgba(255, 153, 51, 0.3)',
@@ -1303,7 +1386,7 @@ const styles = StyleSheet.create({
     },
     uploadButtonText: {
         fontSize: 15,
-        fontWeight: '800',
+        fontFamily: 'Rubik-ExtraBold',
         color: '#DADADA',
         letterSpacing: 1,
     },
@@ -1319,7 +1402,7 @@ const styles = StyleSheet.create({
     },
     previewTitle: {
         fontSize: 13,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#475569',
         marginBottom: 12,
         letterSpacing: 0.5,
@@ -1348,7 +1431,7 @@ const styles = StyleSheet.create({
     },
     retakeButtonText: {
         fontSize: 14,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#64748b',
     },
     confirmButton: {
@@ -1368,7 +1451,7 @@ const styles = StyleSheet.create({
     },
     confirmButtonText: {
         fontSize: 14,
-        fontWeight: '800',
+        fontFamily: 'Rubik-ExtraBold',
         color: '#DADADA',
         letterSpacing: 0.5,
     },
@@ -1401,7 +1484,7 @@ const styles = StyleSheet.create({
     },
     lockedTitle: {
         fontSize: 14,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#94a3b8',
     },
     lockedSubtitle: {
@@ -1423,7 +1506,7 @@ const styles = StyleSheet.create({
     },
     estimatedTimeText: {
         fontSize: 9,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#64748b',
         letterSpacing: 1.5,
         textTransform: 'uppercase',
@@ -1458,11 +1541,11 @@ const styles = StyleSheet.create({
     whatsappLabel: {
         fontSize: 11,
         color: '#475569',
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     whatsappNumber: {
         fontSize: 14,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#0f172a',
     },
     chatNowButton: {
@@ -1475,7 +1558,7 @@ const styles = StyleSheet.create({
     },
     chatNowText: {
         fontSize: 12,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#15803d',
     },
 
@@ -1522,7 +1605,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     footerTextBold: {
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#334155',
     },
     utrContainer: {
@@ -1530,7 +1613,7 @@ const styles = StyleSheet.create({
     },
     utrLabel: {
         fontSize: 12,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
         color: '#475569',
         marginBottom: 6,
     },

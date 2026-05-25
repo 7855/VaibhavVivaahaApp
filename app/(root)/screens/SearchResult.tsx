@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#420001',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   headerSpacer: {
     width: 34,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   editSearchText: {
     color: '#420001',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   profileList: {
     flex: 1,
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   profileName: {
     color: '#420001',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     marginBottom: 8,
     width: '57%',
     lineHeight: 20,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
   viewProfileText: {
     color: '#DADADA',
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   bottomSection: {
     paddingHorizontal: 20,
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   upgradeButtonText: {
     color: '#DADADA',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   premiumBadge: {
     position: 'absolute',
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   premiumBadgeText: {
     color: '#130001',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
   },
   tierBadge: {
     position: 'absolute',
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
   tierBadgeText: {
     color: '#130001',
     fontSize: 9,
-    fontWeight: '800',
+    fontFamily: 'Rubik-ExtraBold',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
   },
   resultsText: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'Rubik-Bold',
     color: '#130001',
     marginBottom: 4,
   },
@@ -744,12 +744,12 @@ const styles = StyleSheet.create({
   editButtonText: {
     color: '#420001',
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   saveButtonText: {
     color: '#DADADA',
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
 });
 

@@ -111,7 +111,7 @@ const OtpVerification = () => {
       </View>
 
       <View style={styles.resendSection}>
-        <Text style={{ fontWeight: '600' }}>Didn't get OTP?</Text>
+        <Text style={{ fontFamily: 'Rubik-Medium' }}>Didn't get OTP?</Text>
         {showResend ? (
           <TouchableOpacity onPress={resendOtp}>
             <Text style={styles.resendText}> Resend OTP</Text>
@@ -145,13 +145,13 @@ const styles = StyleSheet.create({
     width: '80%',
     gap: 10,
   },
-  otpHeading: { fontSize: 20, fontWeight: '600', marginLeft: 10 },
+  otpHeading: { fontSize: 20, fontFamily: 'Rubik-Medium', marginLeft: 10 },
   centeredView: { alignItems: 'center', marginBottom: 20 },
   image: { width: '100%', height: 200 },
-  verificationTitle: { textAlign: 'center', fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
+  verificationTitle: { textAlign: 'center', fontSize: 22, fontFamily: 'Rubik-Bold', marginBottom: 20 },
   verificationTextContainer: { alignItems: 'center', marginBottom: 15 },
-  notifyText: { fontSize: 16, color: '#3F506A', fontWeight: '600' },
-  mobileNumber: { fontSize: 15, fontWeight: 'semibold', color: '#3F506A', marginTop: 8 },
+  notifyText: { fontSize: 16, color: '#3F506A', fontFamily: 'Rubik-Medium' },
+  mobileNumber: { fontSize: 15, fontFamily: 'Rubik-Medium', color: '#3F506A', marginTop: 8 },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     textAlign: 'center',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  resendText: { color: 'gray', fontWeight: '600', marginLeft: 6 },
+  resendText: { color: 'gray', fontFamily: 'Rubik-Medium', marginLeft: 6 },
   continueButton: {
     backgroundColor: '#dc2626',
     paddingVertical: 14,
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   continueText: {
     color: '#DADADA',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-Bold',
     textAlign: 'center',
   },
 });

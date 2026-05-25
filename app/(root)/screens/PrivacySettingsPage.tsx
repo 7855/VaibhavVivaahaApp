@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 999,
   },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#0f1724' },
+  headerTitle: { fontSize: 18, fontFamily: 'Rubik-Medium', color: '#0f1724' },
   headerSubtitle: { color: '#6b7280',fontSize: 13,marginTop: 3 },
   infoBox: {
     flexDirection: 'row',
@@ -345,12 +345,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  infoTitle: { fontWeight: 'bold', color: '#991b1b', marginBottom: 4 },
+  infoTitle: { fontFamily: 'Rubik-Bold', color: '#991b1b', marginBottom: 4 },
   infoDescription: { color: '#b91c1c', marginBottom: 8 },
   bullet: { color: '#dc2626', fontSize: 13 },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#0f1724',
     marginTop: 10,
     marginBottom: 12,
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  title: { fontWeight: '600', color: '#130001' },
+  title: { fontFamily: 'Rubik-Medium', color: '#130001' },
   description: { color: '#6b7280', fontSize: 13 },
   modalBackdrop: {
     flex: 1,
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     marginBottom: 16,
   },
-  modalTitle: { fontSize: 16, fontWeight: 'bold', color: '#130001' },
+  modalTitle: { fontSize: 16, fontFamily: 'Rubik-Bold', color: '#130001' },
   modalText: { color: '#6b7280', textAlign: 'center', marginVertical: 12 },
   modalActions: { flexDirection: 'row', marginTop: 12 },
   cancelBtn: {
@@ -414,5 +414,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelText: { color: '#374151' },
-  confirmText: { color: '#DADADA', fontWeight: 'bold' },
+  confirmText: { color: '#DADADA', fontFamily: 'Rubik-Bold' },
 });

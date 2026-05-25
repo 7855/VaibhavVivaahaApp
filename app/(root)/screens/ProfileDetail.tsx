@@ -8,9 +8,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import VerifiedBadges from '@/components/VerifiedBadges';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '@/app/(root)/api/userApi';
-import { Heart, Share2, Phone, Star, ChevronLeft, MoreVertical, Maximize2, Bookmark, BookmarkCheck } from 'lucide-react-native';
+import { Heart, Share2, Phone, Star, ChevronLeft, MoreVertical, Maximize2, Bookmark, BookmarkCheck, ShieldAlert, Flag } from 'lucide-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-native-popup-menu';
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
@@ -31,8 +32,8 @@ const DetailField = ({ label, value }: { label: string; value: string }) => {
   if (!value || value === '-' || value === 'null' || value === 'undefined') return null;
   return (
     <View style={{ flex: 1, minWidth: '46%', marginBottom: 0, backgroundColor: '#f6f8fa', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 }}>
-      <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 2 }}>{label}</Text>
-      <Text style={{ fontSize: 13.5, fontWeight: '600', color: '#0f1724', letterSpacing: -0.2, lineHeight: 18 }}>{value}</Text>
+      <Text style={{ fontSize: 10, fontFamily: 'Rubik-Medium', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 13.5, fontFamily: 'Rubik-Medium', color: '#0f1724', letterSpacing: -0.2, lineHeight: 18 }}>{value}</Text>
     </View>
   );
 };
@@ -43,7 +44,7 @@ const SectionCard = ({ icon, title, children }: { icon: string; title: string; c
       <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#dfecfb', justifyContent: 'center', alignItems: 'center' }}>
         <MaterialIcons name={icon} size={16} color="#1F7FE5" />
       </View>
-      <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#0f1724', letterSpacing: -0.2 }}>{title}</Text>
+      <Text style={{ fontSize: 13.5, fontFamily: 'Rubik-Bold', color: '#0f1724', letterSpacing: -0.2 }}>{title}</Text>
     </View>
     {children}
   </View>
@@ -55,7 +56,7 @@ const PremiumLock = ({ message }: { message: string }) => (
       <MaterialIcons name="lock" size={14} color="#d97706" />
     </View>
     <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400e' }}>Premium Only</Text>
+      <Text style={{ fontSize: 11, fontFamily: 'Rubik-Bold', color: '#92400e' }}>Premium Only</Text>
       <Text style={{ fontSize: 10, color: '#b45309' }}>{message}</Text>
     </View>
     <MaterialIcons name="chevron-right" size={18} color="#d97706" />
@@ -86,7 +87,7 @@ const RestrictedField = ({ fieldType, profileDetailId, currentUserId }: { fieldT
         <MaterialIcons name={requested ? 'hourglass-top' : 'lock'} size={14} color="#c2410c" />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 11, fontWeight: '700', color: '#9a3412' }}>{fieldLabel} Hidden</Text>
+        <Text style={{ fontSize: 11, fontFamily: 'Rubik-Bold', color: '#9a3412' }}>{fieldLabel} Hidden</Text>
         <Text style={{ fontSize: 10, color: '#c2410c' }}>{requested ? 'Permission requested' : 'Tap to request access'}</Text>
       </View>
       <MaterialIcons name={requested ? 'close' : 'chevron-right'} size={18} color="#c2410c" />
@@ -121,8 +122,8 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
         ) : personal['Mobile Number'] && personal['Mobile Number'] !== 'null' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#dfecfb', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(31,127,229,0.15)' }}>
             <View>
-              <Text style={{ fontSize: 10, fontWeight: '500', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.3 }}>Mobile</Text>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1862b8', marginTop: 2 }}>{personal['Mobile Number']}</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Rubik-Medium', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.3 }}>Mobile</Text>
+              <Text style={{ fontSize: 15, fontFamily: 'Rubik-Medium', color: '#1862b8', marginTop: 2 }}>{personal['Mobile Number']}</Text>
             </View>
             <MaterialIcons name="phone" size={20} color="#1F7FE5" />
           </View>
@@ -135,7 +136,7 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {interests.map((hobby: string, i: number) => (
               <View key={i} style={{ backgroundColor: '#f6f8fa', paddingHorizontal: 13, paddingVertical: 7, borderRadius: 100 }}>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: '#1e293b' }}>
+                <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: '#1e293b' }}>
                   {HOBBY_EMOJI[hobby.toLowerCase()] || '🎯'} {hobby.charAt(0).toUpperCase() + hobby.slice(1)}
                 </Text>
               </View>
@@ -238,6 +239,9 @@ const ProfileDetailRevamp = () => {
   const [isParent, setIsParent] = useState(false);
   const [permissionRequests, setPermissionRequests] = useState<{ [key: string]: boolean }>({ profileImage: false });
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedReason, setSelectedReason] = useState('');
+  const REPORT_REASONS = ['Spam', 'Abuse', 'Harassment', 'Fake Profile', 'Inappropriate Photos', 'Others'];
 
   const currentUserId = userData?.userId || null;
   const planTitle = subscriptionData?.planTitle;
@@ -607,6 +611,38 @@ const ProfileDetailRevamp = () => {
     });
   };
 
+  // ─── Block / Report ───────────────────────────────
+  const handleBlockUser = () => {
+    if (isParent) { popup.error('Not allowed', 'Parent accounts cannot block users.'); return; }
+    popup.confirm(
+      'Block User',
+      `Block ${userDetails?.firstName || 'this user'}? You won't see each other's profiles anymore. This can be reversed from Settings.`,
+      'Block',
+      async () => {
+        try {
+          await userApi.blockUser({ blockedByUserId: userData.userId, blockedUserId: userId });
+          popup.success('Blocked', `${userDetails?.firstName || 'User'} has been blocked.`);
+          router.back();
+        } catch { popup.error('Error', 'Could not block user. Try again.'); }
+      },
+    );
+  };
+
+  const handleReportUser = () => {
+    if (isParent) { popup.error('Not allowed', 'Parent accounts cannot report users.'); return; }
+    setSelectedReason('');
+    setReportModalVisible(true);
+  };
+
+  const handleReportSubmit = async () => {
+    if (!selectedReason) { popup.error('Select Reason', 'Please select a reason for reporting.'); return; }
+    try {
+      await userApi.reportUser({ reportedByUserId: userData.userId, reportedUserId: userId, reason: selectedReason });
+      setReportModalVisible(false);
+      popup.success('Reported', 'Your report has been submitted. Our team will review it.');
+    } catch { popup.error('Error', 'Could not submit report. Try again.'); }
+  };
+
   // ─── Derived values ────────────────────────────────
   const profileImage = userDetails?.profileImage;
   const isFree = !planTitle || planTitle === 'Free';
@@ -664,6 +700,7 @@ const ProfileDetailRevamp = () => {
 
   // ─── Render ────────────────────────────────────────
   return (
+    <MenuProvider>
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
@@ -710,12 +747,12 @@ const ProfileDetailRevamp = () => {
               />
               <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }]}>
                 <Ionicons name="eye-off" size={40} color="rgba(255,255,255,0.8)" />
-                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600', marginTop: 10, textAlign: 'center' }}>User has restricted their profile photo</Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Rubik-Medium', marginTop: 10, textAlign: 'center' }}>User has restricted their profile photo</Text>
                 <TouchableOpacity
                   onPress={handlePermissionRequest}
                   style={{ marginTop: 14, backgroundColor: permissionRequests.profileImage ? '#EF4444' : '#1F7FE5', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24 }}
                 >
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                  <Text style={{ color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 13 }}>
                     {permissionRequests.profileImage ? 'Cancel Request' : 'Ask Permission'}
                   </Text>
                 </TouchableOpacity>
@@ -727,9 +764,9 @@ const ProfileDetailRevamp = () => {
               <Image source={{ uri: profileImage }} style={StyleSheet.absoluteFillObject} blurRadius={25} />
               <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }]}>
                 <Ionicons name="lock-closed" size={40} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600', marginTop: 10 }}>Upgrade to view photos</Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Rubik-Medium', marginTop: 10 }}>Upgrade to view photos</Text>
                 <TouchableOpacity onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ marginTop: 12, backgroundColor: '#1F7FE5', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24 }}>
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Upgrade Now</Text>
+                  <Text style={{ color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 13 }}>Upgrade Now</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -778,9 +815,34 @@ const ProfileDetailRevamp = () => {
           <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
             <ChevronLeft size={22} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={s.headerBtn}>
-            <MoreVertical size={22} color="#fff" />
-          </TouchableOpacity>
+          <Menu>
+            <MenuTrigger>
+              <View style={s.headerBtn}>
+                <MoreVertical size={22} color="#fff" />
+              </View>
+            </MenuTrigger>
+            <MenuOptions customStyles={{ optionsContainer: { borderRadius: 14, paddingVertical: 6, width: 210, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 } }}>
+              <MenuOption onSelect={handleBlockUser}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
+                  <ShieldAlert size={18} color="#334155" />
+                  <View>
+                    <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#1e293b' }}>Block</Text>
+                    <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Hide each other. Reversible.</Text>
+                  </View>
+                </View>
+              </MenuOption>
+              <View style={{ height: 1, backgroundColor: '#f1f5f9', marginHorizontal: 12 }} />
+              <MenuOption onSelect={handleReportUser}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
+                  <Flag size={18} color="#dc2626" />
+                  <View>
+                    <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#dc2626' }}>Report User</Text>
+                    <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Flag for moderator review.</Text>
+                  </View>
+                </View>
+              </MenuOption>
+            </MenuOptions>
+          </Menu>
         </View>
 
         {/* ─── Profile Card (overlaps image) ─── */}
@@ -789,7 +851,7 @@ const ProfileDetailRevamp = () => {
           {(anyVerified || isVerifiedPlan) && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
               <MaterialIcons name="verified" size={14} color="#1F7FE5" />
-              <Text style={{ fontSize: 10, fontWeight: '700', color: '#1F7FE5', textTransform: 'uppercase', letterSpacing: 0.8 }}>Verified Profile</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Rubik-Bold', color: '#1F7FE5', textTransform: 'uppercase', letterSpacing: 0.8 }}>Verified Profile</Text>
             </View>
           )}
           {/* Name */}
@@ -864,7 +926,39 @@ const ProfileDetailRevamp = () => {
           />}
         </View>
       </ScrollView>
+
+      {/* ─── Report Modal ─── */}
+      <Modal visible={reportModalVisible} transparent animationType="fade">
+        <View style={s.reportOverlay}>
+          <View style={s.reportCard}>
+            <Text style={s.reportTitle}>Report User</Text>
+            <Text style={s.reportDesc}>Why are you reporting {userDetails?.firstName || 'this user'}?</Text>
+            <View style={s.reportReasons}>
+              {REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[s.reportChip, selectedReason === reason && s.reportChipActive]}
+                  onPress={() => setSelectedReason(reason)}
+                >
+                  <Text style={[s.reportChipText, selectedReason === reason && s.reportChipTextActive]}>{reason}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={s.reportBtnRow}>
+              <TouchableOpacity style={s.reportCancelBtn} onPress={() => setReportModalVisible(false)}>
+                <Text style={s.reportCancelTxt}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.reportSubmitBtn, !selectedReason && { opacity: 0.5 }]} onPress={handleReportSubmit}>
+                <LinearGradient colors={['#dc2626', '#b91c1c']} style={s.reportSubmitGrad}>
+                  <Text style={s.reportSubmitTxt}>Report</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
+    </MenuProvider>
   );
 };
 
@@ -885,25 +979,25 @@ const s = StyleSheet.create({
   profileCard: { marginTop: -36, backgroundColor: '#f1f5f9', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 60, shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
 
   // Typography
-  nameText: { fontSize: 20, fontWeight: '800', color: '#0f1724', letterSpacing: -0.5 },
-  subText: { fontSize: 12.5, color: '#475569', marginTop: 2, fontWeight: '500', letterSpacing: -0.2 },
-  occupationText: { fontSize: 12.5, color: '#1F7FE5', fontWeight: '600', marginTop: 3, letterSpacing: -0.1 },
+  nameText: { fontSize: 20, fontFamily: 'Rubik-ExtraBold', color: '#0f1724', letterSpacing: -0.5 },
+  subText: { fontSize: 12.5, color: '#475569', marginTop: 2, fontFamily: 'Rubik-Medium', letterSpacing: -0.2 },
+  occupationText: { fontSize: 12.5, color: '#1F7FE5', fontFamily: 'Rubik-Medium', marginTop: 3, letterSpacing: -0.1 },
 
   // Verification badges
   badge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#dfecfb', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100 },
-  badgeText: { fontSize: 9.5, fontWeight: '600', color: '#1862b8' },
+  badgeText: { fontSize: 9.5, fontFamily: 'Rubik-Medium', color: '#1862b8' },
 
   // Primary CTA
   primaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 14, shadowColor: 'rgba(31,127,229,0.25)', shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  primaryBtnText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
+  primaryBtnText: { color: '#fff', fontSize: 13.5, fontFamily: 'Rubik-Bold' },
 
   // Secondary buttons
   secondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#fff' },
-  secondaryBtnText: { color: '#1F7FE5', fontSize: 12.5, fontWeight: '700' },
+  secondaryBtnText: { color: '#1F7FE5', fontSize: 12.5, fontFamily: 'Rubik-Bold' },
 
   // Share button
   shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 12, backgroundColor: '#f6f8fa' },
-  shareBtnText: { color: '#475569', fontSize: 11.5, fontWeight: '500' },
+  shareBtnText: { color: '#475569', fontSize: 11.5, fontFamily: 'Rubik-Medium' },
 
   // Image gallery modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(10,10,15,0.97)', justifyContent: 'center' },
@@ -912,6 +1006,23 @@ const s = StyleSheet.create({
   dotRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 40 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)' },
   dotActive: { backgroundColor: '#1F7FE5', width: 20, borderRadius: 3 },
+
+  // Report modal
+  reportOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  reportCard: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 },
+  reportTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: '#1e293b', marginBottom: 6 },
+  reportDesc: { fontSize: 13, color: '#64748b', marginBottom: 16 },
+  reportReasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  reportChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc' },
+  reportChipActive: { borderColor: '#dc2626', backgroundColor: '#fef2f2' },
+  reportChipText: { fontSize: 13, fontFamily: 'Rubik-Medium', color: '#475569' },
+  reportChipTextActive: { color: '#dc2626', fontFamily: 'Rubik-Medium' },
+  reportBtnRow: { flexDirection: 'row', gap: 10 },
+  reportCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#e2e8f0', alignItems: 'center' },
+  reportCancelTxt: { fontSize: 14, fontFamily: 'Rubik-Medium', color: '#64748b' },
+  reportSubmitBtn: { flex: 1, borderRadius: 12, overflow: 'hidden' },
+  reportSubmitGrad: { paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
+  reportSubmitTxt: { fontSize: 14, fontFamily: 'Rubik-Bold', color: '#fff' },
 });
 
 export default ProfileDetailRevamp;

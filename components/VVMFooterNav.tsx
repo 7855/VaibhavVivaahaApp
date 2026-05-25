@@ -151,10 +151,10 @@ const s = StyleSheet.create({
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 0, position: 'relative' },
   tabInner: { alignItems: 'center', justifyContent: 'center', paddingTop: 11, gap: 4 },
   activeBar: { position: 'absolute', top: 0, alignSelf: 'center', width: 26, height: 3, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, backgroundColor: COLORS.brand },
-  tabLabel: { fontSize: 10, fontWeight: '500', color: COLORS.inactive, letterSpacing: -0.1, lineHeight: 13 },
-  tabLabelActive: { color: COLORS.brand, fontWeight: '700' },
+  tabLabel: { fontSize: 10, fontFamily: 'Rubik-Regular', color: COLORS.inactive, letterSpacing: -0.1, lineHeight: 13 },
+  tabLabelActive: { color: COLORS.brand, fontFamily: 'Rubik-Bold' },
   badge: { position: 'absolute', top: 8, right: -8, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: COLORS.badgeRed, borderWidth: 2, borderColor: COLORS.white, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, zIndex: 10 },
-  badgeText: { fontSize: 8, fontWeight: '800', color: COLORS.white, lineHeight: 10 },
+  badgeText: { fontSize: 8, fontFamily: 'Rubik-ExtraBold', color: COLORS.white, lineHeight: 10 },
   fabWrap: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', marginTop: -22 },
   fabCircle: {
     width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center',
@@ -165,8 +165,8 @@ const s = StyleSheet.create({
     }),
   },
   fabCircleActive: { ...Platform.select({ ios: { shadowOpacity: 0.6, shadowRadius: 18 } }) },
-  fabLabel: { fontSize: 10, fontWeight: '600', color: COLORS.inactive, marginTop: 5, letterSpacing: -0.1, lineHeight: 13 },
-  fabLabelActive: { color: COLORS.brand, fontWeight: '700' },
+  fabLabel: { fontSize: 10, fontFamily: 'Rubik-Regular', color: COLORS.inactive, marginTop: 5, letterSpacing: -0.1, lineHeight: 13 },
+  fabLabelActive: { color: COLORS.brand, fontFamily: 'Rubik-Bold' },
 });
 
 export default VVMFooterNav;

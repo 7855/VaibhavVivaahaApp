@@ -94,14 +94,14 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#DADADA',
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
   },
   titleWrapper: {
     flex: 1,
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Rubik-Medium',
     color: '#130001',
   },
   subtitle: {
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   readText: {
     fontSize: 12,
     color: '#2563EB',
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     marginLeft: 4,
   },
   clearButton: {
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   clearText: {
     fontSize: 12,
     color: '#130001',
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     marginLeft: 4,
   },
   settingsButton: {

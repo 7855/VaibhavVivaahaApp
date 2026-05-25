@@ -303,17 +303,17 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafafa' },
   scroll: { padding: 16, paddingBottom: 40 },
   banner: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, marginBottom: 16 },
-  bannerText: { marginLeft: 8, fontSize: 13, fontWeight: '600' },
+  bannerText: { marginLeft: 8, fontSize: 13, fontFamily: 'Rubik-Medium' },
   explainCard: {
     backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 20,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   explainHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  explainTitle: { fontSize: 16, fontWeight: '700', color: '#420001', marginLeft: 10, flex: 1 },
+  explainTitle: { fontSize: 16, fontFamily: 'Rubik-Bold', color: '#420001', marginLeft: 10, flex: 1 },
   bullet: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 8 },
   bulletText: { fontSize: 12, color: '#374151', marginLeft: 8, flex: 1, lineHeight: 18 },
-  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#420001', marginBottom: 4, marginTop: 4 },
+  sectionLabel: { fontSize: 13, fontFamily: 'Rubik-Bold', color: '#420001', marginBottom: 4, marginTop: 4 },
   hint: { fontSize: 11, color: '#6b7280', marginBottom: 6, fontStyle: 'italic' },
   docGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   docChip: {
@@ -321,7 +321,7 @@ const s = StyleSheet.create({
     borderRadius: 22, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#fff',
   },
   docChipActive: { backgroundColor: '#420001', borderColor: '#420001' },
-  docLabel: { marginLeft: 6, fontSize: 12, fontWeight: '600', color: '#420001' },
+  docLabel: { marginLeft: 6, fontSize: 12, fontFamily: 'Rubik-Medium', color: '#420001' },
   input: {
     backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db',
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#111827', marginBottom: 18,
@@ -332,7 +332,7 @@ const s = StyleSheet.create({
     paddingVertical: 14, borderRadius: 10, borderWidth: 1.5, borderStyle: 'dashed',
     borderColor: '#420001', backgroundColor: '#fff',
   },
-  uploadBtnText: { color: '#420001', fontWeight: '700', marginLeft: 6, fontSize: 13 },
+  uploadBtnText: { color: '#420001', fontFamily: 'Rubik-Bold', marginLeft: 6, fontSize: 13 },
   previewBox: { position: 'relative', marginBottom: 18 },
   preview: {
     width: '100%', height: 220, borderRadius: 10, resizeMode: 'cover', backgroundColor: '#e5e7eb',
@@ -342,5 +342,5 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#420001', paddingVertical: 14, borderRadius: 10, marginTop: 6,
   },
-  submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 14, marginLeft: 8 },
+  submitBtnText: { color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 14, marginLeft: 8 },
 });

@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
         minWidth: 28,
         alignItems: 'center',
     },
-    countText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+    countText: { color: '#fff', fontSize: 12, fontFamily: 'Rubik-Bold' },
 
     listContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40 },
 
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
         borderColor: '#fff',
     },
     info: { flex: 1, marginLeft: 12, justifyContent: 'center' },
-    name: { fontSize: 15, fontWeight: '700', color: '#111' },
+    name: { fontSize: 15, fontFamily: 'Rubik-Bold', color: '#111' },
     meta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
     chipsRow: { flexDirection: 'row', marginTop: 6, flexWrap: 'wrap' },
     chip: {
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
         marginRight: 4,
         maxWidth: 120,
     },
-    chipText: { fontSize: 9, color: '#4b5563', marginLeft: 3, fontWeight: '500' },
+    chipText: { fontSize: 9, color: '#4b5563', marginLeft: 3, fontFamily: 'Rubik-Medium' },
     timestamp: { fontSize: 10, color: '#9ca3af', marginTop: 4 },
 
     actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 6,
     },
-    upgradeTitle: { fontSize: 20, fontWeight: '800', color: '#111', marginBottom: 8 },
+    upgradeTitle: { fontSize: 20, fontFamily: 'Rubik-ExtraBold', color: '#111', marginBottom: 8 },
     upgradeSubtitle: {
         fontSize: 13,
         color: '#6b7280',
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
         paddingVertical: 13,
         gap: 8,
     },
-    upgradeBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+    upgradeBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Rubik-Bold' },
 
     errorIcon: {
         width: 80, height: 80, borderRadius: 40,
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
         marginBottom: 14,
     },
-    errorTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
+    errorTitle: { fontSize: 16, fontFamily: 'Rubik-Bold', color: '#111' },
     errorSubtitle: { fontSize: 12, color: '#6b7280', marginTop: 6, textAlign: 'center' },
     retryBtn: {
         flexDirection: 'row',
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
         borderColor: '#9c4040',
         backgroundColor: '#fff',
     },
-    retryBtnText: { color: '#9c4040', fontSize: 13, fontWeight: '700' },
+    retryBtnText: { color: '#9c4040', fontSize: 13, fontFamily: 'Rubik-Bold' },
 
     emptyIcon: {
         width: 96, height: 96, borderRadius: 48,
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
         marginBottom: 18,
     },
-    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 8 },
+    emptyTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: '#111', marginBottom: 8 },
     emptySubtitle: {
         fontSize: 13,
         color: '#6b7280',

@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#f3f4f6',
   },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#111' },
+  headerTitle: { fontSize: 18, fontFamily: 'Rubik-Medium', color: '#111' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: { marginTop: 12, color: '#6b7280', fontSize: 15, textAlign: 'center' },
   card: {
@@ -152,9 +152,9 @@ const styles = StyleSheet.create({
     borderColor: '#f3f4f6',
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#111', flex: 1 },
+  cardTitle: { fontSize: 15, fontFamily: 'Rubik-Medium', color: '#111', flex: 1 },
   statusChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 8 },
-  statusText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  statusText: { color: '#fff', fontSize: 11, fontFamily: 'Rubik-Medium' },
   note: { marginTop: 6, color: '#4b5563', fontSize: 13 },
   date: { marginTop: 6, color: '#9ca3af', fontSize: 11 },
 });

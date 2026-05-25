@@ -220,14 +220,14 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 24,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#130001',
         marginBottom: 4,
     },
     subtitle: {
         fontSize: 15,
         color: '#6b7280',
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     messageCard: {
         backgroundColor: '#ffffff',
@@ -259,12 +259,12 @@ const styles = StyleSheet.create({
     infoLabel: {
         fontSize: 13,
         color: '#6b7280',
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
     infoValue: {
         fontSize: 13,
         color: '#130001',
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
     },
     statusBadge: {
         backgroundColor: '#FEF3C7',
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     statusBadgeText: {
         color: '#92400E',
         fontSize: 11,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         letterSpacing: 0.5,
     },
     rejectionCard: {
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     },
     rejectionTitle: {
         fontSize: 13,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#991B1B',
         marginBottom: 8,
         textTransform: 'uppercase',
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     },
     stepsTitle: {
         fontSize: 15,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
         color: '#1F7FE5',
         marginBottom: 14,
     },
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     stepNumberText: {
         color: '#fff',
         fontSize: 12,
-        fontWeight: '700',
+        fontFamily: 'Rubik-Bold',
     },
     stepText: {
         fontSize: 14,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     primaryBtnText: {
         color: '#fff',
         fontSize: 15,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
     },
     secondaryBtn: {
         flexDirection: 'row',
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     secondaryBtnText: {
         color: '#1F7FE5',
         fontSize: 15,
-        fontWeight: '600',
+        fontFamily: 'Rubik-Medium',
     },
     ghostBtn: {
         flexDirection: 'row',
@@ -388,6 +388,6 @@ const styles = StyleSheet.create({
     ghostBtnText: {
         color: '#6b7280',
         fontSize: 14,
-        fontWeight: '500',
+        fontFamily: 'Rubik-Medium',
     },
 });

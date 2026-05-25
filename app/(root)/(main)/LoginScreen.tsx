@@ -195,7 +195,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
 
                   <Text style={{
                     fontSize: 24,
-                    fontWeight: '600',
+                    fontFamily: 'Rubik-Medium',
                     color: '#5C1A1B',
                     marginBottom: 8,
                     textAlign: 'center',
@@ -204,7 +204,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                   </Text>
                   <Text style={{
                     fontSize: 14,
-                    fontWeight: '500',
+                    fontFamily: 'Rubik-Medium',
                     color: '#8a7a6d',
                     textAlign: 'center',
                   }}>
@@ -237,7 +237,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                             <Icon name="phone" size={16} color="#130057" />
                             <Text style={{
                               fontSize: 12,
-                              fontWeight: 'bold',
+                              fontFamily: 'Rubik-Bold',
                               color: '#130057',
                               letterSpacing: 1,
                               textTransform: 'uppercase',
@@ -258,6 +258,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                               <Icon name="phone" size={20} color="#130057" />
                             </View>
                             <TextInput
+                              testID="input-mobile"
+                              accessibilityLabel="input-mobile"
                               defaultValue={mobileNumber}
                               onChangeText={(text) => setMobileNumber(text.replace(/\D/g, '').slice(0, 10))}
                               style={{
@@ -269,7 +271,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                                 borderColor: 'rgba(19, 0, 87, 0.1)',
                                 borderRadius: 16,
                                 fontSize: 14,
-                                fontWeight: '500',
+                                fontFamily: 'Rubik-Medium',
                                 color: '#130057',
                               }}
                               placeholder="Enter mobile number"
@@ -298,7 +300,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                             <Text style={{
                               fontSize: 14,
                               color: '#f44336',
-                              fontWeight: '500',
+                              fontFamily: 'Rubik-Medium',
                             }}>
                               Please enter a complete 10-digit number
                             </Text>
@@ -311,7 +313,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                             <Icon name="lock" size={16} color="#130057" />
                             <Text style={{
                               fontSize: 12,
-                              fontWeight: 'bold',
+                              fontFamily: 'Rubik-Bold',
                               color: '#130057',
                               letterSpacing: 1,
                               textTransform: 'uppercase',
@@ -332,6 +334,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                               <Icon name="lock" size={20} color="#130057" />
                             </View>
                             <TextInput
+                              testID="input-pin"
+                              accessibilityLabel="input-pin"
                               defaultValue={pin}
                               onChangeText={(text) => setPin(text.replace(/\D/g, '').slice(0, 4))}
                               style={{
@@ -343,7 +347,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                                 borderColor: 'rgba(19, 0, 87, 0.1)',
                                 borderRadius: 16,
                                 fontSize: 14,
-                                fontWeight: '500',
+                                fontFamily: 'Rubik-Medium',
                                 color: '#130057',
                               }}
                               placeholder="Enter PIN"
@@ -373,7 +377,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                             <Text style={{
                               fontSize: 14,
                               color: '#f44336',
-                              fontWeight: '500',
+                              fontFamily: 'Rubik-Medium',
                             }}>
                               PIN must be exactly 4 digits
                             </Text>
@@ -382,9 +386,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
 
                         {/* Sign In Button */}
                         <TouchableOpacity
+                          testID="btn-sign-in"
+                          accessibilityLabel="btn-sign-in"
                           onPress={handleLogin}
                           disabled={!isFormValid || isLoading}
-                         
+
                         >
                           <LinearGradient
                             colors={isFormValid && !isLoading ? ['#1F7FE5', '#1F7FE5'] : ['#cccccc', '#999999']}
@@ -396,13 +402,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                             }}
                           >
                             {isLoading ? (
-                              <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Rubik-Bold' }}>
                                 Signing in...
                               </Text>
                             ) : (
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Icon name="favorite" size={20} color="white" />
-                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 }}>
+                                <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Rubik-Bold', marginLeft: 8 }}>
                                   Sign In
                                 </Text>
                               </View>
@@ -419,7 +425,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                             <Icon name="lock" size={16} color="#130057" />
                             <Text style={{
                               color: '#130057',
-                              fontWeight: '600',
+                              fontFamily: 'Rubik-Medium',
                               marginLeft: 8,
                               textDecorationLine: 'underline',
                             }}>
@@ -436,7 +442,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                 <View style={{ alignItems: 'center', marginTop: 24 }}>
                   <Text style={{ fontSize: 13, color: '#8a7a6d' }}>
                     Don't have an account?{' '}
-                    <Text style={{ color: '#5C1A1B', fontWeight: '600' }} onPress={() => router.push('/(root)/(main)/sign-up')}>
+                    <Text style={{ color: '#5C1A1B', fontFamily: 'Rubik-Medium' }} onPress={() => router.push('/(root)/(main)/sign-up')}>
                       Sign Up
                     </Text>
                   </Text>
