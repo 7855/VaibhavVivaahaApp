@@ -17,6 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
+import { useSubscription } from '../contexts/subscriptionContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 
 type DocumentType = 'AADHAAR_CARD' | 'PAN_CARD' | 'VOTER_ID' | 'DRIVING_LICENSE' | 'PASSPORT';
 
@@ -39,6 +41,7 @@ interface LatestSubmission {
 
 export default function IdVerificationScreen() {
   const popup = usePopup();
+  const { subscriptionData } = useSubscription() || {};
   const [encodedUserId, setEncodedUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -121,7 +124,7 @@ export default function IdVerificationScreen() {
       } else if (res.data.code === 403) {
         popup.premiumRequired(
           'Upgrade to Silver or above to verify your ID.',
-          () => router.push('/(root)/screens/PremiumTab' as any)
+          buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'ID Verification', minPlan: 'Silver' })
         );
       } else if (res.data.code === 409) {
         popup.warning('Already submitted', 'You already have a pending ID verification.');
@@ -132,7 +135,7 @@ export default function IdVerificationScreen() {
       if (e?.response?.data?.code === 403) {
         popup.premiumRequired(
           'Upgrade to Silver or above to verify your ID.',
-          () => router.push('/(root)/screens/PremiumTab' as any)
+          buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'ID Verification', minPlan: 'Silver' })
         );
       } else {
         popup.error('Upload failed', e?.response?.data?.message || 'Network error.');

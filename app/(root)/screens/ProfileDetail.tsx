@@ -1,6 +1,6 @@
 import {
   View, Text, Image, ScrollView, StyleSheet, TouchableOpacity,
-  Modal, FlatList, Dimensions, Linking, StatusBar
+  Modal, FlatList, Dimensions, Linking, StatusBar, Platform
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react';
@@ -8,13 +8,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import VerifiedBadges from '@/components/VerifiedBadges';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '@/app/(root)/api/userApi';
-import { Heart, Share2, Phone, Star, ChevronLeft, MoreVertical, Maximize2, Bookmark, BookmarkCheck, ShieldAlert, Flag } from 'lucide-react-native';
+import { Heart, Share2, Phone, Star, ChevronLeft, MoreVertical, Maximize2, Bookmark, BookmarkCheck, ShieldAlert, Flag, Clock } from 'lucide-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-native-popup-menu';
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -50,8 +51,8 @@ const SectionCard = ({ icon, title, children }: { icon: string; title: string; c
   </View>
 );
 
-const PremiumLock = ({ message }: { message: string }) => (
-  <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fffbeb', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#fde68a' }}>
+const PremiumLock = ({ message, planTitle, featureName }: { message: string; planTitle?: string; featureName?: string }) => (
+  <TouchableOpacity activeOpacity={0.7} onPress={buildUpgradeAction({ planTitle, featureName: featureName || 'this feature' })} style={{ backgroundColor: '#fffbeb', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#fde68a' }}>
     <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#fef3c7', justifyContent: 'center', alignItems: 'center' }}>
       <MaterialIcons name="lock" size={14} color="#d97706" />
     </View>
@@ -63,8 +64,14 @@ const PremiumLock = ({ message }: { message: string }) => (
   </TouchableOpacity>
 );
 
-const RestrictedField = ({ fieldType, profileDetailId, currentUserId }: { fieldType: string; profileDetailId: string; currentUserId: string }) => {
-  const [requested, setRequested] = useState(false);
+const RestrictedField = ({ fieldType, profileDetailId, currentUserId, initialRequested = false }: { fieldType: string; profileDetailId: string; currentUserId: string; initialRequested?: boolean }) => {
+  const [requested, setRequested] = useState(initialRequested);
+  // Parent only knows the true server state once its own fetch resolves (after this component's
+  // first render), so sync up when that arrives instead of only reading it once at mount.
+  useEffect(() => {
+    setRequested(initialRequested);
+  }, [initialRequested]);
+  const popup = usePopup();
   const fieldLabel = fieldType === 'PROFILE_IMAGE' ? 'Profile Photo' : fieldType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   return (
     <TouchableOpacity
@@ -79,7 +86,9 @@ const RestrictedField = ({ fieldType, profileDetailId, currentUserId }: { fieldT
             await userApi.sendRestrictedFieldRequest(decodedId, profileDetailId, fieldType);
             setRequested(true);
           }
-        } catch {}
+        } catch (e) {
+          popup.error('Error', 'Failed to process request. Please try again.');
+        }
       }}
       style={{ backgroundColor: '#fff7ed', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#fed7aa' }}
     >
@@ -95,14 +104,62 @@ const RestrictedField = ({ fieldType, profileDetailId, currentUserId }: { fieldT
   );
 };
 
-const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profileDetailId = '', currentUserId = '' }: {
-  personalDetail: any[]; isPremium: boolean; hiddenFields?: string[]; profileDetailId?: string; currentUserId?: string;
+const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profileDetailId = '', currentUserId = '', planTitle = '', interestStatus = '', permissionRequests = {}, approvedFields = [] }: {
+  personalDetail: any[]; isPremium: boolean; hiddenFields?: string[]; profileDetailId?: string; currentUserId?: string; planTitle?: string; interestStatus?: string; permissionRequests?: { [key: string]: boolean }; approvedFields?: string[];
 }) => {
   const personal = personalDetail?.[0]?.data || {};
   const religious = personalDetail?.[1]?.data || {};
   const education = personalDetail?.[2]?.data || {};
   const family = personalDetail?.[3]?.data || {};
   const interests = personalDetail?.[4]?.data?._hobbies || [];
+
+  const popup = usePopup();
+  const [revealedMobile, setRevealedMobile] = useState<string | null>(null);
+  const [revealQuota, setRevealQuota] = useState<{ remaining: number; total: number } | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  // One combined reveal now covers both Contact and Horoscope — clicking either button spends
+  // the same contact-reveal quota tap and shows whichever of the two the viewer is eligible for.
+  // Horoscope eligibility is unchanged from before (plan must have HOROSCOPE_VIEW AND the interest
+  // between the two users must be APPROVED) — revealing contact doesn't bypass that, it just
+  // surfaces both together instead of horoscope only ever appearing passively on its own.
+  const [revealedHoroscope, setRevealedHoroscope] = useState<string | null>(null);
+  const [horoscopeEligible, setHoroscopeEligible] = useState<boolean | null>(null);
+
+  // Classic gets a limited number of contact reveals (see VIEW_PERSONAL_INFO plan_features
+  // row — a numeric quota, not "enabled" like Silver+), so it needs an explicit action here
+  // rather than the flat upgrade wall Free/Starter see.
+  const handleRevealContact = async () => {
+    if (!currentUserId || !profileDetailId || revealing) return;
+    setRevealing(true);
+    try {
+      const res = await userApi.revealContact(currentUserId, profileDetailId);
+      if (res.data?.code === 200) {
+        setRevealedMobile(res.data.data.mobile);
+        if (!res.data.data.unlimited) {
+          setRevealQuota({ remaining: res.data.data.remaining, total: res.data.data.total });
+        }
+        setHoroscopeEligible(!!res.data.data.horoscopeEligible);
+        if (res.data.data.horoscopeEligible) {
+          setRevealedHoroscope(res.data.data.horoscope || null);
+        } else {
+          popup.success('Contact revealed', 'Horoscope will unlock once your interest with this profile is accepted.');
+        }
+      } else if (res.data?.message === 'CONTACT_VIEW_LIMIT_EXCEEDED') {
+        popup.premiumRequired(
+          "You've used all your contact reveals for this plan. Upgrade to Silver for unlimited access.",
+          buildUpgradeAction({ planTitle, featureName: 'Contact Reveal', minPlan: 'Silver' })
+        );
+      } else if (res.data?.code === 403) {
+        popup.premiumRequired('Upgrade your plan to view contact details.', buildUpgradeAction({ planTitle, featureName: 'Contact Reveal' }));
+      } else {
+        popup.error('Error', res.data?.message || 'Could not reveal contact.');
+      }
+    } catch (e) {
+      popup.error('Error', 'Could not reveal contact. Please try again.');
+    } finally {
+      setRevealing(false);
+    }
+  };
 
   const renderPersonal = () => (
     <View style={{ gap: 0 }}>
@@ -117,18 +174,37 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
         </View>
       </SectionCard>
       <SectionCard icon="contact-phone" title="Contact">
-        {hiddenFields.includes('mobile') ? (
-          <RestrictedField fieldType="MOBILE" profileDetailId={profileDetailId} currentUserId={currentUserId} />
-        ) : personal['Mobile Number'] && personal['Mobile Number'] !== 'null' ? (
+        {hiddenFields.includes('mobileNumber') && !approvedFields.includes('MOBILE') ? (
+          <RestrictedField fieldType="MOBILE" profileDetailId={profileDetailId} currentUserId={currentUserId} initialRequested={permissionRequests.mobile} />
+        ) : (personal['Mobile Number'] && personal['Mobile Number'] !== 'null') || revealedMobile ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#dfecfb', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(31,127,229,0.15)' }}>
             <View>
               <Text style={{ fontSize: 10, fontFamily: 'Rubik-Medium', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.3 }}>Mobile</Text>
-              <Text style={{ fontSize: 15, fontFamily: 'Rubik-Medium', color: '#1862b8', marginTop: 2 }}>{personal['Mobile Number']}</Text>
+              <Text style={{ fontSize: 15, fontFamily: 'Rubik-Medium', color: '#1862b8', marginTop: 2 }}>{revealedMobile || personal['Mobile Number']}</Text>
+              {revealQuota && (
+                <Text style={{ fontSize: 11, fontFamily: 'Rubik-Regular', color: '#64748b', marginTop: 2 }}>
+                  {revealQuota.remaining} of {revealQuota.total} contact reveals left
+                </Text>
+              )}
             </View>
             <MaterialIcons name="phone" size={20} color="#1F7FE5" />
           </View>
+        ) : planTitle === 'Classic' ? (
+          <TouchableOpacity
+            onPress={handleRevealContact}
+            disabled={revealing}
+            activeOpacity={0.8}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#dfecfb', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(31,127,229,0.2)' }}
+          >
+            <MaterialIcons name="visibility" size={18} color="#1F7FE5" />
+            <Text style={{ fontSize: 13, fontFamily: 'Rubik-Bold', color: '#1F7FE5' }}>
+              {revealing ? 'Revealing…' : 'Reveal Contact & Horoscope'}
+            </Text>
+          </TouchableOpacity>
+        ) : planTitle === 'Starter' ? (
+          <PremiumLock message="Want to see their contact info? Upgrade to Classic" planTitle={planTitle} featureName="Contact Reveal" />
         ) : (
-          <PremiumLock message="Upgrade to view contact details" />
+          <PremiumLock message="Upgrade to view contact details" planTitle={planTitle} featureName="Contact Reveal" />
         )}
       </SectionCard>
       {interests.length > 0 && (
@@ -159,16 +235,39 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
         </View>
       </SectionCard>
       <SectionCard icon="photo" title="Horoscope">
-        {hiddenFields.includes('horoscope') ? (
-          <RestrictedField fieldType="HOROSCOPE" profileDetailId={profileDetailId} currentUserId={currentUserId} />
+        {hiddenFields.includes('horoscope') && !approvedFields.includes('HOROSCOPE') ? (
+          <RestrictedField fieldType="HOROSCOPE" profileDetailId={profileDetailId} currentUserId={currentUserId} initialRequested={permissionRequests.horoscope} />
+        ) : revealedHoroscope ? (
+          <Image source={{ uri: revealedHoroscope }} style={{ width: '100%', height: 200, borderRadius: 12 }} resizeMode="contain" />
         ) : religious.Horoscope && religious.Horoscope !== 'null' ? (
           <Image source={{ uri: religious.Horoscope }} style={{ width: '100%', height: 200, borderRadius: 12 }} resizeMode="contain" />
+        ) : planTitle === 'Classic' && horoscopeEligible === null ? (
+          // Same combined reveal as Contact — one tap unlocks whichever of the two the viewer
+          // is eligible for. Only shown pre-attempt (horoscopeEligible === null); once a reveal
+          // has actually run, horoscopeEligible becomes true or false and the branches below take
+          // over instead — otherwise "eligible but this profile has no horoscope uploaded" kept
+          // re-showing this same button forever, inviting endless pointless re-taps.
+          <TouchableOpacity
+            onPress={handleRevealContact}
+            disabled={revealing}
+            activeOpacity={0.8}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#dfecfb', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(31,127,229,0.2)' }}
+          >
+            <MaterialIcons name="visibility" size={18} color="#1F7FE5" />
+            <Text style={{ fontSize: 13, fontFamily: 'Rubik-Bold', color: '#1F7FE5' }}>
+              {revealing ? 'Revealing…' : 'Reveal Contact & Horoscope'}
+            </Text>
+          </TouchableOpacity>
         ) : !isPremium ? (
-          <PremiumLock message="Upgrade to view horoscope" />
+          <PremiumLock message="Upgrade to view horoscope" planTitle={planTitle} featureName="Horoscope" />
         ) : (
           <View style={{ alignItems: 'center', paddingVertical: 20 }}>
             <MaterialIcons name="image-not-supported" size={32} color="#E6E4F0" />
-            <Text style={{ color: '#9E9AA7', fontSize: 13, marginTop: 8 }}>Horoscope available after interest accepted</Text>
+            <Text style={{ color: '#9E9AA7', fontSize: 13, marginTop: 8 }}>
+              {interestStatus === 'APPROVED'
+                ? "This member hasn't added their horoscope yet"
+                : 'Horoscope available after interest accepted'}
+            </Text>
           </View>
         )}
       </SectionCard>
@@ -238,10 +337,21 @@ const ProfileDetailRevamp = () => {
   const [interestStatus, setInterestStatus] = useState('NONE');
   const [isParent, setIsParent] = useState(false);
   const [permissionRequests, setPermissionRequests] = useState<{ [key: string]: boolean }>({ profileImage: false });
+  // Fields the OWNER has approved specifically for the current viewer — separate from
+  // hiddenFeildsValue, which only reflects the owner's OWN blanket privacy toggle. Approving a
+  // RestrictedFieldRequest never actually unlocked anything before this: the blur/lock views only
+  // ever checked hiddenFeildsValue, with zero awareness of any per-viewer approval, so an
+  // approved request updated its status in the DB and notified the requester but the requester's
+  // own profile view stayed blurred/locked forever.
+  const [approvedFields, setApprovedFields] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState('');
   const REPORT_REASONS = ['Spam', 'Abuse', 'Harassment', 'Fake Profile', 'Inappropriate Photos', 'Others'];
+  // Persists the "already sent" state across remounts (e.g. leaving and reopening this profile),
+  // same pattern as interestStatus/permissionRequests below — checked once against this specific
+  // target user's pending VOICE_CALL rows rather than relying only on the in-session toast.
+  const [callRequestSent, setCallRequestSent] = useState(false);
 
   const currentUserId = userData?.userId || null;
   const planTitle = subscriptionData?.planTitle;
@@ -250,6 +360,19 @@ const ProfileDetailRevamp = () => {
   useEffect(() => {
     AsyncStorage.getItem('userRole').then(role => setIsParent(role === 'PARENT'));
   }, []);
+
+  useEffect(() => {
+    if (!userId || !userData.userId) return;
+    userApi.getMyServiceRequests(userData.userId, 0, 50)
+      .then((res) => {
+        const rows = res?.data?.data || [];
+        const alreadyPending = rows.some((r: any) =>
+          r.requestType === 'VOICE_CALL' && r.status === 'PENDING' && String(r.targetUserId) === String(userId)
+        );
+        if (alreadyPending) setCallRequestSent(true);
+      })
+      .catch(() => {});
+  }, [userId, userData.userId]);
 
   // Single parallel load — all API calls fire at once for <1.5s load
   useEffect(() => {
@@ -275,12 +398,14 @@ const ProfileDetailRevamp = () => {
         const res = profileRes.value;
         if (res.data?.code === 403) {
           const msg = res.data?.message;
-          if (msg === 'PROFILE_VIEW_LIMIT_EXCEEDED') {
-            popup.premiumRequired('You\'ve reached your profile view limit. Upgrade for more views.', () => router.push('/(root)/screens/PremiumTab' as any));
+          if (msg === 'USER_BLOCKED') {
+            popup.error('Blocked', 'This profile is not accessible.');
+          } else if (msg === 'PROFILE_VIEW_LIMIT_EXCEEDED') {
+            popup.premiumRequired('You\'ve reached your profile view limit. Upgrade for more views.', buildUpgradeAction({ planTitle, featureName: 'Profile Views' }));
           } else if (msg === 'PROFILE_VIEW_BLURRED') {
-            popup.premiumRequired('Upgrade to Starter or above to view full profiles.', () => router.push('/(root)/screens/PremiumTab' as any));
+            popup.premiumRequired('Upgrade to Starter or above to view full profiles.', buildUpgradeAction({ planTitle, featureName: 'Full Profile View', minPlan: 'Starter' }));
           } else {
-            popup.premiumRequired('Upgrade your plan to view this profile.', () => router.push('/(root)/screens/PremiumTab' as any));
+            popup.premiumRequired('Upgrade your plan to view this profile.', buildUpgradeAction({ planTitle, featureName: 'View Profile' }));
           }
           router.back();
           return;
@@ -308,12 +433,28 @@ const ProfileDetailRevamp = () => {
         setHiddenFeildsValue(hiddenRes.value.data.data.map((i: any) => i.fieldName));
       }
 
-      // Process permission requests
+      // Process permission requests — profileImage, mobile and horoscope all read from the same
+      // fetch. RestrictedField (mobile/horoscope) used to track its "already requested?" state
+      // purely locally, starting at false on every mount with no check against what's actually
+      // on the server — so navigating away and back (or a fresh screen load) always showed "Tap
+      // to request access" again even when a request was already pending, and re-tapping it then
+      // hit the backend's "Request already exists" 400 (silently swallowed by RestrictedField's
+      // empty catch block, so nothing visibly happened).
       if (requestsRes.status === 'fulfilled' && requestsRes.value?.data?.data) {
         const data = requestsRes.value.data.data;
         const requests = Array.isArray(data) ? data : [data];
-        const existing = requests.filter((r: any) => r?.fieldType).map((r: any) => r.fieldType);
-        setPermissionRequests(prev => ({ ...prev, profileImage: existing.includes('PROFILE_IMAGE') }));
+        // getRequestsTo filters only by isActive='Y', not by status — a REJECTED (or APPROVED)
+        // request row stays isActive='Y' forever, so without this the button kept showing
+        // "Permission requested" (hourglass + cancel) even after the owner had already declined
+        // it, instead of reverting to "Tap to request access".
+        const existing = requests.filter((r: any) => r?.fieldType && r?.status === 'PENDING').map((r: any) => r.fieldType);
+        setPermissionRequests(prev => ({
+          ...prev,
+          profileImage: existing.includes('PROFILE_IMAGE'),
+          mobile: existing.includes('MOBILE'),
+          horoscope: existing.includes('HOROSCOPE'),
+        }));
+        setApprovedFields(requests.filter((r: any) => r?.fieldType && r?.status === 'APPROVED').map((r: any) => r.fieldType));
       }
 
       // Premium check from context, with fallback API call
@@ -443,7 +584,7 @@ const ProfileDetailRevamp = () => {
   const openImageModal = async () => {
     setCurrentImageIndex(0);
     if (!planTitle || planTitle === 'Free') {
-      popup.premiumRequired('Upgrade to Starter or above to view all profile photos.', () => router.push('/(root)/screens/PremiumTab' as any));
+      popup.premiumRequired('Upgrade to Starter or above to view all profile photos.', buildUpgradeAction({ planTitle, featureName: 'Full Profile Photos', minPlan: 'Starter' }));
       return;
     }
     try {
@@ -482,7 +623,7 @@ const ProfileDetailRevamp = () => {
     try { decodedUserId = atob(storedUserId); } catch { return; }
 
     if (!subscriptionData?.entitlements?.shortlist) {
-      popup.premiumRequired('Upgrade to Starter or above to shortlist profiles.', () => router.push('/(root)/screens/PremiumTab' as any));
+      popup.premiumRequired('Upgrade to Starter or above to shortlist profiles.', buildUpgradeAction({ planTitle, featureName: 'Shortlist Profiles', minPlan: 'Starter' }));
       return;
     }
 
@@ -509,14 +650,52 @@ const ProfileDetailRevamp = () => {
     if (isParent) { popup.error('Not allowed', 'Family logins cannot send interest requests.'); return; }
     if (!currentUserId || !userId) return;
     const parsedUserId = Array.isArray(userId) ? userId[0] : userId;
-    const canSend = interestStatus === 'NONE' || interestStatus === '' || interestStatus === null;
+    // REJECTED is sendable again — backend resets the existing row back to PENDING
+    // rather than blocking, since a unique constraint forbids a second row for this pair.
+    const canSend = interestStatus === 'NONE' || interestStatus === '' || interestStatus === null || interestStatus === 'REJECTED';
     if (!canSend) {
       if (interestStatus === 'APPROVED') {
-        // Navigate to chat
-        router.push({ pathname: '/(root)/screens/chatscreen', params: { conversationId: '', otherUserId: String(userId), profileImage: userDetails?.profileImage || '' } });
+        // The conversation already exists (created automatically when the interest was sent —
+        // see InterestRequestService on the backend), but this used to navigate with a
+        // hardcoded empty conversationId, so every conversation-scoped call chatscreen makes
+        // (getConversationData, getConversationStatusById, ...) 404'd on arrival. Resolve the
+        // real id first.
+        let resolvedConversationId = '';
+        try {
+          const decodedCurrentUserId = atob(currentUserId);
+          const convoRes = await userApi.getConversationByUsers(decodedCurrentUserId, parsedUserId);
+          if (convoRes.data?.code === 200 && convoRes.data?.data?.id) {
+            resolvedConversationId = String(convoRes.data.data.id);
+          }
+        } catch (e) {
+          console.error('Error resolving conversation id:', e);
+        }
+        router.push({
+          pathname: '/(root)/screens/chatscreen',
+          params: {
+            conversationId: resolvedConversationId,
+            otherUserId: String(userId),
+            otherUserName: `${userDetails?.firstName || ''} ${userDetails?.lastName || ''}`.trim(),
+            profileImage: userDetails?.profileImage || '',
+            otherUserGender: userDetails?.gender || '',
+          },
+        });
       }
       return;
     }
+
+    // Backend always responds HTTP 200 even on business failures (e.g. a request
+    // between these two users already exists) — must check res.data.code, not just
+    // that the call didn't throw, or the UI shows "sent" when nothing was created.
+    const sendInterest = async () => {
+      const res = await userApi.sendInterestRequest(currentUserId, parsedUserId);
+      if (res.data?.code === 201) {
+        setInterestStatus('PENDING');
+        setIsSender(true);
+      } else {
+        popup.error('Request Failed', res.data?.message || 'Could not send interest request.');
+      }
+    };
 
     try {
       const uid = userData.userId;
@@ -525,9 +704,7 @@ const ProfileDetailRevamp = () => {
       const quota = quotaRes.data?.data;
 
       if (quota?.unlimited) {
-        await userApi.sendInterestRequest(currentUserId, parsedUserId);
-        setInterestStatus('PENDING');
-        setIsSender(true);
+        await sendInterest();
       } else if (quota?.remaining > 0) {
         let subId = subscriptionData?.subscriptionId;
         if (!subId) {
@@ -537,20 +714,16 @@ const ProfileDetailRevamp = () => {
         if (subId) {
           const updateRes = await userApi.updateSendRequestCount(atob(uid), subId, 4);
           if (updateRes.data.code == 200) {
-            await userApi.sendInterestRequest(currentUserId, parsedUserId);
-            setInterestStatus('PENDING');
-            setIsSender(true);
+            await sendInterest();
           } else {
-            popup.premiumRequired('You have used all your requests. Upgrade to send more.', () => router.push('/(root)/screens/PremiumTab'));
+            popup.premiumRequired('You have used all your requests. Upgrade to send more.', buildUpgradeAction({ planTitle, featureName: 'Send Interest' }));
           }
         } else {
           // Fallback: send without quota tracking
-          await userApi.sendInterestRequest(currentUserId, parsedUserId);
-          setInterestStatus('PENDING');
-          setIsSender(true);
+          await sendInterest();
         }
       } else {
-        popup.premiumRequired(`You have used all ${quota?.total || 0} requests. Upgrade to send more.`, () => router.push('/(root)/screens/PremiumTab'));
+        popup.premiumRequired(`You have used all ${quota?.total || 0} requests. Upgrade to send more.`, buildUpgradeAction({ planTitle, featureName: 'Send Interest' }));
       }
     } catch (e) {
       popup.error('Request Failed', 'Please try again.');
@@ -560,7 +733,7 @@ const ProfileDetailRevamp = () => {
   const handleWhatsAppShare = () => {
     const isGoldPlus = planTitle === 'Gold' || planTitle === 'Platinum';
     if (!isGoldPlus) {
-      popup.premiumRequired('Upgrade to Gold or above to share profiles via WhatsApp.', () => router.push('/(root)/screens/PremiumTab' as any));
+      popup.premiumRequired('Upgrade to Gold or above to share profiles via WhatsApp.', buildUpgradeAction({ planTitle, featureName: 'WhatsApp Share', minPlan: 'Gold' }));
       return;
     }
     const name = `${userDetails?.firstName || ''} ${userDetails?.lastName || ''}`.trim();
@@ -573,30 +746,57 @@ const ProfileDetailRevamp = () => {
 
   const handleRequestCall = async () => {
     if (isParent) { popup.error('Not allowed', 'Family logins cannot request calls.'); return; }
+    if (callRequestSent) { popup.info('Already sent', 'You already have a pending request for this member.'); return; }
     const isPaid = planTitle && planTitle !== 'Free' && planTitle !== 'Starter';
     if (!isPaid) {
-      popup.premiumRequired('Upgrade to Classic or above to request a voice call.', () => router.push('/(root)/screens/PremiumTab' as any));
+      popup.premiumRequired('Upgrade to Classic or above to request a voice call.', buildUpgradeAction({ planTitle, featureName: 'Voice Call', minPlan: 'Classic' }));
       return;
     }
-    try {
-      if (!userData.userId) return;
-      const targetId = userId ? Number(userId) : undefined;
-      const res = await userApi.createServiceRequest(userData.userId, 'VOICE_CALL', `Voice call request for ${userDetails?.firstName || 'member'}`, targetId);
-      if (res.data.code === 200) popup.success('Request submitted', 'Our team will reach out shortly.');
-      else if (res.data.code === 409) popup.info('Already requested', 'You already have a pending voice-call request.');
-      else if (res.data.code === 403) popup.premiumRequired('Upgrade to Silver or above.', () => router.push('/(root)/screens/PremiumTab' as any));
-      else popup.error('Request failed', res.data.message || 'Please try again.');
-    } catch (e: any) {
-      const code = e?.response?.data?.code;
-      if (code === 409) popup.info('Already requested', 'Pending request exists.');
-      else if (code === 403) popup.premiumRequired('Upgrade required.', () => router.push('/(root)/screens/PremiumTab' as any));
-      else popup.error('Request failed', 'Network error.');
+    if (interestStatus !== 'APPROVED') {
+      // Button is disabled in this state too (see JSX below) — this is just a defensive
+      // second check in case interestStatus is momentarily stale.
+      popup.info('Not connected yet', 'You can request a call once this member accepts your interest.');
+      return;
     }
+
+    const submitCallRequest = async () => {
+      try {
+        if (!userData.userId) return;
+        const targetId = userId ? Number(userId) : undefined;
+        const res = await userApi.createServiceRequest(userData.userId, 'VOICE_CALL', `Voice call request for ${userDetails?.firstName || 'member'}`, targetId);
+        if (res.data.code === 200) {
+          setCallRequestSent(true);
+          popup.success('Request sent', 'Our team will arrange the call.');
+        }
+        else if (res.data.code === 409) {
+          setCallRequestSent(true);
+          popup.info('Already sent', 'You already have a pending request for this member.');
+        }
+        else if (res.data.code === 403 && res.data.message === 'INTEREST_NOT_APPROVED') popup.info('Not connected yet', 'You can request a call once this member accepts your interest.');
+        else if (res.data.code === 403) popup.premiumRequired('Upgrade to Silver or above.', buildUpgradeAction({ planTitle, featureName: 'Voice Call', minPlan: 'Silver' }));
+        else popup.error('Request failed', res.data.message || 'Please try again.');
+      } catch (e: any) {
+        const code = e?.response?.data?.code;
+        const message = e?.response?.data?.message;
+        if (code === 409) { setCallRequestSent(true); popup.info('Already sent', 'Pending request exists.'); }
+        else if (code === 403 && message === 'INTEREST_NOT_APPROVED') popup.info('Not connected yet', 'You can request a call once this member accepts your interest.');
+        else if (code === 403) popup.premiumRequired('Upgrade required.', buildUpgradeAction({ planTitle, featureName: 'Voice Call' }));
+        else popup.error('Request failed', 'Network error.');
+      }
+    };
+
+    popup.confirm(
+      'Request a Voice Call',
+      `We'll send your request to our team, and they'll arrange a call between you and ${userDetails?.firstName || 'this member'}.`,
+      submitCallRequest,
+      'Send Request',
+      'Cancel'
+    );
   };
 
   const handleStarMatch = () => {
     if (!isPremiumValue) {
-      popup.premiumRequired('Star Match is a premium feature. Upgrade to discover horoscope compatibility.', () => router.push('/(root)/screens/PremiumTab'));
+      popup.premiumRequired('Star Match is a premium feature. Upgrade to discover horoscope compatibility.', buildUpgradeAction({ planTitle, featureName: 'Star Match' }));
       return;
     }
     const detail = userDetails?.userDetail?.[0];
@@ -617,7 +817,6 @@ const ProfileDetailRevamp = () => {
     popup.confirm(
       'Block User',
       `Block ${userDetails?.firstName || 'this user'}? You won't see each other's profiles anymore. This can be reversed from Settings.`,
-      'Block',
       async () => {
         try {
           await userApi.blockUser({ blockedByUserId: userData.userId, blockedUserId: userId });
@@ -625,6 +824,7 @@ const ProfileDetailRevamp = () => {
           router.back();
         } catch { popup.error('Error', 'Could not block user. Try again.'); }
       },
+      'Block',
     );
   };
 
@@ -736,13 +936,19 @@ const ProfileDetailRevamp = () => {
 
       <ScrollView style={s.root} bounces={false} showsVerticalScrollIndicator={false}>
         {/* ─── Hero Image ─── */}
-        <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT }}>
-          {hiddenFeildsValue.includes('profileImage') ? (
+        <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT, overflow: 'hidden', position: 'relative' }}>
+          {hiddenFeildsValue.includes('profileImage') && !approvedFields.includes('PROFILE_IMAGE') ? (
             /* Hidden by profile owner — ask permission */
             <View style={{ flex: 1 }}>
               <Image
-                source={profileImage ? { uri: profileImage } : require('../../../assets/images/defaultAvatar.png')}
+                source={
+                  profileImage ? { uri: profileImage } :
+                  userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                  userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                    require('../../../assets/images/defaultAvatar.png')
+                }
                 style={StyleSheet.absoluteFillObject}
+                resizeMode="cover"
                 blurRadius={30}
               />
               <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }]}>
@@ -758,31 +964,31 @@ const ProfileDetailRevamp = () => {
                 </TouchableOpacity>
               </View>
             </View>
-          ) : isFree && profileImage ? (
-            /* Free plan blur */
-            <View style={{ flex: 1 }}>
-              <Image source={{ uri: profileImage }} style={StyleSheet.absoluteFillObject} blurRadius={25} />
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="lock-closed" size={40} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Rubik-Medium', marginTop: 10 }}>Upgrade to view photos</Text>
-                <TouchableOpacity onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ marginTop: 12, backgroundColor: '#1F7FE5', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24 }}>
-                  <Text style={{ color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 13 }}>Upgrade Now</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          ) : profileImage ? (
+            <Image
+              source={{ uri: profileImage }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
           ) : (
             <Image
-              source={profileImage ? { uri: profileImage } :
+              source={
                 userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
-                  userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
-                    require('../../../assets/images/defaultAvatar.png')}
+                userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                  require('../../../assets/images/defaultAvatar.png')
+              }
               style={StyleSheet.absoluteFillObject}
               resizeMode="cover"
             />
           )}
 
-          {/* Gradient overlay at bottom */}
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={[StyleSheet.absoluteFillObject, { top: '50%' }]} />
+          {/* Gradient overlay at bottom — purely decorative (darkens the lower half for text
+              legibility), but being an absolutely-positioned View covering half the hero image
+              with no pointerEvents, it silently swallowed taps meant for anything underneath it
+              in that zone — including the "Ask Permission"/"Cancel Request" button, whose centered
+              content (icon + text + button) commonly extends past the container's vertical
+              midpoint on a tall hero image. */}
+          <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.5)']} style={[StyleSheet.absoluteFillObject, { top: '50%' }]} />
 
           {/* Verified compact badge on image */}
           {(anyVerified || isVerifiedPlan) && (
@@ -812,7 +1018,7 @@ const ProfileDetailRevamp = () => {
 
         {/* ─── Floating header buttons ─── */}
         <View style={[s.headerRow, { top: 8 }]}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
             <ChevronLeft size={22} color="#fff" />
           </TouchableOpacity>
           <Menu>
@@ -855,8 +1061,15 @@ const ProfileDetailRevamp = () => {
             </View>
           )}
           {/* Name */}
-          <View style={{ marginBottom: 4 }}>
+          <View style={{ marginBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <Text style={s.nameText}>{userDetails?.firstName} {userDetails?.lastName}</Text>
+            {userDetails?.memberId && (
+              <View style={{ backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Rubik-Bold', color: '#64748b', letterSpacing: 0.2 }}>
+                  {userDetails.memberId}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Age, Height, Location */}
@@ -895,12 +1108,39 @@ const ProfileDetailRevamp = () => {
 
             {/* Call + Match side by side */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              {!isParent && (
-                <TouchableOpacity style={s.secondaryBtn} onPress={handleRequestCall} activeOpacity={0.8}>
-                  <Phone size={18} color="#1F7FE5" />
-                  <Text style={s.secondaryBtnText}>Request Call</Text>
-                </TouchableOpacity>
-              )}
+              {!isParent && (() => {
+                const isPaidPlan = planTitle && planTitle !== 'Free' && planTitle !== 'Starter';
+                // Only grey this out for the "not matched yet" reason — an insufficient-plan
+                // tap should still go through and show the upgrade popup (existing behavior).
+                const callLocked = isPaidPlan && interestStatus !== 'APPROVED';
+
+                if (callRequestSent) {
+                  return (
+                    <TouchableOpacity style={[s.secondaryBtn, s.secondaryBtnSent]} disabled activeOpacity={1}>
+                      <Clock size={18} color="#1F7FE5" />
+                      <Text style={[s.secondaryBtnText, s.secondaryBtnSentText]}>Request Sent</Text>
+                    </TouchableOpacity>
+                  );
+                }
+                return (
+                  <TouchableOpacity
+                    style={[s.secondaryBtn, callLocked && s.secondaryBtnDisabled]}
+                    onPress={handleRequestCall}
+                    disabled={callLocked}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Phone size={18} color={callLocked ? '#94a3b8' : '#1F7FE5'} />
+                        <Text style={[s.secondaryBtnText, callLocked && s.secondaryBtnTextDisabled]}>Request Call</Text>
+                      </View>
+                      {callLocked && (
+                        <Text style={s.secondaryBtnSubtext}>Available after they accept your interest</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })()}
               <TouchableOpacity style={s.secondaryBtn} onPress={handleStarMatch} activeOpacity={0.8}>
                 <Star size={18} color="#1F7FE5" />
                 <Text style={s.secondaryBtnText}>Match Score</Text>
@@ -923,6 +1163,10 @@ const ProfileDetailRevamp = () => {
             hiddenFields={hiddenFeildsValue}
             profileDetailId={String(userDetailId || '')}
             currentUserId={currentUserId || ''}
+            planTitle={planTitle || ''}
+            interestStatus={interestStatus}
+            permissionRequests={permissionRequests}
+            approvedFields={approvedFields}
           />}
         </View>
       </ScrollView>
@@ -969,7 +1213,31 @@ const s = StyleSheet.create({
 
   // Header — glassmorphism floating buttons
   headerRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, zIndex: 50 },
-  headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.6)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  // Both float over a user-uploaded photo with no darkening scrim on this top portion, so a
+  // translucent tint (not a flat opaque color) is what stays legible across any photo — tinted
+  // with the app's own brand maroon rather than an unrelated color, plus a soft light border
+  // for definition against dark photos.
+  // Android ignores shadowColor/shadowOpacity/shadowRadius/shadowOffset entirely (View shadows only
+  // respect `elevation` there) and — separately — combining `elevation` with a translucent
+  // (alpha < 1) backgroundColor is a known Android rendering quirk that makes the button look
+  // darker/blotchier than the same rgba on iOS. Platform.select bumps Android's fill opacity to
+  // compensate and drops the no-op iOS shadow props so the two platforms read the same visually.
+  headerBtn: {
+    width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+    ...Platform.select({
+      ios: { backgroundColor: 'rgba(66,0,1,0.45)', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+      android: { backgroundColor: 'rgba(66,0,1,0.72)', elevation: 4 },
+    }),
+  },
+  backBtn: {
+    width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+    ...Platform.select({
+      ios: { backgroundColor: 'rgba(66,0,1,0.45)', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+      android: { backgroundColor: 'rgba(66,0,1,0.72)', elevation: 4 },
+    }),
+  },
 
   // Side action FABs
   sideActions: { position: 'absolute', right: 16, gap: 10 },
@@ -994,6 +1262,11 @@ const s = StyleSheet.create({
   // Secondary buttons
   secondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#fff' },
   secondaryBtnText: { color: '#1F7FE5', fontSize: 12.5, fontFamily: 'Rubik-Bold' },
+  secondaryBtnDisabled: { backgroundColor: '#f8fafc', borderColor: '#e2e8f0' },
+  secondaryBtnTextDisabled: { color: '#94a3b8' },
+  secondaryBtnSubtext: { color: '#94a3b8', fontSize: 8.5, lineHeight: 11, marginTop: 2, textAlign: 'center' },
+  secondaryBtnSent: { backgroundColor: '#dfecfb', borderColor: 'rgba(31,127,229,0.2)' },
+  secondaryBtnSentText: { color: '#1F7FE5' },
 
   // Share button
   shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 12, backgroundColor: '#f6f8fa' },

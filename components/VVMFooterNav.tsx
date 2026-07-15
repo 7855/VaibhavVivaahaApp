@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -95,6 +95,14 @@ const VVMFooterNav: React.FC<VVMFooterNavProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const [active, setActive] = useState<TabKey>(activeTab);
+
+  // useState(activeTab) only seeds the initial value — without this, `active` never
+  // syncs again if the prop changes for reasons other than a tab tap (e.g. the parent
+  // Tabs navigator remounting mid-navigation), leaving the footer permanently stuck
+  // highlighting a stale tab while the actual screen content is correct.
+  useEffect(() => {
+    setActive(activeTab);
+  }, [activeTab]);
 
   const handleTab = (key: TabKey) => {
     setActive(key);

@@ -651,6 +651,24 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </Box>
         );
 
+      case 'Current Address':
+      case 'Education in Detail':
+        return (
+          <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+              {label}
+            </Text>
+            <TextInput
+              placeholder={label}
+              defaultValue={value}
+              onChangeText={(text: string) => handleChange(key, text)}
+              style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
+              multiline
+              numberOfLines={3}
+            />
+          </Box>
+        );
+
       default:
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">

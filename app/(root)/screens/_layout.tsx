@@ -6,18 +6,23 @@ export default function ScreensLayout() {
   const segments = useSegments();
   const currentRoute = segments[segments.length - 1]; // Get current screen segment
 
-  const showHeader = currentRoute !== "chatscreen" && currentRoute !== "PaymentScreen" && currentRoute !== "ProfileDetail" && currentRoute !== "NotificationScreen" && currentRoute !== "SettingPageChangePin" && currentRoute !== "StarMatch" && currentRoute !== "BlockedUsersScreen";
+  const showHeader = currentRoute !== "chatscreen" && currentRoute !== "PaymentScreen" && currentRoute !== "ProfileDetail" && currentRoute !== "NotificationScreen" && currentRoute !== "SettingPageChangePin" && currentRoute !== "StarMatch" && currentRoute !== "StarMatchResult" && currentRoute !== "BlockedUsersScreen" && currentRoute !== "UpgradePlanScreen";
 
   return (
     <Stack
       screenOptions={{
         headerShown: showHeader,
+        // Sourced from the home page's own gradient (index.tsx: #d0dfeb → #f3f7fa) and its
+        // real interactive accent (#1F7FE5, used for the active tab in VVMFooterNav) —
+        // subtle light surface instead of a solid dark block, consistent with how the rest
+        // of the app actually looks rather than the standalone brand maroon.
         headerStyle: {
-          backgroundColor: "#d0dfeb",
+          backgroundColor: "#F3F7FA",
         },
-        headerTintColor: "#0f1724",
+        headerTintColor: "#1F7FE5",
         headerTitleStyle: {
-          fontFamily: 'Rubik-Medium',
+          fontFamily: 'Rubik-Bold',
+          color: '#0f1724',
         },
         title: "",
         headerLeft: () => (showHeader ? <CustomBackButton /> : null),
@@ -42,8 +47,8 @@ function CustomBackButton() {
         width: '100%',
       }}
     >
-      <Ionicons name="chevron-left" size={22} color="#0f1724" />
-      <Text style={{ color: "#0f1724", fontSize: 16 }}>Back</Text>
+      <Ionicons name="chevron-left" size={22} color="#1F7FE5" />
+      <Text style={{ color: "#1F7FE5", fontSize: 16, fontFamily: 'Rubik-Medium' }}>Back</Text>
     </TouchableOpacity>
   );
 }

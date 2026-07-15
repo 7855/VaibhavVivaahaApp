@@ -135,8 +135,13 @@ const PrivacySettingsPage: React.FC = () => {
         const field = hiddenFields.find((f: HiddenFieldData) => f.fieldName === pendingChange.key);
 
         if (pendingChange.value) {
-          // Create hidden field if it's being hidden
-          await userApi.createHiddenField(userId, pendingChange.key);
+          // Create hidden field if it's being hidden — but only if it isn't already hidden.
+          // Without this guard, toggling hide on twice (or a double-tap firing the confirm
+          // handler twice) inserted a second identical row every time, since createHiddenField
+          // has no server-side uniqueness check of its own.
+          if (!field) {
+            await userApi.createHiddenField(userId, pendingChange.key);
+          }
         } else if (field) {
           // Delete hidden field if it's being unhidden
           await userApi.deleteHiddenField(field.id);
@@ -176,8 +181,8 @@ const PrivacySettingsPage: React.FC = () => {
       <Switch
         value={checked}
         onValueChange={() => handlePrivacyToggle(setting)}
-        trackColor={{ false: '#ccc', true: '#dc2626' }}
-        thumbColor={checked ? '#fff' : '#f4f3f4'}
+        trackColor={{ false: '#e2e8f0', true: '#1F7FE5' }}
+        thumbColor={'#fff'}
       />
     </View>
   );
@@ -185,7 +190,7 @@ const PrivacySettingsPage: React.FC = () => {
   return (
     <NativeBaseProvider>
 
-    <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: '#130057', marginBottom: 0, paddingBottom: 0, marginTop: 0 }}>
+    <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: '#f3f7fa', marginBottom: 0, paddingBottom: 0, marginTop: 0 }}>
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -200,7 +205,7 @@ const PrivacySettingsPage: React.FC = () => {
 
       {/* <View style={styles.infoBox}>
         <View style={styles.shieldIcon}>
-          <Feather name="shield" size={28} color="#dc2626" />
+          <Feather name="shield" size={28} color="#1F7FE5" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.infoTitle}>Why Privacy Settings Matter</Text>
@@ -217,35 +222,35 @@ const PrivacySettingsPage: React.FC = () => {
       {/* Privacy Items */}
       <Text style={styles.sectionTitle}>Profile Information</Text>
       {renderPrivacyItem(
-        <Feather name="phone" size={20} color="#dc2626" />,
+        <Feather name="phone" size={20} color="#1F7FE5" />,
         'Mobile Number',
         'Hide your mobile number until you choose to share it',
         privacySettings.mobileNumber,
         'mobileNumber'
       )}
       {renderPrivacyItem(
-        <Feather name="image" size={20} color="#dc2626" />,
+        <Feather name="image" size={20} color="#1F7FE5" />,
         'Profile Image',
         'Visible only to premium members or connections',
         privacySettings.profileImage,
         'profileImage'
       )}
       {renderPrivacyItem(
-        <Feather name="star" size={20} color="#dc2626" />,
+        <Feather name="star" size={20} color="#1F7FE5" />,
         'Horoscope Details',
         'Keep your astrological information private',
         privacySettings.horoscope,
         'horoscope'
       )}
       {/* {renderPrivacyItem(
-        <Feather name="calendar" size={20} color="#dc2626" />,
+        <Feather name="calendar" size={20} color="#1F7FE5" />,
         'Age Information',
         'Show only age range instead of exact age',
         privacySettings.age,
         'age'
       )}
       {renderPrivacyItem(
-        <Feather name="briefcase" size={20} color="#dc2626" />,
+        <Feather name="briefcase" size={20} color="#1F7FE5" />,
         'Professional Details',
         'Hide workplace and salary info',
         privacySettings.profession,
@@ -287,7 +292,7 @@ const PrivacySettingsPage: React.FC = () => {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalContent}>
             <View style={styles.modalIcon}>
-              <Feather name="shield" size={24} color="#dc2626" />
+              <Feather name="shield" size={24} color="#1F7FE5" />
             </View>
             <Text style={styles.modalTitle}>Confirm Privacy Change</Text>
             <Text style={styles.modalText}>
@@ -319,7 +324,7 @@ const PrivacySettingsPage: React.FC = () => {
 export default PrivacySettingsPage;
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff', marginBottom: 16,height: '100%' },
+  container: { padding: 16, backgroundColor: '#f3f7fa', marginBottom: 16, height: '100%' },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   backBtn: {
     marginRight: 12,
@@ -327,11 +332,13 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 999,
   },
-  headerTitle: { fontSize: 18, fontFamily: 'Rubik-Medium', color: '#0f1724' },
-  headerSubtitle: { color: '#6b7280',fontSize: 13,marginTop: 3 },
+  // topbarTitle scale — matches profile.tsx/settingsPage.tsx's page-level title (20px Rubik-Bold,
+  // ink, tight tracking) instead of the previous 18px Medium/one-off color.
+  headerTitle: { fontSize: 20, fontFamily: 'Rubik-Bold', color: '#0f1724', letterSpacing: -0.4 },
+  headerSubtitle: { color: '#64748b', fontSize: 12, fontFamily: 'Rubik-Regular', marginTop: 3 },
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#dfecfb',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -339,19 +346,21 @@ const styles = StyleSheet.create({
   shieldIcon: {
     width: 48,
     height: 48,
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#c8dff5',
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  infoTitle: { fontFamily: 'Rubik-Bold', color: '#991b1b', marginBottom: 4 },
-  infoDescription: { color: '#b91c1c', marginBottom: 8 },
-  bullet: { color: '#dc2626', fontSize: 13 },
+  infoTitle: { fontFamily: 'Rubik-Bold', color: '#0f1724', marginBottom: 4 },
+  infoDescription: { color: '#475569', marginBottom: 8 },
+  bullet: { color: '#1F7FE5', fontSize: 13 },
+  // sectionTitle scale — matches profile.tsx's section headers (16px Rubik-Bold, ink, -0.3 tracking)
   sectionTitle: {
     fontSize: 16,
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik-Bold',
     color: '#0f1724',
+    letterSpacing: -0.3,
     marginTop: 10,
     marginBottom: 12,
   },
@@ -364,55 +373,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 1,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
   },
   iconBox: {
     width: 40,
     height: 40,
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#dfecfb',
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  title: { fontFamily: 'Rubik-Medium', color: '#130001' },
-  description: { color: '#6b7280', fontSize: 13 },
+  // listCardTitle/listCardSub scale — matches settingsPage.tsx's row typography
+  title: { fontSize: 15, fontFamily: 'Rubik-Bold', color: '#0f1724', letterSpacing: -0.2 },
+  description: { color: '#64748b', fontSize: 12.5, fontFamily: 'Rubik-Regular', marginTop: 1 },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(15,23,42,0.45)',
     justifyContent: 'center',
     padding: 20,
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 24,
     alignItems: 'center',
   },
   modalIcon: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#dfecfb',
     padding: 12,
     borderRadius: 50,
     marginBottom: 16,
   },
-  modalTitle: { fontSize: 16, fontFamily: 'Rubik-Bold', color: '#130001' },
-  modalText: { color: '#6b7280', textAlign: 'center', marginVertical: 12 },
-  modalActions: { flexDirection: 'row', marginTop: 12 },
+  modalTitle: { fontSize: 16, fontFamily: 'Rubik-Bold', color: '#0f1724' },
+  modalText: { color: '#64748b', fontSize: 13, textAlign: 'center', marginVertical: 12 },
+  modalActions: { flexDirection: 'row', marginTop: 12, gap: 10 },
   cancelBtn: {
     flex: 1,
-    padding: 10,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    marginRight: 8,
+    padding: 12,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
     alignItems: 'center',
   },
   confirmBtn: {
     flex: 1,
-    padding: 10,
-    backgroundColor: '#dc2626',
-    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#1F7FE5',
+    borderRadius: 10,
     alignItems: 'center',
   },
-  cancelText: { color: '#374151' },
-  confirmText: { color: '#DADADA', fontFamily: 'Rubik-Bold' },
+  cancelText: { color: '#475569', fontFamily: 'Rubik-Bold', fontSize: 13.5 },
+  confirmText: { color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 13.5 },
 });

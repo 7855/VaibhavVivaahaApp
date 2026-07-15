@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { router } from 'expo-router';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
@@ -160,6 +160,7 @@ interface ReceivedProfile {
   idVerified?: boolean;
   educationVerified?: boolean;
   incomeVerified?: boolean;
+  acceptStatus?: 'PENDING' | 'REJECTED' | 'APPROVED';
 }
 
 
@@ -317,53 +318,58 @@ const ReceivedTab = () => {
     }
   };
 
-  useEffect(() => {
-    const loadReceivedData = async () => {
-      try {
-        setLoading(true);
-        if (!userData.userId) {
-          setError('User ID not found');
-          return;
+  // Was useEffect(() => {...}, []) — fetched once on mount only. Since this tab (like the
+  // others in mailBox.tsx) stays mounted when the user navigates away and back, a request
+  // received (and pushed via notification) while elsewhere in the app never showed up here
+  // until a full app restart — reopening the tab just re-focused the same stale state. Switched
+  // to useFocusEffect, matching the same fix already applied to the Sent By You tab.
+  useFocusEffect(
+    useCallback(() => {
+      const loadReceivedData = async () => {
+        try {
+          setLoading(true);
+          if (!userData.userId) {
+            setError('User ID not found');
+            return;
+          }
+          const userId = userData.userId;
+
+          const [pendingResponse, acceptedResponse, rejectedResponse] = await Promise.all([
+            userApi.getPendingReceivedProfiles(userId),
+            userApi.getAcceptedReceivedProfiles(userId),
+            userApi.getRejectedReceivedProfiles(userId),
+          ]);
+
+          const pendingProfiles = (pendingResponse.data?.data || []).map((item: any) => ({
+            ...item,
+            status: 'pending',
+          }));
+
+          const acceptedProfiles = (acceptedResponse.data?.data || []).map((item: any) => ({
+            ...item,
+            status: 'accepted',
+          }));
+
+          const rejectedProfiles = (rejectedResponse.data?.data || []).map((item: any) => ({
+            ...item,
+            status: 'rejected',
+          }));
+
+          const combinedProfiles = [...pendingProfiles, ...acceptedProfiles, ...rejectedProfiles];
+
+          setData(combinedProfiles);
+          setError(null);
+        } catch (err: any) {
+          console.error('Error loading received profiles:', err);
+          setError('Failed to load profiles: ' + (err.message || 'Unknown error'));
+        } finally {
+          setLoading(false);
         }
-        const userId = userData.userId;
+      };
 
-        const [pendingResponse, acceptedResponse, rejectedResponse] = await Promise.all([
-          userApi.getPendingReceivedProfiles(userId),
-          userApi.getAcceptedReceivedProfiles(userId),
-          userApi.getRejectedReceivedProfiles(userId),
-        ]);
-
-        const pendingProfiles = (pendingResponse.data?.data || []).map((item: any) => ({
-          ...item,
-          status: 'pending',
-        }));
-
-        const acceptedProfiles = (acceptedResponse.data?.data || []).map((item: any) => ({
-          ...item,
-          status: 'accepted',
-        }));
-
-        const rejectedProfiles = (rejectedResponse.data?.data || []).map((item: any) => ({
-          ...item,
-          status: 'rejected',
-        }));
-
-        const combinedProfiles = [...pendingProfiles, ...acceptedProfiles, ...rejectedProfiles];
-
-        // console.log('Combined profiles with status:', combinedProfiles);
-
-        setData(combinedProfiles);
-        setError(null);
-      } catch (err: any) {
-        console.error('Error loading received profiles:', err);
-        setError('Failed to load profiles: ' + (err.message || 'Unknown error'));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadReceivedData();
-  }, []);
+      loadReceivedData();
+    }, [userData.userId])
+  );
 
   if (loading) {
     return <MailboxLoadingSkeleton count={3} />;
@@ -451,6 +457,7 @@ const ReceivedTab = () => {
       <FlatList
         data={filteredData}
         keyExtractor={(item) => item.userId.toString()}
+        contentContainerStyle={styles.listContent}
         windowSize={5}
         initialNumToRender={6}
         maxToRenderPerBatch={4}
@@ -516,43 +523,75 @@ const ReceivedTab = () => {
 
 const SentTab = () => {
   const { userData } = useUserData();
+  const popup = usePopup();
   const [data, setData] = useState<ReceivedProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleDelete = async (item: ReceivedProfile) => {
+  const removeInterest = async (item: ReceivedProfile) => {
     try {
-      await userApi.deleteInterestRequest(item.interestId);
-      setData(prevData => prevData.filter(profile => profile.interestId !== item.interestId));
+      const res = await userApi.deleteInterestRequest(item.interestId);
+      // Backend returns HTTP 200 even on business failures — must check the body's code
+      // rather than assuming the request succeeded just because the promise resolved.
+      if (res?.data?.code === 200) {
+        setData(prevData => prevData.filter(profile => profile.interestId !== item.interestId));
+      } else {
+        popup.error('Something went wrong', res?.data?.message || 'Failed to remove this request. Please try again.');
+      }
     } catch (error) {
       console.error('Error deleting interest:', error);
-      setError('Failed to delete interest');
+      popup.error('Something went wrong', 'Failed to remove this request. Please try again.');
     }
   };
 
-  useEffect(() => {
-    const loadSentData = async () => {
-      try {
-        if (!userData.userId) {
-          setError('User ID not found');
-          return;
-        }
-        const userId = userData.userId;
-        const response = await userApi.getSentMailbox(userId);
-        if (response.data.code === 200) {
-          setData(response.data.data);
-        } else {
-          setError('No Interest Sent Record Found');
-        }
-      } catch (error) {
-        setError('Error loading sent data');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Canceling a still-PENDING request is harmless (nobody's answered yet) so it stays instant.
+  // But this same X icon also appears on an already-APPROVED item — tapping it there is really
+  // "unfriend/disconnect", not "withdraw an ask": it deletes the match record and, if neither side
+  // ever actually chatted, wipes the conversation too. That's irreversible enough to warrant an
+  // explicit confirmation instead of a silent one-tap delete.
+  const handleDelete = (item: ReceivedProfile) => {
+    if (item.acceptStatus === 'APPROVED') {
+      popup.confirm(
+        'Remove this connection?',
+        `You're already connected with ${item.firstName}. Removing this will end the connection${'\n'}— if you haven't exchanged any messages yet, the conversation will be deleted too. This can't be undone.`,
+        () => removeInterest(item),
+        'Remove',
+        'Cancel'
+      );
+      return;
+    }
+    removeInterest(item);
+  };
 
-    loadSentData();
-  }, []);
+  // Refetch every time this screen regains focus (not just on first mount) — otherwise
+  // sending a second interest elsewhere and coming back shows stale data, since the tab
+  // stays mounted across navigation.
+  useFocusEffect(
+    useCallback(() => {
+      const loadSentData = async () => {
+        try {
+          if (!userData.userId) {
+            setError('User ID not found');
+            return;
+          }
+          const userId = userData.userId;
+          const response = await userApi.getSentMailbox(userId);
+          if (response.data.code === 200) {
+            setData(response.data.data);
+            setError(null);
+          } else {
+            setError('No Interest Sent Record Found');
+          }
+        } catch (error) {
+          setError('Error loading sent data');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      loadSentData();
+    }, [userData.userId])
+  );
 
   if (loading) {
     return <MailboxLoadingSkeleton count={3} />;
@@ -570,6 +609,7 @@ const SentTab = () => {
     <FlatList
       data={data}
       keyExtractor={(item) => item.userId.toString()}
+      contentContainerStyle={styles.listContent}
       windowSize={5}
       initialNumToRender={6}
       maxToRenderPerBatch={4}
@@ -588,10 +628,28 @@ const SentTab = () => {
               </View>
               <View style={styles.matchInfo}>
                 <View style={styles.infoText}>
-                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text></View>
+                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}>
+                    <Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text>
+                  </View>
                   <Text style={styles.occupation}>
                     {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
                   </Text>
+                  <View style={{
+                    alignSelf: 'flex-start',
+                    marginTop: 4,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 10,
+                    backgroundColor: item.acceptStatus === 'APPROVED' ? '#4CAF50'
+                      : item.acceptStatus === 'REJECTED' ? '#f44336'
+                      : '#9E9E9E',
+                  }}>
+                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>
+                      {item.acceptStatus === 'APPROVED' ? 'Accepted'
+                        : item.acceptStatus === 'REJECTED' ? 'Declined'
+                        : 'Pending'}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.iconActions}>
                   <TouchableOpacity
@@ -620,7 +678,7 @@ const SentTab = () => {
 
 const RequestsTab = () => {
   const { userData } = useUserData();
-  const [data, setData] = useState<any[]>([]);
+  const popup = usePopup();
   const [wholeReceivedData, setWholeReceivedData] = useState<any[]>([]);
   const [receivedData, setreceivedData] = useState<any[]>([]);
   const [sentData, setsentData] = useState<any[]>([]);
@@ -630,140 +688,111 @@ const RequestsTab = () => {
   const [profilePhotoChecked, setProfilePhotoChecked] = useState(false);
   const [horoscopeChecked, setHoroscopeChecked] = useState(false);
   const [mobileNumberChecked, setMobileNumberChecked] = useState(false);
+  const filterMenuRef = useRef<Menu>(null);
 
+  // react-native-popup-menu's <Menu> tracks its own open/closed state internally, independent of
+  // this component's React state. Since this tab stays mounted when switching away to another
+  // bottom-nav tab (Expo Router Tabs don't unmount by default), leaving the Filter Options menu
+  // open and switching tabs away then back showed it still open. Force-close it whenever this
+  // screen loses focus so it never reappears open.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        filterMenuRef.current?.close();
+      };
+    }, [])
+  );
+
+
+  // This tab shows restricted-field ACCESS requests (mobile/horoscope/profile photo — see
+  // RestrictedFieldRequest on the backend), not interest requests. handleAccept/handleDelete
+  // previously called userApi.updateInterestRequestStatus / deleteInterestRequest with
+  // item.interestId — but these items never have an interestId (they have requestId), so that
+  // field was always undefined, producing "Failed to convert value... For input string:
+  // \"undefined\"" from the backend on every reject/accept tap. Fixed to use the actual
+  // restricted-field-request endpoint with the real id.
+  //
+  // Also used as the focus-triggered refetch (see useFocusEffect below) — this tab previously
+  // only fetched once on mount via a plain useEffect, so visiting Permissions, switching to
+  // another tab, and coming back showed stale data until a full app restart, same class of bug
+  // already fixed for Received/Sent By You. showSpinner is false for refocus refreshes so
+  // switching back in doesn't flash the loading skeleton over already-visible data.
+  const refreshRequestsData = useCallback(async (showSpinner: boolean = false) => {
+    if (!userData.userId) {
+      setError('User ID not found');
+      return;
+    }
+    try {
+      if (showSpinner) setLoading(true);
+      const userId = userData.userId;
+      const [sentResponse, receivedResponse] = await Promise.all([
+        userApi.getRestrictedRequestsById(userId),
+        userApi.getRestrictedRequestsToId(userId),
+      ]);
+      const sentProfiles = sentResponse.data?.data || [];
+      // getRestrictedRequestsToId returns every request regardless of status — it never filters
+      // out already-decided ones. Since this list is the "action needed" inbox (accept/reject
+      // buttons on every card), a request approving or rejecting successfully still came right
+      // back from the very next refetch, making it look like the tap did nothing. Keep only
+      // PENDING here; sentData (the "requests I sent" view) intentionally keeps every status
+      // since it shows outcomes, not actions.
+      const receivedProfiles = (receivedResponse.data?.data || []).filter((r: any) => r.status === 'PENDING');
+      setWholeReceivedData(receivedProfiles);
+      setreceivedData(receivedProfiles);
+      setsentData(sentProfiles);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error loading requests:', err);
+      setError('Failed to load requests: ' + (err.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  }, [userData.userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshRequestsData(!wholeReceivedData.length && !sentData.length);
+    }, [refreshRequestsData])
+  );
 
   const handleAccept = async (item: any) => {
     try {
-      await userApi.updateInterestRequestStatus(item.interestId, 'APPROVED');
-
-      // Refresh data
-      if (!userData.userId) {
-        setError('User ID not found');
-        return;
+      const res = await userApi.updateRestrictedFieldStatus(btoa(item.requestId.toString()), 'APPROVED');
+      if (res.data?.code === 200) {
+        popup.success('Approved', `${item.firstname} can now view your ${item.fieldType === 'PROFILE_IMAGE' ? 'profile photo' : item.fieldType?.toLowerCase()}.`);
+        await refreshRequestsData();
+      } else {
+        popup.error('Failed', res.data?.message || 'Could not approve the request.');
       }
-      const userId = userData.userId;
-
-      const [sentResponse, receivedResponse] = await Promise.all([
-        userApi.getSentMailbox(userId),
-        userApi.getPendingReceivedProfiles(userId),
-      ]);
-
-      const sentProfiles = (sentResponse.data?.data || []).map((item: any) => ({
-        ...item,
-        isSent: true,
-      }));
-
-      const receivedProfiles = (receivedResponse.data?.data || []).map((item: any) => ({
-        ...item,
-        isSent: false,
-      }));
-
-      const combinedProfiles = [...sentProfiles, ...receivedProfiles];
-      setData(combinedProfiles);
     } catch (err: any) {
       console.error('Error accepting request:', err);
-      setError('Failed to accept request: ' + (err.message || 'Unknown error'));
+      popup.error('Failed', 'Could not approve the request. Please try again.');
     }
   };
 
-  const handleDelete = async (item: any) => {
-    try {
-      if (item.isSent) {
-        // For sent requests, use deleteInterestRequest
-        await userApi.deleteInterestRequest(item.interestId);
-      } else {
-        // For received requests, use updateInterestRequestStatus with 'REJECTED'
-        await userApi.updateInterestRequestStatus(item.interestId, 'REJECTED');
-      }
-
-      // Refresh data
-      if (!userData.userId) {
-        setError('User ID not found');
-        return;
-      }
-      const userId = userData.userId;
-
-      const [sentResponse, receivedResponse] = await Promise.all([
-        userApi.getSentMailbox(userId),
-        userApi.getPendingReceivedProfiles(userId),
-      ]);
-
-      const sentProfiles = (sentResponse.data?.data || []).map((item: any) => ({
-        ...item,
-        isSent: true,
-      }));
-
-      const receivedProfiles = (receivedResponse.data?.data || []).map((item: any) => ({
-        ...item,
-        isSent: false,
-      }));
-
-      const combinedProfiles = [...sentProfiles, ...receivedProfiles];
-      setData(combinedProfiles);
-    } catch (err: any) {
-      console.error('Error deleting request:', err);
-      setError('Failed to delete request: ' + (err.message || 'Unknown error'));
-    }
-  };
-
-
-
-  // const filteredData = data.filter(item => item.isSent === (selectedFilter === 'sent'));
-
-  useEffect(() => {
-    const loadRequestsData = async () => {
-      try {
-        setLoading(true);
-        if (!userData.userId) {
-          setError('User ID not found');
-          return;
+  const handleDelete = (item: any) => {
+    popup.confirm(
+      'Decline this request?',
+      `${item.firstname} ${item.lastname} will not be able to view your ${item.fieldType === 'PROFILE_IMAGE' ? 'profile photo' : item.fieldType?.toLowerCase()}.`,
+      async () => {
+        try {
+          const res = await userApi.updateRestrictedFieldStatus(btoa(item.requestId.toString()), 'REJECTED');
+          if (res.data?.code === 200) {
+            await refreshRequestsData();
+          } else {
+            popup.error('Failed', res.data?.message || 'Could not decline the request.');
+          }
+        } catch (err: any) {
+          console.error('Error declining request:', err);
+          popup.error('Failed', 'Could not decline the request. Please try again.');
         }
-        const userId = userData.userId;
-
-        // Fetch both sent and received profiles
-        // const [sentResponse, receivedResponse] = await Promise.all([
-        //   userApi.getRestrictedRequestsToId(userId),
-        //   userApi.getRestrictedRequestsById(userId),
-        // ]);
-        const sentResponse = await userApi.getRestrictedRequestsById(userId);
-        const receivedResponse = await userApi.getRestrictedRequestsToId(userId);
+      },
+      'Decline',
+      'Cancel'
+    );
+  };
 
 
-
-        // Convert responses to consistent format
-        const sentProfiles = sentResponse.data?.data || []
-          ;
-
-        // console.log("sentProfiles===========================>", sentProfiles);
-        // const sentProfiles = (sentResponse.data?.data || []).map((item: any) => ({
-        //   ...item,
-        //   isSent: true,
-        // }));
-        const receivedProfiles = receivedResponse.data?.data || [];
-        // const receivedProfiles = (receivedResponse.data?.data || []).map((item: any) => ({
-        // console.log("receivedProfiles===========================>", receivedProfiles);
-        //   ...item,
-        //   isSent: false,
-        // }));
-
-        // const combinedProfiles = [...sentProfiles, ...receivedProfiles];
-        setWholeReceivedData(receivedProfiles);
-        setreceivedData(receivedProfiles);
-        setsentData(sentProfiles);
-
-        // setData(combinedProfiles);
-        setError(null);
-      } catch (err: any) {
-        console.error('Error loading requests:', err);
-        setError('Failed to load requests: ' + (err.message || 'Unknown error'));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-
-    loadRequestsData();
-  }, []);
 
   const handlePrintSelected = (newState: {
     profilePhoto?: boolean;
@@ -1029,7 +1058,7 @@ const RequestsTab = () => {
         <Ionicons name="options-outline" size={24} color="black" />
       </TouchableOpacity> */}
 
-              <Menu>
+              <Menu ref={filterMenuRef}>
                 <MenuTrigger style={styles.filterIcon}>
                   <Ionicons name="options-outline" size={25} color="black" />
                 </MenuTrigger>
@@ -1120,6 +1149,7 @@ const RequestsTab = () => {
             <FlatList
               data={receivedData}
               keyExtractor={(item: any) => item.requestId.toString()}
+              contentContainerStyle={styles.listContent}
               windowSize={5}
               initialNumToRender={6}
               maxToRenderPerBatch={4}
@@ -1363,124 +1393,29 @@ const ShortlistedTab = () => {
   );
 };
 
-const WhoShortlistedMeTab = () => {
-  const { userData } = useUserData();
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        if (!userData.userId) { setError('User ID not found'); return; }
-        const response = await userApi.getWhoShortlistedMe(userData.userId);
-        if (response.data.code === 200) {
-          setData(response.data.data || []);
-        } else if (response.data.code === 403) {
-          setError('Upgrade to Gold or Platinum to see who shortlisted you.');
-        } else {
-          setError(response.data.message || 'No one has shortlisted you yet');
-        }
-      } catch (e: any) {
-        if (e?.response?.data?.code === 403) {
-          setError('Upgrade to Gold or Platinum to see who shortlisted you.');
-        } else {
-          setError('Error loading data');
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  if (loading) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
-        <ScrollView style={{ padding: 16 }}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <NBHStack key={i} space={3} alignItems="center" py={3} borderBottomWidth={1} borderColor="gray.200">
-              <Skeleton size={12} rounded="full" />
-              <VStack flex={1} space={2}>
-                <Skeleton h={4} w="50%" rounded="sm" />
-                <Skeleton h={3} w="80%" rounded="sm" />
-              </VStack>
-            </NBHStack>
-          ))}
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>{error}</Text>
-      </View>
-    );
-  }
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
-      <ScrollView className='mb-3'>
-        <View className='ml-5 mt-2 mb-2'>
-          <NBText fontSize={'lg'} fontWeight={'semibold'} fontFamily="Rubik-Medium">Who Shortlisted You</NBText>
-        </View>
-        <View className='mb-10'>
-          {data.map((member: any) => (
-            <VStack key={member.userId} space={2} alignItems="center">
-              <Center w="100%" h="75" rounded="md">
-                <Stack direction="row" m={5} space={3} alignItems="center">
-                  <Center shadow={3}>
-                    <NBImage
-                      source={member.profileImage ? { uri: member.profileImage } : require('../../../assets/images/defaultAvatar.png')}
-                      alt="Img"
-                      size="50px"
-                      borderRadius="full"
-                    />
-                  </Center>
-                  <VStack flex={1} space={1}>
-                    <NBHStack alignItems="center" space={1}>
-                      <NBText fontSize="md" fontWeight="semibold" fontFamily="Rubik-Medium" isTruncated maxWidth="85%">
-                        {member.firstName} {member.lastName}
-                      </NBText>
-                      <VerifiedBadges idVerified={member.idVerified} educationVerified={member.educationVerified} incomeVerified={member.incomeVerified} mode="compact" size="sm" />
-                    </NBHStack>
-                    <NBText fontSize="sm" color="gray.500">
-                      {member.location}, {member.degree}, {member.annualIncome}, {member.occupation}
-                    </NBText>
-                  </VStack>
-                </Stack>
-              </Center>
-              <Divider my="1" _light={{ bg: "gray.200" }} _dark={{ bg: "gray.50" }} />
-            </VStack>
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-};
-
 const MailBox = () => {
   const layout = useWindowDimensions();
-  const { subscriptionData } = useSubscription();
+  const { initialTab } = useLocalSearchParams<{ initialTab?: string }>();
   const [index, setIndex] = useState(0);
 
-  const isGoldPlus = subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum';
+  const routes = useMemo(() => [
+    { key: 'received', title: 'Received' },
+    { key: 'sent', title: 'Sent By You' },
+    { key: 'request', title: 'Permissions' },
+  ], []);
 
-  const routes = useMemo(() => {
-    const base = [
-      { key: 'received', title: 'Received' },
-      { key: 'sent', title: 'Sent By You' },
-      { key: 'request', title: 'Permissions' },
-    ];
-    return base;
-  }, []);
+  // Deep-link support for QuickAccessFAB ("Permission Requests" tile)
+  useEffect(() => {
+    if (!initialTab) return;
+    const targetIndex = routes.findIndex((r) => r.key === initialTab);
+    if (targetIndex >= 0) setIndex(targetIndex);
+  }, [initialTab, routes]);
 
-  const renderScene = SceneMap({
+  const renderScene = useMemo(() => SceneMap({
     received: ReceivedTab,
     sent: SentTab,
     request: RequestsTab,
-  });
+  }), []);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#d0dfeb' }} edges={['top', 'left', 'right']}>
@@ -1580,8 +1515,11 @@ const styles = StyleSheet.create({
     // height: '%',
     marginTop: 10,
   },
+  // Clears the floating VVMFooterNav (absolute-positioned, ~68px + safe-area inset) so the
+  // last item in a list isn't hidden behind it — was previously defined but never actually
+  // wired up to any FlatList's contentContainerStyle, and the padding was too small anyway.
   listContent: {
-    paddingBottom: 16,
+    paddingBottom: 100,
   },
   matchCard: {
     backgroundColor: 'white',

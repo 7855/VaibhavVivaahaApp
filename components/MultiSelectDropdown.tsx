@@ -36,16 +36,16 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         style={styles.button}
         onPress={() => setVisible(true)}
       >
-        <Text 
+        <Text
           style={[
-            styles.buttonText, 
+            styles.buttonText,
             !selectedValues.length && styles.placeholderText
           ]}
           numberOfLines={1}
         >
           {displayText}
         </Text>
-        <ChevronDown size={16} color="#666" />
+        <ChevronDown size={16} color="#1F7FE5" />
       </TouchableOpacity>
 
       <Modal
@@ -58,14 +58,14 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Education</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setVisible(false)}
                 style={styles.closeButton}
               >
-                <CloseIcon size={24} color="#666" />
+                <CloseIcon size={18} color="#475569" />
               </TouchableOpacity>
             </View>
-            
+
             <FlatList
               data={options}
               keyExtractor={(item) => item}
@@ -77,10 +77,10 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                   ]}
                   onPress={() => toggleItem(item)}
                 >
-                  <Text style={styles.optionText}>{item}</Text>
+                  <Text style={[styles.optionText, selectedValues.includes(item) && styles.optionTextSelected]}>{item}</Text>
                   {selectedValues.includes(item) && (
                     <View style={styles.checkmarkContainer}>
-                      <Check size={20} color="#7C3AED" />
+                      <Check size={18} color="#1F7FE5" strokeWidth={3} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -116,8 +116,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
     padding: 12,
     backgroundColor: '#fff',
     minHeight: 28,
@@ -125,29 +125,31 @@ const styles = StyleSheet.create({
   buttonText: {
     flex: 1,
     marginRight: 8,
-    fontSize: 14,
-    color: '#130001',
+    fontSize: 13,
+    fontFamily: 'Rubik-Medium',
+    color: '#0f1724',
   },
   placeholderText: {
-    color: '#999',
+    color: '#94a3b8',
+    fontFamily: 'Rubik-Regular',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(15,23,42,0.45)',
     justifyContent: 'center',
     padding: 16,
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 20,
     maxHeight: '80%',
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
+        shadowColor: 'rgba(15,35,70,0.15)',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 1,
+        shadowRadius: 20,
       },
       android: {
         elevation: 5,
@@ -160,38 +162,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#e2e8f0',
   },
   modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Rubik-Medium',
-    color: '#130001',
+    fontSize: 16,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
+    letterSpacing: -0.2,
   },
   closeButton: {
-    padding: 4,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   optionsList: {
     maxHeight: 300,
   },
   optionsListContent: {
     paddingBottom: 16,
+    paddingHorizontal: 8,
   },
   option: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
+    paddingVertical: 13,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginTop: 4,
   },
   optionSelected: {
-    backgroundColor: '#f8f5ff',
+    backgroundColor: '#dfecfb',
   },
   optionText: {
-    fontSize: 16,
-    color: '#130001',
+    fontSize: 14.5,
+    fontFamily: 'Rubik-Medium',
+    color: '#334155',
     flex: 1,
+  },
+  optionTextSelected: {
+    color: '#1F7FE5',
+    fontFamily: 'Rubik-Bold',
   },
   checkmarkContainer: {
     width: 24,
@@ -199,36 +213,36 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
+    gap: 10,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    padding: 12,
-    backgroundColor: '#fafafa',
+    borderTopColor: '#e2e8f0',
+    padding: 14,
+    backgroundColor: '#fff',
   },
   cancelButton: {
     flex: 1,
     padding: 12,
-    marginRight: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#666',
-    fontFamily: 'Rubik-Medium',
-    fontSize: 16,
+    color: '#475569',
+    fontFamily: 'Rubik-Bold',
+    fontSize: 14,
   },
   applyButton: {
     flex: 1,
     padding: 12,
-    backgroundColor: '#7C3AED',
-    borderRadius: 8,
+    backgroundColor: '#1F7FE5',
+    borderRadius: 10,
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#7C3AED',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 3,
+        shadowColor: '#1F7FE5',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
       },
       android: {
         elevation: 3,
@@ -236,9 +250,9 @@ const styles = StyleSheet.create({
     }),
   },
   applyButtonText: {
-    color: '#DADADA',
-    fontFamily: 'Rubik-Medium',
-    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Rubik-Bold',
+    fontSize: 14,
   },
 });
 

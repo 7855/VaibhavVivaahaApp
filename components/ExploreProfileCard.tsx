@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, ImageBackground, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import VerifiedBadges from './VerifiedBadges';
 import { getInterestEmoji, getInterestLabel } from '../constants/interests';
 
@@ -35,12 +37,13 @@ const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({
             : require('../assets/images/defaultAvatar.png')
         }
         style={styles.image}
-        imageStyle={styles.imageStyle}
+        imageStyle={styles.imageRadius}
       >
-        {/* ⭐ Boosted badge at top-left */}
+        {/* ⭐ Boosted ribbon at top-left */}
         {hasActiveBoost ? (
           <View style={styles.boostBadge}>
-            <Text style={styles.boostBadgeText}>⭐ Boosted</Text>
+            <Ionicons name="flash" size={10} color="#420001" />
+            <Text style={styles.boostBadgeText}>Boosted</Text>
           </View>
         ) : null}
 
@@ -51,16 +54,32 @@ const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({
             educationVerified={educationVerified}
             incomeVerified={incomeVerified}
             mode="compact"
-            size="md"
+            size="sm"
           />
         </View>
 
-        <View style={styles.gradient}>
-          <Text style={styles.nameAge}>
-            {name}, {age}
+        <LinearGradient
+          colors={['transparent', 'rgba(66,0,1,0.35)', 'rgba(35,0,1,0.92)']}
+          locations={[0, 0.55, 1]}
+          style={styles.gradientLayer}
+        />
+
+        <View style={styles.content}>
+          <Text style={styles.nameAge} numberOfLines={1}>
+            {name}{age ? `, ${age}` : ''}
           </Text>
-          <Text style={styles.job}>{job}</Text>
-          <Text style={styles.job}>{location}</Text>
+          {job ? (
+            <View style={styles.metaRow}>
+              <MaterialCommunityIcons name="briefcase-outline" size={11} color="rgba(255,255,255,0.88)" />
+              <Text style={styles.metaText} numberOfLines={1}>{job}</Text>
+            </View>
+          ) : null}
+          {location ? (
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.88)" />
+              <Text style={styles.metaText} numberOfLines={1}>{location}</Text>
+            </View>
+          ) : null}
           {sharedInterests && sharedInterests.length > 0 ? (
             <View style={styles.interestRow}>
               {sharedInterests.slice(0, 3).map((code) => (
@@ -78,6 +97,10 @@ const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({
             </View>
           ) : null}
         </View>
+
+        <View style={styles.viewFab}>
+          <Ionicons name="arrow-forward" size={15} color="#420001" />
+        </View>
       </ImageBackground>
     </View>
   );
@@ -86,35 +109,54 @@ const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    height: 250,
-    borderRadius: 16,
+    aspectRatio: 0.74,
+    borderRadius: 20,
     overflow: 'hidden',
-    elevation: 5,
-    backgroundColor: '#000',
+    backgroundColor: '#EFE7E4',
+    shadowColor: '#420001',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  image: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    height: '100%',
+  image: { flex: 1, justifyContent: 'flex-end' },
+  imageRadius: { resizeMode: 'cover' },
+  gradientLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '65%',
   },
-  imageStyle: {
-    resizeMode: 'cover',
-    height: '100%',
+  content: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    gap: 3,
   },
-  gradient: {
-    padding: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  nameAge: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'Rubik-Bold',
   },
-  nameAge: { color: '#DADADA', fontSize: 16, fontFamily: 'Rubik-Medium' },
-  job: { color: '#ccc', fontSize: 13, fontFamily: 'Rubik-Regular', marginTop: 4 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 10.5,
+    fontFamily: 'Rubik-Medium',
+    flexShrink: 1,
+  },
   interestRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
-    marginTop: 6,
+    marginTop: 5,
   },
   interestTag: {
-    backgroundColor: 'rgba(245,158,11,0.25)',
+    backgroundColor: 'rgba(246,183,51,0.28)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -122,27 +164,49 @@ const styles = StyleSheet.create({
   interestTagText: {
     fontSize: 9,
     fontFamily: 'Rubik-Medium',
-    color: '#fef3c7',
+    color: '#FFE8B0',
   },
   boostBadge: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'rgba(245,158,11,0.9)',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#F6B733',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     zIndex: 3,
   },
   boostBadgeText: {
-    fontSize: 10,
-    fontFamily: 'Rubik-Bold',
-    color: '#fff',
+    fontSize: 9,
+    fontFamily: 'Rubik-ExtraBold',
+    color: '#420001',
+    letterSpacing: 0.3,
   },
   shieldWrap: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 10,
+    right: 10,
+    zIndex: 3,
+  },
+  viewFab: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F6B733',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
 

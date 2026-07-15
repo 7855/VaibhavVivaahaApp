@@ -522,7 +522,12 @@ export default function PremiumTab() {
     );
   }
 
-  // APPROVED subscription — show already premium
+  // Reverted to cover ANY non-Free plan (was narrowed to Platinum-only for a stretch while
+  // "Upgrade Now"/premiumRequired flows still routed paid users here with no way to reach a
+  // higher plan). Those flows now go through buildUpgradeAction() (utils/upgradeNavigation.ts)
+  // to UpgradePlanScreen instead — PremiumTab is only reached via settingsPage's "See Your Plan"
+  // (any paid tier, correctly dead-ends showing the active subscription) and a Free user's
+  // first-purchase flow in PAYMENT_MODE=QR (never hits this branch, since planTitle is Free).
   if (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free')) {
     const planName = subscriptionData?.planTitle || 'Premium';
     return (

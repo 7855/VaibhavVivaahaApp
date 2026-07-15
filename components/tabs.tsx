@@ -15,6 +15,7 @@ import { ALERT_TYPE, Dialog } from 'react-native-alert-notification';
 import MaterialDesignIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import InterestChipGrid from './InterestChipGrid';
+import EditInterestsModal from './EditInterestsModal';
 import Toast from 'react-native-toast-message';
 
 interface GalleryItem {
@@ -27,7 +28,6 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
   const [editSection, setEditSection] = useState<any>(null);
   const [interestsEditVisible, setInterestsEditVisible] = useState(false);
   const [editableInterests, setEditableInterests] = useState<string[]>([]);
-  const [savingInterests, setSavingInterests] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isParent, setIsParent] = useState(false);
 
@@ -275,104 +275,13 @@ const FirstRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
       />
 
       {/* Interests Edit Modal */}
-      <Modal
+      <EditInterestsModal
         visible={interestsEditVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setInterestsEditVisible(false)}
-      >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'flex-end',
-        }}>
-          <View style={{
-            backgroundColor: '#fff',
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingTop: 16,
-            paddingBottom: 40,
-            paddingHorizontal: 20,
-            maxHeight: '80%',
-          }}>
-            {/* Header */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <View>
-                <RNText style={{ fontSize: 18, fontFamily: 'Rubik-ExtraBold', color: '#420001' }}>
-                  Edit Your Interests
-                </RNText>
-                <RNText style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                  Select at least 3 interests
-                </RNText>
-              </View>
-              <TouchableOpacity onPress={() => setInterestsEditVisible(false)}>
-                <Ionicons name="close" size={24} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Counter */}
-            <View style={{
-              backgroundColor: editableInterests.length >= 3 ? '#d1fae5' : '#fef3c7',
-              paddingHorizontal: 12,
-              paddingVertical: 5,
-              borderRadius: 14,
-              alignSelf: 'flex-start',
-              marginBottom: 14,
-            }}>
-              <RNText style={{
-                fontSize: 11,
-                fontFamily: 'Rubik-Bold',
-                color: editableInterests.length >= 3 ? '#065f46' : '#92400e',
-              }}>
-                {editableInterests.length} selected {editableInterests.length >= 3 ? '✓' : '(min 3)'}
-              </RNText>
-            </View>
-
-            {/* Chip grid */}
-            <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <InterestChipGrid
-                selected={editableInterests}
-                onToggle={(code) => {
-                  setEditableInterests((prev) =>
-                    prev.includes(code)
-                      ? prev.filter((c) => c !== code)
-                      : [...prev, code]
-                  );
-                }}
-              />
-            </ScrollView>
-
-            {/* Save button */}
-            <TouchableOpacity
-              style={{
-                backgroundColor: editableInterests.length >= 3 ? '#420001' : '#9ca3af',
-                paddingVertical: 14,
-                borderRadius: 12,
-                alignItems: 'center',
-              }}
-              disabled={editableInterests.length < 3 || savingInterests}
-              onPress={async () => {
-                if (!userId) return;
-                setSavingInterests(true);
-                try {
-                  await userApi.updateUserHobbies(userId, editableInterests);
-                  popup.success('Updated', 'Your interests have been updated.');
-                  setInterestsEditVisible(false);
-                  if (refreshProfile) refreshProfile();
-                } catch (err) {
-                  popup.error('Error', 'Failed to update interests. Please try again.');
-                } finally {
-                  setSavingInterests(false);
-                }
-              }}
-            >
-              <RNText style={{ color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 14 }}>
-                {savingInterests ? 'Saving...' : 'Save Interests'}
-              </RNText>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setInterestsEditVisible(false)}
+        initialSelected={editableInterests}
+        userId={userId}
+        refreshProfile={refreshProfile}
+      />
     </NativeBaseProvider>
   );
 };
@@ -416,10 +325,11 @@ const SecondRoute = ({
         return;
       }
 
+      // allowsEditing opens the OS's own crop screen, which on many Android OEM skins
+      // (MIUI, One UI, etc.) renders without visible Done/Cancel buttons, blocking the
+      // flow entirely. Skip it and upload the picked image as-is.
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
         quality: 1,
       });
 
@@ -715,10 +625,11 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
         return;
       }
 
+      // allowsEditing opens the OS's own crop screen, which on many Android OEM skins
+      // (MIUI, One UI, etc.) renders without visible Done/Cancel buttons, blocking the
+      // flow entirely. Skip it and upload the picked image as-is.
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
         quality: 1,
       });
 
@@ -777,10 +688,11 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
         return;
       }
 
+      // allowsEditing opens the OS's own crop screen, which on many Android OEM skins
+      // (MIUI, One UI, etc.) renders without visible Done/Cancel buttons, blocking the
+      // flow entirely. Skip it and upload the picked image as-is.
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
         quality: 1,
       });
 

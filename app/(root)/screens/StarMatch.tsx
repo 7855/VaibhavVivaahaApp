@@ -19,6 +19,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUserData } from '../contexts/UserDataContext';
 import userApi from '../api/userApi';
 
+// Same palette used across index.tsx / profile.tsx / chatscreen.tsx — kept in-file rather than a
+// shared theme module since that's the existing convention throughout this codebase.
+const C = {
+  brand: '#1F7FE5',
+  brandDeep: '#1862b8',
+  brandSoft: '#dfecfb',
+  maroon: '#420001',
+  ink: '#0f1724',
+  ink2: '#1e293b',
+  ink3: '#475569',
+  ink4: '#64748b',
+  ink5: '#94a3b8',
+  line: '#e2e8f0',
+  white: '#ffffff',
+};
+
 const StarMatch = () => {
   const { viewedProfile, viewedUserId } = useLocalSearchParams<{ viewedProfile?: string; viewedUserId?: string }>();
   const { userData } = useUserData();
@@ -459,9 +475,9 @@ const handleSubmit = async () => {
 
   if (isLoadingData) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-        <ActivityIndicator size="large" color="#1e293b" />
-        <Text style={{ marginTop: 12, color: '#64748b', fontSize: 16 }}>Loading profile data...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f7fa' }}>
+        <ActivityIndicator size="large" color={C.brand} />
+        <Text style={{ marginTop: 12, color: C.ink4, fontSize: 13, fontFamily: 'Rubik-Medium' }}>Loading profile data...</Text>
       </View>
     );
   }
@@ -472,8 +488,8 @@ const handleSubmit = async () => {
     <View style={styles.container}>
       {/* Custom header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-          <MaterialIcons name="chevron-left" size={22} color="#1e293b" />
+        <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.white, justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+          <MaterialIcons name="chevron-left" size={22} color={C.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Star Match</Text>
         <View style={{ width: 40 }} />
@@ -593,9 +609,16 @@ const handleSubmit = async () => {
           </View>
         </View>
         {/* Submit Button */}
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <MaterialIcons name="stars" size={24} color="#fff" />
-          <Text style={styles.submitButtonText}>Check Result</Text>
+        <TouchableOpacity activeOpacity={0.88} onPress={handleSubmit} style={styles.submitButtonWrap}>
+          <LinearGradient
+            colors={[C.brand, C.maroon]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.submitButton}
+          >
+            <MaterialIcons name="stars" size={22} color="#fff" />
+            <Text style={styles.submitButtonText}>Check Result</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
       {/* Time Picker Modal */}
@@ -610,7 +633,7 @@ const handleSubmit = async () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Time of Birth</Text>
               <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                <MaterialIcons name="close" size={24} color="#0f52ba" />
+                <MaterialIcons name="close" size={24} color="#1F7FE5" />
               </TouchableOpacity>
             </View>
             {renderTimePicker()}
@@ -635,7 +658,7 @@ const handleSubmit = async () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Date of Birth</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <MaterialIcons name="close" size={24} color="#0f52ba" />
+                <MaterialIcons name="close" size={24} color="#1F7FE5" />
               </TouchableOpacity>
             </View>
             <DateTimePicker
@@ -667,7 +690,7 @@ const handleSubmit = async () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Star (Nakshatra)</Text>
               <TouchableOpacity onPress={() => setShowStarModal(false)}>
-                <MaterialIcons name="close" size={24} color="#0f52ba" />
+                <MaterialIcons name="close" size={24} color="#1F7FE5" />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScrollView}>
@@ -705,7 +728,7 @@ const handleSubmit = async () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Rasi (Moon Sign)</Text>
               <TouchableOpacity onPress={() => setShowRasiModal(false)}>
-                <MaterialIcons name="close" size={24} color="#0f52ba" />
+                <MaterialIcons name="close" size={24} color="#1F7FE5" />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScrollView}>
@@ -742,7 +765,7 @@ const handleSubmit = async () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select District</Text>
               <TouchableOpacity onPress={() => setShowPlaceModal(false)}>
-                <MaterialIcons name="close" size={24} color="#0f52ba" />
+                <MaterialIcons name="close" size={24} color="#1F7FE5" />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScrollView}>
@@ -788,14 +811,15 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: 'Rubik-Bold',
-    color: '#0f1724',
+    color: C.ink,
+    letterSpacing: -0.3,
   },
   tabContainer: {
     flexDirection: 'row',
     margin: 20,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: C.line,
     borderRadius: 999,
     padding: 4,
     marginBottom:8
@@ -807,17 +831,17 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   activeTab: {
-    backgroundColor: '#1e293b',
-    shadowColor: '#000',
+    backgroundColor: C.brand,
+    shadowColor: C.brand,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 2,
   },
   tabText: {
     fontSize: 14,
     fontFamily: 'Rubik-Medium',
-    color: '#64748b',
+    color: C.ink4,
   },
   activeTabText: {
     color: '#fff',
@@ -847,13 +871,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#0f1a2e',
+    color: '#0f1724',
     height: 56,
   },
   inputText: {
     flex: 1,
     fontSize: 16,
-    color: '#0f1a2e',
+    color: '#0f1724',
   },
   inputWithIcon: {
     flexDirection: 'row',
@@ -892,23 +916,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 0,
   },
-  submitButton: {
-    backgroundColor: '#1e293b',
-    borderRadius: 999,
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  submitButtonWrap: {
     marginTop: 20,
-    shadowColor: '#0f52ba',
+    borderRadius: 999,
+    shadowColor: C.brand,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
+  submitButton: {
+    borderRadius: 999,
+    paddingVertical: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   submitButtonText: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Rubik-Bold',
     marginLeft: 8,
   },
@@ -933,7 +959,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontFamily: 'Rubik-Bold',
-    color: '#0f1a2e',
+    color: '#0f1724',
   },
   timePickerContainer: {
     marginTop: 16,
@@ -968,7 +994,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   timePickerTextActive: {
-    color: '#0f52ba',
+    color: '#1F7FE5',
     fontFamily: 'Rubik-Bold',
   },
   periodContainer: {
@@ -997,10 +1023,10 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   periodTextActive: {
-    color: '#0f52ba',
+    color: '#1F7FE5',
   },
   doneButton: {
-    backgroundColor: '#0f52ba',
+    backgroundColor: '#1F7FE5',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -1046,7 +1072,7 @@ const styles = StyleSheet.create({
   // modalTitle: {
   //   fontSize: 18,
   //   fontFamily: 'Rubik-Bold',
-  //   color: '#0f1a2e',
+  //   color: '#0f1724',
   // },
   modalScrollView: {
     maxHeight: 400,
@@ -1064,7 +1090,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   modalItemTextActive: {
-    color: '#0f52ba',
+    color: '#1F7FE5',
     fontFamily: 'Rubik-Medium',
   },
 });

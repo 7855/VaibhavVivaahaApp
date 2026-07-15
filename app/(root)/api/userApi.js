@@ -1,14 +1,14 @@
 import axiosClient from './axiosClient';
 
 const userApi = {
-  getDailyRecommendation: (casteId, gender) =>
-    axiosClient.get(`/user/getDailyShuffledUsersByCaste/${casteId}/${gender}`),
+  getDailyRecommendation: (casteId, gender, requesterId) =>
+    axiosClient.get(`/user/getDailyShuffledUsersByCaste/${casteId}/${gender}`, { params: requesterId ? { requesterId } : undefined }),
 
-  getNewConnections: (casteId, gender) =>
-    axiosClient.get(`/user/getTop30NewUsers/${casteId}/${gender}`),
+  getNewConnections: (casteId, gender, requesterId) =>
+    axiosClient.get(`/user/getTop30NewUsers/${casteId}/${gender}`, { params: requesterId ? { requesterId } : undefined }),
 
-  getNearYouProfiles: (casteId, gender, location) =>
-    axiosClient.get(`/user/getUserDetailByCasteIdAndLocation/${casteId}/${gender}/${location}`),
+  getNearYouProfiles: (casteId, gender, location, requesterId) =>
+    axiosClient.get(`/user/getUserDetailByCasteIdAndLocation/${casteId}/${gender}/${location}`, { params: requesterId ? { requesterId } : undefined }),
 
   getProfileDetails: (userId) =>
     axiosClient.get(`/user/getUserByUserId/${userId}`),
@@ -27,8 +27,8 @@ const userApi = {
   userChatList: (userId) =>
     axiosClient.get(`/conversation/chatlist/${userId}`),
 
-  getRandomUsers: (gender, casteId) =>
-    axiosClient.get(`/user/getTenShuffledUsers/${gender}/${casteId}`),
+  getRandomUsers: (gender, casteId, requesterId) =>
+    axiosClient.get(`/user/getTenShuffledUsers/${gender}/${casteId}`, { params: requesterId ? { requesterId } : undefined }),
 
   filterUsers: (request) =>
     axiosClient.post(`/user/filterUsers`, request),
@@ -92,6 +92,9 @@ const userApi = {
       params: { page, size },
     }),
 
+  getWhoLikedMe: (encodedId) =>
+    axiosClient.get(`/userLikes/whoLikedMe/${encodedId}`),
+
   createServiceRequest: (encodedUserId, requestType, note, targetUserId) =>
     axiosClient.post(`/service-request/create/${encodedUserId}`, { requestType, note, targetUserId }),
 
@@ -143,6 +146,11 @@ const userApi = {
   getRestrictedRequestsToId: (userId) =>
     axiosClient.get(`/restrictedFieldRequest/getRestrictedRequestsToId/${userId}`),
 
+  // encodedRequestId is the restricted_field_requests row id, base64-encoded (backend decodes it
+  // the same way user ids are decoded elsewhere) — status is 'APPROVED' or 'REJECTED'.
+  updateRestrictedFieldStatus: (encodedRequestId, status) =>
+    axiosClient.put(`/restrictedFieldRequest/updateStatus/${encodedRequestId}`, null, { params: { status } }),
+
   createUserLike: (request) =>
     axiosClient.post(`/userLikes/createUserLike`, request),
 
@@ -177,6 +185,15 @@ const userApi = {
 
   getConversationStatusById: (conversationId) =>
     axiosClient.get(`/conversation/getConversationStatus/${conversationId}`),
+
+  getConversationByUsers: (userOneId, userTwoId) =>
+    axiosClient.get(`/conversation/getByUsers/${userOneId}/${userTwoId}`),
+
+  // Note: isActive lives on the shared conversation row, not per-participant — this hides the
+  // conversation for BOTH people, not just the one who deleted it (unlike WhatsApp's per-user
+  // delete). A new message from either side revives it automatically (see ChatService.sendChatMessage).
+  deleteConversation: (conversationId) =>
+    axiosClient.get(`/conversation/inActiveConversationById/${conversationId}`),
 
   getAllHappyStoriesByIsActive: () =>
     axiosClient.get(`/happyStory/getAllHappyStoriesByIsActive/Y`),
@@ -379,6 +396,9 @@ const userApi = {
   getAdminContact: () => {
     return axiosClient.get(`/keyValue/getKeyValueByKey/ADMIN_CONTACT`)
   },
+  getQuickAccessMenu: () => {
+    return axiosClient.get(`/keyValue/getKeyValueByKey/QUICK_ACCESS_MENU`)
+  },
   createCallbackRequest: (encodedUserId, body) => {
     return axiosClient.post(`/callback-request/create/${encodedUserId}`, body)
   },
@@ -400,6 +420,10 @@ const userApi = {
     axiosClient.get(`/userFeatureUsage/conversationQuota/${encodedUserId}`),
   revealContact: (viewerEncodedId, profileUserId) =>
     axiosClient.get(`/user/revealContact/${viewerEncodedId}/${profileUserId}`),
+  getContactRevealStatus: (viewerEncodedId) =>
+    axiosClient.get(`/user/contactRevealStatus/${viewerEncodedId}`),
+  getRevealedContacts: (viewerEncodedId) =>
+    axiosClient.get(`/user/getRevealedContacts/${viewerEncodedId}`),
   getAllKeyValues: () => {
     return axiosClient.get(`/keyValue/getAllKeyValues`)
   },

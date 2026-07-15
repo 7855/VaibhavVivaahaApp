@@ -36,6 +36,8 @@ import { useSubscription } from '../contexts/subscriptionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import userApi from '../api/userApi';
+import SupportFAB from '../../../components/SupportFAB';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 
 interface PrivacySettings {
   allowMessages?: boolean;
@@ -325,7 +327,7 @@ const SettingsPage: React.FC = () => {
                   icon={<MaterialCommunityIcons name="crown" size={20} color="#eab308" />}
                   title="Upgrade Now"
                   subtitle="Get premium features"
-                  onPress={() => router.push('/screens/PremiumTab')}
+                  onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Premium Features' })}
                   rightElement={
                     <View style={styles.premiumBadge}>
                       <Text style={styles.premiumText}>Premium</Text>
@@ -340,9 +342,12 @@ const SettingsPage: React.FC = () => {
                   onPress={() => {
                     const isGoldPlus = subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum';
                     if (!isGoldPlus) {
+                      // Routes to the generalized upgrade-request picker (see
+                      // utils/upgradeNavigation.ts) instead of a self-serve checkout — same
+                      // admin-callback flow PaymentScreen uses in CONTACT mode.
                       popup.premiumRequired(
                         'Upgrade to Gold or Platinum to add family members who can help find your match.',
-                        () => router.push('/(root)/screens/PremiumTab' as any)
+                        buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Family Access', minPlan: 'Gold' })
                       );
                       return;
                     }
@@ -378,7 +383,7 @@ const SettingsPage: React.FC = () => {
               if (!subscriptionData?.entitlements?.starMatch) {
                 popup.premiumRequired(
                   'Star Match is available from Classic plan onwards. Upgrade to discover your compatibility score!',
-                  () => router.push('/(root)/screens/PremiumTab' as any)
+                  buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Star Match', minPlan: 'Classic' })
                 );
                 return;
               }
@@ -414,7 +419,7 @@ const SettingsPage: React.FC = () => {
               if (!isGoldPlus) {
                 popup.premiumRequired(
                   'Upgrade to Gold or Platinum to see who shortlisted you.',
-                  () => router.push('/(root)/screens/PremiumTab' as any)
+                  buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Who Shortlisted You', minPlan: 'Gold' })
                 );
                 return;
               }
@@ -592,6 +597,7 @@ const SettingsPage: React.FC = () => {
       </RNModal>
 
       {/* </SafeAreaView> */}
+      <SupportFAB />
     </NativeBaseProvider>
   );
 };
@@ -601,7 +607,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
     paddingBottom: 40,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f3f7fa',
   },
   header: {
     flexDirection: 'row',
@@ -618,14 +624,19 @@ const styles = StyleSheet.create({
     marginRight: 16,
     elevation: 2,
   },
+  // topbarTitle scale (20px Rubik-Bold, ink, tight letter-spacing) — matches index.tsx/profile.tsx's
+  // page-level title convention instead of the previous 22px/near-black one-off.
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: 'Rubik-Bold',
-    color: '#130001',
+    color: '#0f1724',
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
-    color: '#6b7280',
-    fontSize: 13,
+    color: '#64748b',
+    fontSize: 12,
+    fontFamily: 'Rubik-Regular',
+    marginTop: 1,
   },
   sectionTitle: {
     flexDirection: 'row',
@@ -633,10 +644,13 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 12,
   },
+  // sectionTitle scale (16px Rubik-Bold, ink, -0.3 tracking) — matches profile.tsx's section
+  // headers ("Your Matrimony Profile" / "Your Details").
   sectionTitleText: {
-    fontSize: 18,
-    fontFamily: 'Rubik-Medium',
-    color: '#130001',
+    fontSize: 16,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
+    letterSpacing: -0.3,
   },
   sectionIcon: {
     width: 32,
@@ -672,14 +686,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
+  // listCardTitle/listCardSub scale — matches profile.tsx's row-card typography (15px Rubik-Bold
+  // title, 12.5px Rubik-Regular subtitle) instead of the previous 16px Medium/near-black pairing.
   settingTitle: {
-    fontSize: 16,
-    fontFamily: 'Rubik-Medium',
-    color: '#130001',
+    fontSize: 15,
+    fontFamily: 'Rubik-SemiBold',
+    color: '#0f1724',
+    letterSpacing: -0.2,
   },
   settingSubtitle: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: 12.5,
+    fontFamily: 'Rubik-Regular',
+    color: '#64748b',
+    marginTop: 1,
   },
   premiumBadge: {
     backgroundColor: '#fbbf24',
@@ -688,9 +707,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   premiumText: {
-    color: '#DADADA',
-    fontSize: 12,
+    color: '#ffffff',
+    fontSize: 11,
     fontFamily: 'Rubik-Bold',
+    letterSpacing: 0.2,
   },
 });
 

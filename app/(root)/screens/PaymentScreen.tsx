@@ -171,7 +171,7 @@ const PaymentScreen = () => {
     const planTitle = (params.planTitle as string) || 'Gold Plan';
     const planPrice = (params.planPrice as string) || '₹2,999';
     const planPeriod = (params.planPeriod as string) || '12 Months';
-    const paymentRequestId = (params.paymentRequestId as string) || (params.planId as string) || '';
+    const paymentRequestId = (params.paymentRequestId as string) || '';
     const { userData } = useUserData();
     const popup = usePopup();
 

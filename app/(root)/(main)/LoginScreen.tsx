@@ -151,7 +151,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
 
   return (
     <NativeBaseProvider>
-      <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+      <View style={{ flex: 1 }}>
+        {/* Same soft blue theme gradient used app-wide (explore.tsx, sign-up.tsx) instead of
+            the flat '#F5F5F5' this screen had — the login screen was the odd one out. */}
+        <LinearGradient
+          colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
+          locations={[0, 0.3, 0.6, 1.0]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -180,7 +189,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                 <View style={{ alignItems: 'center', marginBottom: 30 }}>
                   <View style={{ position: 'relative', marginBottom: 24 }}>
                     <LinearGradient
-                      colors={['#F5F5F5', '#e0e0e0', '#F5F5F5']}
+                      colors={['#eaf2fc', '#d0dfeb', '#eaf2fc']}
                       style={{
                         width: 96, height: 96, borderRadius: 48,
                         justifyContent: 'center', alignItems: 'center',
@@ -193,19 +202,22 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                     </LinearGradient>
                   </View>
 
+                  {/* Rubik-Bold, not -Medium/-ExtraBold — matches the app's type scale
+                      (profile.tsx hero name, sign-up.tsx's page title): ExtraBold is reserved
+                      for the brand wordmark component only. */}
                   <Text style={{
-                    fontSize: 24,
-                    fontFamily: 'Rubik-Medium',
-                    color: '#5C1A1B',
+                    fontSize: 20,
+                    fontFamily: 'Rubik-Bold',
+                    color: '#0f1724',
                     marginBottom: 8,
                     textAlign: 'center',
                   }}>
                     Vaibhav Vivaaha Matrimony
                   </Text>
                   <Text style={{
-                    fontSize: 14,
-                    fontFamily: 'Rubik-Medium',
-                    color: '#8a7a6d',
+                    fontSize: 12,
+                    fontFamily: 'Rubik-Regular',
+                    color: '#64748b',
                     textAlign: 'center',
                   }}>
                     Turning Matches Into Lasting Marriages
@@ -234,12 +246,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                         {/* Phone Number Input */}
                         <View style={{ gap: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Icon name="phone" size={16} color="#130057" />
+                            <Icon name="phone" size={16} color="#1F7FE5" />
                             <Text style={{
                               fontSize: 12,
                               fontFamily: 'Rubik-Bold',
-                              color: '#130057',
-                              letterSpacing: 1,
+                              color: '#0f1724',
+                              letterSpacing: 0.3,
                               textTransform: 'uppercase',
                               marginLeft: 8,
                             }}>
@@ -255,7 +267,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                               justifyContent: 'center',
                               zIndex: 1,
                             }}>
-                              <Icon name="phone" size={20} color="#130057" />
+                              <Icon name="phone" size={20} color="#1F7FE5" />
                             </View>
                             <TextInput
                               testID="input-mobile"
@@ -266,16 +278,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                                 paddingLeft: 48,
                                 paddingRight: 16,
                                 paddingVertical: 16,
-                                backgroundColor: 'rgba(245, 245, 245, 0.8)',
-                                borderWidth: 2,
-                                borderColor: 'rgba(19, 0, 87, 0.1)',
+                                backgroundColor: '#ffffff',
+                                borderWidth: 1,
+                                borderColor: '#e2e8f0',
                                 borderRadius: 16,
                                 fontSize: 14,
-                                fontFamily: 'Rubik-Medium',
-                                color: '#130057',
+                                fontFamily: 'Rubik-Regular',
+                                color: '#333',
                               }}
                               placeholder="Enter mobile number"
-                              placeholderTextColor="rgba(19, 0, 87, 0.4)"
+                              placeholderTextColor="#999"
                               keyboardType="numeric"
                               maxLength={10}
                             />
@@ -310,12 +322,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                         {/* PIN Input */}
                         <View style={{ gap: 12 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Icon name="lock" size={16} color="#130057" />
+                            <Icon name="lock" size={16} color="#1F7FE5" />
                             <Text style={{
                               fontSize: 12,
                               fontFamily: 'Rubik-Bold',
-                              color: '#130057',
-                              letterSpacing: 1,
+                              color: '#0f1724',
+                              letterSpacing: 0.3,
                               textTransform: 'uppercase',
                               marginLeft: 8,
                             }}>
@@ -331,7 +343,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                               justifyContent: 'center',
                               zIndex: 1,
                             }}>
-                              <Icon name="lock" size={20} color="#130057" />
+                              <Icon name="lock" size={20} color="#1F7FE5" />
                             </View>
                             <TextInput
                               testID="input-pin"
@@ -342,16 +354,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                                 paddingLeft: 48,
                                 paddingRight: 56,
                                 paddingVertical: 16,
-                                backgroundColor: 'rgba(245, 245, 245, 0.8)',
-                                borderWidth: 2,
-                                borderColor: 'rgba(19, 0, 87, 0.1)',
+                                backgroundColor: '#ffffff',
+                                borderWidth: 1,
+                                borderColor: '#e2e8f0',
                                 borderRadius: 16,
                                 fontSize: 14,
-                                fontFamily: 'Rubik-Medium',
-                                color: '#130057',
+                                fontFamily: 'Rubik-Regular',
+                                color: '#333',
                               }}
                               placeholder="Enter PIN"
-                              placeholderTextColor="rgba(19, 0, 87, 0.25)"
+                              placeholderTextColor="#999"
                               secureTextEntry={!showPin}
                               keyboardType="numeric"
                               maxLength={4}
@@ -369,7 +381,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                               <Icon
                                 name={showPin ? 'visibility-off' : 'visibility'}
                                 size={20}
-                                color="rgba(19, 0, 87, 0.4)"
+                                color="#94a3b8"
                               />
                             </TouchableOpacity>
                           </View>
@@ -393,7 +405,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
 
                         >
                           <LinearGradient
-                            colors={isFormValid && !isLoading ? ['#1F7FE5', '#1F7FE5'] : ['#cccccc', '#999999']}
+                            colors={isFormValid && !isLoading ? ['#1F7FE5', '#1862b8'] : ['#cccccc', '#999999']}
                             style={{
                               paddingVertical: 16,
                               paddingHorizontal: 24,
@@ -422,12 +434,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
                             onPress={() => router.push('/(root)/(main)/ResetPasswordScreen')}
                             style={{ flexDirection: 'row', alignItems: 'center' }}
                           >
-                            <Icon name="lock" size={16} color="#130057" />
+                            <Icon name="lock" size={16} color="#1F7FE5" />
                             <Text style={{
-                              color: '#130057',
-                              fontFamily: 'Rubik-Medium',
+                              color: '#1F7FE5',
+                              fontSize: 12.5,
+                              fontFamily: 'Rubik-Bold',
                               marginLeft: 8,
-                              textDecorationLine: 'underline',
                             }}>
                               Forgot PIN?
                             </Text>
@@ -440,9 +452,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
 
                 {/* Sign up link */}
                 <View style={{ alignItems: 'center', marginTop: 24 }}>
-                  <Text style={{ fontSize: 13, color: '#8a7a6d' }}>
+                  <Text style={{ fontSize: 12.5, fontFamily: 'Rubik-Regular', color: '#6b7280' }}>
                     Don't have an account?{' '}
-                    <Text style={{ color: '#5C1A1B', fontFamily: 'Rubik-Medium' }} onPress={() => router.push('/(root)/(main)/sign-up')}>
+                    <Text style={{ color: '#1F7FE5', fontFamily: 'Rubik-Bold' }} onPress={() => router.push('/(root)/(main)/sign-up')}>
                       Sign Up
                     </Text>
                   </Text>

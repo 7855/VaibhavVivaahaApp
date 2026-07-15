@@ -3,7 +3,6 @@ import {
     Alert,
     Text,
     View,
-    useWindowDimensions,
     StyleSheet,
     TouchableOpacity,
     ScrollView,
@@ -12,26 +11,25 @@ import {
     TouchableWithoutFeedback,
     Modal,
     ActivityIndicator,
+    FlatList,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
-import { Box, CheckIcon, Divider, FlatList, HStack, Radio, Select, Skeleton, Stack, Switch, VStack } from "native-base";
-import { TabView, TabBar } from "react-native-tab-view";
+import { Switch } from "native-base";
 import Expandable from "react-native-reanimated-animated-accordion";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import RangeSlider from "rn-range-slider";
 import { Dropdown } from "react-native-element-dropdown";
 import DropdownComponent from "../../../components/DropdownComponent";
-import ExploreProfileCard from "../../../components/ExploreProfileCard";
 import userApi from "@/app/(root)/api/userApi";
 import { router } from "expo-router";
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
-import { Book, Calendar, DollarSign, Briefcase, ChevronDown, ChevronRight } from "lucide-react-native";
+import { Briefcase, ChevronDown, User, Sparkles, Search as SearchIcon, Check, SlidersHorizontal } from "lucide-react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSubscription } from '../contexts/subscriptionContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 import AgeRangeSelector from "@/components/AgeRangeSelector";
 import RangeSelectorModal from "@/components/RangeSelectorModal";
-import MultiSelectDropdown from "@/components/MultiSelectDropdown";
 import { AnyRecord } from "react-native-reanimated/lib/typescript/css/types";
 // Custom Components for Slider
 const Thumb = () => <View style={styles.thumb} />;
@@ -119,10 +117,37 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [showJobSectorModal, setShowJobSectorModal] = useState(false);
     const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isSearchSubmitting, setIsSearchSubmitting] = useState(false);
     const [fromAge, setFromAge] = useState(18);
     const [toAge, setToAge] = useState(60);
     const [fromIncome, setFromIncome] = useState(0);
     const [toIncome, setToIncome] = useState(100);
+
+    // Stable identity is required here — rn-range-slider's internal effect depends on this
+    // callback's reference and re-fires whenever it changes. An inline arrow function gets a new
+    // identity every render, so it refires unconditionally on every render (not just user drags),
+    // which calls setState here, which re-renders, which creates a new inline function... an
+    // infinite "Maximum update depth exceeded" loop. useCallback with a stable (empty) deps array
+    // keeps the reference fixed so the effect only actually fires on a real value change.
+    const handleAgeSliderChange = useCallback((low: number, high: number) => {
+        setFromAge(low);
+        setToAge(high);
+        setFilters(prev => ({
+            ...prev,
+            ageRange: low === high ? `${low} Yrs` : `${low} Yrs - ${high} Yrs`
+        }));
+    }, []);
+
+    const handleIncomeSliderChange = useCallback((low: number, high: number) => {
+        setFromIncome(low);
+        setToIncome(high);
+        setFilters(prev => ({
+            ...prev,
+            annualIncomeFilter: low === high
+                ? (low === 0 ? '0' : low === 99 ? '100L+' : `${low}L`)
+                : `${low} Lakhs - ${high} Lakhs`
+        }));
+    }, []);
     // Add this effect to fetch saved searches
     const [incomeRanges, setIncomeRanges] = useState<Array<{
         id: number;
@@ -276,12 +301,31 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
 
 
+    const handleClearFilters = () => {
+        // Reset all filters to default values
+        setFilters({
+            ageRange: '',
+            profileCreatedBy: 'Any',
+            subcaste: 'Any',
+            education: '',
+            city: '',
+            star: '',
+            dosham: '',
+            annualIncomeFilter: '',
+            jobSector: '',
+            degree: '',
+        });
+        // Reset toggle switches
+        setPhotoOnly(false);
+        setHoroscopeOnly(false);
+    };
+
     const handleSearch = async () => {
         const searchData = await gatherSearchData();
         // console.log('Search Data:', JSON.stringify(searchData, null, 2));
         // console.log("searchData.minAnnualIncome ", searchData.minAnnualIncome);
 
-
+        setIsSearchSubmitting(true);
         try {
             // Format the request body according to API requirements
             const requestBody = {
@@ -329,6 +373,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             console.error('Error searching profiles:', error);
             // Handle error (show error message to user)
             Alert.alert('Something Went Wrong. Please try again.');
+        } finally {
+            setIsSearchSubmitting(false);
         }
     };
 
@@ -356,15 +402,21 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         try {
             console.log("savedSearch=>", savedSearch);
 
-            // Check for premium features
+            // Check for premium features — profilesWithHoroscope is saved on EVERY search
+            // (defaults to the string 'N', which is truthy in JS, so the save flow always
+            // includes this filter key even when the user never opted into horoscope-only
+            // filtering). Checking mere key presence flagged every saved search as "premium",
+            // blocking Starter/Free users from using even a plain age/income search. Only treat
+            // it as an actual premium selection when its value is 'Y'.
             const hasPremiumFeatures = savedSearch.filters.some((filter: any) =>
-                ['Star', 'Dosham', 'profilesWithHoroscope', 'Education'].includes(filter.filterKey)
+                ['Star', 'Dosham', 'Education'].includes(filter.filterKey) ||
+                (filter.filterKey === 'profilesWithHoroscope' && filter.filterValue === 'Y')
             );
 
             if (hasPremiumFeatures && !isPremiumUser) {
                 popup.premiumRequired(
                     'This search includes premium filters. Upgrade to Premium to use horoscope, education, and dosham filters.',
-                    () => router.push('/(root)/screens/PremiumTab')
+                    buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Advanced Search Filters' })
                 );
                 return;
             }
@@ -492,11 +544,11 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             // Switch to criteria tab
             setActiveTab('criteria');
 
-            Alert.alert('Search Loaded', `Loaded search: ${savedSearch.searchName}`);
+            popup.success('Search Loaded', `"${savedSearch.searchName}" filters have been applied.`);
 
         } catch (error) {
             console.error('Error loading search:', error);
-            Alert.alert('Error', 'Failed to load the saved search. Please try again.');
+            popup.error('Error', 'Failed to load the saved search. Please try again.');
         }
     };
 
@@ -722,12 +774,13 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     }, []);
 
     const handleProfileIdSearch = async () => {
-        try {
-            if (!profileId.trim()) {
-                Alert.alert('Error', 'Please enter a profile ID');
-                return;
-            }
+        if (!profileId.trim()) {
+            Alert.alert('Error', 'Please enter a profile ID');
+            return;
+        }
 
+        setIsSearchSubmitting(true);
+        try {
             const casteId = userData.casteId;
             const gender = userData.gender;
 
@@ -756,6 +809,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         } catch (error) {
             console.error('Error searching by profile ID:', error);
             Alert.alert('Error', 'Failed to search profile. Please try again.');
+        } finally {
+            setIsSearchSubmitting(false);
         }
     };
 
@@ -820,13 +875,22 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             return (
                 <View style={styles.cardContainer}>
                     <View style={styles.filterCard}>
-                        <Text style={styles.sectionHeader}>Profile Search</Text>
-                        <View style={[styles.inputContainer, { marginTop: 12 }]}>
+                        <View style={styles.sectionHeaderContainer}>
+                            <View style={styles.sectionIconBadge}>
+                                <User size={15} color="#1F7FE5" />
+                            </View>
+                            <Text style={styles.sectionHeader}>Profile Search</Text>
+                        </View>
+                        <Text style={styles.profileIdHint}>
+                            Enter the exact Profile ID (Member ID) to find a specific member.
+                        </Text>
+                        <View style={styles.inputContainer}>
                             <View style={styles.inputField}>
+                                <SearchIcon size={16} color="#94a3b8" />
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Enter Profile ID"
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor="#94a3b8"
                                     value={profileId}
                                     onChangeText={setProfileId}
                                 />
@@ -839,13 +903,9 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
         if (activeTab === 'saved') {
             return (
-                <ScrollView style={{ flex: 1, padding: 5, backgroundColor: '#F9FAFB' }}>
-                    {/* <Text style={{ fontSize: 16, fontFamily: 'Rubik-Medium', color: '#111827', marginBottom: 16 }}>
-                        Saved Searches
-                    </Text> */}
-
+                <ScrollView style={{ flex: 1, paddingHorizontal: 18, paddingTop: 12, backgroundColor: 'transparent' }} showsVerticalScrollIndicator={false}>
                     {loading ? (
-                        <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 24 }} />
+                        <ActivityIndicator size="large" color="#1F7FE5" style={{ marginTop: 24 }} />
                     ) : savedSearches.length > 0 ? (
                         savedSearches.map((search) => (
                             <View key={search.id} style={styles.savedSearchCard}>
@@ -868,8 +928,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             onPress={() => handleUseSearch(search)}
                                             style={[styles.actionButton, styles.searchButton]}
                                         >
-                                            <Feather name="search" size={16} color="#4F46E5" />
-                                            <Text style={[styles.actionButtonText, { color: '#4F46E5' }]}>
+                                            <SearchIcon size={14} color="#1F7FE5" />
+                                            <Text style={[styles.actionButtonText, { color: '#1F7FE5' }]}>
                                                 Use
                                             </Text>
                                         </TouchableOpacity>
@@ -878,7 +938,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             onPress={() => handleDelete(search.id)}
                                             style={[styles.actionButton, styles.deleteButton]}
                                         >
-                                            <Feather name="trash-2" size={16} color="#EF4444" />
+                                            <Feather name="trash-2" size={15} color="#EF4444" />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -886,7 +946,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 <View style={styles.filtersContainer}>
                                     {search.filters.map((filter) => (
                                         <View key={filter.id} style={styles.filterChip}>
-                                            <Feather name="filter" size={12} color="#6B7280" />
+                                            <Feather name="filter" size={11} color="#1F7FE5" />
                                             <Text style={styles.filterText} numberOfLines={1}>
                                                 {filter.filterKey}: {filter.filterValue}
                                             </Text>
@@ -897,7 +957,9 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         ))
                     ) : (
                         <View style={styles.emptyStateContainer}>
-                            <Feather name="search" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
+                            <View style={styles.exploreEmptyIcon}>
+                                <SearchIcon size={30} color="#1F7FE5" />
+                            </View>
                             <Text style={styles.emptyStateText}>No saved searches yet</Text>
                             <Text style={styles.emptyStateSubtext}>
                                 Save your searches to quickly access them later
@@ -911,36 +973,16 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         // Default tab (criteria)
         return (
             <View style={styles.cardContainer}>
-                <TouchableOpacity
-                    style={styles.clearButton}
-                    onPress={() => {
-                        // Reset all filters to default values
-                        setFilters({
-                            ageRange: '',
-                            profileCreatedBy: 'Any',
-                            subcaste: 'Any',
-                            education: '',
-                            city: '',
-                            star: '',
-                            dosham: '',
-                            annualIncomeFilter: '',
-                            jobSector: '',
-                            degree: '',
-                        });
-                        // Reset toggle switches
-                        setPhotoOnly(false);
-                        setHoroscopeOnly(false);
-                    }}
-                >
-                    <Feather name="x-circle" size={16} color="#666" />
-                    <Text style={styles.clearButtonText}>Clear</Text>
-                </TouchableOpacity>
                 <View style={styles.filterCard}>
 
                     <TouchableOpacity
                         style={styles.sectionHeaderContainer}
                         onPress={() => toggleSection('basic')}
+                        activeOpacity={0.75}
                     >
+                        <View style={[styles.sectionIconBadge, { backgroundColor: '#dfecfb' }]}>
+                            <User size={15} color="#1F7FE5" />
+                        </View>
                         <Text style={styles.sectionHeader}>Basic Details</Text>
                         <ChevronDown
                             size={20}
@@ -954,7 +996,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
                     <View style={styles.filterContent}>
                         {expandedSections.basic && (
-                            <View style={{ marginBottom: 35 }}>
+                            <View style={{ marginBottom: 0 }}>
                                 {/* <View style={styles.filterRow}>
                                     <Text style={styles.filterLabel}>Age</Text>
                                     <TouchableOpacity
@@ -966,17 +1008,32 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     </TouchableOpacity>
                                 </View> */}
 
-                                <View style={[styles.filterRow, styles.filterRowFirst]}>
-                                    <Text style={styles.filterLabel}>Age</Text>
-                                    <TouchableOpacity
-                                        style={styles.dropdownButton}
-                                        onPress={() => setShowAgeModal(true)}
-                                    >
-                                        <Text style={styles.dropdownText}>
-                                            {filters.ageRange || 'Select Age Range'}
-                                        </Text>
-                                        <ChevronDown size={16} color="#666" />
-                                    </TouchableOpacity>
+                                <View style={[styles.rangeSection, styles.rangeSectionFirst]}>
+                                    <Text style={styles.rangeSectionLabel}>Age Range</Text>
+                                    <View style={styles.sliderWrap}>
+                                        <RangeSlider
+                                            style={styles.slider}
+                                            min={18}
+                                            max={60}
+                                            step={1}
+                                            low={fromAge}
+                                            high={toAge}
+                                            renderThumb={() => <View style={styles.thumb} />}
+                                            renderRail={() => <View style={styles.rail} />}
+                                            renderRailSelected={() => <View style={styles.railSelected} />}
+                                            onValueChanged={handleAgeSliderChange}
+                                        />
+                                    </View>
+                                    <View style={styles.rangeBoxRow}>
+                                        <View style={styles.rangeBox}>
+                                            <Text style={styles.rangeBoxLabel}>Minimum</Text>
+                                            <Text style={styles.rangeBoxValue}>{fromAge} Yrs</Text>
+                                        </View>
+                                        <View style={styles.rangeBox}>
+                                            <Text style={styles.rangeBoxLabel}>Maximum</Text>
+                                            <Text style={styles.rangeBoxValue}>{toAge} Yrs</Text>
+                                        </View>
+                                    </View>
                                 </View>
 
                                 {/* <View style={styles.filterRow}>
@@ -1002,28 +1059,36 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 </View> */}
 
                                 <View style={styles.filterRow}>
-                                    <HStack alignItems="center" space={2} justifyContent="space-between" width="100%">
-                                        <Text style={styles.filterLabel}>Profile with photos only</Text>
+                                    <View style={styles.switchCard}>
+                                        <View style={styles.switchCardLeft}>
+                                            <View style={[styles.switchIconBadge, { backgroundColor: '#dfecfb' }]}>
+                                                <Feather name="image" size={15} color="#1F7FE5" />
+                                            </View>
+                                            <Text style={styles.switchCardLabel}>Profile with photos only</Text>
+                                        </View>
                                         <Switch
                                             size="sm"
                                             value={photoOnly}
                                             onValueChange={setPhotoOnly}
-                                            trackColor={{ false: "#767577", true: "#1F7FE5" }}
-                                            thumbColor={photoOnly ? "#f5dd4b" : "#f4f3f4"}
+                                            trackColor={{ false: "#e2e8f0", true: "#1F7FE5" }}
+                                            thumbColor={"#fff"}
                                         />
-                                    </HStack>
+                                    </View>
                                 </View>
                             </View>
                         )}
 
-
+                        <View style={styles.sectionDivider} />
 
                         {/* ------Job Details ---- */}
-
                         <TouchableOpacity
                             style={styles.sectionHeaderContainer}
                             onPress={() => toggleSection('job')}
+                            activeOpacity={0.75}
                         >
+                            <View style={[styles.sectionIconBadge, { backgroundColor: '#feead0' }]}>
+                                <Briefcase size={15} color="#c7811a" />
+                            </View>
                             <Text style={styles.sectionHeader}>Job Details</Text>
                             <ChevronDown
                                 size={20}
@@ -1034,11 +1099,10 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 ]}
                             />
                         </TouchableOpacity>
-                        <Divider my={2} height={'0.5px'} bg="gray.200" />
 
                         {expandedSections.job && (
 
-                            <View style={{ marginBottom: 35 }}>
+                            <View style={{ marginBottom: 0 }}>
 
                                 {/* <View style={styles.filterRow}>
                                     <Text style={styles.filterLabel}>Education  {!isPremiumUser && (
@@ -1067,25 +1131,29 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     </TouchableOpacity>
                                 </View> */}
                                 <View style={[styles.filterRow, styles.filterRowFirst]}>
-                                    <View style={styles.singleRowContainer}>
-                                        <View style={styles.labelContainer1}>
-                                            <Text style={styles.filterLabel}>Education</Text>
-                                        </View>
-
+                                    <View style={styles.pillFieldSection}>
+                                        <Text style={styles.rangeSectionLabel}>Education</Text>
                                         {optionsMap.education && optionsMap.education.length > 0 ? (
                                             isPremiumUser ? (
-                                                <View style={styles.dropdownContainer}>
-                                                    <MultiSelectDropdown
-                                                        options={optionsMap.education}
-                                                        selectedValues={Array.isArray(filters.education) ? filters.education : []}
-                                                        onSelect={(values) =>
-                                                            setFilters(prev => ({
-                                                                ...prev,
-                                                                education: values,
-                                                            }))
-                                                        }
-                                                        placeholder="Select"
-                                                    />
+                                                <View style={styles.pillWrapRow}>
+                                                    {optionsMap.education.map((opt) => {
+                                                        const list = Array.isArray(filters.education) ? filters.education : [];
+                                                        const selected = list.includes(opt);
+                                                        return (
+                                                            <TouchableOpacity
+                                                                key={opt}
+                                                                style={[styles.wrapPill, selected && styles.wrapPillSelected]}
+                                                                activeOpacity={0.8}
+                                                                onPress={() => setFilters(prev => ({
+                                                                    ...prev,
+                                                                    education: selected ? list.filter(v => v !== opt) : [...list, opt],
+                                                                }))}
+                                                            >
+                                                                {selected && <Check size={13} color="#1F7FE5" strokeWidth={3} />}
+                                                                <Text style={[styles.wrapPillText, selected && styles.wrapPillTextSelected]}>{opt}</Text>
+                                                            </TouchableOpacity>
+                                                        );
+                                                    })}
                                                 </View>
                                             ) : (
                                                 <TouchableOpacity
@@ -1104,17 +1172,32 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 </View>
 
 
-                                <View style={styles.filterRow}>
-                                    <Text style={styles.filterLabel}>Annual Income</Text>
-                                    <TouchableOpacity
-                                        style={styles.filterButton}
-                                        onPress={() => setShowIncomeModal(true)}
-                                    >
-                                        <Text style={styles.filterButtonText}>
-                                            {filters.annualIncomeFilter || 'Select Income Range'}
-                                        </Text>
-                                        <ChevronDown size={16} color="#666" />
-                                    </TouchableOpacity>
+                                <View style={styles.rangeSection}>
+                                    <Text style={styles.rangeSectionLabel}>Annual Income (₹ Lakhs)</Text>
+                                    <View style={styles.sliderWrap}>
+                                        <RangeSlider
+                                            style={styles.slider}
+                                            min={0}
+                                            max={99}
+                                            step={1}
+                                            low={fromIncome}
+                                            high={toIncome}
+                                            renderThumb={() => <View style={styles.thumb} />}
+                                            renderRail={() => <View style={styles.rail} />}
+                                            renderRailSelected={() => <View style={styles.railSelected} />}
+                                            onValueChanged={handleIncomeSliderChange}
+                                        />
+                                    </View>
+                                    <View style={styles.rangeBoxRow}>
+                                        <View style={styles.rangeBox}>
+                                            <Text style={styles.rangeBoxLabel}>Minimum</Text>
+                                            <Text style={styles.rangeBoxValue}>{fromIncome === 0 ? '0' : `₹${fromIncome}L`}</Text>
+                                        </View>
+                                        <View style={styles.rangeBox}>
+                                            <Text style={styles.rangeBoxLabel}>Maximum</Text>
+                                            <Text style={styles.rangeBoxValue}>{toIncome === 99 ? '₹100L+' : `₹${toIncome}L`}</Text>
+                                        </View>
+                                    </View>
                                 </View>
 
                                 {/* <View style={{ ...styles.filterRow }}>
@@ -1145,26 +1228,30 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                         <ChevronDown size={16} color="#666" />
                                     </TouchableOpacity>
                                 </View> */}
-                                {/* Job Sector Multi-Select Dropdown */}
+                                {/* Job Sector — inline wrapped pill multi-select */}
                                 <View style={styles.filterRow}>
-                                    <View style={styles.singleRowContainer}>
-                                        <View style={styles.labelContainer1}>
-                                            <Text style={styles.filterLabel}>Job Sector</Text>
-                                        </View>
-
+                                    <View style={styles.pillFieldSection}>
+                                        <Text style={styles.rangeSectionLabel}>Job Sector</Text>
                                         {optionsMap.jobSector && optionsMap.jobSector.length > 0 ? (
-                                            <View style={styles.dropdownContainer}>
-                                                <MultiSelectDropdown
-                                                    options={optionsMap.jobSector}
-                                                    selectedValues={Array.isArray(filters.jobSector) ? filters.jobSector : []}
-                                                    onSelect={(values) =>
-                                                        setFilters(prev => ({
-                                                            ...prev,
-                                                            jobSector: values,
-                                                        }))
-                                                    }
-                                                    placeholder="Select"
-                                                />
+                                            <View style={styles.pillWrapRow}>
+                                                {optionsMap.jobSector.map((opt) => {
+                                                    const list = Array.isArray(filters.jobSector) ? filters.jobSector : [];
+                                                    const selected = list.includes(opt);
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={opt}
+                                                            style={[styles.wrapPill, selected && styles.wrapPillSelected]}
+                                                            activeOpacity={0.8}
+                                                            onPress={() => setFilters(prev => ({
+                                                                ...prev,
+                                                                jobSector: selected ? list.filter(v => v !== opt) : [...list, opt],
+                                                            }))}
+                                                        >
+                                                            {selected && <Check size={13} color="#1F7FE5" strokeWidth={3} />}
+                                                                <Text style={[styles.wrapPillText, selected && styles.wrapPillTextSelected]}>{opt}</Text>
+                                                        </TouchableOpacity>
+                                                    );
+                                                })}
                                             </View>
                                         ) : (
                                             <Text>Loading...</Text>
@@ -1175,11 +1262,18 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
                             </View>
                         )}
+
+                        <View style={styles.sectionDivider} />
+
                         {/* ------Religious Details ---- */}
                         <TouchableOpacity
                             style={styles.sectionHeaderContainer}
                             onPress={() => toggleSection('religious')}
+                            activeOpacity={0.75}
                         >
+                            <View style={[styles.sectionIconBadge, { backgroundColor: '#ebe5fb' }]}>
+                                <Sparkles size={15} color="#8b6fd9" />
+                            </View>
                             <Text style={styles.sectionHeader}>Religious Details</Text>
                             <ChevronDown
                                 size={20}
@@ -1192,28 +1286,32 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         </TouchableOpacity>
 
                         {expandedSections.religious && (
-                            <View style={{ marginBottom: 35 }}>
-                                {/* Star Multi-Select Dropdown */}
+                            <View style={{ marginBottom: 0 }}>
+                                {/* Star — inline wrapped pill multi-select */}
                                 <View style={[styles.filterRow, styles.filterRowFirst]}>
-                                    <View style={styles.singleRowContainer}>
-                                        <View style={styles.labelContainer1}>
-                                            <Text style={styles.filterLabel}>Star</Text>
-                                        </View>
-
+                                    <View style={styles.pillFieldSection}>
+                                        <Text style={styles.rangeSectionLabel}>Star</Text>
                                         {optionsMap.star && optionsMap.star.length > 0 ? (
                                             isPremiumUser ? (
-                                                <View style={styles.dropdownContainer}>
-                                                    <MultiSelectDropdown
-                                                        options={optionsMap.star}
-                                                        selectedValues={Array.isArray(filters.star) ? filters.star : []}
-                                                        onSelect={(values) =>
-                                                            setFilters(prev => ({
-                                                                ...prev,
-                                                                star: values,
-                                                            }))
-                                                        }
-                                                        placeholder="Select"
-                                                    />
+                                                <View style={styles.pillWrapRow}>
+                                                    {optionsMap.star.map((opt) => {
+                                                        const list = Array.isArray(filters.star) ? filters.star : [];
+                                                        const selected = list.includes(opt);
+                                                        return (
+                                                            <TouchableOpacity
+                                                                key={opt}
+                                                                style={[styles.wrapPill, selected && styles.wrapPillSelected]}
+                                                                activeOpacity={0.8}
+                                                                onPress={() => setFilters(prev => ({
+                                                                    ...prev,
+                                                                    star: selected ? list.filter(v => v !== opt) : [...list, opt],
+                                                                }))}
+                                                            >
+                                                                {selected && <Check size={13} color="#1F7FE5" strokeWidth={3} />}
+                                                                <Text style={[styles.wrapPillText, selected && styles.wrapPillTextSelected]}>{opt}</Text>
+                                                            </TouchableOpacity>
+                                                        );
+                                                    })}
                                                 </View>
                                             ) : (
                                                 <TouchableOpacity
@@ -1231,27 +1329,31 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     </View>
                                 </View>
 
-                                {/* Dosham Multi-Select Dropdown */}
+                                {/* Dosham — inline wrapped pill multi-select */}
                                 <View style={styles.filterRow}>
-                                    <View style={styles.singleRowContainer}>
-                                        <View style={styles.labelContainer1}>
-                                            <Text style={styles.filterLabel}>Dosham</Text>
-                                        </View>
-
+                                    <View style={styles.pillFieldSection}>
+                                        <Text style={styles.rangeSectionLabel}>Dosham</Text>
                                         {optionsMap.dosham && optionsMap.dosham.length > 0 ? (
                                             isPremiumUser ? (
-                                                <View style={styles.dropdownContainer}>
-                                                    <MultiSelectDropdown
-                                                        options={optionsMap.dosham}
-                                                        selectedValues={Array.isArray(filters.dosham) ? filters.dosham : []}
-                                                        onSelect={(values) =>
-                                                            setFilters(prev => ({
-                                                                ...prev,
-                                                                dosham: values,
-                                                            }))
-                                                        }
-                                                        placeholder="Select"
-                                                    />
+                                                <View style={styles.pillWrapRow}>
+                                                    {optionsMap.dosham.map((opt) => {
+                                                        const list = Array.isArray(filters.dosham) ? filters.dosham : [];
+                                                        const selected = list.includes(opt);
+                                                        return (
+                                                            <TouchableOpacity
+                                                                key={opt}
+                                                                style={[styles.wrapPill, selected && styles.wrapPillSelected]}
+                                                                activeOpacity={0.8}
+                                                                onPress={() => setFilters(prev => ({
+                                                                    ...prev,
+                                                                    dosham: selected ? list.filter(v => v !== opt) : [...list, opt],
+                                                                }))}
+                                                            >
+                                                                {selected && <Check size={13} color="#1F7FE5" strokeWidth={3} />}
+                                                                <Text style={[styles.wrapPillText, selected && styles.wrapPillTextSelected]}>{opt}</Text>
+                                                            </TouchableOpacity>
+                                                        );
+                                                    })}
                                                 </View>
                                             ) : (
                                                 <TouchableOpacity
@@ -1270,23 +1372,28 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 </View>
 
                                 <View style={{ ...styles.filterRow }}>
-                                    <Text style={styles.filterLabel}>
-                                        Profile with Horoscope only
-                                    </Text>
-                                    <Switch
-                                        size="sm"
-                                        value={horoscopeOnly}
-                                        onValueChange={(value) => {
-                                            if (!isPremiumUser) {
-                                                setShowUpgradeModal(true);
-                                            } else {
-                                                setHoroscopeOnly(value);
-                                            }
-                                        }}
-                                        disabled={!isPremiumUser}
-                                        trackColor={{ false: "#767577", true: "#1F7FE5" }}
-                                        thumbColor={horoscopeOnly ? "#f5dd4b" : "#f4f3f4"}
-                                    />
+                                    <View style={styles.switchCard}>
+                                        <View style={styles.switchCardLeft}>
+                                            <View style={[styles.switchIconBadge, { backgroundColor: '#ebe5fb' }]}>
+                                                <Feather name="moon" size={15} color="#8b6fd9" />
+                                            </View>
+                                            <Text style={styles.switchCardLabel}>Profile with Horoscope only</Text>
+                                        </View>
+                                        <Switch
+                                            size="sm"
+                                            value={horoscopeOnly}
+                                            onValueChange={(value) => {
+                                                if (!isPremiumUser) {
+                                                    setShowUpgradeModal(true);
+                                                } else {
+                                                    setHoroscopeOnly(value);
+                                                }
+                                            }}
+                                            disabled={!isPremiumUser}
+                                            trackColor={{ false: "#e2e8f0", true: "#1F7FE5" }}
+                                            thumbColor={"#fff"}
+                                        />
+                                    </View>
                                 </View>
                             </View>
 
@@ -1303,7 +1410,10 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 >
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>🔒 Premium Feature</Text>
+                            <View style={styles.modalIconBadge}>
+                                <Feather name="lock" size={22} color="#d97706" />
+                            </View>
+                            <Text style={styles.modalTitle}>Premium Feature</Text>
                             <Text style={styles.modalText}>
                                 Upgrade to Premium to access advanced search filters.
                             </Text>
@@ -1345,7 +1455,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     useEffect(() => {
         const getRandomUsers = async () => {
             try {
-                const response = await userApi.getRandomUsers("F", 1);
+                const response = await userApi.getRandomUsers("F", 1, userData.decodedUserId);
                 const rawData = response.data.data;
                 setProfiles(response.data.data);
                 // console.log("rawData=======================>", rawData);
@@ -1414,6 +1524,20 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
     return (
         <View style={styles.container1}>
+            <View style={styles.pageHeader}>
+                <LinearGradient
+                    colors={['#1F7FE5', '#1862b8']}
+                    style={styles.pageHeaderIconBadge}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                >
+                    <SlidersHorizontal size={17} color="#fff" strokeWidth={2.4} />
+                </LinearGradient>
+                <View style={styles.pageHeaderTextWrap}>
+                    <Text style={styles.pageTitle}>Find Your Match</Text>
+                    <Text style={styles.pageSubtitle}>Filter by age, education, location & more</Text>
+                </View>
+            </View>
             <View style={styles.tabContainer}>
                 {tabs.map((tab) => (
                     <TouchableOpacity
@@ -1446,15 +1570,34 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     </Text>
                 </View> */}
                 {activeTab !== 'saved' && (
-                    <View style={[styles.basesearchButtonContainer, { marginTop: 10, paddingBottom: 150, borderTopWidth: 0, backgroundColor: 'transparent' }]}>
-                        <TouchableOpacity onPress={activeTab === 'profile' ? handleProfileIdSearch : handleSearch} style={styles.basesearchButtonWrapper}>
+                    <View style={[styles.basesearchButtonContainer, { marginTop: 10, paddingBottom: 150, borderTopWidth: 0, backgroundColor: 'transparent', gap: 10 }]}>
+                        {activeTab === 'criteria' && (
+                            <TouchableOpacity
+                                onPress={handleClearFilters}
+                                style={styles.clearButtonBottom}
+                                activeOpacity={0.85}
+                            >
+                                <Feather name="x-circle" size={16} color="#475569" />
+                                <Text style={styles.clearButtonBottomText}>Clear</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                            onPress={activeTab === 'profile' ? handleProfileIdSearch : handleSearch}
+                            style={styles.basesearchButtonWrapper}
+                            disabled={isSearchSubmitting}
+                            activeOpacity={0.85}
+                        >
                             <LinearGradient
                                 colors={['#1F7FE5', '#1862b8']}
-                                style={styles.basesearchButton}
+                                style={[styles.basesearchButton, isSearchSubmitting && { opacity: 0.75 }]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                             >
-                                <Text style={styles.basesearchButtonText}>Search</Text>
+                                {isSearchSubmitting ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <Text style={styles.basesearchButtonText}>Search</Text>
+                                )}
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -1614,308 +1757,40 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     );
 };
 
-// Find Partner Tab
-// Skeleton matching ExploreProfileCard (250h, 2-col grid, image with text overlay)
-const ExploreCardSkeleton = () => (
-    <View style={{ flex: 1, margin: 4 }}>
-        <View style={{
-            width: '100%',
-            height: 250,
-            borderRadius: 16,
-            overflow: 'hidden',
-            position: 'relative' as const,
-        }}>
-            <Skeleton h="100%" w="100%" rounded="none" />
-            <View style={{
-                position: 'absolute' as const,
-                bottom: 0,
-                left: 0,
-                right: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                padding: 6,
-            }}>
-                <Skeleton h={4} w="70%" rounded="sm" startColor="gray.400" endColor="gray.500" mb={1} />
-                <Skeleton h={3} w="50%" rounded="sm" startColor="gray.400" endColor="gray.500" mb={1} />
-                <Skeleton h={3} w="60%" rounded="sm" startColor="gray.400" endColor="gray.500" />
-            </View>
-        </View>
-    </View>
-);
-
-const ExploreGridSkeleton = () => (
-    <View style={{ padding: 8 }}>
-        {Array.from({ length: 3 }).map((_, rowIdx) => (
-            <View key={rowIdx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8 }}>
-                <ExploreCardSkeleton />
-                <ExploreCardSkeleton />
-            </View>
-        ))}
-    </View>
-);
-
-const FindPartner = () => {
-    const { userData } = useUserData();
-    const [index, setIndex] = useState(0);
-    const [routes] = useState([
-        { key: 'all', title: 'All Matches' },
-        { key: 'new', title: 'Newly Added' },
-    ]);
-
-    const [allMatches, setAllMatches] = useState<any[]>([]);
-    const [newlyAdded, setNewlyAdded] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const fetchAllMatches = async (casteId: number, gender: string) => {
-        try {
-            const response = await userApi.getAllCasteProfilesByGender(casteId, gender);
-            setAllMatches(response.data.data);
-        } catch (error) {
-            console.error('Error fetching all matches:', error);
-        }
-    };
-
-    const fetchNewlyAdded = async (casteId: number, gender: string) => {
-        try {
-            const response = await userApi.getNewConnections(casteId, gender);
-            setNewlyAdded(response.data.data);
-        } catch (error) {
-            console.error('Error fetching newly added:', error);
-        }
-    };
-
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const storedGender = userData.gender;
-                const casteId = userData.casteId;
-
-                if (!storedGender || !casteId) {
-                    console.warn("Gender or casteId missing");
-                    return;
-                }
-
-                await fetchAllMatches(parseInt(casteId), storedGender);
-                await fetchNewlyAdded(parseInt(casteId), storedGender);
-            } catch (error) {
-                console.error('Error in fetchData:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []);
-
-
-    const renderScene = ({ route }: { route: { key: string; title: string } }) => {
-        const data = route.key === 'all' ? allMatches : newlyAdded;
-
-        if (loading) {
-            return (
-                <View style={[styles.sceneTab]}>
-                    <ExploreGridSkeleton />
-                </View>
-            );
-        }
-
-        return (
-            <View style={[styles.sceneTab]}>
-                <FlatList
-                    data={data}
-                    keyExtractor={(item) => item.userId.toString()}
-                    numColumns={2}
-                    contentContainerStyle={styles.containerProfle}
-                    columnWrapperStyle={styles.rowProfile}
-                    renderItem={({ item }) => {
-                        const profilePlan = item.subscriptionTitle;
-                        const badgeColor =
-                            profilePlan === 'Platinum' ? '#7c3aed' :
-                                profilePlan === 'Gold' ? '#d4a017' :
-                                    profilePlan === 'Silver' ? '#9ca3af' : null;
-                        const isVerified = profilePlan === 'Silver' || profilePlan === 'Gold' || profilePlan === 'Platinum';
-                        return (
-                            <View style={styles.cardWrapper}>
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        router.push({
-                                            pathname: '/screens/ProfileDetail',
-                                            params: { userId: item.userId }
-                                        });
-                                    }}
-                                >
-                                    <ExploreProfileCard
-                                        imageUrl={item.profileImage}
-                                        name={item.firstName}
-                                        age={item.age}
-                                        job={item.userDetail?.[0]?.occupation || ''}
-                                        location={item.location}
-                                        gender={item.gender}
-                                        idVerified={item.idVerified === 1 || item.idVerified === true}
-                                        educationVerified={item.educationVerified === 1 || item.educationVerified === true}
-                                        incomeVerified={item.incomeVerified === 1 || item.incomeVerified === true}
-                                        sharedInterests={(() => {
-                                            try {
-                                                const theirRaw = item.userDetail?.[0]?.hobbies;
-                                                if (!theirRaw) return undefined;
-                                                const theirHobbies = typeof theirRaw === 'string' ? JSON.parse(theirRaw) : [];
-                                                if (!Array.isArray(theirHobbies) || theirHobbies.length === 0) return undefined;
-                                                // Viewer's hobbies will be populated once we wire it via props — for now return all of theirs as display
-                                                return theirHobbies.slice(0, 3);
-                                            } catch { return undefined; }
-                                        })()}
-                                    />
-                                    {badgeColor ? (
-                                        <View style={{
-                                            position: 'absolute', top: 8, left: 8,
-                                            flexDirection: 'row', alignItems: 'center',
-                                            paddingHorizontal: 6, paddingVertical: 2,
-                                            borderRadius: 10, backgroundColor: badgeColor,
-                                        }}>
-                                            {isVerified ? <Ionicons name="checkmark-circle" size={10} color="#fff" /> : null}
-                                            <Text style={{ color: '#fff', fontSize: 9, fontFamily: 'Rubik-Bold', marginLeft: 2 }}>
-                                                {profilePlan?.toUpperCase()}
-                                            </Text>
-                                        </View>
-                                    ) : null}
-                                </TouchableOpacity>
-                            </View>
-                        );
-                    }}
-                    ListEmptyComponent={() => (
-                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                            <Text style={{ color: 'gray' }}>
-                                {route.key === 'all' ? 'No matches found' : 'No newly added profiles'}
-                            </Text>
-                        </View>
-                    )}
-                />
-            </View>
-        );
-    };
-
-    return (
-        <TabView
-            navigationState={{ index, routes }}
-            renderScene={renderScene}
-            style={{ marginTop: 25 }}
-            renderTabBar={props => (
-                <TabBar
-                    {...props}
-                    style={styles.tabBarTab}
-                    indicatorStyle={styles.indicatorTab}
-                    activeColor="#FFFFFF"
-                    inactiveColor="#A0A0A0"
-                />
-            )}
-            onIndexChange={setIndex}
-            initialLayout={{ width: useWindowDimensions().width }}
-        />
-    );
-};
-
-// Tab View Component
+// The Explore tab used to hold its own Search/Explore switcher, with "Explore" showing an
+// All Matches/Newly Added grid — confusing nesting (an "Explore" sub-tab inside the "Explore"
+// bottom tab), and "Newly Added" duplicated the Home tab's existing "New Connections" carousel
+// (same getTop30NewUsers endpoint). All Matches moved to Home as its own carousel instead, so
+// this screen is now just the filter form directly — no switcher needed.
 const ExploreTabs = () => {
-    const layout = useWindowDimensions();
-    const [index, setIndex] = useState(0);
-    const [swipeEnabled, setSwipeEnabled] = useState(true); // Control swipe
-
-    const [routes] = useState([
-        { key: "search", title: "Search" },
-        { key: "partner", title: "Explore" },
-    ]);
-
-    const renderScene = ({ route }: { route: { key: string; title: string } }) => {
-        switch (route.key) {
-            case "search":
-                return <Search setSwipeEnabled={setSwipeEnabled} />;
-            case "partner":
-                return <FindPartner />;
-            default:
-                return null;
-        }
-    };
-
-    return (
-        <TabView
-            navigationState={{ index, routes }}
-            renderScene={renderScene}
-            onIndexChange={setIndex}
-            initialLayout={{ width: layout.width }}
-            renderTabBar={(props) => (
-                <TabBar
-                    {...props}
-                    style={styles.tabBar}
-                    indicatorStyle={styles.indicator}
-                    tabStyle={styles.tabInner}
-                    activeColor="#FFFFFF"
-                    inactiveColor="#A0A0A0"
-                />
-            )}
-            swipeEnabled={swipeEnabled} // Dynamically enable/disable swipe
-        />
-    );
+    const noop = useCallback(() => {}, []);
+    return <Search setSwipeEnabled={noop} />;
 };
 
 export default ExploreTabs;
 
 const styles = StyleSheet.create({
     modalText: {
-        fontSize: 16,
+        fontSize: 14,
+        lineHeight: 20,
         marginBottom: 20,
         textAlign: 'center',
-        color: '#555',
+        color: '#475569',
     },
     modalButtons: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        gap: 10,
     },
     modalButton: {
         flex: 1,
-        padding: 12,
-        borderRadius: 5,
+        padding: 13,
+        borderRadius: 10,
         alignItems: 'center',
-        marginHorizontal: 5,
     },
     gradientBackground: {
         flex: 1,
         borderRadius: 30,
         overflow: 'hidden',
-    },
-    containerProfle: {
-        padding: 8,
-    },
-    rowProfile: {
-        justifyContent: 'space-between',
-        paddingHorizontal: 8,
-    },
-    cardWrapper: {
-        flex: 1,
-        margin: 4,
-    },
-    tabBarTab: {
-        backgroundColor: '#fff',
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    indicatorTab: {
-        backgroundColor: '#1F7FE5',
-        height: '100%',
-        borderRadius: 4,
-    },
-    tabLabelTab: {
-        color: '#DADADA',
-        fontSize: 16,
-        fontFamily: 'Rubik-Medium',
-    },
-    sceneTab: {
-        backgroundColor: "#FFFFFF",
-        marginTop: 0,
-        flex: 1,
-        alignItems: "center",
     },
     ageFilterContainer: {
         marginTop: 16,
@@ -2074,9 +1949,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontFamily: 'Rubik-Bold',
     },
+    // No horizontal padding here — cardContainer/the Saved-tab ScrollView already supply their
+    // own gutter; this used to double up (10 + gutter = too much space left/right).
     content: {
         width: "100%",
-        padding: 10,
+        paddingTop: 10,
         // backgroundColor: "#130057",
         // borderWidth:2
     },
@@ -2102,43 +1979,170 @@ const styles = StyleSheet.create({
         fontFamily: 'Rubik-Bold',
         marginBottom: 5,
     },
+    // Age Range / Annual Income — inline dual-handle sliders (Omostate-reference style) with
+    // Minimum/Maximum value boxes below, replacing the old "tap to open a picker-wheel modal"
+    // pattern. Same underlying fromAge/toAge/fromIncome/toIncome state and filters.ageRange /
+    // filters.annualIncomeFilter format as before, just committed live as the user drags.
+    rangeSection: {
+        marginTop: 6,
+        paddingTop: 6,
+    },
+    // First field in a section already gets its gap from filterContent's own marginTop —
+    // rangeSection's marginTop/paddingTop on top of that was double-spacing Basic Details'
+    // header down to Age Range (24px + 12px = 36px). Zeroed here for Age Range only; Annual
+    // Income (Job Details) keeps the base rangeSection gap since it follows the Education row.
+    rangeSectionFirst: {
+        marginTop: 0,
+        paddingTop: 0,
+    },
+    rangeSectionLabel: {
+        fontSize: 13.5,
+        fontFamily: 'Rubik-Bold',
+        color: '#0f1724',
+        letterSpacing: -0.1,
+        marginBottom: 10,
+    },
+    sliderWrap: {
+        paddingHorizontal: 4,
+        marginBottom: 2,
+    },
+    rangeBoxRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    rangeBox: {
+        flex: 1,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+    },
+    rangeBoxLabel: {
+        fontSize: 10.5,
+        fontFamily: 'Rubik-Medium',
+        color: '#94a3b8',
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+        marginBottom: 2,
+    },
+    rangeBoxValue: {
+        fontSize: 15,
+        fontFamily: 'Rubik-Bold',
+        color: '#0f1724',
+    },
+    // Photo-only / Horoscope-only toggles were plain text+switch rows, easy to miss next to the
+    // bordered pill fields around them — now a matching white card with an icon badge, same
+    // visual weight as everything else in the form instead of reading as an afterthought.
+    switchCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 14,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+    },
+    switchCardLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        flex: 1,
+        marginRight: 10,
+    },
+    switchIconBadge: {
+        width: 30,
+        height: 30,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    switchCardLabel: {
+        fontSize: 13,
+        fontFamily: 'Rubik-Medium',
+        color: '#0f1724',
+        flexShrink: 1,
+    },
+    // Education / Job Sector / Star / Dosham — inline wrapped ring-select pills (Focus Area/
+    // Disease Target reference), replacing "tap to open a modal list" with direct in-form
+    // multi-select. Same wrapPill visual language as the ring-selected tab switcher above.
+    pillFieldSection: {
+        width: '100%',
+    },
+    pillWrapRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    wrapPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        borderRadius: 100,
+        backgroundColor: '#fff',
+        borderWidth: 1.5,
+        borderColor: '#e2e8f0',
+    },
+    wrapPillSelected: {
+        borderColor: '#1F7FE5',
+    },
+    wrapPillText: {
+        fontSize: 12.5,
+        fontFamily: 'Rubik-Medium',
+        color: '#475569',
+    },
+    wrapPillTextSelected: {
+        color: '#1F7FE5',
+        fontFamily: 'Rubik-Bold',
+    },
     slider: {
         width: "100%",
         height: 40,
     },
     thumb: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
         backgroundColor: "#fff",
-        borderWidth: 2,
-        borderColor: "#130057",
+        borderWidth: 3,
+        borderColor: "#1F7FE5",
+        shadowColor: 'rgba(15,35,70,0.25)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
+        elevation: 3,
     },
     rail: {
         flex: 1,
         height: 4,
-        backgroundColor: "#ccc",
+        backgroundColor: "#e2e8f0",
         borderRadius: 2,
     },
     railSelected: {
         height: 4,
-        backgroundColor: "#130057",
+        backgroundColor: "#1F7FE5",
         borderRadius: 2,
     },
     labelContainer: {
         padding: 5,
-        backgroundColor: "#130057",
+        backgroundColor: "#1F7FE5",
         borderRadius: 4,
         alignItems: "center",
     },
     labelText: {
-        color: "#DADADA",
+        color: "#fff",
         fontSize: 12,
     },
     notch: {
         width: 8,
         height: 8,
-        backgroundColor: "#130057",
+        backgroundColor: "#1F7FE5",
         borderRadius: 4,
     },
     container: { padding: 5, paddingLeft: 0 },
@@ -2162,54 +2166,14 @@ const styles = StyleSheet.create({
         marginTop: 5,
         marginBottom: 6
     },
-    containerProfle: {
-        paddingHorizontal: 12,
-        paddingTop: 16,
-    },
-    rowProfile: {
-        justifyContent: 'space-between',
-        marginBottom: -30, // Overlap amount
-    },
-    cardWrapper: {
-        width: '49%',
-        marginBottom: 15, // Allow space for overlap + content
-        height: 280
-    },
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        overflow: 'visible',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        shadowOffset: { width: 0, height: 2 },
-    },
-    image: {
-        height: 180,
-        width: '100%',
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        marginBottom: -30, // Overlap next card
-        zIndex: 2,
-    },
-    infoContainer: {
-        backgroundColor: '#fff',
-        paddingTop: 40,
-        paddingHorizontal: 10,
-        paddingBottom: 12,
-        borderBottomLeftRadius: 12,
-        borderBottomRightRadius: 12,
-        zIndex: 1,
-    },
-    name: {
-        fontSize: 16,
-        fontFamily: 'Rubik-Bold',
-    },
-    job: {
-        fontSize: 14,
-        color: '#666',
-        marginTop: 4,
+    exploreEmptyIcon: {
+        width: 76,
+        height: 76,
+        borderRadius: 38,
+        backgroundColor: 'rgba(31,127,229,0.12)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
     },
     educationInputContainer: {
         marginTop: 16,
@@ -2247,76 +2211,132 @@ const styles = StyleSheet.create({
     //   -----------------------------------------------------------------------new 
     container1: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
-        marginTop: 20
+        backgroundColor: '#eef1f5',
     },
-    headerTitle: {
-        color: '#DADADA',
-        fontSize: 24,
+    // Hero header: gradient icon badge on the left, catchy title + plain-language subtitle
+    // stacked to its right — the subtitle keeps the page's actual purpose (filtering) clear
+    // underneath the friendlier title. Row centered as a whole so it stays balanced on the page.
+    pageHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 4,
+        gap: 10,
+    },
+    pageHeaderIconBadge: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#1F7FE5',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.28,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    pageHeaderTextWrap: {
+        alignItems: 'flex-start',
+        flexShrink: 1,
+    },
+    pageTitle: {
+        color: '#0f1724',
+        fontSize: 16.5,
         fontFamily: 'Rubik-Bold',
-        textAlign: 'center',
+        letterSpacing: -0.2,
+        textAlign: 'left',
     },
+    pageSubtitle: {
+        color: '#64748b',
+        fontSize: 11.5,
+        fontFamily: 'Rubik-Medium',
+        textAlign: 'left',
+        marginTop: 2,
+    },
+    // Standard iOS/Material segmented control: a light neutral track holding all segments, the
+    // active one rendered as a floating white card with a soft shadow (no color, no border ring)
+    // — this is the pattern used by iOS Settings, banking apps, and most business/productivity
+    // software for a single-select group, rather than a lifestyle-app-style accent-colored pill.
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: 'white',
-        paddingHorizontal: 20,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 14,
+        padding: 3,
+        marginHorizontal: 18,
+        marginTop: 16,
+        marginBottom: 16,
     },
     tabInner: {
         flex: 1,
         paddingVertical: 10,
         alignItems: 'center',
-        borderBottomWidth: 3,
-        borderBottomColor: 'transparent',
+        borderRadius: 11,
+        backgroundColor: 'transparent',
     },
     activeTab: {
-        borderBottomColor: '#1F7FE5',
+        backgroundColor: '#fff',
+        shadowColor: 'rgba(15,23,42,0.16)',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 1,
+        shadowRadius: 3,
+        elevation: 2,
     },
     tabText: {
-        color: '#666',
-        fontSize: 14,
+        color: '#64748b',
+        fontSize: 13,
         fontFamily: 'Rubik-Medium',
     },
     activeTabText: {
-        color: '#1F7FE5',
-        fontFamily: 'Rubik-Medium',
+        color: '#0f1724',
+        fontFamily: 'Rubik-Bold',
     },
     contentSearch: {
         flex: 1,
         paddingTop: 20,
     },
     cardContainer: {
-        paddingHorizontal: 0,
+        paddingHorizontal: 18,
     },
 
+    // Flattened per feedback — no boxed card, no shadow. Fields sit directly on the page
+    // background; sections are separated by spacing + a thin divider line instead.
     filterCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 10,
-        marginBottom: 4,
-        elevation: 2,
-        shadowColor: '#1F7FE5',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        borderWidth: 1,
-        borderColor: '#F2E8E9',
+        backgroundColor: 'transparent',
+        padding: 0,
+        marginBottom: 0,
     },
+    // 8pt-grid tier used for a tap target's own internal breathing room (half the "standard"
+    // 16px unit) — applies to the header row regardless of section position.
     sectionHeaderContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 2,
+        paddingVertical: 8,
+        gap: 10,
+    },
+    sectionIconBadge: {
+        width: 30,
+        height: 30,
+        borderRadius: 10,
+        backgroundColor: '#dfecfb',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     sectionHeader: {
-        color: '#130001',
-        fontSize: 16,
-        fontFamily: 'Rubik-Medium',
-        letterSpacing: 0.3,
+        flex: 1,
+        color: '#0f1724',
+        fontSize: 14.5,
+        fontFamily: 'Rubik-Bold',
+        letterSpacing: -0.2,
+    },
+    // "Distinct group" tier — 24px (3x the 8pt base unit) is the standard business-app spacing
+    // for separating unrelated sections (vs. 16px for related items within one), so Basic/Job/
+    // Religious read as clearly separate groups rather than one continuous list.
+    sectionDivider: {
+        height: 1,
+        backgroundColor: '#e2e8f0',
+        marginVertical: 12,
     },
     chevronIcon: {
         transform: [{ rotate: '0deg' }],
@@ -2324,40 +2344,42 @@ const styles = StyleSheet.create({
     chevronRotated: {
         transform: [{ rotate: '180deg' }],
     },
+    // "Standard" tier — 16px (8+8 split across margin/padding, with the divider line sitting
+    // in between) separates related fields inside one section.
     filterRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 6,
-        paddingTop: 6,
+        marginTop: 8,
+        paddingTop: 8,
         borderTopWidth: 1,
-        borderTopColor: '#F5EEEF',
+        borderTopColor: '#edf2f7',
     },
     filterRowFirst: {
-        marginTop: 2,
-        paddingTop: 2,
+        marginTop: 0,
+        paddingTop: 0,
         borderTopWidth: 0,
     },
     filterLabel: {
-        color: '#130001',
-        fontSize: 14,
+        color: '#475569',
+        fontSize: 13.5,
         fontFamily: 'Rubik-Medium',
         flex: 1,
     },
     dropdownButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FDFAFA',
+        backgroundColor: '#fff',
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 11,
         borderWidth: 1,
-        borderColor: '#EBDADC',
+        borderColor: '#e2e8f0',
         minWidth: 180,
         justifyContent: 'space-between',
     },
     dropdownText: {
-        color: '#130001',
+        color: '#0f1724',
         fontSize: 13,
         fontFamily: 'Rubik-Medium',
     },
@@ -2404,24 +2426,38 @@ const styles = StyleSheet.create({
     },
     inputContainer: {
         marginBottom: 8,
+        marginTop: 4,
     },
     inputLabel: {
-        color: '#130001',
+        color: '#0f1724',
         fontSize: 15,
         fontFamily: 'Rubik-Medium',
         marginBottom: 2,
     },
+    profileIdHint: {
+        fontSize: 12,
+        fontFamily: 'Rubik-Regular',
+        color: '#64748b',
+        lineHeight: 17,
+        marginTop: 10,
+        marginBottom: 4,
+    },
     inputField: {
-        backgroundColor: '#f8f9fa',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
         borderWidth: 1,
-        borderColor: '#e9ecef',
+        borderColor: '#e2e8f0',
     },
     input: {
-        fontSize: 16,
-        color: '#130001',
+        flex: 1,
+        fontSize: 15,
+        fontFamily: 'Rubik-Medium',
+        color: '#0f1724',
     },
     inputPlaceholder: {
         color: '#999',
@@ -2470,9 +2506,9 @@ const styles = StyleSheet.create({
     },
     searchButton: {
         borderWidth: 1,
-        borderColor: '#E0E7FF',
-        backgroundColor: '#EEF2FF',
-        paddingHorizontal: 8,
+        borderColor: 'rgba(31,127,229,0.25)',
+        backgroundColor: '#dfecfb',
+        paddingHorizontal: 12,
     },
     searchButtonText: {
         color: '#DADADA',
@@ -2481,117 +2517,136 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(15,23,42,0.45)',
         justifyContent: 'flex-end',
     },
     modalContent: {
         backgroundColor: 'white',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         paddingTop: 20,
         paddingBottom: 40,
         paddingHorizontal: 20,
         maxHeight: '70%',
     },
+    modalIconBadge: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        backgroundColor: '#fffbeb',
+        borderWidth: 1,
+        borderColor: '#fde68a',
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'center',
+        marginBottom: 12,
+    },
     modalTitle: {
-        fontSize: 18,
+        fontSize: 17,
         fontFamily: 'Rubik-Bold',
-        color: '#1F7FE5',
+        color: '#0f1724',
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: 18,
     },
     modalOption: {
-        paddingVertical: 15,
-        paddingHorizontal: 20,
-        borderRadius: 8,
+        paddingVertical: 14,
+        paddingHorizontal: 18,
+        borderRadius: 12,
         marginBottom: 8,
+        backgroundColor: '#f8fafc',
     },
     selectedOption: {
         backgroundColor: '#1F7FE5',
     },
     modalOptionText: {
-        fontSize: 16,
-        color: '#130001',
+        fontSize: 15,
+        fontFamily: 'Rubik-Medium',
+        color: '#0f1724',
     },
     selectedOptionText: {
-        color: '#DADADA',
-        fontFamily: 'Rubik-Medium',
+        color: '#fff',
+        fontFamily: 'Rubik-Bold',
     },
     modalCloseButton: {
-        backgroundColor: '#f8f9fa',
-        borderRadius: 8,
-        paddingVertical: 12,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
+        paddingVertical: 13,
         alignItems: 'center',
-        marginTop: 20,
+        marginTop: 16,
     },
     modalCloseText: {
-        color: '#666',
-        fontSize: 16,
-        fontFamily: 'Rubik-Medium',
+        color: '#475569',
+        fontSize: 14.5,
+        fontFamily: 'Rubik-Bold',
     },
+    // Flattened along with filterCard — this used to be a separate white box nested inside the
+    // (already-removed) card, left over with its own bg/radius/border after that card became
+    // transparent, showing up as a stray white box around each section's fields.
+    // "Standard" tier — 16px between a section's header and its first field.
     filterContent: {
-        paddingVertical: 10,
+        paddingVertical: 0,
         paddingHorizontal: 0,
-        backgroundColor: '#fff',
-        borderBottomLeftRadius: 12,
-        borderBottomRightRadius: 12,
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-        marginTop: 8,
+        backgroundColor: 'transparent',
+        marginTop: 16,
     },
     upgradeButton: {
-        backgroundColor: '#4CAF50',
+        backgroundColor: '#1F7FE5',
     },
     cancelButton: {
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#f1f5f9',
     },
     upgradeButtonText: {
-        color: '#DADADA',
+        color: '#fff',
         fontFamily: 'Rubik-Bold',
     },
     cancelButtonText: {
-        color: '#130001',
+        color: '#475569',
+        fontFamily: 'Rubik-Bold',
     },
     sectionTitle: {
         fontSize: 18,
         fontFamily: 'Rubik-Bold',
     },
     lockIcon: {
-        color: '#FF9800',
-        fontSize: 20,
+        color: '#d97706',
+        fontSize: 16,
     },
     savedSearchCard: {
         backgroundColor: '#fff',
-        borderRadius: 12,
+        borderRadius: 20,
         padding: 16,
         marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 1,
+        shadowColor: 'rgba(15,35,70,0.08)',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
         width: '100%',
     },
     searchHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 10,
         width: '100%',
     },
     searchName: {
-        fontSize: 16,
-        fontFamily: 'Rubik-Medium',
-        color: '#1F2937',
+        fontSize: 15,
+        fontFamily: 'Rubik-Bold',
+        color: '#0f1724',
+        letterSpacing: -0.2,
         marginBottom: 2,
     },
     searchDate: {
-        fontSize: 12,
-        color: '#6B7280',
+        fontSize: 11.5,
+        fontFamily: 'Rubik-Regular',
+        color: '#94a3b8',
     },
     filterChip: {
-        backgroundColor: '#F3F4F6',
-        borderRadius: 16,
+        backgroundColor: '#dfecfb',
+        borderRadius: 100,
         paddingHorizontal: 10,
         paddingVertical: 5,
         marginRight: 8,
@@ -2601,53 +2656,60 @@ const styles = StyleSheet.create({
         maxWidth: '100%',
     },
     filterText: {
-        fontSize: 12,
-        color: '#130001',
+        fontSize: 11.5,
+        fontFamily: 'Rubik-Medium',
+        color: '#1862b8',
         marginLeft: 4,
         maxWidth: '90%',
     },
     filtersContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        marginTop: 8,
+        marginTop: 4,
     },
     emptyStateContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
+        padding: 32,
+        marginTop: 20,
     },
     emptyStateText: {
-        fontSize: 16,
-        fontFamily: 'Rubik-Medium',
-        color: '#6B7280',
-        marginBottom: 8,
+        fontSize: 15,
+        fontFamily: 'Rubik-Bold',
+        color: '#0f1724',
+        marginBottom: 6,
         textAlign: 'center',
     },
     emptyStateSubtext: {
-        fontSize: 14,
-        color: '#9CA3AF',
+        fontSize: 12.5,
+        fontFamily: 'Rubik-Regular',
+        color: '#64748b',
         textAlign: 'center',
+        lineHeight: 18,
     },
     actionButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 6,
-        borderRadius: 6,
+        gap: 4,
+        paddingHorizontal: 10,
+        borderRadius: 9,
         minWidth: 40,
         height: 32,
     },
     actionButtonText: {
-        marginLeft: 4,
         fontSize: 12,
-        color: '#4F46E5',
-        fontFamily: 'Rubik-Medium',
+        color: '#1F7FE5',
+        fontFamily: 'Rubik-Bold',
     },
     deleteButton: {
         borderWidth: 1,
-        borderColor: '#FEE2E2',
-        backgroundColor: '#FEF2F2',
+        borderColor: '#fecaca',
+        backgroundColor: '#fef2f2',
         marginLeft: 8,
+        width: 32,
+        minWidth: 32,
+        paddingHorizontal: 0,
     },
     actionsContainer: {
         flexDirection: 'row',
@@ -2658,7 +2720,7 @@ const styles = StyleSheet.create({
         marginRight: 8,
     },
     basesearchButtonContainer: {
-        paddingHorizontal: 10,
+        paddingHorizontal: 18,
         paddingTop: 10,
         backgroundColor: 'white',
         borderTopWidth: 1,
@@ -2666,10 +2728,29 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
     },
+    // "Clear" now sits to the left of "Search" (Clear All / Show Places reference pattern)
+    // instead of floating alone at the top of the form.
+    clearButtonBottom: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingHorizontal: 18,
+        borderRadius: 25,
+        backgroundColor: '#f1f5f9',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    clearButtonBottomText: {
+        color: '#475569',
+        fontSize: 14.5,
+        fontFamily: 'Rubik-Bold',
+    },
     basesearchButtonWrapper: {
+        flex: 1,
         borderRadius: 25,
         overflow: 'hidden',
-        width: '50%'
     },
     basesearchButton: {
         paddingVertical: 13,
@@ -2680,20 +2761,6 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 15,
         fontFamily: 'Rubik-Bold',
-    },
-    clearButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: 'transparent',
-    },
-    clearButtonText: {
-        color: '#666',
-        fontSize: 14,
-        fontFamily: 'Rubik-Medium',
-        marginLeft: 4,
     },
 
     centeredModalOverlay: {
@@ -2756,16 +2823,16 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#EBDADC',
+        borderColor: '#e2e8f0',
         borderRadius: 10,
         paddingVertical: 11,
         paddingHorizontal: 14,
-        backgroundColor: '#FDFAFA',
+        backgroundColor: '#fff',
         maxWidth: 200,
     },
     filterButtonText: {
         fontSize: 13,
-        color: '#130001',
+        color: '#0f1724',
         fontFamily: 'Rubik-Medium',
     },
     singleRowContainer: {
@@ -2784,21 +2851,22 @@ const styles = StyleSheet.create({
         marginLeft: 12,
         maxWidth: 200,
     },
+    // Amber "premium locked" treatment — same family as ProfileDetail.tsx's PremiumLock
+    // component, so a gated filter reads the same way this whole gating pattern reads elsewhere.
     dropdownDisabled: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#EBDADC',
-        borderRadius: 10,
-        paddingVertical: 11,
+        borderColor: '#fde68a',
+        borderRadius: 12,
+        paddingVertical: 12,
         paddingHorizontal: 14,
-        backgroundColor: '#F8F2F3',
-        minWidth: 180,
-        marginLeft: 12,
+        backgroundColor: '#fffbeb',
+        width: '100%',
     },
     disabledText: {
-        color: '#9B8284',
+        color: '#92400e',
         fontSize: 13,
         fontFamily: 'Rubik-Medium',
     },

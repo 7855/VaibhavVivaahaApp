@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan-Gating QA Test Plan</title>
+<style>
+  @font-face {
+    font-family: 'ui-serif-stack';
+    src: local('Iowan Old Style'), local('Georgia');
+  }
+
+  :root {
+    --paper: #FBF6F3;
+    --paper-raised: #FFFFFF;
+    --ink: #241417;
+    --ink-soft: #5A484A;
+    --maroon: #420001;
+    --maroon-soft: #6B1E1F;
+    --gold: #A9700A;
+    --gold-bright: #F6B733;
+    --line: #E4D9D3;
+    --line-strong: #D2C2BC;
+    --success-bg: #E6F0EA;
+    --success-fg: #235C40;
+    --warning-bg: #FBEEDA;
+    --warning-fg: #7A4E0A;
+    --critical-bg: #FBE7E5;
+    --critical-fg: #8C2A22;
+    --neutral-bg: #EDE6E2;
+    --neutral-fg: #5A484A;
+    --shadow: 0 1px 2px rgba(66, 0, 1, 0.06), 0 4px 16px rgba(66, 0, 1, 0.05);
+    --serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #1B1214;
+    --paper-raised: #241618;
+    --ink: #F2E8E5;
+    --ink-soft: #C8B3B4;
+    --maroon: #E0868A;
+    --maroon-soft: #C9666B;
+    --gold: #F6B733;
+    --gold-bright: #FFCB66;
+    --line: #3A2A2C;
+    --line-strong: #4A3739;
+    --success-bg: #16301F;
+    --success-fg: #8FD6AB;
+    --warning-bg: #3A2B0E;
+    --warning-fg: #F0C778;
+    --critical-bg: #3A1917;
+    --critical-fg: #F0A199;
+    --neutral-bg: #2E2224;
+    --neutral-fg: #C8B3B4;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1B1214;
+      --paper-raised: #241618;
+      --ink: #F2E8E5;
+      --ink-soft: #C8B3B4;
+      --maroon: #E0868A;
+      --maroon-soft: #C9666B;
+      --gold: #F6B733;
+      --gold-bright: #FFCB66;
+      --line: #3A2A2C;
+      --line-strong: #4A3739;
+      --success-bg: #16301F;
+      --success-fg: #8FD6AB;
+      --warning-bg: #3A2B0E;
+      --warning-fg: #F0C778;
+      --critical-bg: #3A1917;
+      --critical-fg: #F0A199;
+      --neutral-bg: #2E2224;
+      --neutral-fg: #C8B3B4;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 20px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    nav.toc { display: none; }
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 20px 32px 28px;
+    border-right: 1px solid var(--line);
+  }
+
+  nav.toc .brand {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-style: italic;
+    color: var(--maroon);
+    margin-bottom: 4px;
+  }
+
+  nav.toc .brand-sub {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+    display: block;
+  }
+
+  nav.toc a {
+    display: block;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 5px 0;
+    border-left: 2px solid transparent;
+    padding-left: 10px;
+    margin-left: -11px;
+  }
+
+  nav.toc a:hover, nav.toc a:focus-visible {
+    color: var(--maroon);
+    border-left-color: var(--gold);
+    outline: none;
+  }
+
+  nav.toc .toc-group {
+    margin-top: 20px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    opacity: 0.75;
+    margin-bottom: 6px;
+  }
+
+  main {
+    padding: 48px 48px 120px;
+    min-width: 0;
+  }
+
+  @media (max-width: 640px) {
+    main { padding: 32px 20px 100px; }
+  }
+
+  header.masthead {
+    margin-bottom: 40px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  header.masthead .kicker {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  h1.title {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 1.12;
+    margin: 0 0 12px;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+
+  header.masthead .dek {
+    font-size: 16px;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  header.masthead .meta {
+    display: flex;
+    gap: 20px;
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-family: var(--mono);
+  }
+
+  section { margin-bottom: 56px; scroll-margin-top: 20px; }
+
+  h2.section-title {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 400;
+    color: var(--maroon);
+    margin: 0 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  h2.section-title .plan-price {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-weight: 400;
+  }
+
+  p.section-dek {
+    margin: 0 0 20px;
+    color: var(--ink-soft);
+    max-width: 68ch;
+  }
+
+  h3.sub-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    margin: 28px 0 12px;
+    font-weight: 600;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    background: var(--paper-raised);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--neutral-bg);
+    color: var(--ink-soft);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line-strong);
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  td.num, .tnum { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  code, .code-ref {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: var(--neutral-bg);
+    color: var(--maroon-soft);
+    padding: 1px 6px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 100px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .pill::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .pill.enforced { background: var(--success-bg); color: var(--success-fg); }
+  .pill.frontend { background: var(--warning-bg); color: var(--warning-fg); }
+  .pill.gap { background: var(--critical-bg); color: var(--critical-fg); }
+  .pill.info { background: var(--neutral-bg); color: var(--neutral-fg); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    padding: 14px 18px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-bottom: 32px;
+  }
+
+  .legend .item { display: flex; align-items: center; gap: 7px; }
+
+  .callout {
+    border-left: 3px solid var(--gold);
+    background: var(--paper-raised);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 18px 0;
+    font-size: 13.5px;
+    box-shadow: var(--shadow);
+  }
+
+  .callout.critical { border-left-color: var(--critical-fg); }
+  .callout .callout-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    color: var(--gold);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .callout.critical .callout-label { color: var(--critical-fg); }
+
+  .account-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .account-card {
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .account-card .plan-tag {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  .account-card .name {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 3px 0 6px;
+  }
+
+  .account-card .row {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  .scenario {
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .scenario .tc-id {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .scenario h4 {
+    font-size: 15px;
+    margin: 4px 0 10px;
+    font-weight: 600;
+  }
+
+  .scenario ol {
+    margin: 0 0 10px;
+    padding-left: 20px;
+  }
+
+  .scenario ol li { margin-bottom: 5px; font-size: 13.5px; }
+
+  .expect-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .expect {
+    border-radius: 8px;
+    padding: 8px 11px;
+    font-size: 12.5px;
+    background: var(--neutral-bg);
+  }
+
+  .expect .k { color: var(--ink-soft); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px; }
+
+  .regression-list { list-style: none; margin: 0; padding: 0; }
+
+  .regression-list li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 10px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+
+  .regression-list li:last-child { border-bottom: none; }
+
+  .checkbox {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+
+  footer.end {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a { transition: color 0.15s ease, border-color 0.15s ease; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="toc" aria-label="Table of contents">
+    <span class="brand">Vaibhav Vivaaha</span>
+    <span class="brand-sub">Plan-Gating QA</span>
+
+    <a href="#overview">Overview &amp; legend</a>
+    <a href="#accounts">Test accounts</a>
+
+    <div class="toc-group">Per-plan checklists</div>
+    <a href="#free">1 · Free</a>
+    <a href="#starter">2 · Starter</a>
+    <a href="#classic">3 · Classic</a>
+    <a href="#silver">4 · Silver</a>
+    <a href="#gold">5 · Gold</a>
+    <a href="#platinum">6 · Platinum</a>
+
+    <div class="toc-group">Cross-plan</div>
+    <a href="#cross-plan">Interaction scenarios</a>
+
+    <div class="toc-group">Risk &amp; regression</div>
+    <a href="#regression">Fixed-this-session recheck</a>
+    <a href="#drift">Frontend/DB drift risks</a>
+  </nav>
+
+  <main>
+    <header class="masthead" id="overview">
+      <span class="kicker">QA Test Plan</span>
+      <h1 class="title">Plan-gating, end to end</h1>
+      <p class="dek">Every checklist item below is tied to an actual <code>planFeatures</code> row and the code path that reads it — verified against the live <code>vvm_db</code> database and the current backend/frontend source, not the (partly stale) docs. Where a DB row exists but nothing enforces it, that's called out explicitly rather than assumed.</p>
+      <div class="meta">
+        <span>DB: vvm_db · localhost</span>
+        <span>6 plans · 12 seeded test accounts</span>
+      </div>
+    </header>
+
+    <section aria-labelledby="legend-heading">
+      <h3 id="legend-heading" class="sub-title" style="margin-top:0">How to read every row</h3>
+      <div class="legend">
+        <span class="item"><span class="pill enforced">DB-enforced</span> checked server-side against <code>planFeatures</code> — safe from API bypass</span>
+        <span class="item"><span class="pill frontend">Frontend-only</span> gate is a client-side <code>planTitle</code> string check — hides the button, but nothing stops a direct API call</span>
+        <span class="item"><span class="pill gap">Not enforced</span> DB row exists; no code path reads it anywhere — cosmetic/future</span>
+        <span class="item"><span class="pill info">Verify UX</span> works correctly, but confirm the message/copy matches the real reason</span>
+      </div>
+    </section>
+
+    <section id="accounts">
+      <h2 class="section-title">Test accounts</h2>
+      <p class="section-dek">All seeded 2026-05-21, PIN <code>1234</code> for every account. Each plan has a male + female pair so you can test both directions of interest/accept without creating new accounts.</p>
+      <div class="account-grid">
+        <div class="account-card"><span class="plan-tag">Free</span><div class="name">VannFree TestMale</div><div class="row"><span>696</span><span>9111000001</span></div></div>
+        <div class="account-card"><span class="plan-tag">Free</span><div class="name">VannFree TestFemale</div><div class="row"><span>697</span><span>9111000002</span></div></div>
+        <div class="account-card"><span class="plan-tag">Starter</span><div class="name">VannStarter TestMale</div><div class="row"><span>698</span><span>9112000001</span></div></div>
+        <div class="account-card"><span class="plan-tag">Starter</span><div class="name">VannStarter TestFemale</div><div class="row"><span>699</span><span>9112000002</span></div></div>
+        <div class="account-card"><span class="plan-tag">Classic</span><div class="name">VannClassic TestMale</div><div class="row"><span>700</span><span>9113000001</span></div></div>
+        <div class="account-card"><span class="plan-tag">Classic</span><div class="name">VannClassic TestFemale</div><div class="row"><span>701</span><span>9113000002</span></div></div>
+        <div class="account-card"><span class="plan-tag">Silver</span><div class="name">VannSilver TestMale</div><div class="row"><span>702</span><span>9114000001</span></div></div>
+        <div class="account-card"><span class="plan-tag">Silver</span><div class="name">VannSilver TestFemale</div><div class="row"><span>703</span><span>9114000002</span></div></div>
+        <div class="account-card"><span class="plan-tag">Gold</span><div class="name">VannGold TestMale</div><div class="row"><span>704</span><span>9115000001</span></div></div>
+        <div class="account-card"><span class="plan-tag">Gold</span><div class="name">VannGold TestFemale</div><div class="row"><span>705</span><span>9115000002</span></div></div>
+        <div class="account-card"><span class="plan-tag">Platinum</span><div class="name">VannPlatinum TestMale</div><div class="row"><span>706</span><span>9116000001</span></div></div>
+        <div class="account-card"><span class="plan-tag">Platinum</span><div class="name">VannPlatinum TestFemale</div><div class="row"><span>707</span><span>9116000002</span></div></div>
+      </div>
+      <div class="callout critical">
+        <span class="callout-label">Known landmine</span>
+        605 of 657 total users (this seeded batch included) had zero <code>user_subscriptions</code> rows until the 2026-07-09 self-healing fix. If you're testing against a DB snapshot from before that fix, quota checks will silently misbehave — see the regression section.
+      </div>
+    </section>
+
+    <!-- ============ FREE ============ -->
+    <section id="free">
+      <h2 class="section-title">1 · Free <span class="plan-price">₹0 · lifetime</span></h2>
+      <p class="section-dek">The control group. Nothing here should ever require a network call to a paid feature to fail gracefully — it should just not be offered.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>Expected</th><th>Enforced</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Send interest</td><td class="num">3 total, ever (<code>PLAN_DURATION</code>) — not per-month</td><td><span class="pill enforced">DB-enforced</span></td><td><code>UserFeatureUsageService</code> · feature <code>SEND_REQUEST</code></td></tr>
+            <tr><td>4th send attempt</td><td>Blocked client-side once quota hits 0; if forced via API, should 403</td><td><span class="pill frontend">Frontend-only</span></td><td><code>ProfileDetail.tsx</code> <code>handleSendInterest</code> checks <code>quota.remaining</code> before calling; no hard 403 path confirmed server-side for this exact flow — <b>verify by hitting the endpoint directly after 3 sends</b></td></tr>
+            <tr><td>View profile details</td><td><code>LIMITED</code> — should see blurred photo, partial fields</td><td><span class="pill frontend">Frontend-only</span></td><td><code>swiperprofile.js</code> blur overlay keyed off <code>planTitle === 'Free'</code>, not the <code>VIEW_PROFILE_DETAILS</code> DB row</td></tr>
+            <tr><td>Profile view limit</td><td>Can open other profiles freely, no cap — confirm this is what you see</td><td><span class="pill enforced">Intended</span></td><td><code>UserService.getProfileDetailWithIntractionStatus</code> — DB row is <code>0</code>, read as "unlimited" by the <code>if (limit &gt; 0)</code> guard. Resolved 2026-07-09: matches how free-tier browsing typically works in this vertical (browse freely, pay for contact/chat/horoscope) — not a bug, the old code comment describing a blocking design was simply stale and has been corrected</td></tr>
+            <tr><td>Contact / mobile / email</td><td>Always masked, no reveal option</td><td><span class="pill enforced">DB-enforced</span></td><td>No <code>VIEW_PERSONAL_INFO</code> row for plan 1 → <code>hasContactAccess</code> stays false</td></tr>
+            <tr><td>Horoscope</td><td>Always masked, "Upgrade to view horoscope"</td><td><span class="pill enforced">DB-enforced</span></td><td>No <code>HOROSCOPE_VIEW</code> row for plan 1</td></tr>
+            <tr><td>Chat / messaging</td><td>Cannot open chat screen at all, even on an accepted interest</td><td><span class="pill enforced">DB-enforced</span></td><td><code>chatscreen.tsx</code> <code>isPremium</code> from <code>entitlements.message</code></td></tr>
+            <tr><td>Basic search</td><td><code>enabled</code> — Free does get basic search</td><td><span class="pill gap">Not enforced</span></td><td>No backend check found; search results likely unrestricted regardless of plan</td></tr>
+            <tr><td>Shortlist a profile</td><td>Not available (no <code>SHORTLIST</code> row for plan 1)</td><td><span class="pill enforced">DB-enforced</span></td><td><code>ShortlistedProfileService</code> · feature <code>SHORTLIST</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ STARTER ============ -->
+    <section id="starter">
+      <h2 class="section-title">2 · Starter <span class="plan-price">₹499 · 30 days</span></h2>
+      <p class="section-dek">CLAUDE.md documents this plan at ₹199 — the live DB has it at ₹499. Flag to product/docs owner; not a code bug, just stale documentation.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>Expected</th><th>Enforced</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Send interest</td><td class="num">25, PLAN_DURATION</td><td><span class="pill enforced">DB-enforced</span></td><td><code>SEND_REQUEST</code> = 25</td></tr>
+            <tr><td>Who Viewed Me</td><td class="num">5, PLAN_DURATION — should hard-cutoff at 5, not unlimited</td><td><span class="pill enforced">DB-enforced</span> (verify)</td><td>Feature <code>WHO_VIEWED</code> — confirm the count actually stops incrementing display past 5</td></tr>
+            <tr><td>View profile details</td><td><code>FULL</code> — no blur, unlike Free</td><td><span class="pill frontend">Frontend-only</span></td><td>Same <code>planTitle</code> check as Free row above, inverted</td></tr>
+            <tr><td>Profile view limit</td><td class="num">0 in DB, same as Free — unlimited, same as Free</td><td><span class="pill enforced">Intended</span></td><td>Same guard, same resolution as Free's row above — confirmed intentional, not a data-entry gap</td></tr>
+            <tr><td>Chat / messaging</td><td class="num">5 <b>distinct conversations</b> total, not 5 messages — once a conversation has one message in it, further replies there are unlimited; the cap is on how many different people you can start chatting with</td><td><span class="pill enforced">DB-enforced</span></td><td><code>ChatService.sendChatMessage</code> — <code>countDistinctConversationsBySenderId</code> vs <code>maxConversations</code>. <b>Verify starting a 6th new conversation is blocked with <code>CHAT_LIMIT_REACHED</code></b>, while replying inside any of the first 5 still works.</td></tr>
+            <tr><td>Shortlist</td><td><code>enabled</code></td><td><span class="pill enforced">DB-enforced</span></td><td>—</td></tr>
+            <tr><td>Contact / horoscope</td><td>Still fully masked — Starter is below the Classic+ threshold for both</td><td><span class="pill enforced">DB-enforced</span></td><td>No rows for plan 2</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ CLASSIC ============ -->
+    <section id="classic">
+      <h2 class="section-title">3 · Classic <span class="plan-price">₹999 · 90 days</span></h2>
+      <p class="section-dek">The most structurally different plan — several features here are <em>quotas</em> rather than on/off switches, which is where this session's real bugs lived.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>Expected</th><th>Enforced</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Send interest</td><td class="num">60, PLAN_DURATION (fixed 2026-07-10, local DB only — was 15, lower than Starter's 25, a confirmed downgrade trap)</td><td><span class="pill enforced">DB-enforced</span></td><td><code>SEND_REQUEST</code> = 60. <b>Live production still has 15</b> — not yet promoted, see drift section</td></tr>
+            <tr><td><b>Reveal Contact</b></td><td class="num">40 reveals, PLAN_DURATION — per-profile, not per-message. Button now exists as of 2026-07-09.</td><td><span class="pill enforced">DB-enforced</span></td><td><code>UserService.revealContact</code> + <code>ProfileDetail.tsx</code> "Reveal Contact" button (<code>planTitle === 'Classic'</code> branch)</td></tr>
+            <tr><td>Re-open a profile already revealed</td><td>Shows mobile immediately, <b>does not</b> consume a 2nd reveal</td><td><span class="pill enforced">DB-enforced</span></td><td><code>contact_reveals</code> table dedup — <code>existsByViewerIdAndRevealedUserId</code></td></tr>
+            <tr><td>41st reveal (quota exhausted)</td><td><code>CONTACT_VIEW_LIMIT_EXCEEDED</code> → premium-upgrade popup, not a generic error</td><td><span class="pill enforced">DB-enforced</span></td><td><code>revealContact</code> 403 path</td></tr>
+            <tr><td>Horoscope</td><td>Visible <b>only if</b> the specific interest between viewer↔profile is <code>APPROVED</code> — plan alone is not enough</td><td><span class="pill enforced">DB-enforced</span></td><td><code>getProfileDetailWithIntractionStatus</code> — <code>hasHoroscopeAccess &amp;&amp; interestAcceptedForHoroscope</code></td></tr>
+            <tr><td>Horoscope, interest accepted, still empty</td><td>Should read "hasn't added their horoscope yet", <b>not</b> "available after interest accepted"</td><td><span class="pill info">Verify UX</span></td><td>Fixed 2026-07-09 via <code>interestStatus === 'APPROVED'</code> check in <code>InlineProfileTabs</code></td></tr>
+            <tr><td>Chat / messaging</td><td><code>unlimited</code> — same as Silver+, this is the one place Classic isn't quota-limited</td><td><span class="pill enforced">DB-enforced</span></td><td><code>MESSAGE</code> = unlimited for plan 3</td></tr>
+            <tr><td>Advanced search</td><td><code>enabled</code></td><td><span class="pill enforced">DB-enforced</span></td><td><code>ADV_SEARCH</code></td></tr>
+            <tr><td>Star Match</td><td><code>BASIC</code> tier (Silver+ get <code>FULL</code>) — <b>verify the UI actually shows a reduced/basic result, not the full report</b></td><td><span class="pill gap">Not enforced</span></td><td>No backend code references <code>STAR_MATCH</code> by that literal code — likely frontend-only via <code>entitlements.starMatch</code>, worth a close look at whether BASIC vs FULL actually renders differently</td></tr>
+            <tr><td>Profile boost</td><td class="num">0 credits/month — cannot boost without an add-on purchase</td><td><span class="pill enforced">DB-enforced</span> (hardcoded, not DB-read)</td><td><code>BoostService.PLAN_BOOST_CREDITS</code> map has no entry for planId 3 → defaults to 0, matches the DB row by coincidence, not by reading it</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <span class="callout-label">Test with VannClassic → VannSilver</span>
+        This exact pair (700 → 703) is what surfaced both 2026-07-09 fixes. Re-run: send interest, accept from the Silver side, view Silver's profile from Classic, tap Reveal Contact, check horoscope message.
+      </div>
+    </section>
+
+    <!-- ============ SILVER ============ -->
+    <section id="silver">
+      <h2 class="section-title">4 · Silver <span class="plan-price">₹2,499 · 90 days</span></h2>
+      <p class="section-dek">The first "fully unlocked" tier for the core flows — everything below should just work without quota math.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>Expected</th><th>Enforced</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Send interest</td><td><code>unlimited</code></td><td><span class="pill enforced">DB-enforced</span></td><td><code>SEND_REQUEST</code> / <code>REQ_UNLIMITED</code></td></tr>
+            <tr><td>Contact info</td><td><code>enabled</code> — visible immediately on profile open, <b>no reveal button should appear</b></td><td><span class="pill enforced">DB-enforced</span></td><td><code>hasContactAccess = true</code> path in <code>getProfileDetailWithIntractionStatus</code></td></tr>
+            <tr><td>Secure Connect</td><td>Phone shown masked (<code>•••• •••• 1234</code>) <b>until</b> interest is accepted, then full number</td><td><span class="pill enforced">DB-enforced</span></td><td><code>isSecureConnect</code> + <code>interestAccepted</code> branch, same method</td></tr>
+            <tr><td>Horoscope</td><td>Visible once interest accepted (plan already qualifies)</td><td><span class="pill enforced">DB-enforced</span></td><td>Same masking logic as Classic, just never blocked by plan</td></tr>
+            <tr><td>Chat</td><td><code>unlimited</code> — chat itself actually starts at Starter (5 conversations) / Classic (unlimited), not Silver; Silver just isn't the threshold this row might suggest (see cross-plan section)</td><td><span class="pill enforced">DB-enforced</span></td><td><code>chatscreen.tsx</code>, <code>ChatService.sendChatMessage</code></td></tr>
+            <tr><td>Voice call request</td><td><code>enabled</code> in DB for Silver+</td><td><span class="pill enforced">DB-enforced</span></td><td><code>ServiceRequestService.createRequest</code> generic plan-feature check — real gate, not decorative</td></tr>
+            <tr><td>Voice call CTA visibility</td><td>Button shown — but so is it for Starter/Classic, who don't have the feature (see drift section)</td><td><span class="pill frontend">Frontend-only</span></td><td><code>ProfileDetail.tsx</code> gate is <code>planTitle &amp;&amp; planTitle !== 'Free'</code> — broader than the DB row</td></tr>
+            <tr><td>Verification badges (ID/education/income)</td><td>Silver unlocks ID + education badges, not income (that's Gold+)</td><td><span class="pill gap">Not enforced</span></td><td>No backend reference to <code>ID_VERIFIED_BADGE</code>/<code>EDUCATION_VERIFIED_BADGE</code> by code — likely rendered directly off the verification status fields regardless of viewer's own plan</td></tr>
+            <tr><td>Star Match</td><td><code>FULL</code> tier</td><td><span class="pill gap">Not enforced</span></td><td>Same caveat as Classic row — verify the actual UI difference exists</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ GOLD ============ -->
+    <section id="gold">
+      <h2 class="section-title">5 · Gold <span class="plan-price">₹4,999 · 180 days</span></h2>
+      <p class="section-dek">Everything in Silver, plus the family-facing features and the two DB-enforced Service Requests unique to this tier and above.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>Expected</th><th>Enforced</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Family Access (add parent login)</td><td><code>FAMILY_LOGIN enabled</code></td><td><span class="pill enforced">DB-enforced</span></td><td><code>ServiceRequestService</code> generic gate + <code>settingsPage.tsx</code> menu entry (<code>planTitle === 'Gold' \|\| 'Platinum'</code>)</td></tr>
+            <tr><td>Who Shortlisted You</td><td><code>WHO_SHORTLISTED_YOU enabled</code></td><td><span class="pill enforced">DB-enforced</span></td><td><code>ListUser.tsx?type=whoShortlistedMe</code>, backend feature check confirmed in earlier session work</td></tr>
+            <tr><td>WhatsApp share</td><td><code>enabled</code> — but verify it's actually gated, not just present</td><td><span class="pill frontend">Frontend-only</span></td><td><code>ProfileDetail.tsx</code> <code>handleWhatsAppShare</code>, <code>planTitle === 'Gold' \|\| 'Platinum'</code>. No backend enforcement — low risk since it's just opening a share sheet, not exposing data, but confirm the button is hidden below Gold</td></tr>
+            <tr><td>Profile boost</td><td class="num">2 credits/month</td><td><span class="pill enforced">DB-enforced</span> (hardcoded)</td><td><code>PLAN_BOOST_CREDITS.get(5L) = 2</code> — matches DB row 5/PROFILE_BOOST/2</td></tr>
+            <tr><td>Video profile request</td><td><code>VIDEO_PROFILE enabled</code></td><td><span class="pill enforced">DB-enforced</span></td><td>Generic <code>ServiceRequestService</code> gate</td></tr>
+            <tr><td>Quick Access FAB — Family Access tile</td><td>Visible for Gold+ only</td><td><span class="pill frontend">Frontend-only</span></td><td><code>QuickAccessFAB.tsx</code> <code>minPlan</code> filter, defensive re-check on tap</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ PLATINUM ============ -->
+    <section id="platinum">
+      <h2 class="section-title">6 · Platinum <span class="plan-price">₹9,999 · until marriage</span></h2>
+      <p class="section-dek">Top tier — mostly concierge-style Service Requests layered on top of Gold's full unlock.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>Expected</th><th>Enforced</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Dedicated RM request</td><td><code>DEDICATED_RM enabled</code>, Platinum-only</td><td><span class="pill enforced">DB-enforced</span></td><td>Confirm a Gold account gets <code>PLAN_UPGRADE_REQUIRED</code> attempting this exact request type</td></tr>
+            <tr><td>Family-assisted matchmaking</td><td><code>FAMILY_ASSISTED_MATCH enabled</code>, Platinum-only</td><td><span class="pill enforced">DB-enforced</span></td><td>Same as above</td></tr>
+            <tr><td>Speak with families</td><td><code>SPEAK_FAMILY enabled</code>, Platinum-only</td><td><span class="pill enforced">DB-enforced</span></td><td>Same as above</td></tr>
+            <tr><td>Profile boost</td><td class="num">5 credits/month</td><td><span class="pill enforced">DB-enforced</span> (hardcoded)</td><td><code>PLAN_BOOST_CREDITS.get(6L) = 5</code></td></tr>
+            <tr><td>Everything from Gold</td><td>Should all still work identically — Platinum is additive, not a different code path</td><td><span class="pill info">Verify UX</span></td><td>Spot-check Family Access, WhatsApp share, Who Shortlisted You</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ CROSS-PLAN ============ -->
+    <section id="cross-plan">
+      <h2 class="section-title">Cross-plan interaction scenarios</h2>
+      <p class="section-dek">The scenarios that actually broke this session all involved <em>two different plans interacting</em> — a gate that's correct in isolation can still misbehave once both sides of an interest are real accounts. Each plan's own checklist above assumes you're the only variable; these assume you aren't.</p>
+
+      <div class="scenario">
+        <span class="tc-id">TC-1</span>
+        <h4>Mismatched chat access — one side below Silver</h4>
+        <ol>
+          <li>VannClassic (700) sends interest to VannStarter (699, opposite gender pair needed — substitute accordingly)</li>
+          <li>Starter side accepts</li>
+          <li>Classic side opens chat — Classic's <code>MESSAGE</code> is <code>unlimited</code>, should work</li>
+          <li>Starter side opens the same conversation</li>
+        </ol>
+        <div class="expect-grid">
+          <div class="expect"><span class="k">Classic viewer</span>Chat opens, can send</div>
+          <div class="expect"><span class="k">Starter viewer</span>Counts as 1 of Starter's 5 allowed distinct conversations — this specific chat stays open regardless of message count; the cap only blocks starting a <em>6th different</em> conversation</div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <span class="tc-id">TC-2</span>
+        <h4>Both sides below Silver — the "matched but mute" case</h4>
+        <ol>
+          <li>VannFree (696) sends to VannStarter (699)</li>
+          <li>Starter accepts</li>
+          <li>Both sides check Matches count, then try to open chat</li>
+        </ol>
+        <div class="expect-grid">
+          <div class="expect"><span class="k">Matches count</span>Increments for both — <code>Matches</code> is symmetric, unrelated to chat access</div>
+          <div class="expect"><span class="k">Free side chat</span>Full "Upgrade to Premium" wall — cannot view or send</div>
+          <div class="expect"><span class="k">Starter side chat</span>Opens (has 5 messages), but talking to a Free account that can never reply is a dead end worth flagging as a product question, not a bug</div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <span class="tc-id">TC-3</span>
+        <h4>Classic reveal quota is per-viewer, not per-conversation</h4>
+        <ol>
+          <li>VannClassic (700) reveals contact for VannSilver (703) — uses 1 of 40</li>
+          <li>VannClassic (700) reveals contact for VannGold (705) — uses 1 of 40 (total: 2 used)</li>
+          <li>VannClassic (700) re-opens VannSilver (703)'s profile</li>
+        </ol>
+        <div class="expect-grid">
+          <div class="expect"><span class="k">Quota after step 2</span>38 of 40 remaining, shared across every profile — not 40 per profile</div>
+          <div class="expect"><span class="k">Step 3</span>Shows the number immediately, no button, no 3rd reveal consumed</div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <span class="tc-id">TC-4</span>
+        <h4>Re-send after decline vs. re-send after cancel</h4>
+        <ol>
+          <li>VannClassic (700) sends to VannSilver (703)</li>
+          <li><b>Path A:</b> Silver declines → Classic re-sends from the profile screen</li>
+          <li><b>Path B:</b> instead, Classic cancels their own request from "Sent By You" → re-sends</li>
+        </ol>
+        <div class="expect-grid">
+          <div class="expect"><span class="k">Path A result</span>Re-send succeeds, resets the same row to <code>PENDING</code> — fixed 2026-07-08</div>
+          <div class="expect"><span class="k">Path B result</span>Re-send succeeds without a 500 error (<code>conversations</code> duplicate-key) — fixed 2026-07-09, this is the one most worth regression-testing since it was a server crash, not just a bad message</div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <span class="tc-id">TC-5</span>
+        <h4>Send-quota consumption is independent of outcome</h4>
+        <ol>
+          <li>VannFree (696) sends all 3 lifetime interests to three different accounts</li>
+          <li>Leave one <code>PENDING</code>, get one <code>REJECTED</code>, cancel one yourself</li>
+        </ol>
+        <div class="expect-grid">
+          <div class="expect"><span class="k">Requests remaining</span>0, regardless of the three different outcomes above — quota is consumed at send time and never refunded for any reason</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ REGRESSION ============ -->
+    <section id="regression">
+      <h2 class="section-title">Recheck: bugs fixed this session</h2>
+      <p class="section-dek">Everything below was an actual reported failure, fixed in the 2026-07-08/09 sessions. Confirm each one before considering plan-gating "signed off" — several touch the same files as the checklists above.</p>
+      <ul class="regression-list">
+        <li><span class="checkbox"></span><div><b>Interest send silently "succeeded" on a duplicate.</b> <code>handleSendInterest</code> now checks <code>res.data.code === 201</code> before showing success — resend to an account with a PENDING/APPROVED row already should show a real error, not a false "sent."</div></li>
+        <li><span class="checkbox"></span><div><b>Re-send after decline was blocked forever.</b> Now resets the same row to PENDING. Test via TC-4 Path A above.</div></li>
+        <li><span class="checkbox"></span><div><b><code>conversations</code> duplicate-key 500 on re-send after cancel.</b> The highest-severity fix this session — a real server crash. Test via TC-4 Path B.</div></li>
+        <li><span class="checkbox"></span><div><b>Request quota frozen at plan default, never decrementing.</b> Caused by missing <code>user_subscriptions</code> rows on bulk-seeded accounts; backend now self-heals via <code>ensureActiveSubscription</code>. Confirm on any account, not just the Vann* set, since real users could theoretically hit this too if a signup ever fails partway.</div></li>
+        <li><span class="checkbox"></span><div><b>"Interests &amp; Hobbies" edit was a raw text input that silently failed to save.</b> Now a proper multi-select chip grid via <code>EditInterestsModal.tsx</code>, used by both the Profile screen and the profile-edit tabs.</div></li>
+        <li><span class="checkbox"></span><div><b>Android: could not tap anything except the Quick Access FAB.</b> Root cause was a second <code>GestureHandlerRootView</code>. Test specifically on Android, not iOS — this never reproduced there.</div></li>
+        <li><span class="checkbox"></span><div><b>Footer nav stuck on "Home" after editing profile data.</b> <code>VVMFooterNav</code> now syncs its highlighted tab to the real navigation state instead of only seeding once.</div></li>
+        <li><span class="checkbox"></span><div><b>Last item in Received/Sent/Permissions lists hidden behind the floating footer.</b> Check with 4+ items in each of the three mailBox tabs.</div></li>
+        <li><span class="checkbox"></span><div><b>Classic Reveal Contact button + accurate horoscope-empty message.</b> The two fixes this exact conversation was about — see the Classic section above and TC-3.</div></li>
+      </ul>
+    </section>
+
+    <!-- ============ DRIFT ============ -->
+    <section id="drift">
+      <h2 class="section-title">Frontend / DB drift — worth a product decision, not just a test</h2>
+      <p class="section-dek">These aren't bugs so much as places where the DB says one thing and the code enforces something looser or nothing at all. Testing them means confirming the <em>current</em> behavior is intentional, or filing them as real gaps.</p>
+
+      <div class="callout critical">
+        <span class="callout-label">Critical — found 2026-07-10</span>
+        <code>PremiumTab.tsx</code> (the actual "Upgrade" screen every real user sees) does not call any backend endpoint for plan data. It renders entirely from a hardcoded <code>MOCK_API_RESPONSE</code> object (and an identical <code>defaultPlans</code> error-fallback) — both completely disconnected from the real <code>subscription_plans</code>/<code>planFeatures</code> tables. Examples of what users are currently shown vs. reality: Starter listed at <b>₹199</b> (real: ₹499) with copy saying "15 interests" (real Starter quota: 25); Classic listed at <b>₹999/₹1,499</b> across two duplicate duration variants (real: single ₹999/90-day plan) with copy saying "50 interest requests" (real Classic quota: 15, now 60 locally). None of the six real plans, prices, or durations match what's on screen. This predates and is unrelated to today's <code>SEND_REQUEST</code> fix, but it means <b>the marketing copy was already wrong before the fix and is still wrong after it</b> — fixing the DB number alone does not fix what customers actually read. A real fix requires either wiring this screen to <code>userApi.getAllActivePlans()</code> (which already exists at <code>/subscriptionPlans/getAllActivePlans</code> and is unused) or rewriting the mock data to match the real 6-plan structure. Not yet decided or scheduled — flagging for a product call.
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Feature</th><th>DB says</th><th>Code actually does</th><th>Risk</th></tr></thead>
+          <tbody>
+            <tr><td>Voice Call CTA</td><td>Silver+ only (<code>VOICE_CALL</code> row starts at plan 4)</td><td>Frontend shows the button for anyone above Free (<code>planTitle !== 'Free'</code>) — Starter and Classic see it too</td><td>Low — <code>ServiceRequestService</code> still rejects server-side, but Starter/Classic users tap a button that always fails</td></tr>
+            <tr><td>Star Match tier (BASIC vs FULL)</td><td>Classic = <code>BASIC</code>, Silver+ = <code>FULL</code></td><td>No backend code references <code>STAR_MATCH</code> by code at all</td><td>Medium — worth confirming the Star Match screen actually renders a reduced report for Classic, or whether it's the same for everyone in practice</td></tr>
+            <tr><td>Profile boost credits</td><td><code>planFeatures.PROFILE_BOOST</code> per plan</td><td><code>BoostService</code> uses a separate hardcoded <code>Map&lt;Long,Integer&gt;</code> that happens to match today</td><td>Low today, but if anyone changes the DB row expecting it to take effect, it won't — the map is the real source of truth</td></tr>
+            <tr><td>All plans' <code>PROFILE_VIEW_LIMIT</code></td><td><code>0</code> or no row — unlimited everywhere</td><td>Resolved 2026-07-09: intended, not drift. Free-tier browsing is meant to be open; only contact/chat/horoscope are meant to be paywalled</td><td>None — code comment corrected to match, no further action needed</td></tr>
+            <tr><td>Verification badges, high visibility, priority search</td><td>Rows exist from Silver up</td><td>No backend or frontend reference found to these exact codes</td><td>Cosmetic-only for now — not a security gap, just not doing anything yet</td></tr>
+            <tr><td>Classic <code>SEND_REQUEST</code>, local vs. live</td><td>Local <code>vvm_db</code>: <b>60</b> (fixed 2026-07-10)</td><td>Live <code>uravugal</code> RDS: still <b>15</b> — the fix has not been promoted</td><td>Medium — real paying Classic customers are still on the old, worse-than-Starter quota until this is pushed. Exact <code>UPDATE</code> statement is in the app's <code>CLAUDE.md</code> 2026-07-10 changelog entry</td></tr>
+            <tr><td><code>PremiumTab.tsx</code> plan data</td><td>Real 6-plan structure in <code>subscription_plans</code>/<code>planFeatures</code></td><td>Screen ignores the DB entirely — hardcoded fictional mock data (see callout above)</td><td>High — this is the actual screen users decide to pay from; wrong prices/quotas shown to real customers, not just a docs/test-plan mismatch</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="end">
+      Compiled from <code>vvm_db</code> (planFeatures, features, subscription_plans, user_subscriptions, contact_reveals, interestRequest tables) and the current <code>VaibhavVivaahaApp</code> / <code>VaibhavVivaahaBackend</code> source. Re-run the DB queries if plan rows change — this snapshot is only as current as the day it was pulled.
+    </footer>
+  </main>
+</div>
+
+</body>
+</html>

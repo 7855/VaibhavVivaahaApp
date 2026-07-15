@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect, SetStateAction } from "react";
 import {
   View,
-  Image,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -13,13 +12,11 @@ import {
   Modal,
   ActivityIndicator
 } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Swiper from "react-native-swiper";
-import { Box, Input, NativeBaseProvider, Text as TextNB, Button as ButtonNB, HStack, Checkbox, FlatList } from "native-base";
+import { Box, Input, NativeBaseProvider, Text as TextNB, Button as ButtonNB, HStack, FlatList } from "native-base";
 import { SafeAreaView } from "react-native-safe-area-context";
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Button } from 'react-native';
-import { NativeModules } from 'react-native';
 import moment from 'moment'; // Import the moment library for date formatting
 import { SelectList } from 'react-native-dropdown-select-list'
 import { Ionicons } from '@expo/vector-icons';
@@ -32,8 +29,6 @@ import { ArrowLeft, ArrowRight } from "lucide-react-native";
 import { loadMasterData } from "../services/masterService";
 import { useMasterData } from "../contexts/MasterDataContext";
 import { usePopup } from "../contexts/PopupContext";
-import InterestChipGrid from "../../../components/InterestChipGrid";
-import { INTEREST_TAGS } from "../../../constants/interests";
 type GetstartProps = {
   onStart: () => void;
 };
@@ -50,19 +45,12 @@ interface FormErrors {
   lastName?: string;
   mobile?: string;
   occupation?: string;
-  fatherName?: string;
-  fatherOccupation?: string;
-  motherName?: string;
-  motherOccupation?: string;
-  jobPlace?: string;
-  currentAddress?: string;
-  nativePlace?: string;
   pin?: string;
   confirmPin?: string;
-  income?: string;
-  educationInDetail?: string
   // Add other error fields as needed
 }
+
+const STEP_LABELS = ['Basic Info', 'Account Setup'];
 
 export default function SignUp({ onStart }: GetstartProps) {
   const popup = usePopup();
@@ -70,6 +58,8 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [date, setDate] = useState(new Date());
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [swiperReady, setSwiperReady] = useState(false);
+  // Drives the stepper header — the form has no other sense of "where am I" otherwise.
+  const [activeStep, setActiveStep] = useState(0);
   const [dob, setDob] = useState(new Date());
   const [dobDisplay, setDobDisplay] = useState("");
   const [mobile, setMobile] = useState("");
@@ -83,16 +73,9 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [districtOptions, setDistrictOptions] = useState<Array<{ id: string, value: string }>>([]);
   const [selectedCity, setSelectedCity] = useState('');
   const [allCaste, setAllCaste] = useState<any[]>([]);
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [fatherOccupation, setFatherOccupation] = React.useState("");
-  const [motherOccupation, setMotherOccupation] = React.useState("");
-  const [selectedComplexion, setSelectedComplexion] = useState<string>('');
-  const [jobPlace, setJobPlace] = useState('');
   const [selectedGender, setSelectedGender] = useState('');
   const [loading, setLoading] = useState(false);
   const [casteList, setCasteList] = useState<CasteOption[]>([]);
-  const [income, setIncome] = useState('');
-  const [incomeNumeric, setIncomeNumeric] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('');
   // employmentOptions is now managed by the masterData effect
   const [pin, setPin] = useState('');
@@ -105,13 +88,8 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [fatherName, setFatherName] = useState('');
-  const [motherName, setMotherName] = useState('');
-  const [nativePlace, setNativePlace] = useState('');
-  const [currentAddress, setCurrentAddress] = useState('');
   const swiperRef = useRef<Swiper>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [educationInDetail, setEducationInDetail] = useState('');
   const [tempDate, setTempDate] = useState<Date>(new Date()); // Spinner value
   const onlyAlphabets = (text: string) => text.replace(/[^A-Za-z\s]/g, '');
   const onlyNumbers = (text: string) => text.replace(/[^0-9]/g, '');
@@ -139,20 +117,15 @@ export default function SignUp({ onStart }: GetstartProps) {
       education: 'Education',
       occupation: 'Occupation',
       employmentStatus: 'Employment Status',
-      nativePlace: 'Native Place',
-      income: 'Income',
-      fatherName: 'Father\'s Name',
-      fatherOccupation: 'Father\'s Occupation',
-      motherName: 'Mother\'s Name',
-      motherOccupation: 'Mother\'s Occupation',
       selectedCity: 'City / District',
-      jobPlace: 'Job Place',
-      currentAddress: 'Current Address',
       pin: 'PIN',
       confirmPin: 'Confirm PIN',
-      educationInDetail: 'Education in Detail'
     };
 
+    // Father's/Mother's Name+Occupation, Job Place, Current Address, Native Place, Annual
+    // Income, and Education in Detail are no longer required at signup — they're collected
+    // later via the post-signup profile-completion flow (Family/Education/Personal edit
+    // sections on the Profile tab), which already has working save paths for them.
     const formData: any = {
       firstName,
       lastName,
@@ -165,18 +138,9 @@ export default function SignUp({ onStart }: GetstartProps) {
       education,
       occupation,
       employmentStatus,
-      nativePlace,
-      income,
-      fatherName,
-      fatherOccupation,
-      motherName,
-      motherOccupation,
       selectedCity,
-      jobPlace,
-      currentAddress,
       pin,
       confirmPin,
-      educationInDetail
     };
 
     const requiredFields = Object.keys(formData);
@@ -367,31 +331,24 @@ export default function SignUp({ onStart }: GetstartProps) {
       return;
     }
 
-    // Prepare the payload
+    // Prepare the payload — Father's/Mother's Name+Occupation, Job Place, Current Address,
+    // Native Place, Annual Income, and Education in Detail are collected later via the
+    // post-signup profile-completion flow instead, so they're simply omitted here.
     const payload = {
       firstName,
       lastName,
       dateOfBirth: dob ? dob.toISOString().split("T")[0] : "",
       mobileNumber: mobile,
-      fathersName: fatherName,
-      mothersName: motherName,
-      fathersOccupation: fatherOccupation,
-      mothersOccupation: motherOccupation,
       education,
       occupation,
-      jobPlace,
       employingIn: employmentStatus,
-      nativePlace,
-      currentAddress,
-      annualIncome: incomeNumeric || income,
       gender: selectedGender.toUpperCase() == "MALE" ? "M" : "F",
       casteId: parseInt(selectedCasteData.id),
       pin,
-      location: selectedCity || jobPlace,
+      location: selectedCity,
       age,
       email,
       verificationToken,
-      educationInDetail,
     };
 
     console.log("payload=====================>", payload);
@@ -402,7 +359,7 @@ export default function SignUp({ onStart }: GetstartProps) {
       if (response.data?.code === 401) {
         popup.error("Registration Failed", "This mobile number is already registered.");
       } else if (response.data?.code === 200) {
-        // Store token so subsequent API calls (hobbies) work
+        // Store token so subsequent API calls work
         if (response.data.data?.token) {
           await AsyncStorage.setItem('authToken', response.data.data.token);
         }
@@ -410,14 +367,6 @@ export default function SignUp({ onStart }: GetstartProps) {
           await AsyncStorage.setItem('refreshToken', response.data.data.refreshToken);
         }
 
-        // Save hobbies if user selected any during signup
-        if (selectedInterests.length > 0 && response.data?.data?.userId) {
-          try {
-            await userApi.updateUserHobbies(response.data.data.userId, selectedInterests);
-          } catch (hobbyErr) {
-            console.log('Failed to save hobbies during signup:', hobbyErr);
-          }
-        }
         popup.success(
           "Account Created",
           "Your profile has been submitted for review. You'll be notified once approved.",
@@ -440,12 +389,6 @@ export default function SignUp({ onStart }: GetstartProps) {
     { label: 'Male', value: 'male' },
     { label: 'Female', value: 'female' }
   ];
-
-  // Handler to toggle selection
-  const handleSelect = (value: string) => {
-    setSelectedComplexion(prev => (prev === value ? '' : value));
-  };
-
 
   React.useEffect(() => {
     // Wait one frame so layout is stable before showing Swiper
@@ -488,31 +431,32 @@ export default function SignUp({ onStart }: GetstartProps) {
     return age;
   };
 
-  const onDateConfirm = () => {
+  // Accepts an optional override so the Android picker (which hands back the picked date
+  // directly in its onChange, with no separate "Confirm" step) can pass it straight through
+  // instead of relying on `tempDate` state, which wouldn't have committed yet in the same tick.
+  const onDateConfirm = (pickedDate?: Date) => {
+    const candidate = pickedDate || tempDate;
+
     // Always close the picker first
     setShowDatePicker(false);
 
-    if (tempDate > new Date()) {
+    if (candidate > new Date()) {
       setTimeout(() => popup.warning("Invalid Date", "Date of birth cannot be a future date."), 300);
       return;
     }
 
-    const computedAge = calculateAge(tempDate);
+    const computedAge = calculateAge(candidate);
 
     if (computedAge < 18) {
       setTimeout(() => popup.warning("Age Restriction", "You must be at least 18 years old to register."), 300);
       return;
     }
 
-    setDate(tempDate);
+    setDate(candidate);
     setAge(computedAge.toString());
-    setDob(tempDate);
-    setDobDisplay(moment(tempDate).format("DD MMM YYYY"));
+    setDob(candidate);
+    setDobDisplay(moment(candidate).format("DD MMM YYYY"));
   };
-
-
-
-  const amberColor = "#F59E0B";
 
   interface CustomModalPickerProps {
     label: string;
@@ -537,19 +481,19 @@ export default function SignUp({ onStart }: GetstartProps) {
     );
 
     return (
-      <View style={{ marginBottom: 15 }}>
+      <View style={{ marginBottom: 8 }}>
         {/* Label */}
-        <TextNB style={styles.label}>{label}</TextNB>
+        <TextNB style={styles.fieldLabel}>{label}</TextNB>
 
         {/* Selected Value Box */}
         <TouchableOpacity
           style={styles.inputBox}
           onPress={() => setVisible(true)}
         >
-          <TextNB style={{ color: selected ? "#000" : "#999" }}>
+          <TextNB style={{ color: selected ? "#000" : "#999", fontSize: 14, fontFamily: 'Rubik-Regular' }}>
             {selected || placeholder}
           </TextNB>
-          <Ionicons name="chevron-down" size={16} color="#130057" />
+          <Ionicons name="chevron-down" size={16} color="#0f1724" />
         </TouchableOpacity>
 
         {/* Modal */}
@@ -560,7 +504,7 @@ export default function SignUp({ onStart }: GetstartProps) {
               <View style={styles.header}>
                 <TextNB style={styles.modalTitle}>{label}</TextNB>
                 <TouchableOpacity onPress={() => setVisible(false)}>
-                  <Ionicons name="close" size={22} color="#130057" />
+                  <Ionicons name="close" size={22} color="#0f1724" />
                 </TouchableOpacity>
               </View>
 
@@ -569,15 +513,18 @@ export default function SignUp({ onStart }: GetstartProps) {
                 <Ionicons
                   name="search"
                   size={18}
-                  color="#FFB300"
+                  color="#1F7FE5"
                   style={{ marginRight: 5 }}
                 />
                 <TextInput
                   placeholder="Search"
+                  placeholderTextColor="#999"
                   value={search}
                   onChangeText={setSearch}
                   style={{
                     flex: 1, height: 40,
+                    fontSize: 14,
+                    fontFamily: 'Rubik-Regular',
                     padding: 5,
                   }}
                 />
@@ -610,1120 +557,663 @@ export default function SignUp({ onStart }: GetstartProps) {
 
   return (
     <NativeBaseProvider>
-      <Swiper showsPagination={false} ref={swiperRef} loop={false} scrollEnabled={false} removeClippedSubviews={false}>
-        {/* Page 2 - Input */}
-
-        <View style={{ flex: 1 }}>
-          <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'whitesmoke', marginBottom: 0, paddingBottom: 0, height: '100%' }} >
-            {/* <ScrollView
-              contentContainerStyle={{ flexGrow: 1 }}
-              keyboardShouldPersistTaps="always"
-              keyboardDismissMode="on-drag"
-            > */}
-            {/* <ScrollView> */}
-            <KeyboardAwareScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{
-                padding: 15,
-                paddingBottom: 0 // Reduced from 180
-              }}
-              enableOnAndroid={true}
-              enableAutomaticScroll={Platform.OS === 'ios'} // Auto-scroll only on iOS
-              extraScrollHeight={Platform.OS === 'ios' ? 30 : 0} // Only add extra space on iOS
-              keyboardOpeningTime={0} // Faster keyboard handling
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              enableResetScrollToCoords={false} // Prevents unwanted scrolling
+      <View style={{ flex: 1 }}>
+        {/* Full-screen theme gradient — previously there was none at all on this screen (plain
+            white), and a separate bug made the step-bar render unprotected above the notch,
+            which together read as "a blue sliver above the status bar, white everywhere else."
+            Same soft blue gradient already used on explore.tsx for visual consistency. */}
+        <LinearGradient
+          colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
+          locations={[0, 0.3, 0.6, 1.0]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
+          {/* Persistent header — title/subtitle/Sign-In/stepper live OUTSIDE the Swiper so they
+              stay fixed on screen across both pages instead of scrolling away with the fields. */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
+            <TextNB style={styles.headerTitle}>Create your account</TextNB>
+            <TextNB style={styles.headerSubtitle}>Find your perfect match — start your journey</TextNB>
+            <TouchableOpacity
+              onPress={() => router.replace('/(root)/(main)/LoginScreen')}
+              activeOpacity={0.7}
+              style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}
             >
-              {/* Your form fields go here */}
-              <View style={{ marginBottom: 0 }}>
+              <TextNB style={styles.signInPrompt}>Already have an account?{' '}</TextNB>
+              <TextNB style={styles.signInLink}>Sign In</TextNB>
+            </TouchableOpacity>
 
-                {/* Header */}
-                <View style={{ marginBottom: 16, marginTop: 2 }}>
-                  {/* Top bar — logo left, login link right */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Image
-                      source={require('../../../assets/images/LotusLogo.jpeg')}
-                      style={{ width: 44, height: 44, borderRadius: 22 }}
-                    />
-                    <TouchableOpacity
-                      onPress={() => router.replace('/(root)/(main)/LoginScreen')}
-                      style={{ backgroundColor: '#1F7FE5', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
-                    >
-                      <TextNB style={{ color: '#fff', fontSize: 12, fontFamily: 'Rubik-Bold' }}>Sign In</TextNB>
-                    </TouchableOpacity>
-                  </View>
-                  {/* Title + subtitle */}
-                  <TextNB style={{ color: '#1a1a1a', fontSize: 22, fontFamily: 'Rubik-ExtraBold' }}>
-                    Create your account
-                  </TextNB>
-                  <TextNB style={{ color: '#9ca3af', fontSize: 12, marginTop: 3 }}>
-                    Find your perfect match — start your journey
-                  </TextNB>
-                </View>
-
-                <HStack space={2} width="100%">
-                  {/* First Name Field */}
-                  <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      First Name
-                    </TextNB>
-                    <TextInput
-                      placeholder="First Name"
-                      value={firstName}
-                      onChangeText={(t) => {
-                        setFirstName(onlyAlphabets(t));
-                        if (errors.firstName) {
-                          setErrors(prev => ({ ...prev, firstName: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!firstName.trim()) {
-                          setErrors(prev => ({ ...prev, firstName: 'First name is required' }));
-                        } else if (firstName.trim().length < 2) {
-                          setErrors(prev => ({ ...prev, firstName: 'First name is too short' }));
-                        }
-                      }}
-                      style={[styles.input, errors.firstName && styles.inputError]}
-                    />
-                    {errors.firstName ? (
-                      <TextNB style={styles.error}>{errors.firstName}</TextNB>
-                    ) : (
-                      <TextNB style={styles.hiddenError}> </TextNB>
-                    )}
-                  </Box>
-
-                  {/* Last Name Field */}
-                  <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Last Name
-                    </TextNB>
-                    <TextInput
-                      placeholder="Last Name"
-                      value={lastName}
-                      onChangeText={(t) => {
-                        setLastName(onlyAlphabets(t));
-                        if (errors.lastName) {
-                          setErrors(prev => ({ ...prev, lastName: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!lastName.trim()) {
-                          setErrors(prev => ({ ...prev, lastName: 'Last name is required' }));
-                        } else if (lastName.trim().length < 2) {
-                          setErrors(prev => ({ ...prev, lastName: 'Last name is too short' }));
-                        }
-                      }}
-                      style={[styles.input, errors.lastName && styles.inputError]}
-                    />
-                    {errors.lastName ? (
-                      <TextNB style={styles.error}>{errors.lastName}</TextNB>
-                    ) : (
-                      <TextNB style={styles.hiddenError}> </TextNB>
-                    )}
-                  </Box>
-                </HStack>
-
-                {/* DOB with Date Picker */}
-                <HStack space={8} width="100%" marginBottom={3}>
-                  {/* DOB */}
-                  <Box flex={1} style={styles.inputContainer}>
+            {/* Real stepper — two labeled nodes joined by a connector, filled/checked as the
+                user advances, instead of a plain anonymous progress bar. */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 18 }}>
+              {STEP_LABELS.map((label, i) => (
+                <React.Fragment key={label}>
+                  <View style={{ alignItems: 'center', width: 78 }}>
+                    <View style={[
+                      styles.stepNode,
+                      i < activeStep ? styles.stepNodeDone : i === activeStep ? styles.stepNodeActive : styles.stepNodeUpcoming,
+                    ]}>
+                      {i < activeStep ? (
+                        <Ionicons name="checkmark" size={15} color="#fff" />
+                      ) : (
+                        <TextNB style={[styles.stepNodeText, i === activeStep && styles.stepNodeTextActive]}>
+                          {i + 1}
+                        </TextNB>
+                      )}
+                    </View>
                     <TextNB
-                      color="#130057"
-                      fontSize={13}
-                      marginBottom={1}
-                      fontWeight="bold" fontFamily="Rubik-Bold"
+                      style={[styles.stepLabel, i <= activeStep && styles.stepLabelActive]}
+                      numberOfLines={1}
                     >
-                      Date of Birth <TextNB color="red">*</TextNB>
+                      {label}
                     </TextNB>
-
-                    {/* Custom Styled Date Input */}
-                    <TouchableOpacity
-                      onPress={() => setShowDatePicker(true)}
-                      style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1 }]}
-                    >
-                      <TextNB color={date ? "#000" : "#000"}>
-                        {date ? dobDisplay : "Select Date"}
-                      </TextNB>
-
-                      <Ionicons name="calendar" size={18} color="#FFB300" />
-                    </TouchableOpacity>
-
-                    {/* Modal Picker */}
-                    <Modal visible={showDatePicker} transparent animationType="fade">
-                      <View
-                        style={{
-                          flex: 1,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          backgroundColor: "rgba(0,0,0,0.5)",
-                        }}
-                      >
-                        {/* Card wrapper */}
-                        <View
-                          style={{
-                            backgroundColor: "#fff",
-                            borderRadius: 12,
-                            width: "85%",
-                            overflow: "hidden", // important for spinner visibility
-                          }}
-                        >
-                          {/* Picker container without backgroundColor */}
-                          <View
-                            style={{
-                              padding: 0,
-                              alignItems: "center",
-                              height: 250,
-                              justifyContent: "center",
-                            }}
-                          >
-                            <RNDateTimePicker
-                              value={date || new Date()}
-                              mode="date"
-                              display="spinner"
-                              textColor="#130057"
-                              themeVariant="dark"
-                              style={{ backgroundColor: '#fff' }}
-                              onChange={(event, selectedDate) => {
-                                if (selectedDate) {
-                                  setTempDate(selectedDate);   // only store temp value
-                                }
-                              }}
-                            />
-                          </View>
-
-                          {/* Footer button */}
-                          <View
-                            style={{
-                              backgroundColor: "#fff",
-                              paddingVertical: 10,
-                              alignItems: "center",
-                            }}
-                          >
-                            <TouchableOpacity
-                              onPress={onDateConfirm}
-                              style={{
-                                backgroundColor: "#130057",
-                                paddingVertical: 10,
-                                paddingHorizontal: 15,
-                                borderRadius: 8,
-                              }}
-                            >
-                              <TextNB color="#fff" fontWeight="bold" fontFamily="Rubik-Bold">Confirm</TextNB>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      </View>
-                    </Modal>
-
-
-                  </Box>
-
-                  {/* Gender */}
-                  <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={3} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Gender
-                    </TextNB>
-                    <Box alignItems="flex-start" width="100%">
-                      <HStack space={4} alignItems="start">
-                        {genderOptions.map((option) => (
-                          <HStack key={option.value} space={2} alignItems="start">
-                            <Checkbox
-                              value={option.value}
-                              isChecked={selectedGender === option.value}
-                              onChange={() => setSelectedGender(option.value)}
-                              size="sm"
-                              colorScheme="black"
-                              accessibilityLabel={option.label}
-                              _checked={{
-                                bg: "#130057",
-                                borderColor: "#130057",
-                              }}
-                            />
-                            <TextNB fontSize="sm" color="black">
-                              {option.label}
-                            </TextNB>
-                          </HStack>
-                        ))}
-                      </HStack>
-                    </Box>
-                  </Box>
-                </HStack>
-
-
-
-                {/* Caste */}
-                <CustomModalPicker
-                  label="Caste"
-                  placeholder="Select Caste"
-                  data={casteList}
-                  selected={caste}
-                  onSelect={(val) => setCaste(val)}
-                />
-
-
-
-                {/* Mobile Number - 10 digits only */}
-                <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                    Mobile Number
-                  </TextNB>
-                  <TextInput
-                    placeholder="Enter Mobile Number"
-                    value={mobile}
-                    onChangeText={(t) => {
-                      setMobile(onlyNumbers(t));
-                      if (errors.mobile) {
-                        setErrors(prev => ({ ...prev, mobile: '' }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!mobile) {
-                        setErrors(prev => ({ ...prev, mobile: 'Mobile number is required' }));
-                      } else if (mobile.length !== 10) {
-                        setErrors(prev => ({ ...prev, mobile: 'Mobile number must be 10 digits' }));
-                      }
-                    }}
-                    style={[styles.input, errors.mobile && styles.inputError]}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                  />
-                  {errors.mobile ? (
-                    <TextNB style={styles.error}>{errors.mobile}</TextNB>
-                  ) : (
-                    <TextNB style={styles.hiddenError}> </TextNB>
+                  </View>
+                  {i < STEP_LABELS.length - 1 && (
+                    <View style={[styles.stepConnector, i < activeStep && styles.stepConnectorDone]} />
                   )}
-                </Box>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
 
-                {/* Age and Email */}
-                {/* Age and Email */}
-                <HStack space={2} width="100%">
-                  {/* Age Field */}
-                  <Box flex={0.3} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Age
-                    </TextNB>
-                    <TextInput
-                      placeholder=""
-                      keyboardType="numeric"
-                      maxLength={3}
-                      value={age}
-                      onChangeText={setAge}
-                      style={[styles.input, { backgroundColor: "#f1f1f1" }]}
-                      editable={false}
-                    />
-                    <TextNB style={styles.hiddenError}> </TextNB>
-                  </Box>
-
-                  {/* Email Field */}
-                  <Box flex={0.7} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Email
-                    </TextNB>
-                    {emailVerified ? (
-                      <TouchableOpacity
-                        onPress={() => {
-                          setEmailVerified(false);
-                          setVerificationToken(null);
-                        }}
-                        style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: -4,
-                          backgroundColor: '#f59e0b',
-                          paddingHorizontal: 10,
-                          paddingVertical: 3,
-                          borderRadius: 4,
-                          zIndex: 2,
-                        }}
-                      >
-                        <TextNB style={{ color: '#fff', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Change</TextNB>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity
-                        onPress={handleVerifyEmail}
-                        disabled={!isValidEmail(email) || sendingEmailOtp}
-                        style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: -4,
-                          backgroundColor: !isValidEmail(email) || sendingEmailOtp ? '#ccc' : '#1F7FE5',
-                          paddingHorizontal: 10,
-                          paddingVertical: 3,
-                          borderRadius: 4,
-                          zIndex: 2,
-                        }}
-                      >
-                        {sendingEmailOtp ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <TextNB style={{ color: '#fff', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Verify</TextNB>
-                        )}
-                      </TouchableOpacity>
-                    )}
-                    <View style={{ position: 'relative' }}>
+          <Swiper
+            showsPagination={false}
+            ref={swiperRef}
+            loop={false}
+            scrollEnabled={false}
+            removeClippedSubviews={false}
+            onIndexChanged={(index) => setActiveStep(index)}
+          >
+            {/* Page 1 — Basic Info: identity + contact, up through Education */}
+            <View style={{ flex: 1 }}>
+              <KeyboardAwareScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ padding: 15, paddingTop: 10, paddingBottom: 0 }}
+                enableOnAndroid={true}
+                // Was `Platform.OS === 'ios'` — disabled auto-scroll-to-focused-input on Android
+                // entirely (enableOnAndroid alone only resizes the view for the keyboard, it
+                // doesn't scroll to the field), so Email's lower position on this page stayed
+                // hidden behind the keyboard on Android.
+                enableAutomaticScroll={true}
+                extraScrollHeight={Platform.OS === 'ios' ? 30 : 20}
+                keyboardOpeningTime={0}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                enableResetScrollToCoords={false}
+              >
+                <View>
+                  <HStack space={2} width="100%">
+                    {/* First Name Field */}
+                    <Box flex={1} style={styles.inputContainer}>
+                      <TextNB style={styles.fieldLabel}>First Name</TextNB>
                       <TextInput
-                        placeholder="Enter Email"
-                        value={email}
+                        placeholder="First Name"
+                        placeholderTextColor="#999"
+                        value={firstName}
                         onChangeText={(t) => {
-                          setEmail(t);
-                          if (errors.email) {
-                            setErrors(prev => ({ ...prev, email: '' }));
+                          setFirstName(onlyAlphabets(t));
+                          if (errors.firstName) {
+                            setErrors(prev => ({ ...prev, firstName: '' }));
                           }
                         }}
                         onBlur={() => {
-                          if (!email) {
-                            setErrors(prev => ({ ...prev, email: 'Email is required' }));
-                          } else if (!isValidEmail(email)) {
-                            setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
+                          if (!firstName.trim()) {
+                            setErrors(prev => ({ ...prev, firstName: 'First name is required' }));
+                          } else if (firstName.trim().length < 2) {
+                            setErrors(prev => ({ ...prev, firstName: 'First name is too short' }));
                           }
                         }}
-                        editable={!emailVerified}
-                        style={[
-                          styles.input,
-                          errors.email && styles.inputError,
-                          emailVerified && { backgroundColor: '#f0fdf4', borderColor: '#86efac', paddingRight: 36 },
-                        ]}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
+                        style={[styles.input, errors.firstName && styles.inputError]}
                       />
-                      {emailVerified && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={20}
-                          color="#16a34a"
-                          style={{ position: 'absolute', right: 10, top: 10 }}
-                        />
+                      {errors.firstName ? (
+                        <TextNB style={styles.error}>{errors.firstName}</TextNB>
+                      ) : (
+                        <TextNB style={styles.hiddenError}> </TextNB>
                       )}
-                    </View>
-                    {errors.email ? (
-                      <TextNB style={styles.error}>{errors.email}</TextNB>
-                    ) : (
-                      <TextNB style={styles.hiddenError}> </TextNB>
-                    )}
-                  </Box>
-                </HStack>
+                    </Box>
 
-                {/* 7. Education (single-line) */}
-                <CustomModalPicker
-                  label="Education"
-                  placeholder="Select Your Education"
-                  data={educationOptions}
-                  selected={education}
-                  onSelect={(val) => setEducation(val)}
-                />
+                    {/* Last Name Field */}
+                    <Box flex={1} style={styles.inputContainer}>
+                      <TextNB style={styles.fieldLabel}>Last Name</TextNB>
+                      <TextInput
+                        placeholder="Last Name"
+                        placeholderTextColor="#999"
+                        value={lastName}
+                        onChangeText={(t) => {
+                          setLastName(onlyAlphabets(t));
+                          if (errors.lastName) {
+                            setErrors(prev => ({ ...prev, lastName: '' }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!lastName.trim()) {
+                            setErrors(prev => ({ ...prev, lastName: 'Last name is required' }));
+                          } else if (lastName.trim().length < 2) {
+                            setErrors(prev => ({ ...prev, lastName: 'Last name is too short' }));
+                          }
+                        }}
+                        style={[styles.input, errors.lastName && styles.inputError]}
+                      />
+                      {errors.lastName ? (
+                        <TextNB style={styles.error}>{errors.lastName}</TextNB>
+                      ) : (
+                        <TextNB style={styles.hiddenError}> </TextNB>
+                      )}
+                    </Box>
+                  </HStack>
 
-                {/* Occupation Field */}
-                <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                    Occupation
-                  </TextNB>
-                  <TextInput
-                    placeholder="Enter Your Occupation"
-                    value={occupation}
-                    onChangeText={(t) => {
-                      setOccupation(onlyAlphabets(t));
-                      if (errors.occupation) {
-                        setErrors(prev => ({ ...prev, occupation: '' }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!occupation.trim()) {
-                        setErrors(prev => ({
-                          ...prev,
-                          occupation: 'Occupation is required'
-                        }));
-                      }
-                    }}
-                    style={[styles.input, errors.occupation && styles.inputError]}
-                  />
-                  {errors.occupation ? (
-                    <TextNB style={styles.error}>{errors.occupation}</TextNB>
-                  ) : (
-                    <TextNB style={styles.hiddenError}> </TextNB>
-                  )}
-                </Box>
+                  {/* DOB with Date Picker — back in a shared row with Gender, but with an
+                      uneven flex split (DOB narrower, Gender wider) plus tighter pill padding,
+                      so Male/Female always fit on one line even once a checkmark icon is added
+                      to the selected pill. Equal 50/50 flex previously left Gender too little
+                      room and wrapped Male/Female to a second line. */}
+                  <HStack space={2} width="100%" marginBottom={3} alignItems="flex-start">
+                    <Box flex={1} style={styles.inputContainer}>
+                      <TextNB style={styles.fieldLabel}>
+                        Date of Birth <TextNB style={{ color: 'red' }}>*</TextNB>
+                      </TextNB>
 
-                {/* Education In Detail Field */}
-                <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                    Education in Detail
-                  </TextNB>
-                  <TextInput
-                    placeholder="Enter Your Education in Detail"
-                    multiline
-                    numberOfLines={3}
-                    value={educationInDetail}
-                    onChangeText={(t) => {
-                      setEducationInDetail(onlyAlphanumeric(t));
-                      if (errors.educationInDetail) {
-                        setErrors(prev => ({ ...prev, educationInDetail: '' }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!educationInDetail.trim()) {
-                        setErrors(prev => ({
-                          ...prev,
-                          educationInDetail: 'Education details are required'
-                        }));
-                      }
-                    }}
-                    style={[
-                      styles.input,
-                      styles.textArea,
-                      errors.educationInDetail && styles.inputError
-                    ]}
-                    textAlignVertical="top"
-                  />
-                  {errors.educationInDetail ? (
-                    <TextNB style={styles.error}>{errors.educationInDetail}</TextNB>
-                  ) : (
-                    <TextNB style={styles.hiddenError}> </TextNB>
-                  )}
-                </Box>
-              </View>
-            </KeyboardAwareScrollView>
-            <View style={{ display: 'flex', alignItems: 'flex-end', marginRight: 25 }}>
-              <ButtonNB style={{ marginBottom: 28, marginTop: 15, width: '30%', borderRadius: 24, backgroundColor: '#1F7FE5', paddingVertical: 12, shadowColor: '#1F7FE5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 }} onPress={() => swiperRef.current?.scrollBy(1)}>
-                <HStack space={2} alignItems="center">
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">Next</TextNB>
-                  <ArrowRight size={20} color="#fff" fontWeight={'semibold'} />
-                </HStack>
-              </ButtonNB>
-            </View>
-            {/* </ScrollView> */}
-          </SafeAreaView>
-        </View>
-
-        {/* Page 3 */}
-        <View style={{ flex: 1 }}>
-          <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'smokewhite', marginBottom: 0, paddingBottom: 0, height: '100%' }} >
-            {/* <ScrollView
-              contentContainerStyle={{ flexGrow: 1 }}
-              keyboardShouldPersistTaps="always"
-              keyboardDismissMode="on-drag"
-            > */}
-            <KeyboardAwareScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{
-                padding: 15,
-                paddingBottom: 0 // Reduced from 180
-              }}
-              enableOnAndroid={true}
-              enableAutomaticScroll={Platform.OS === 'ios'} // Auto-scroll only on iOS
-              extraScrollHeight={Platform.OS === 'ios' ? -50 : 0} // Only add extra space on iOS
-              keyboardOpeningTime={0} // Faster keyboard handling
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              enableResetScrollToCoords={false} // Prevents unwanted scrolling
-            >
-              <View >
-
-                {/* 8. Employed In (multiline) */}
-                <TextNB color="#130057" fontSize={13} marginBottom={2} fontWeight="bold" fontFamily="Rubik-Bold">
-                  Employing In
-                </TextNB>
-                <Box width="100%" marginBottom={4}>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                    {employmentOptions.map((option) => (
-                      <View
-                        key={option.value}
-                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16, marginBottom: 8 }}
+                      {/* Custom Styled Date Input */}
+                      <TouchableOpacity
+                        onPress={() => setShowDatePicker(true)}
+                        style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1 }]}
                       >
-                        <Checkbox
-                          value={option.value}
-                          isChecked={employmentStatus === option.value}
-                          onChange={() => setEmploymentStatus(option.value)}
-                          size="sm"
-                          colorScheme="amber"
-                          accessibilityLabel={option.label}
-                          _checked={{
-                            bg: "#130057",
-                            borderColor: "#130057"
+                        <TextNB style={{ color: '#000', fontSize: 14, fontFamily: 'Rubik-Regular' }}>
+                          {date ? dobDisplay : "Select Date"}
+                        </TextNB>
+
+                        <Ionicons name="calendar" size={18} color="#1F7FE5" />
+                      </TouchableOpacity>
+
+                      {/* Android has no inline "spinner" mode — mounting <RNDateTimePicker> always
+                          pops the OS's own native dialog, which auto-dismisses itself as soon as
+                          the user picks a value or cancels. Wrapping it in our own <Modal> + a
+                          hand-built "Confirm" button (the iOS pattern below) double-stacked two
+                          dialogs on Android: the native one closed on selection, but our Modal
+                          stayed mounted underneath showing an effectively blank card, and tapping
+                          its leftover Confirm button while the picker was still being re-rendered
+                          is what looked like the picker "reopening". Fix: on Android, render the
+                          picker directly (no wrapping Modal) only while `showDatePicker` is true,
+                          and resolve everything from onChange's own `event.type` — there's no
+                          separate confirm step, matching how every native Android date field works. */}
+                      {Platform.OS === 'android' && showDatePicker && (
+                        <RNDateTimePicker
+                          value={date || new Date()}
+                          mode="date"
+                          display="default"
+                          maximumDate={new Date()}
+                          onChange={(event, selectedDate) => {
+                            setShowDatePicker(false);
+                            if (event.type === 'set' && selectedDate) {
+                              onDateConfirm(selectedDate);
+                            }
                           }}
                         />
-                        <TextNB fontSize="sm" marginLeft={2}>
-                          {option.label}
-                        </TextNB>
+                      )}
+
+                      {/* iOS: no native dialog — the spinner renders inline, so it needs our own
+                          Modal + Confirm button to commit the picked value. */}
+                      {Platform.OS === 'ios' && (
+                        <Modal
+                          visible={showDatePicker}
+                          transparent
+                          animationType="fade"
+                          onRequestClose={() => setShowDatePicker(false)}
+                        >
+                          <View
+                            style={{
+                              flex: 1,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: "rgba(0,0,0,0.5)",
+                            }}
+                          >
+                            {/* Card wrapper */}
+                            <View
+                              style={{
+                                backgroundColor: "#fff",
+                                borderRadius: 12,
+                                width: "85%",
+                                overflow: "hidden", // important for spinner visibility
+                              }}
+                            >
+                              {/* Picker container without backgroundColor */}
+                              <View
+                                style={{
+                                  padding: 0,
+                                  alignItems: "center",
+                                  height: 250,
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <RNDateTimePicker
+                                  value={date || new Date()}
+                                  mode="date"
+                                  display="spinner"
+                                  textColor="#0f1724"
+                                  themeVariant="dark"
+                                  maximumDate={new Date()}
+                                  style={{ backgroundColor: '#fff' }}
+                                  onChange={(event, selectedDate) => {
+                                    if (selectedDate) {
+                                      setTempDate(selectedDate);   // only store temp value
+                                    }
+                                  }}
+                                />
+                              </View>
+
+                              {/* Footer button */}
+                              <View
+                                style={{
+                                  backgroundColor: "#fff",
+                                  paddingVertical: 10,
+                                  alignItems: "center",
+                                }}
+                              >
+                                <TouchableOpacity
+                                  onPress={() => onDateConfirm()}
+                                  style={{
+                                    backgroundColor: "#1F7FE5",
+                                    paddingVertical: 10,
+                                    paddingHorizontal: 15,
+                                    borderRadius: 8,
+                                  }}
+                                >
+                                  <TextNB style={{ color: '#fff', fontFamily: 'Rubik-Bold' }}>Confirm</TextNB>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          </View>
+                        </Modal>
+                      )}
+                    </Box>
+
+                    {/* Gender — wider flex share than DOB since it needs to fit two pills. */}
+                    <Box flex={1.35} style={styles.inputContainer}>
+                      <TextNB style={styles.fieldLabel}>Gender</TextNB>
+                      {/* Plain TouchableOpacity pills instead of NativeBase Checkbox — NativeBase's
+                          styled-system recomputes each Checkbox's theme/style object on every
+                          parent re-render, which is what made selecting a gender feel laggy before
+                          the tap visibly registered. Also matches the ring-select pill pattern
+                          already used for single-select options elsewhere in the app (SearchTabs). */}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                        {genderOptions.map((option) => {
+                          const selected = selectedGender === option.value;
+                          return (
+                            <TouchableOpacity
+                              key={option.value}
+                              onPress={() => setSelectedGender(option.value)}
+                              activeOpacity={0.8}
+                              style={[styles.optionPillCompact, selected && styles.optionPillSelected]}
+                            >
+                              {selected && <Ionicons name="checkmark" size={13} color="#1F7FE5" style={{ marginRight: 3 }} />}
+                              <TextNB style={[styles.optionPillText, selected && styles.optionPillTextSelected]}>
+                                {option.label}
+                              </TextNB>
+                            </TouchableOpacity>
+                          );
+                        })}
                       </View>
-                    ))}
-                  </View>
-                </Box>
+                    </Box>
+                  </HStack>
 
-                {/* 11. Income (annual CTC) (multiline) */}
-                {/* <Box style={styles.inputContainer}> */}
-                <CustomModalPicker
-                  label="Annual Income"
-                  placeholder="Select Your Annual Income"
-                  data={incomeOptions}
-                  selected={income}
-                  onSelect={(val) => {
-                    setIncome(val);
-                    // Find the numeric value for this label
-                    const selected = incomeOptions.find((o: any) => o.value === val);
-                    setIncomeNumeric(selected?.numericValue || val);
-                    if (errors.income) {
-                      setErrors(prev => ({ ...prev, income: '' }));
-                    }
-                  }}
-                />
-
-                {/* Father's Name and Occupation */}
-                <HStack space={2} width="100%">
-                  {/* Father's Name */}
-                  <Box flex={0.5} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Father's Name
-                    </TextNB>
-                    <TextInput
-                      placeholder="Enter Father's Name"
-                      value={fatherName}
-                      onChangeText={(t) => {
-                        setFatherName(onlyAlphabets(t));
-                        if (errors.fatherName) {
-                          setErrors(prev => ({ ...prev, fatherName: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!fatherName.trim()) {
-                          setErrors(prev => ({
-                            ...prev,
-                            fatherName: "Father's name is required"
-                          }));
-                        }
-                      }}
-                      style={[styles.input, errors.fatherName && styles.inputError]}
-                    />
-                    {errors.fatherName ? (
-                      <TextNB style={styles.error}>{errors.fatherName}</TextNB>
-                    ) : (
-                      <TextNB style={styles.hiddenError}> </TextNB>
-                    )}
-                  </Box>
-
-                  {/* Father's Occupation */}
-                  <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Father's Occupation
-                    </TextNB>
-                    <TextInput
-                      placeholder="Enter Occupation"
-                      value={fatherOccupation}
-                      onChangeText={(t) => {
-                        setFatherOccupation(onlyAlphanumeric(t));
-                        if (errors.fatherOccupation) {
-                          setErrors(prev => ({ ...prev, fatherOccupation: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!fatherOccupation.trim()) {
-                          setErrors(prev => ({ ...prev, fatherOccupation: "Occupation is required" }));
-                        }
-                      }}
-                      style={[styles.input, errors.fatherOccupation && styles.inputError]}
-                    />
-                    {errors.fatherOccupation && <TextNB style={styles.error}>{errors.fatherOccupation}</TextNB>}
-                  </Box>
-                </HStack>
-
-
-                {/* Mother's Name and Occupation */}
-                <HStack space={2} width="100%">
-                  {/* Mother's Name */}
-                  <Box flex={0.5} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Mother's Name
-                    </TextNB>
-                    <TextInput
-                      placeholder="Enter Mother's Name"
-                      value={motherName}
-                      onChangeText={(t) => {
-                        setMotherName(onlyAlphabets(t));
-                        if (errors.motherName) {
-                          setErrors(prev => ({ ...prev, motherName: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!motherName.trim()) {
-                          setErrors(prev => ({
-                            ...prev,
-                            motherName: "Mother's name is required"
-                          }));
-                        }
-                      }}
-                      style={[styles.input, errors.motherName && styles.inputError]}
-                    />
-                    {errors.motherName ? (
-                      <TextNB style={styles.error}>{errors.motherName}</TextNB>
-                    ) : (
-                      <TextNB style={styles.hiddenError}> </TextNB>
-                    )}
-                  </Box>
-
-                  {/* Mother's Occupation */}
-                  <Box flex={1} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Mother's Occupation
-                    </TextNB>
-                    <TextInput
-                      placeholder="Enter Occupation"
-                      value={motherOccupation}
-                      onChangeText={(t) => {
-                        setMotherOccupation(onlyAlphanumeric(t));
-                        if (errors.motherOccupation) {
-                          setErrors(prev => ({ ...prev, motherOccupation: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!motherOccupation.trim()) {
-                          setErrors(prev => ({ ...prev, motherOccupation: "Occupation is required" }));
-                        }
-                      }}
-                      style={[styles.input, errors.motherOccupation && styles.inputError]}
-                    />
-                    {errors.motherOccupation && <TextNB style={styles.error}>{errors.motherOccupation}</TextNB>}
-                  </Box>
-                </HStack>
-
-                {/* City / District dropdown */}
-                <CustomModalPicker
-                  label="City / District"
-                  placeholder="Select Your City"
-                  data={districtOptions}
-                  selected={selectedCity}
-                  onSelect={(val) => setSelectedCity(val)}
-                />
-
-                <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                    Job Place
-                  </TextNB>
-                  <TextInput
-                    placeholder="Enter Job Place"
-                    value={jobPlace}
-                    onChangeText={(t) => {
-                      setJobPlace(onlyAlphabets(t));
-                      if (errors.jobPlace) {
-                        setErrors(prev => ({ ...prev, jobPlace: '' }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!jobPlace.trim()) {
-                        setErrors(prev => ({ ...prev, jobPlace: 'Job place is required' }));
-                      }
-                    }}
-                    style={[styles.input, errors.jobPlace && styles.inputError]}
+                  {/* Caste */}
+                  <CustomModalPicker
+                    label="Caste"
+                    placeholder="Select Caste"
+                    data={casteList}
+                    selected={caste}
+                    onSelect={(val) => setCaste(val)}
                   />
-                  {errors.jobPlace ? (
-                    <TextNB style={styles.error}>{errors.jobPlace}</TextNB>
-                  ) : (
-                    <TextNB style={styles.hiddenError}> </TextNB>
-                  )}
-                </Box>
 
-
-                {/* 21. Current Address (multiline) */}
-                <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                    Current Address
-                  </TextNB>
-                  <TextInput
-                    placeholder="Enter Your Current Address"
-                    value={currentAddress}
-                    multiline
-                    numberOfLines={3}
-                    onChangeText={(t) => {
-                      setCurrentAddress(t);
-                      if (errors.currentAddress) {
-                        setErrors(prev => ({ ...prev, currentAddress: '' }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!currentAddress.trim()) {
-                        setErrors(prev => ({
-                          ...prev,
-                          currentAddress: 'Current address is required'
-                        }));
-                      }
-                    }}
-                    style={[
-                      styles.input,
-                      styles.textArea,
-                      errors.currentAddress && styles.inputError
-                    ]}
-                    textAlignVertical="top"
-                  />
-                  {errors.currentAddress ? (
-                    <TextNB style={styles.error}>{errors.currentAddress}</TextNB>
-                  ) : (
-                    <TextNB style={styles.hiddenError}> </TextNB>
-                  )}
-                </Box>
-
-                {/* 19. Native Place (multiline) */}
-                <Box style={styles.inputContainer}>
-                  <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                    Native Place
-                  </TextNB>
-                  <TextInput
-                    placeholder="Enter Native Place"
-                    value={nativePlace}
-                    onChangeText={(t) => {
-                      setNativePlace(onlyAlphabets(t));
-                      if (errors.nativePlace) {
-                        setErrors(prev => ({ ...prev, nativePlace: '' }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!nativePlace.trim()) {
-                        setErrors(prev => ({ ...prev, nativePlace: 'Native place is required' }));
-                      }
-                    }}
-                    style={[styles.input, errors.nativePlace && styles.inputError]}
-                  />
-                  {errors.nativePlace ? (
-                    <TextNB style={styles.error}>{errors.nativePlace}</TextNB>
-                  ) : (
-                    <TextNB style={styles.hiddenError}> </TextNB>
-                  )}
-                </Box>
-
-                {/* 12. PIN and Confirm PIN */}
-                <HStack space={2} width="100%">
-                  {/* PIN */}
-                  <Box flex={0.5} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      PIN
-                    </TextNB>
+                  {/* Mobile Number - 10 digits only */}
+                  <Box style={styles.inputContainer}>
+                    <TextNB style={styles.fieldLabel}>Mobile Number</TextNB>
                     <TextInput
-                      placeholder="Enter 4-digit PIN"
-                      value={pin}
-                      keyboardType="numeric"
-                      maxLength={4}
-                      secureTextEntry
+                      placeholder="Enter Mobile Number"
+                      placeholderTextColor="#999"
+                      value={mobile}
                       onChangeText={(t) => {
-                        setPin(onlyNumbers(t));
-                        if (errors.pin) {
-                          setErrors(prev => ({ ...prev, pin: '' }));
+                        setMobile(onlyNumbers(t));
+                        if (errors.mobile) {
+                          setErrors(prev => ({ ...prev, mobile: '' }));
                         }
                       }}
                       onBlur={() => {
-                        if (!pin) {
-                          setErrors(prev => ({
-                            ...prev,
-                            pin: 'PIN is required'
-                          }));
-                        } else if (pin.length !== 4) {
-                          setErrors(prev => ({
-                            ...prev,
-                            pin: 'PIN must be 4 digits'
-                          }));
+                        if (!mobile) {
+                          setErrors(prev => ({ ...prev, mobile: 'Mobile number is required' }));
+                        } else if (mobile.length !== 10) {
+                          setErrors(prev => ({ ...prev, mobile: 'Mobile number must be 10 digits' }));
                         }
                       }}
-                      style={[styles.input, errors.pin && styles.inputError]}
+                      style={[styles.input, errors.mobile && styles.inputError]}
+                      keyboardType="phone-pad"
+                      maxLength={10}
                     />
-                    {errors.pin ? (
-                      <TextNB style={styles.error}>{errors.pin}</TextNB>
+                    {errors.mobile ? (
+                      <TextNB style={styles.error}>{errors.mobile}</TextNB>
                     ) : (
                       <TextNB style={styles.hiddenError}> </TextNB>
                     )}
                   </Box>
 
-                  {/* Confirm PIN */}
-                  <Box flex={0.5} style={styles.inputContainer}>
-                    <TextNB color="#130057" fontSize={13} marginBottom={1} fontWeight="bold" fontFamily="Rubik-Bold">
-                      Confirm PIN
-                    </TextNB>
-                    <TextInput
-                      placeholder="Confirm 4-digit PIN"
-                      value={confirmPin}
-                      keyboardType="numeric"
-                      maxLength={4}
-                      secureTextEntry
-                      onChangeText={(t) => {
-                        setConfirmPin(onlyNumbers(t));
-                        if (errors.confirmPin) {
-                          setErrors(prev => ({ ...prev, confirmPin: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!confirmPin) {
-                          setErrors(prev => ({
-                            ...prev,
-                            confirmPin: 'Please confirm your PIN'
-                          }));
-                        } else if (confirmPin !== pin) {
-                          setErrors(prev => ({
-                            ...prev,
-                            confirmPin: 'PINs do not match'
-                          }));
-                        }
-                      }}
-                      style={[styles.input, errors.confirmPin && styles.inputError]}
-                    />
-                    {errors.confirmPin ? (
-                      <TextNB style={styles.error}>{errors.confirmPin}</TextNB>
-                    ) : (
+                  {/* Age and Email */}
+                  <HStack space={2} width="100%" alignItems="flex-start">
+                    {/* Age Field */}
+                    <Box flex={0.3} style={styles.inputContainer}>
+                      <View style={{ height: 18, justifyContent: 'center', marginBottom: 6 }}>
+                        <TextNB style={[styles.fieldLabel, { marginBottom: 0 }]}>Age</TextNB>
+                      </View>
+                      <TextInput
+                        placeholder=""
+                        keyboardType="numeric"
+                        maxLength={3}
+                        value={age}
+                        onChangeText={setAge}
+                        style={[styles.input, { backgroundColor: "#f1f1f1" }]}
+                        editable={false}
+                      />
                       <TextNB style={styles.hiddenError}> </TextNB>
-                    )}
-                  </Box>
-                </HStack>
-              </View>
-            </KeyboardAwareScrollView>
-            <View
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                paddingHorizontal: 15,
-                marginTop: 15,
-                marginBottom: 28,
-              }}
-            >
-              {/* Back Button */}
-              <ButtonNB
-                style={{
-                  width: '30%',
-                  borderRadius: 24,
-                  backgroundColor: '#1F7FE5',
-                  paddingVertical: 12,
-                  shadowColor: '#1F7FE5',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 6,
-                  elevation: 4,
-                }}
-                onPress={() => swiperRef.current?.scrollBy(-1)} // move to previous page
-              >
-                <HStack space={1} alignItems="center">
-                  <ArrowLeft size={20} color="#fff" />
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">
-                    Back
-                  </TextNB>
-                </HStack>
-              </ButtonNB>
+                    </Box>
 
-              {/* Submit or Next Button */}
-              <ButtonNB
-                style={{
-                  width: '30%',
-                  borderRadius: 24,
-                  backgroundColor: '#1F7FE5',
-                  paddingVertical: 12,
-                  shadowColor: '#1F7FE5',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 6,
-                  elevation: 4,
-                }}
-                onPress={() => swiperRef.current?.scrollBy(1)}
-              >
-                <HStack space={1} alignItems="center">
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">
-                    Next
-                  </TextNB>
-                  <ArrowRight size={20} color="#fff" />
-                </HStack>
-              </ButtonNB>
-            </View>
+                    {/* Email Field */}
+                    <Box flex={0.7} style={styles.inputContainer}>
+                      {/* Label + Verify/Change share one row, both plain text (no button chrome) so
+                          this row's height matches Age's plain-label row exactly — the two inputs
+                          now start at the same Y instead of Email sitting lower because its old
+                          button-styled pill was taller than a line of text. */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 18, marginBottom: 6 }}>
+                        <TextNB style={[styles.fieldLabel, { marginBottom: 0 }]}>Email</TextNB>
+                        {emailVerified ? (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setEmailVerified(false);
+                              setVerificationToken(null);
+                            }}
+                          >
+                            <TextNB style={{ color: '#f59e0b', fontSize: 12.5, fontFamily: 'Rubik-Bold' }}>Change</TextNB>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            onPress={handleVerifyEmail}
+                            disabled={!isValidEmail(email) || sendingEmailOtp}
+                          >
+                            {sendingEmailOtp ? (
+                              <ActivityIndicator size="small" color="#1F7FE5" />
+                            ) : (
+                              <TextNB style={{ color: !isValidEmail(email) ? '#9ca3af' : '#1F7FE5', fontSize: 12.5, fontFamily: 'Rubik-Bold' }}>
+                                Verify
+                              </TextNB>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <View style={{ position: 'relative' }}>
+                        <TextInput
+                          placeholder="Enter Email"
+                          placeholderTextColor="#999"
+                          value={email}
+                          onChangeText={(t) => {
+                            setEmail(t);
+                            if (errors.email) {
+                              setErrors(prev => ({ ...prev, email: '' }));
+                            }
+                          }}
+                          onBlur={() => {
+                            if (!email) {
+                              setErrors(prev => ({ ...prev, email: 'Email is required' }));
+                            } else if (!isValidEmail(email)) {
+                              setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
+                            }
+                          }}
+                          editable={!emailVerified}
+                          style={[
+                            styles.input,
+                            errors.email && styles.inputError,
+                            emailVerified && { backgroundColor: '#f0fdf4', borderColor: '#86efac', paddingRight: 36 },
+                          ]}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                        />
+                        {emailVerified && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color="#16a34a"
+                            style={{ position: 'absolute', right: 10, top: 10 }}
+                          />
+                        )}
+                      </View>
+                      {errors.email ? (
+                        <TextNB style={styles.error}>{errors.email}</TextNB>
+                      ) : (
+                        <TextNB style={styles.hiddenError}> </TextNB>
+                      )}
+                    </Box>
+                  </HStack>
 
-            {/* </ScrollView> */}
-          </SafeAreaView>
-        </View>
-
-
-        {/* Page 4 — Select Your Interests */}
-        <View style={{ flex: 1 }}>
-          <SafeAreaView edges={['right', 'left', 'top']} style={{ backgroundColor: 'smokewhite', height: '100%' }}>
-            <ScrollView
-              contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={{ alignItems: 'center', marginBottom: 20, marginTop: 10 }}>
-                <TextNB fontSize={22} fontWeight="800" fontFamily="Rubik-ExtraBold" color="#1F7FE5" textAlign="center">
-                  What are you passionate about?
-                </TextNB>
-                <TextNB fontSize={13} color="#6b7280" textAlign="center" mt={2}>
-                  Select at least 3 interests to help us find better matches
-                </TextNB>
-                <View style={{
-                  backgroundColor: selectedInterests.length >= 3 ? '#d1fae5' : '#fef3c7',
-                  paddingHorizontal: 14,
-                  paddingVertical: 6,
-                  borderRadius: 16,
-                  marginTop: 12,
-                }}>
-                  <TextNB
-                    fontSize={12}
-                    fontWeight="700" fontFamily="Rubik-Bold"
-                    color={selectedInterests.length >= 3 ? '#065f46' : '#92400e'}
-                  >
-                    {selectedInterests.length} of {(masterData?.interestTags || INTEREST_TAGS).length} selected
-                    {selectedInterests.length >= 3 ? ' ✓' : ' (min 3)'}
-                  </TextNB>
+                  {/* Education */}
+                  <CustomModalPicker
+                    label="Education"
+                    placeholder="Select Your Education"
+                    data={educationOptions}
+                    selected={education}
+                    onSelect={(val) => setEducation(val)}
+                  />
                 </View>
+              </KeyboardAwareScrollView>
+
+              {/* Single Next button — this is the first page, nothing to go Back to. */}
+              <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 }}>
+                <ButtonNB style={styles.navPrimaryButton} onPress={() => swiperRef.current?.scrollBy(1)}>
+                  <HStack space={2} alignItems="center">
+                    <TextNB style={{ color: '#fff', fontSize: 14, fontFamily: 'Rubik-Bold' }}>Next</TextNB>
+                    <ArrowRight size={18} color="#fff" />
+                  </HStack>
+                </ButtonNB>
               </View>
-
-              <InterestChipGrid
-                selected={selectedInterests}
-                masterTags={masterData?.interestTags}
-                onToggle={(code) => {
-                  setSelectedInterests((prev) =>
-                    prev.includes(code)
-                      ? prev.filter((c) => c !== code)
-                      : [...prev, code]
-                  );
-                }}
-              />
-            </ScrollView>
-
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                paddingHorizontal: 15,
-                marginBottom: 28,
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-              }}
-            >
-              <ButtonNB
-                style={{
-                  width: '30%',
-                  borderRadius: 24,
-                  backgroundColor: '#1F7FE5',
-                  paddingVertical: 12,
-                  shadowColor: '#1F7FE5',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 6,
-                  elevation: 4,
-                }}
-                onPress={() => swiperRef.current?.scrollBy(-1)}
-              >
-                <HStack space={1} alignItems="center">
-                  <ArrowLeft size={20} color="#fff" />
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">Back</TextNB>
-                </HStack>
-              </ButtonNB>
-
-              <ButtonNB
-                style={{
-                  width: '30%',
-                  borderRadius: 24,
-                  backgroundColor: selectedInterests.length >= 3 ? '#1F7FE5' : '#9ca3af',
-                  paddingVertical: 12,
-                  shadowColor: '#1F7FE5',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 6,
-                  elevation: 4,
-                }}
-                isDisabled={selectedInterests.length < 3}
-                onPress={() => handleFormSubmit()}
-              >
-                <HStack space={1} alignItems="center">
-                  <TextNB color="#fff" fontSize={13} fontWeight={'normal'} fontFamily="Rubik-Regular">Submit</TextNB>
-                </HStack>
-              </ButtonNB>
             </View>
-          </SafeAreaView>
-        </View>
 
-      </Swiper>
+            {/* Page 2 — Account Setup: Occupation through PIN. "What are you passionate about"
+                (interests) was removed from signup entirely — it already has a full working
+                edit path post-signup (Profile tab → Interests & Hobbies), so nothing new needed
+                there; requiring it before account creation was unnecessary friction. */}
+            <View style={{ flex: 1 }}>
+              <KeyboardAwareScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ padding: 15, paddingTop: 10, paddingBottom: 0 }}
+                enableOnAndroid={true}
+                // Was `Platform.OS === 'ios'` — disabled auto-scroll-to-focused-input on
+                // Android entirely, so PIN/Confirm PIN (near the bottom of this page) stayed
+                // hidden behind the keyboard on Android instead of scrolling into view.
+                enableAutomaticScroll={true}
+                extraScrollHeight={Platform.OS === 'ios' ? -50 : 20}
+                keyboardOpeningTime={0}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                enableResetScrollToCoords={false}
+              >
+                <View>
+                  {/* Occupation Field */}
+                  <Box style={styles.inputContainer}>
+                    <TextNB style={styles.fieldLabel}>Occupation</TextNB>
+                    <TextInput
+                      placeholder="Enter Your Occupation"
+                      placeholderTextColor="#999"
+                      value={occupation}
+                      onChangeText={(t) => {
+                        setOccupation(onlyAlphabets(t));
+                        if (errors.occupation) {
+                          setErrors(prev => ({ ...prev, occupation: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!occupation.trim()) {
+                          setErrors(prev => ({
+                            ...prev,
+                            occupation: 'Occupation is required'
+                          }));
+                        }
+                      }}
+                      style={[styles.input, errors.occupation && styles.inputError]}
+                    />
+                    {errors.occupation ? (
+                      <TextNB style={styles.error}>{errors.occupation}</TextNB>
+                    ) : (
+                      <TextNB style={styles.hiddenError}> </TextNB>
+                    )}
+                  </Box>
+
+                  {/* Employing In */}
+                  <TextNB style={[styles.fieldLabel, { marginBottom: 8 }]}>Employing In</TextNB>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                    {employmentOptions.map((option) => {
+                      const selected = employmentStatus === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={option.value}
+                          onPress={() => setEmploymentStatus(option.value)}
+                          activeOpacity={0.8}
+                          style={[styles.optionPill, selected && styles.optionPillSelected]}
+                        >
+                          {selected && <Ionicons name="checkmark" size={14} color="#1F7FE5" style={{ marginRight: 4 }} />}
+                          <TextNB style={[styles.optionPillText, selected && styles.optionPillTextSelected]}>
+                            {option.label}
+                          </TextNB>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+
+                  {/* City / District dropdown */}
+                  <CustomModalPicker
+                    label="City / District"
+                    placeholder="Select Your City"
+                    data={districtOptions}
+                    selected={selectedCity}
+                    onSelect={(val) => setSelectedCity(val)}
+                  />
+
+                  {/* PIN and Confirm PIN */}
+                  <HStack space={2} width="100%">
+                    {/* PIN */}
+                    <Box flex={0.5} style={styles.inputContainer}>
+                      <TextNB style={styles.fieldLabel}>PIN</TextNB>
+                      <TextInput
+                        placeholder="Enter 4-digit PIN"
+                        placeholderTextColor="#999"
+                        value={pin}
+                        keyboardType="numeric"
+                        maxLength={4}
+                        secureTextEntry
+                        onChangeText={(t) => {
+                          setPin(onlyNumbers(t));
+                          if (errors.pin) {
+                            setErrors(prev => ({ ...prev, pin: '' }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!pin) {
+                            setErrors(prev => ({
+                              ...prev,
+                              pin: 'PIN is required'
+                            }));
+                          } else if (pin.length !== 4) {
+                            setErrors(prev => ({
+                              ...prev,
+                              pin: 'PIN must be 4 digits'
+                            }));
+                          }
+                        }}
+                        style={[styles.input, errors.pin && styles.inputError]}
+                      />
+                      {errors.pin ? (
+                        <TextNB style={styles.error}>{errors.pin}</TextNB>
+                      ) : (
+                        <TextNB style={styles.hiddenError}> </TextNB>
+                      )}
+                    </Box>
+
+                    {/* Confirm PIN */}
+                    <Box flex={0.5} style={styles.inputContainer}>
+                      <TextNB style={styles.fieldLabel}>Confirm PIN</TextNB>
+                      <TextInput
+                        placeholder="Confirm 4-digit PIN"
+                        placeholderTextColor="#999"
+                        value={confirmPin}
+                        keyboardType="numeric"
+                        maxLength={4}
+                        secureTextEntry
+                        onChangeText={(t) => {
+                          setConfirmPin(onlyNumbers(t));
+                          if (errors.confirmPin) {
+                            setErrors(prev => ({ ...prev, confirmPin: '' }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!confirmPin) {
+                            setErrors(prev => ({
+                              ...prev,
+                              confirmPin: 'Please confirm your PIN'
+                            }));
+                          } else if (confirmPin !== pin) {
+                            setErrors(prev => ({
+                              ...prev,
+                              confirmPin: 'PINs do not match'
+                            }));
+                          }
+                        }}
+                        style={[styles.input, errors.confirmPin && styles.inputError]}
+                      />
+                      {errors.confirmPin ? (
+                        <TextNB style={styles.error}>{errors.confirmPin}</TextNB>
+                      ) : (
+                        <TextNB style={styles.hiddenError}> </TextNB>
+                      )}
+                    </Box>
+                  </HStack>
+                </View>
+              </KeyboardAwareScrollView>
+
+              {/* Fresh footer design for the final step — a compact circular Back button beside
+                  a full-width gradient "Create Account" CTA, distinct from page 1's simple
+                  right-aligned Next pill (both pages used to share the same two-30%-pill row). */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 }}>
+                <TouchableOpacity
+                  onPress={() => swiperRef.current?.scrollBy(-1)}
+                  activeOpacity={0.8}
+                  style={styles.circleBackButton}
+                >
+                  <ArrowLeft size={20} color="#475569" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleFormSubmit()}
+                  activeOpacity={0.88}
+                  style={{ flex: 1 }}
+                >
+                  <LinearGradient
+                    colors={['#1F7FE5', '#1862b8']}
+                    style={styles.createAccountButton}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <TextNB style={styles.createAccountText}>Create Account</TextNB>
+                    <ArrowRight size={18} color="#fff" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Swiper>
+        </SafeAreaView>
+      </View>
     </NativeBaseProvider>
   );
 }
 
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#fffaf9",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#fffaf9",
-  },
-  backgroundImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-    position: "absolute", // Ensures the image is positioned at the back
-  },
-  cardContainer: {
-    position: "absolute", // Position above the image
-    bottom: 0, // Align at the bottom of the screen
-    width: "100%", // Full width of the screen
-    backgroundColor: "#FF6B6B",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 20,
-    alignItems: "center",
-  },
-  dotContainer: {
-    flexDirection: "row",
-    marginBottom: 20,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#fff",
-    marginHorizontal: 5,
-  },
-  activeDot: {
-    backgroundColor: "#FFC1C1",
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: 'Rubik-Bold',
-    color: "#DADADA",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#DADADA",
-    textAlign: "center",
-    marginBottom: 30,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    display: "flex",
-    justifyContent: "space-between",
-    width: "100%",
-    alignItems: "center",
-    marginTop: 20,
-    marginBottom: 30,
-    paddingTop: 12,
-  },
-  getStartedButton: {
-    borderWidth: 1.5, // Adds a border width
-    borderColor: 'white', // Border color is white
-    backgroundColor: 'transparent', // Inner background is transparent
-    paddingVertical: 10, // Adjust padding as needed
-    paddingHorizontal: 20, // Adjust padding as needed
-    borderRadius: 20, // Rounded corners, adjust as needed
-    alignItems: 'center', // Center the text horizontally
-    justifyContent: 'center', // Center the text vertically
-  },
-  buttonText: {
-    color: '#DADADA', // Text color is white
-    fontSize: 16, // Adjust font size as needed
-    fontFamily: 'Rubik-Medium', // Optional: Make the text bold
-  },
-  linkText: {
-    color: "#DADADA",
-    fontSize: 16,
-    textDecorationLine: "underline",
-    fontStyle: "italic",
-  },
   input: {
     height: 44,
     borderWidth: 1,
@@ -1731,9 +1221,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     width: '100%',
     borderRadius: 12,
-    borderColor: '#e8d5d5',
+    borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
     fontSize: 14,
+    fontFamily: 'Rubik-Regular',
     color: '#333',
     shadowColor: '#1F7FE5',
     shadowOffset: { width: 0, height: 1 },
@@ -1742,46 +1233,188 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   inputContainer: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  dateinput: {
-    height: 44,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    width: '100%',
-    borderRadius: 12,
-    borderColor: '#e8d5d5',
-    backgroundColor: '#ffffff',
-    color: '#333',
-    marginBottom: 12,
-  },
-  box: {
-    width: "100%",
-    backgroundColor: "#130057", // darker background, for example
-    borderColor: "gray",
-    borderWidth: 1,
-    borderRadius: 6,
-  },
-  dropdownBox: {
-    borderWidth: 1,
-    borderRadius: 6,
-  },
-  dropdownText: {
-    color: "#FFC107",       // white text for each dropdown item
-  },
-  label: {
-    fontSize: 13,
+  // Persistent header text — NativeBase's <Text> prop-form `fontFamily="Rubik-Bold"` combined
+  // with a `fontWeight` prop collides on Android (NativeBase issue #3811): since our custom
+  // font names aren't registered NativeBase theme tokens, the resolver never strips the
+  // auto-injected fontWeight, and Android falls back to a system font with synthetic bold,
+  // silently ignoring the real Rubik file. Passing fontFamily via `style` (not as a bare prop)
+  // sidesteps that resolution path entirely — matches how the rest of the app already does it.
+  // Matches profile.tsx / index.tsx's type scale: Rubik-ExtraBold is reserved app-wide for the
+  // brand wordmark only (VVMWelcomeHeader) — every other "biggest heading" (profile hero name,
+  // section titles) uses Rubik-Bold instead.
+  headerTitle: {
+    color: '#0f1724',
+    fontSize: 20,
     fontFamily: 'Rubik-Bold',
+  },
+  headerSubtitle: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 5,
+    fontFamily: 'Rubik-Regular',
+  },
+  signInPrompt: {
+    color: '#6b7280',
+    fontSize: 12.5,
+    fontFamily: 'Rubik-Medium',
+  },
+  signInLink: {
+    color: '#1F7FE5',
+    fontSize: 12.5,
+    fontFamily: 'Rubik-Bold',
+  },
+  // Matches profile.tsx's field-label tier (detailLabel: 10 / Rubik-Medium / uppercase) instead
+  // of the previous 13 / Rubik-Bold, which was its own one-off convention not used anywhere
+  // else in the app.
+  // Every field label — regular text inputs and CustomModalPicker dropdowns alike — shares
+  // this one style: small, uppercase, black, bold. Placeholder/value text stays normal-case
+  // and un-bolded (see `input` and CustomModalPicker's selected-value text) so labels read as
+  // clearly distinct from what the user actually types or picks.
+  fieldLabel: {
+    color: '#0f1724',
+    fontSize: 12,
     marginBottom: 5,
-    color: "#130057",
+    fontFamily: 'Rubik-Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  // Stepper
+  stepNode: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  stepNodeDone: {
+    backgroundColor: '#1F7FE5',
+    borderColor: '#1F7FE5',
+  },
+  stepNodeActive: {
+    backgroundColor: '#1F7FE5',
+    borderColor: '#1F7FE5',
+  },
+  stepNodeUpcoming: {
+    backgroundColor: '#fff',
+    borderColor: '#cbd5e1',
+  },
+  stepNodeText: {
+    fontSize: 12,
+    fontFamily: 'Rubik-Bold',
+    color: '#94a3b8',
+  },
+  stepNodeTextActive: {
+    color: '#fff',
+  },
+  stepLabel: {
+    fontSize: 10.5,
+    fontFamily: 'Rubik-Medium',
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+  stepLabelActive: {
+    color: '#1F7FE5',
+    fontFamily: 'Rubik-Bold',
+  },
+  stepConnector: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#cbd5e1',
+    marginTop: 13,
+    marginHorizontal: -6,
+  },
+  stepConnectorDone: {
+    backgroundColor: '#1F7FE5',
+  },
+  // Page 1's Next button (solid primary pill)
+  navPrimaryButton: {
+    width: '32%',
+    borderRadius: 24,
+    backgroundColor: '#1F7FE5',
+    paddingVertical: 12,
+    shadowColor: '#1F7FE5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  // Page 2's fresh footer — circular ghost Back + full-width gradient Create Account
+  circleBackButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 26,
+    shadowColor: '#1F7FE5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  createAccountText: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'Rubik-Bold',
+  },
+  optionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+  },
+  // Tighter padding variant used only for Gender, since it shares a row with DOB (Employing
+  // In gets the full row width elsewhere and can afford the roomier `optionPill` padding).
+  // Matches `input`'s fixed height (44) so the Gender pills sit exactly as tall as DOB's date
+  // box in the same row — previously this had no explicit height, so its content-driven size
+  // (~34px) looked visibly shorter than DOB's box next to it.
+  optionPillCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#fff',
+  },
+  optionPillSelected: {
+    borderColor: '#1F7FE5',
+    backgroundColor: '#eaf2fc',
+  },
+  optionPillText: {
+    fontSize: 13.5,
+    fontFamily: 'Rubik-Medium',
+    color: '#475569',
+  },
+  optionPillTextSelected: {
+    color: '#1F7FE5',
+    fontFamily: 'Rubik-Bold',
   },
   inputBox: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#e8d5d5",
+    borderColor: "#e2e8f0",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 11,
@@ -1813,13 +1446,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontFamily: 'Rubik-Bold',
     fontSize: 16,
-    color: "#130057",
+    color: "#0f1724",
   },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#130057",
+    borderWidth: 1.5,
+    borderColor: "#1F7FE5",
     borderRadius: 8,
     paddingHorizontal: 10,
     marginBottom: 10,
@@ -1836,13 +1469,13 @@ const styles = StyleSheet.create({
   error: {
     color: 'red',
     fontSize: 10,
-    height: 18,  // Fixed height for error message
+    height: 14,  // Fixed height for error message
     textAlign: 'left',
     paddingLeft: 2,
     marginTop: 0,
   },
   hiddenError: {
-    height: 18,  // Same as error height
+    height: 14,  // Same as error height
     opacity: 0,  // Make it invisible
   },
   textArea: {
@@ -1850,4 +1483,3 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
 });
-

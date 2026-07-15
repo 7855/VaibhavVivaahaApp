@@ -15,10 +15,6 @@ interface ChangePinScreenProps {
 }
 
 const { width, height } = Dimensions.get('window');
-interface ChangePinScreenProps {
-  onBack: () => void;
-  onComplete: () => void;
-}
 const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete }) => {
   const popup = usePopup();
   const [newPin, setNewPin] = useState('');
@@ -87,14 +83,23 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
       alignItems: 'center',
       paddingHorizontal: 20,
       paddingVertical: 40,
-      backgroundColor: '#F5F5F5',
     }}>
+      {/* Same soft blue theme gradient used app-wide (explore.tsx, sign-up.tsx, LoginScreen.tsx,
+          ResetPasswordScreen.tsx, OTPValidationScreen.tsx) instead of the flat '#F5F5F5' this
+          screen had. */}
+      <LinearGradient
+        colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
+        locations={[0, 0.3, 0.6, 1.0]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
       <View style={{ width: '100%', maxWidth: 400 }}>
-        {/* Sacred Header */}
+        {/* Header */}
         <View style={{ alignItems: 'center', marginBottom: 40 }}>
           <View style={{ position: 'relative', marginBottom: 24 }}>
             <LinearGradient
-              colors={['#f5f5f5', '#e0e0e0', '#f5f5f5']}
+              colors={['#eaf2fc', '#d0dfeb', '#eaf2fc']}
               style={{
                 width: 88,
                 height: 88,
@@ -108,7 +113,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                 elevation: 16,
               }}
             >
-              {/* Sacred inner rings */}
+              {/* Inner rings */}
               <View style={{
                 position: 'absolute',
                 top: 8,
@@ -117,7 +122,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                 bottom: 8,
                 borderRadius: 36,
                 borderWidth: 2,
-                borderColor: 'rgba(19, 0, 87, 0.4)',
+                borderColor: 'rgba(31, 127, 229, 0.35)',
               }} />
               <View style={{
                 position: 'absolute',
@@ -127,7 +132,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                 bottom: 12,
                 borderRadius: 32,
                 borderWidth: 1,
-                borderColor: 'rgba(19, 0, 87, 0.3)',
+                borderColor: 'rgba(31, 127, 229, 0.25)',
               }} />
               <View style={{
                 position: 'absolute',
@@ -137,10 +142,10 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                 bottom: 16,
                 borderRadius: 28,
                 borderWidth: 1,
-                borderColor: 'rgba(19, 0, 87, 0.2)',
+                borderColor: 'rgba(31, 127, 229, 0.18)',
               }} />
-              
-              {/* Divine lock with crown */}
+
+              {/* Lock icon */}
               <View style={{ position: 'relative' }}>
                 <Icon name="lock" size={40} color="#1F7FE5" />
                 <Icon 
@@ -151,22 +156,22 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                 />
               </View>
               
-              {/* Sacred sparkles */}
-              <Icon 
-                name="auto-awesome" 
-                size={12} 
-                color="rgba(19, 0, 87, 0.6)" 
-                style={{ position: 'absolute', top: 8, left: 8 }} 
+              {/* Sparkles */}
+              <Icon
+                name="auto-awesome"
+                size={12}
+                color="rgba(31, 127, 229, 0.6)"
+                style={{ position: 'absolute', top: 8, left: 8 }}
               />
-              <Icon 
-                name="auto-awesome" 
-                size={8} 
-                color="rgba(19, 0, 87, 0.6)" 
-                style={{ position: 'absolute', bottom: 8, right: 8 }} 
+              <Icon
+                name="auto-awesome"
+                size={8}
+                color="rgba(31, 127, 229, 0.6)"
+                style={{ position: 'absolute', bottom: 8, right: 8 }}
               />
             </LinearGradient>
-            
-            {/* Divine aura */}
+
+            {/* Aura rings */}
             <View style={{
               position: 'absolute',
               top: -12,
@@ -212,23 +217,19 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
           </View>
           
           <Text style={{
-            fontSize: 28,
+            fontSize: 20,
             fontFamily: 'Rubik-Bold',
-            color: '#1F7FE5',
-            marginBottom: 12,
+            color: '#0f1724',
+            marginBottom: 8,
             textAlign: 'center',
-            // textShadowColor: 'rgba(0, 0, 0, 0.3)',
-            // textShadowOffset: { width: 0, height: 2 },
-            textShadowRadius: 4,
           }}>
             Create PIN
           </Text>
           <Text style={{
-            // color: '#f5f5f5',
-            fontSize: 16,
-            fontFamily: 'Rubik-Medium',
+            fontSize: 12,
+            fontFamily: 'Rubik-Regular',
+            color: '#64748b',
             textAlign: 'center',
-            opacity: 0.9,
           }}>
             Establish your security PIN
           </Text>
@@ -312,7 +313,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               borderBottomRightRadius: 16,
             }} />
             
-            {/* Divine energy patterns */}
+            {/* Decorative patterns */}
             <View style={{
               position: 'absolute',
               top: 24,
@@ -320,7 +321,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               marginLeft: -40,
               width: 80,
               height: 4,
-              backgroundColor: 'rgba(19, 0, 87, 0.1)',
+              backgroundColor: 'rgba(15, 23, 42, 0.06)',
               borderRadius: 2,
             }} />
             <View style={{
@@ -330,21 +331,21 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               marginLeft: -32,
               width: 64,
               height: 2,
-              backgroundColor: 'rgba(19, 0, 87, 0.1)',
+              backgroundColor: 'rgba(15, 23, 42, 0.06)',
               borderRadius: 1,
             }} />
-            
+
             <View style={{ padding: 32 }}>
               <View style={{ gap: 28 }}>
-                {/* New Sacred PIN Input */}
+                {/* New PIN Input */}
                 <View style={{ gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Icon name="lock" size={16} color="#130057" />
+                    <Icon name="lock" size={16} color="#1F7FE5" />
                     <Text style={{
                       fontSize: 12,
                       fontFamily: 'Rubik-Bold',
-                      color: '#130057',
-                      letterSpacing: 1,
+                      color: '#0f1724',
+                      letterSpacing: 0.3,
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
@@ -360,7 +361,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       justifyContent: 'center',
                       zIndex: 1,
                     }}>
-                      <Icon name="lock" size={20} color="#130057" />
+                      <Icon name="lock" size={20} color="#1F7FE5" />
                     </View>
                     <TextInput
                       defaultValue={newPin}
@@ -369,17 +370,17 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         paddingLeft: 48,
                         paddingRight: 56,
                         paddingVertical: 16,
-                        backgroundColor: 'rgba(245, 245, 245, 0.9)',
-                        borderWidth: 2,
-                        borderColor: 'rgba(19, 0, 87, 0.1)',
+                        backgroundColor: '#ffffff',
+                        borderWidth: 1,
+                        borderColor: '#e2e8f0',
                         borderRadius: 16,
                         fontSize: 14,
                         fontFamily: 'Rubik-Bold',
-                        color: '#130057',
+                        color: '#0f1724',
                         letterSpacing: 8,
                       }}
                       placeholder="New PIN"
-                      placeholderTextColor="rgba(19, 0, 87, 0.4)"
+                      placeholderTextColor="#999"
                       secureTextEntry={!showNewPin}
                       keyboardType="numeric"
                       maxLength={4}
@@ -394,10 +395,10 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         justifyContent: 'center',
                       }}
                     >
-                      <Icon 
-                        name={showNewPin ? 'visibility-off' : 'visibility'} 
-                        size={20} 
-                        color="rgba(19, 0, 87, 0.4)" 
+                      <Icon
+                        name={showNewPin ? 'visibility-off' : 'visibility'}
+                        size={20}
+                        color="#94a3b8"
                       />
                     </TouchableOpacity>
                     {newPin.length === 4 && (
@@ -422,14 +423,14 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <View style={{
                         width: 4,
                         height: 4,
-                        backgroundColor: '#f44336',
+                        backgroundColor: '#dc2626',
                         borderRadius: 2,
                         marginRight: 8,
                       }} />
                       <Text style={{
                         fontSize: 14,
-                        color: '#f44336',
-                        fontFamily: 'Rubik-Medium',
+                        color: '#dc2626',
+                        fontFamily: 'Rubik-Regular',
                       }}>
                         Sacred PIN must be exactly 4 digits
                       </Text>
@@ -437,15 +438,15 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   )}
                 </View>
 
-                {/* Confirm Sacred PIN Input */}
+                {/* Confirm PIN Input */}
                 <View style={{ gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Icon name="security" size={16} color="#130057" />
+                    <Icon name="security" size={16} color="#1F7FE5" />
                     <Text style={{
                       fontSize: 12,
                       fontFamily: 'Rubik-Bold',
-                      color: '#130057',
-                      letterSpacing: 1,
+                      color: '#0f1724',
+                      letterSpacing: 0.3,
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
@@ -461,7 +462,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       justifyContent: 'center',
                       zIndex: 1,
                     }}>
-                      <Icon name="security" size={20} color="#130057" />
+                      <Icon name="security" size={20} color="#1F7FE5" />
                     </View>
                     <TextInput
                       defaultValue={confirmPin}
@@ -470,17 +471,17 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         paddingLeft: 48,
                         paddingRight: 56,
                         paddingVertical: 16,
-                        backgroundColor: 'rgba(245, 245, 245, 0.9)',
-                        borderWidth: 2,
-                        borderColor: pinsMatch ? 'rgba(19, 0, 87, 0.1)' : 'rgba(244, 67, 54, 0.3)',
+                        backgroundColor: '#ffffff',
+                        borderWidth: 1,
+                        borderColor: pinsMatch ? '#e2e8f0' : 'rgba(220, 38, 38, 0.4)',
                         borderRadius: 16,
                         fontSize: 14,
                         fontFamily: 'Rubik-Bold',
-                        color: '#130057',
+                        color: '#0f1724',
                         letterSpacing: 8,
                       }}
                       placeholder="Confirm PIN"
-                      placeholderTextColor="rgba(19, 0, 87, 0.4)"
+                      placeholderTextColor="#999"
                       secureTextEntry={!showConfirmPin}
                       keyboardType="numeric"
                       maxLength={4}
@@ -495,10 +496,10 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         justifyContent: 'center',
                       }}
                     >
-                      <Icon 
-                        name={showConfirmPin ? 'visibility-off' : 'visibility'} 
-                        size={20} 
-                        color="rgba(19, 0, 87, 0.4)" 
+                      <Icon
+                        name={showConfirmPin ? 'visibility-off' : 'visibility'}
+                        size={20}
+                        color="#94a3b8"
                       />
                     </TouchableOpacity>
                     {isFormValid && (
@@ -518,14 +519,14 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <View style={{
                         width: 4,
                         height: 4,
-                        backgroundColor: '#f44336',
+                        backgroundColor: '#dc2626',
                         borderRadius: 2,
                         marginRight: 8,
                       }} />
                       <Text style={{
                         fontSize: 14,
-                        color: '#f44336',
-                        fontFamily: 'Rubik-Medium',
+                        color: '#dc2626',
+                        fontFamily: 'Rubik-Regular',
                       }}>
                         Sacred PIN must be exactly 4 digits
                       </Text>
@@ -536,14 +537,14 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <View style={{
                         width: 4,
                         height: 4,
-                        backgroundColor: '#f44336',
+                        backgroundColor: '#dc2626',
                         borderRadius: 2,
                         marginRight: 8,
                       }} />
                       <Text style={{
                         fontSize: 14,
-                        color: '#f44336',
-                        fontFamily: 'Rubik-Medium',
+                        color: '#dc2626',
+                        fontFamily: 'Rubik-Regular',
                       }}>
                         Your PIN do not match
                       </Text>
@@ -563,7 +564,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   )}
                 </View>
 
-                {/* Sacred Save Button */}
+                {/* Save Button */}
                 <TouchableOpacity
                   onPress={handleSavePin}
                   disabled={!isFormValid || isLoading}
@@ -572,7 +573,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   }}
                 >
                   <LinearGradient
-                    colors={isFormValid && !isLoading ? ['#1F7FE5', '#1F7FE5', '#1F7FE5'] : ['#cccccc', '#cccccc']}
+                    colors={isFormValid && !isLoading ? ['#1F7FE5', '#1862b8'] : ['#cccccc', '#cccccc']}
                     style={{
                       paddingVertical: 16,
                       paddingHorizontal: 24,
@@ -586,12 +587,14 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                     }}
                   >
                     {isLoading ? (
+                      // No icon precedes this text (unlike the non-loading state below), so the
+                      // leftover `marginLeft: 12` it was copy-pasted with just indented it off
+                      // center for no reason — removed.
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{
-                          color: '#DADADA',
+                          color: '#fff',
                           fontSize: 18,
                           fontFamily: 'Rubik-Bold',
-                          marginLeft: 12,
                         }}>
                           Securing PIN...
                         </Text>
@@ -600,7 +603,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="star" size={20} color="white" />
                         <Text style={{
-                          color: '#DADADA',
+                          color: '#fff',
                           fontSize: 18,
                           fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
@@ -612,25 +615,25 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Sacred Back Button */}
+                {/* Back Button */}
                 <TouchableOpacity
                   onPress={() => router.back()}
                   style={{
                     paddingVertical: 12,
                     paddingHorizontal: 16,
                     borderRadius: 16,
-                    backgroundColor: 'rgba(245, 245, 245, 0.1)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(19, 0, 87, 0.2)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderColor: '#e2e8f0',
                     alignItems: 'center',
                     flexDirection: 'row',
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon name="arrow-back" size={20} color="#130057" />
+                  <Icon name="arrow-back" size={20} color="#475569" />
                   <Text style={{
-                    color: '#130057',
-                    fontSize: 16,
+                    color: '#475569',
+                    fontSize: 14,
                     fontFamily: 'Rubik-Medium',
                     marginLeft: 8,
                   }}>

@@ -21,6 +21,7 @@ import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
 import userApi from '../api/userApi';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 
 type FamilyLogin = {
   id: number;
@@ -126,7 +127,7 @@ const FamilyAccessScreen = () => {
       } else if (res.data.code === 403) {
         popup.premiumRequired(
           'Family Access is available on Gold and Platinum plans. Upgrade to invite a parent or family member.',
-          () => router.push('/(root)/screens/PremiumTab' as any)
+          buildUpgradeAction({ planTitle, featureName: 'Family Access', minPlan: 'Gold' })
         );
       } else {
         showApiError(res.data.message, res.data.message || 'Something went wrong. Please try again.');
@@ -175,7 +176,7 @@ const FamilyAccessScreen = () => {
           <Ionicons name="lock-closed" size={64} color="#d4a017" />
           <Text style={styles.lockText}>Family Access is a Gold/Platinum feature</Text>
           <Text style={styles.lockSub}>Let your parents securely view your matches and shortlist on their own phone.</Text>
-          <TouchableOpacity style={styles.upgradeBtn} onPress={() => router.push('/(root)/screens/PremiumTab' as any)}>
+          <TouchableOpacity style={styles.upgradeBtn} onPress={buildUpgradeAction({ planTitle, featureName: 'Family Access', minPlan: 'Gold' })}>
             <Text style={styles.upgradeText}>Upgrade Now</Text>
           </TouchableOpacity>
         </View>

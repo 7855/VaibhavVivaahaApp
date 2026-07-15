@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Text,
   View,
@@ -9,20 +9,24 @@ import {
   TextInput,
   Keyboard,
   TouchableWithoutFeedback,
+  FlatList,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
-import { Box, CheckIcon, FlatList, HStack, Radio, Select, Stack, Switch } from "native-base";
+import { HStack, Radio, Stack, Switch } from "native-base";
 import { TabView, TabBar } from "react-native-tab-view";
 import Expandable from "react-native-reanimated-animated-accordion";
 import { Ionicons } from "@expo/vector-icons";
 import RangeSlider from "rn-range-slider";
 import { Dropdown } from "react-native-element-dropdown";
 import DropdownComponent from "./DropdownComponent";
-import ExploreProfileCard from "./ExploreProfileCard";
+import DiscoveryProfileCard from "./DiscoveryProfileCard";
 import userApi from "@/app/(root)/api/userApi";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Book, Calendar, DollarSign, Briefcase } from "lucide-react-native";
+
+const BRAND_MAROON = '#420001';
+const BRAND_GOLD = '#F6B733';
 
 // Custom Components for Slider
 const Thumb = () => <View style={styles.thumb} />;
@@ -243,102 +247,113 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
 
       <View style={styles.scene}>
-        <View style={styles.accordionContainer}>
-          <View
-            style={styles.content}
-            onTouchStart={() => setSwipeEnabled(false)}
-            onTouchEnd={() => setSwipeEnabled(true)}
-          >
-            {/* Age Filter */}
-            <View style={styles.ageFilterContainer}>
-              <View style={styles.ageLabelContainer}>
-                <Calendar size={20} color="#420001" />
-                <Text style={styles.ageLabelText}>Age Range</Text>
-              </View>
-              <View style={styles.ageInputContainer}>
-                <View style={styles.ageInputWrapper}>
-                  <TextInput
-                    style={styles.ageInput}
-                    placeholder="Min Age"
-                    value={minAgeText} // store as string in state
-                    onChangeText={(text) => setMinAgeText(text)} // don't parse here
-                    keyboardType="numeric"
-                  // placeholderTextColor="#FFFFFF"
-                  // color="#420001"
-                  />
+        <ScrollView
+          style={{ width: '100%' }}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.accordionContainer}>
+            <View
+              style={styles.content}
+              onTouchStart={() => setSwipeEnabled(false)}
+              onTouchEnd={() => setSwipeEnabled(true)}
+            >
+              {/* Age Filter */}
+              <View style={styles.filterCard}>
+                <View style={styles.filterCardHeader}>
+                  <View style={styles.filterIconWrap}>
+                    <Calendar size={16} color={BRAND_MAROON} />
+                  </View>
+                  <Text style={styles.filterCardTitle}>Age Range</Text>
                 </View>
-                <View style={styles.ageInputWrapper}>
-                  <TextInput
-                    style={styles.ageInput}
-                    placeholder="Max Age"
-                    value={maxAgeText} // store as string in state
-                    onChangeText={(text) => setMaxAgeText(text)} // don't parse here
-                    keyboardType="numeric"
-                  // placeholderTextColor="#FFFFFF"
-                  // color="#FFFFFF"
-                  />
+                <View style={styles.ageInputContainer}>
+                  <View style={styles.ageInputWrapper}>
+                    <Text style={styles.inputLabel}>Min Age</Text>
+                    <TextInput
+                      style={styles.ageInput}
+                      placeholder="18"
+                      placeholderTextColor="#b0a3a4"
+                      value={minAgeText} // store as string in state
+                      onChangeText={(text) => setMinAgeText(text)} // don't parse here
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.ageInputWrapper}>
+                    <Text style={styles.inputLabel}>Max Age</Text>
+                    <TextInput
+                      style={styles.ageInput}
+                      placeholder="50"
+                      placeholderTextColor="#b0a3a4"
+                      value={maxAgeText} // store as string in state
+                      onChangeText={(text) => setMaxAgeText(text)} // don't parse here
+                      keyboardType="numeric"
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
 
 
-            {/* Salary Range */}
-            {/* Salary Range Slider */}
-            {/* <Box alignItems="start" w="100%" mt={4}>
-              <Text style={styles.sliderLabel}>
-                Salary: {minSalary} - {maxSalary} LPA
-              </Text>
-              <RangeSlider
-                style={styles.slider}
-                min={0}
-                max={20}
-                step={1}
-                floatingLabel
-                renderThumb={Thumb}
-                renderRail={Rail}
-                renderRailSelected={RailSelected}
-                renderNotch={Notch}
-                renderLabel={(value) => <Label text={value} />}
-                onValueChanged={handleSalaryChange}
-              />
-            </Box> */}
-            <View style={styles.salaryFilterContainer}>
-              <View style={styles.salaryLabelContainer}>
-                <DollarSign size={20} color="#420001" />
-                <Text style={styles.salaryLabelText}>Salary Range (LPA)</Text>
-              </View>
-              <View style={styles.salaryInputContainer}>
-                <View style={styles.salaryInputWrapper}>
-                  <TextInput
-                    style={styles.salaryInput}
-                    placeholder="Min Salary"
-                    value={minSalaryText} // store as string
-                    onChangeText={setMinSalaryText} // don't parse here
-                    keyboardType="numeric"
-                  // placeholderTextColor="#FFFFFF"
-                  // color="#FFFFFF"
-                  />
+              {/* Salary Range */}
+              {/* Salary Range Slider */}
+              {/* <Box alignItems="start" w="100%" mt={4}>
+                <Text style={styles.sliderLabel}>
+                  Salary: {minSalary} - {maxSalary} LPA
+                </Text>
+                <RangeSlider
+                  style={styles.slider}
+                  min={0}
+                  max={20}
+                  step={1}
+                  floatingLabel
+                  renderThumb={Thumb}
+                  renderRail={Rail}
+                  renderRailSelected={RailSelected}
+                  renderNotch={Notch}
+                  renderLabel={(value) => <Label text={value} />}
+                  onValueChanged={handleSalaryChange}
+                />
+              </Box> */}
+              <View style={styles.filterCard}>
+                <View style={styles.filterCardHeader}>
+                  <View style={styles.filterIconWrap}>
+                    <DollarSign size={16} color={BRAND_MAROON} />
+                  </View>
+                  <Text style={styles.filterCardTitle}>Salary Range (LPA)</Text>
                 </View>
-                <View style={styles.salaryInputWrapper}>
-                  <TextInput
-                    style={styles.salaryInput}
-                    placeholder="Max Salary"
-                    value={maxSalaryText}
-                    onChangeText={setMaxSalaryText}
-                    keyboardType="numeric"
-                  // placeholderTextColor="#FFFFFF"
-                  // color="#FFFFFF"
-                  />
+                <View style={styles.ageInputContainer}>
+                  <View style={styles.ageInputWrapper}>
+                    <Text style={styles.inputLabel}>Min Salary</Text>
+                    <TextInput
+                      style={styles.ageInput}
+                      placeholder="0"
+                      placeholderTextColor="#b0a3a4"
+                      value={minSalaryText} // store as string
+                      onChangeText={setMinSalaryText} // don't parse here
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.ageInputWrapper}>
+                    <Text style={styles.inputLabel}>Max Salary</Text>
+                    <TextInput
+                      style={styles.ageInput}
+                      placeholder="20"
+                      placeholderTextColor="#b0a3a4"
+                      value={maxSalaryText}
+                      onChangeText={setMaxSalaryText}
+                      keyboardType="numeric"
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
 
-            <View style={styles.container}>
-              {/* <Text style={styles.title}>Filter Options</Text> */}
-              <View style={styles.educationInputContainer}>
-                <View style={styles.educationLabelContainer}>
-                  <Book size={20} color="#420001" />
-                  <Text style={styles.educationLabelText}>City / District</Text>
+              <View style={styles.filterCard}>
+                {/* <Text style={styles.title}>Filter Options</Text> */}
+                <View style={styles.filterCardHeader}>
+                  <View style={styles.filterIconWrap}>
+                    <Book size={16} color={BRAND_MAROON} />
+                  </View>
+                  <Text style={styles.filterCardTitle}>City / District</Text>
                 </View>
                 <View style={styles.educationInputWrapper}>
                   {/* <TextInput
@@ -355,115 +370,121 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
                   />
                 </View>
-              </View>
 
-              <View style={styles.jobsect}>
+                <View style={styles.jobsect}>
 
-                <View style={styles.jobSectorLabelContainer}>
-                  <Briefcase size={20} color="#DADADA" />
-                  <Text style={styles.title}>Job Sector</Text>
-                </View>
-                {/* Radio Button Group */}
-                <Radio.Group
-                  name="myRadioGroup"
-                  accessibilityLabel="favorite number"
-                  value={value}
-                  onChange={nextValue => setValue(nextValue)}
-                >
-                  <Stack
-                    direction={{
-                      base: 'row',  // Stack vertically on small screens
-                    }}
-                    alignItems={{
-                      base: 'flex-start', // Align to the start of the column on small screens
-                    }}
-                    space={6}              // Add space between radio buttons
-                    w="100%"                // Set width to 75%
+                  <View style={styles.jobSectorLabelContainer}>
+                    <Briefcase size={15} color={BRAND_MAROON} />
+                    <Text style={styles.filterCardTitle}>Job Sector</Text>
+                  </View>
+                  {/* Radio Button Group */}
+                  <Radio.Group
+                    name="myRadioGroup"
+                    accessibilityLabel="favorite number"
+                    value={value}
+                    onChange={nextValue => setValue(nextValue)}
                   >
-                    <Radio value="one" >
-                      <Text style={{ fontSize: 15, color: "#DADADA" }}>Government</Text>
-                    </Radio>
-                    <Radio value="two" >
-                      <Text style={{ fontSize: 15, color: "#DADADA" }}>Private</Text>
-                    </Radio>
-                  </Stack>
-                </Radio.Group>
+                    <Stack
+                      direction={{
+                        base: 'row',  // Stack vertically on small screens
+                      }}
+                      alignItems={{
+                        base: 'flex-start', // Align to the start of the column on small screens
+                      }}
+                      space={6}              // Add space between radio buttons
+                      w="100%"                // Set width to 75%
+                    >
+                      <Radio value="one" colorScheme="amber">
+                        <Text style={styles.radioLabel}>Government</Text>
+                      </Radio>
+                      <Radio value="two" colorScheme="amber">
+                        <Text style={styles.radioLabel}>Private</Text>
+                      </Radio>
+                    </Stack>
+                  </Radio.Group>
+                </View>
+
+                <View>
+                  <HStack alignItems="center" space={2} marginTop={3}>
+                    <Switch size="sm" value={photoOnly} onValueChange={setPhotoOnly} onTrackColor="#F6B733" onThumbColor="#fff" />
+                    <Text style={styles.profileWphototext}>Profile with photos only</Text>
+                  </HStack>
+                </View>
               </View>
 
-              <View>
-                <HStack alignItems="center" space={2} marginTop={2}>
-                  <Text style={styles.profileWphototext}>Profile with photos only</Text>
-                  <Switch size="sm" value={photoOnly} onValueChange={setPhotoOnly} />
-                </HStack>
-              </View>
+              {/* Find Button */}
+              <TouchableOpacity
+                activeOpacity={0.88}
+                onPress={() => {
+                  handleFindPress();
+                  setExpanded(!expanded);
+                  setSwipeEnabled(!expanded);
+                }}
+              >
+                <LinearGradient
+                  colors={['#5c1216', BRAND_MAROON]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={styles.findButton}
+                >
+                  <Text style={styles.buttonText}>Find Your Partner</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
             </View>
 
-            {/* Find Button */}
-            <TouchableOpacity
-              style={styles.findButton}
-              onPress={() => {
-                handleFindPress();
-                setExpanded(!expanded);
-                setSwipeEnabled(!expanded);
-              }}
-            >
-              <Text style={styles.buttonText}>Find Your Partner</Text>
-            </TouchableOpacity>
+            {/* Accordion Header */}
 
           </View>
+          {/* <TouchableOpacity
+            style={styles.header}
+            onPress={() => {
+              setExpanded(!expanded);
+              setSwipeEnabled(!expanded);
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={styles.headerText}>Search  </Text>
+              <Ionicons
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={24}
+                color="white"
+              />
+            </View>
 
-          {/* Accordion Header */}
 
-        </View>
-        {/* <TouchableOpacity
-          style={styles.header}
-          onPress={() => {
-            setExpanded(!expanded);
-            setSwipeEnabled(!expanded);
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={styles.headerText}>Search  </Text>
-            <Ionicons
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={24}
-              color="white"
+          </TouchableOpacity> */}
+
+          {/* <View>
+            <FlatList
+              data={profiles}
+              keyExtractor={(_, index) => index.toString()}
+              numColumns={2}
+              contentContainerStyle={styles.containerProfle}
+              columnWrapperStyle={styles.rowProfile}
+              renderItem={({ item }) => (
+                <View style={styles.cardWrapper}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      router.push({
+                        pathname: '/screens/ProfileDetail',
+                        params: { userId: item.userId }
+                      });
+                    }}
+                  >
+                    <ExploreProfileCard
+                      imageUrl={item.profileImage}
+                      name={item.firstName}
+                      age={item.age}
+                      job={item.userDetail[0].occupation}
+                      location={item.location}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
             />
-          </View>
 
-
-        </TouchableOpacity> */}
-
-        {/* <View>
-          <FlatList
-            data={profiles}
-            keyExtractor={(_, index) => index.toString()}
-            numColumns={2}
-            contentContainerStyle={styles.containerProfle}
-            columnWrapperStyle={styles.rowProfile}
-            renderItem={({ item }) => (
-              <View style={styles.cardWrapper}>
-                <TouchableOpacity
-                  onPress={() => {
-                    router.push({
-                      pathname: '/screens/ProfileDetail',
-                      params: { userId: item.userId }
-                    });
-                  }}
-                >
-                  <ExploreProfileCard
-                    imageUrl={item.profileImage}
-                    name={item.firstName}
-                    age={item.age}
-                    job={item.userDetail[0].occupation}
-                    location={item.location}
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-          />
-
-        </View> */}
+          </View> */}
+        </ScrollView>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -536,30 +557,48 @@ const FindPartner = () => {
           initialNumToRender={6}
           maxToRenderPerBatch={4}
           removeClippedSubviews={true}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
-            <View style={styles.cardWrapper}>
-              <TouchableOpacity
-                onPress={() => {
-                  router.push({
-                    pathname: '/screens/ProfileDetail',
-                    params: { userId: item.userId }
-                  });
-                }}
-              >
-                <ExploreProfileCard
-                  imageUrl={item.profileImage}
-                  name={item.firstName}
-                  age={item.age}
-                  job={item.userDetail?.[0]?.occupation || ''}
-                  location={item.location}
-                />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={{ flex: 1 }}
+              onPress={() => {
+                router.push({
+                  pathname: '/screens/ProfileDetail',
+                  params: { userId: item.userId }
+                });
+              }}
+            >
+              <DiscoveryProfileCard
+                imageUrl={item.profileImage}
+                name={item.firstName}
+                age={item.age}
+                job={item.userDetail?.[0]?.occupation || ''}
+                location={item.location}
+                gender={item.gender}
+                idVerified={item.idVerified}
+                educationVerified={item.educationVerified}
+                incomeVerified={item.incomeVerified}
+                isNew={route.key === 'new'}
+              />
+            </TouchableOpacity>
           )}
           ListEmptyComponent={() => (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-              <Text style={{ color: 'gray' }}>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <Ionicons
+                  name={route.key === 'all' ? 'people-outline' : 'sparkles-outline'}
+                  size={38}
+                  color={BRAND_MAROON}
+                />
+              </View>
+              <Text style={styles.emptyTitle}>
                 {route.key === 'all' ? 'No matches found' : 'No newly added profiles'}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {route.key === 'all'
+                  ? 'Try adjusting your search filters to see more profiles.'
+                  : 'Check back soon — new members join every day.'}
               </Text>
             </View>
           )}
@@ -572,14 +611,31 @@ const FindPartner = () => {
     <TabView
       navigationState={{ index, routes }}
       renderScene={renderScene}
-      style={{ marginTop: 25 }}
-      renderTabBar={props => (
+      style={{ marginTop: 16 }}
+      renderTabBar={(props: any) => (
         <TabBar
           {...props}
           style={styles.tabBarTab}
           indicatorStyle={styles.indicatorTab}
-          activeColor="#FFFFFF"
-          inactiveColor="#A0A0A0"
+          activeColor={BRAND_MAROON}
+          inactiveColor="#a3898b"
+          labelStyle={styles.tabLabelTab}
+          renderIndicator={(indicatorProps: any) => (
+            <View style={[StyleSheet.absoluteFillObject, { justifyContent: 'flex-end' }]} pointerEvents="none">
+              <LinearGradient
+                colors={[BRAND_GOLD, '#C59A40']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={{
+                  position: 'absolute',
+                  left: indicatorProps.layout.width / routes.length * indicatorProps.navigationState.index,
+                  width: indicatorProps.layout.width / routes.length,
+                  height: 3,
+                  bottom: 0,
+                  borderRadius: 3,
+                }}
+              />
+            </View>
+          )}
         />
       )}
       onIndexChange={setIndex}
@@ -616,14 +672,36 @@ const ExploreTabs = () => {
       renderScene={renderScene}
       onIndexChange={setIndex}
       initialLayout={{ width: layout.width }}
-      renderTabBar={(props) => (
+      renderTabBar={(props: any) => (
         <TabBar
           {...props}
           style={styles.tabBar}
-          indicatorStyle={styles.indicator}
           tabStyle={styles.tab}
-          activeColor="#FFFFFF"
-          inactiveColor="#A0A0A0"
+          activeColor="#fff"
+          inactiveColor={BRAND_MAROON}
+          labelStyle={styles.mainTabLabel}
+          renderIndicator={() => null}
+          renderTabBarItem={({ route, navigationState, onPress }: any) => {
+            const routeIndex = navigationState.routes.findIndex((r: any) => r.key === route.key);
+            const active = navigationState.index === routeIndex;
+            return (
+              <TouchableOpacity key={route.key} onPress={onPress} activeOpacity={0.85} style={styles.tab}>
+                {active ? (
+                  <LinearGradient
+                    colors={[BRAND_MAROON, '#5c1216']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={styles.mainTabPillActive}
+                  >
+                    <Text style={styles.mainTabLabelActive}>{route.title}</Text>
+                  </LinearGradient>
+                ) : (
+                  <View style={styles.mainTabPill}>
+                    <Text style={styles.mainTabLabel}>{route.title}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
       swipeEnabled={swipeEnabled} // Dynamically enable/disable swipe
@@ -640,36 +718,37 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   containerProfle: {
-    padding: 8,
+    padding: 16,
+    gap: 14,
   },
   rowProfile: {
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    gap: 14,
+    paddingHorizontal: 2,
   },
   cardWrapper: {
     flex: 1,
     margin: 4,
   },
   tabBarTab: {
-    backgroundColor: '#fff',
-    elevation: 4,
-    shadowColor: '#000',
+    backgroundColor: '#FFFFFF',
+    elevation: 2,
+    shadowColor: BRAND_MAROON,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
   },
   indicatorTab: {
-    backgroundColor: 'rgba(30,64,175,1.00)',
-    height: '100%',
-    borderRadius: 4,
+    backgroundColor: 'transparent',
+    height: 3,
   },
   tabLabelTab: {
-    color: '#DADADA',
-    fontSize: 16,
-    fontFamily: 'Rubik-Medium',
+    fontSize: 13,
+    fontFamily: 'Rubik-Bold',
+    textTransform: 'none',
   },
   sceneTab: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FAF7F5",
     marginTop: 0,
     flex: 1,
     alignItems: "center",
@@ -686,23 +765,31 @@ const styles = StyleSheet.create({
   ageLabelText: {
     fontSize: 15,
     fontFamily: 'Rubik-Bold',
-    color: '#420001',
+    color: BRAND_MAROON,
   },
   ageInputContainer: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
   },
   ageInputWrapper: {
     flex: 1,
   },
+  inputLabel: {
+    fontSize: 11,
+    fontFamily: 'Rubik-Medium',
+    color: '#8a7274',
+    marginBottom: 5,
+  },
   ageInput: {
-    borderWidth: 2,
-    borderColor: '#E3E3E3',
+    borderWidth: 1.5,
+    borderColor: '#EDE2DF',
+    backgroundColor: '#FDFBFA',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#130001',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 15,
+    fontFamily: 'Rubik-Medium',
+    color: '#162336',
   },
   salaryFilterContainer: {
     marginTop: 16,
@@ -716,7 +803,7 @@ const styles = StyleSheet.create({
   salaryLabelText: {
     fontSize: 15,
     fontFamily: 'Rubik-Bold',
-    color: '#420001',
+    color: BRAND_MAROON,
   },
   salaryInputContainer: {
     flexDirection: 'row',
@@ -734,86 +821,78 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#130001',
   },
-  // tabBarTab: {
-  //   backgroundColor: '#fff',
-  //   elevation: 4,
-  //   shadowColor: '#000',
-  //   shadowOffset: { width: 0, height: 2 },
-  //   shadowOpacity: 0.1,
-  //   shadowRadius: 4,
-  // },
-  // indicatorTab: {
-  //   backgroundColor: '#9C27B0',
-  //   height: '100%',
-  //   borderRadius: 4,
-  // },
-  // tabLabelTab: {
-  //   color: '#fff',
-  //   fontSize: 16,
-  //   fontFamily: 'Rubik-Medium',
-  // },
   scene: {
     flex: 1,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    marginTop: 25,
+    backgroundColor: "#FAF7F5",
   },
-  // sceneTab:{
-  //   backgroundColor: "#FFFFFF",
-  //   marginTop: 0,
-  //   flex: 1,
-  //   alignItems: "center",
-  //   // backgroundColor: "#FFFFFF",
-  //   // marginTop: 30,
-  // },
+  scrollContent: {
+    paddingTop: 20,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
   profileWphototext: {
-    fontSize: 15,
-    fontFamily: 'Rubik-Bold',
-    color: "#DADADA"
+    fontSize: 13,
+    fontFamily: 'Rubik-Medium',
+    color: "#162336",
   },
   tabBar: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 30,
-    marginHorizontal: 70,
-    height: 45,
-    borderColor: "#130057",
-    borderWidth: 0,
+    backgroundColor: "transparent",
+    elevation: 0,
+    shadowOpacity: 0,
+    marginHorizontal: 16,
+    marginTop: 12,
+    height: 52,
     justifyContent: "center",
-    alignItems: "center",
-    // Android shadow
-    elevation: 10,
-    // iOS shadow
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   tab: {
     marginHorizontal: 5,
+    width: 'auto',
   },
-  indicator: {
-    backgroundColor: "#130057",
-    height: "100%",
-    borderRadius: 30,
+  mainTabPill: {
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 100,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EDE2DF',
+  },
+  mainTabPillActive: {
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 100,
+    shadowColor: BRAND_MAROON,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  mainTabLabel: {
+    fontSize: 13.5,
+    fontFamily: 'Rubik-Bold',
+    color: BRAND_MAROON,
+    textAlign: 'center',
+  },
+  mainTabLabelActive: {
+    fontSize: 13.5,
+    fontFamily: 'Rubik-Bold',
+    color: '#fff',
+    textAlign: 'center',
   },
   accordionContainer: {
-    width: "98%",
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    width: "92%",
+    borderRadius: 24,
     backgroundColor: "white",
-    shadowOffset: { height: -2, width: 0 },
-    elevation: 2,
-    shadowRadius: 20,
-    shadowOpacity: 0.07,
+    shadowColor: BRAND_MAROON,
+    shadowOffset: { height: 4, width: 0 },
+    elevation: 3,
+    shadowRadius: 16,
+    shadowOpacity: 0.08,
     overflow: "hidden",
 
   },
   header: {
     backgroundColor: "#130057",
-    // background: "linear-gradient(0deg, rgba(0, 0, 28, 1) 0%, rgba(19, 0, 87, 1) 30%, rgba(30, 64, 175, 1) 72%, rgba(30, 64, 175, 1) 100%, rgba(0, 0, 0, 1) 100%)",
     padding: 10,
     borderBottomLeftRadius: '100%',
     borderBottomRightRadius: '100%',
@@ -833,25 +912,52 @@ const styles = StyleSheet.create({
   },
   content: {
     width: "100%",
-    padding: 10,
-    // backgroundColor: "#130057",
-    // borderWidth:2
+    padding: 18,
+    gap: 16,
+  },
+  filterCard: {
+    gap: 4,
+  },
+  filterCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  filterIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: 'rgba(246,183,51,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCardTitle: {
+    fontSize: 14,
+    fontFamily: 'Rubik-Bold',
+    color: '#162336',
+  },
+  radioLabel: {
+    fontSize: 14,
+    fontFamily: 'Rubik-Medium',
+    color: '#162336',
   },
   findButton: {
-    marginTop: 15,
-    backgroundColor: "#FFFFFF",
-    padding: 10,
-    borderRadius: 5,
+    marginTop: 4,
+    paddingVertical: 15,
+    borderRadius: 100,
     alignItems: "center",
-    width: "50%",
-    left: "25%",
-    marginBottom: 15,
-
+    shadowColor: BRAND_MAROON,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
   },
   buttonText: {
-    color: "#130057",
-    fontSize: 16,
+    color: "#fff",
+    fontSize: 15,
     fontFamily: 'Rubik-Bold',
+    letterSpacing: 0.2,
   },
   sliderLabel: {
     color: "#DADADA",
@@ -916,21 +1022,9 @@ const styles = StyleSheet.create({
     width: '50%',
   },
   jobsect: {
-    marginTop: 20,
-    marginBottom: 6
-  },
-  containerProfle: {
-    paddingHorizontal: 12,
-    paddingTop: 16,
-  },
-  rowProfile: {
-    justifyContent: 'space-between',
-    marginBottom: -30, // Overlap amount
-  },
-  cardWrapper: {
-    width: '49%',
-    marginBottom: 10, // Allow space for overlap + content
-    height: 280
+    marginTop: 18,
+    marginBottom: 4,
+    gap: 4,
   },
   card: {
     backgroundColor: '#fff',
@@ -986,7 +1080,7 @@ const styles = StyleSheet.create({
   educationLabelText: {
     fontSize: 15,
     fontFamily: 'Rubik-Bold',
-    color: '#420001',
+    color: BRAND_MAROON,
   },
   educationInputWrapper: {
     flex: 1,
@@ -999,5 +1093,35 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#130001',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 32,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(246,183,51,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontFamily: 'Rubik-Bold',
+    color: BRAND_MAROON,
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 12.5,
+    fontFamily: 'Rubik-Regular',
+    color: '#8a7274',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 260,
   },
 });

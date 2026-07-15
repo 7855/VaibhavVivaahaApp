@@ -111,7 +111,7 @@ const ProfileCompletionBar = () => {
                 }
               }}
             >
-              <Text style={styles.actionButtonText}>{actionTitle}</Text>
+              <Text style={styles.actionButtonText} numberOfLines={1} ellipsizeMode="tail">{actionTitle}</Text>
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>+{nextAction.boostPercentage}%</Text>
               </View>
@@ -151,6 +151,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flexShrink: 0,
   },
   progressRingOuter: {
     position: 'absolute',
@@ -225,17 +226,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(31, 127, 229, 0.2)',
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    marginLeft: 8,
   },
   actionButtonText: {
     fontSize: 12,
     fontFamily: 'Rubik-Bold',
     color: '#1F7FE5',
+    flexShrink: 1,
   },
   badge: {
     backgroundColor: '#1F7FE5',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
+    flexShrink: 0,
   },
   badgeText: {
     fontSize: 10,

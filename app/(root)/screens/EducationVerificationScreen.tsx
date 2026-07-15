@@ -17,6 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
+import { useSubscription } from '../contexts/subscriptionContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 
 type DocumentType = 'DEGREE_CERTIFICATE' | 'DIPLOMA' | 'PROFESSIONAL_CERT' | 'MARK_SHEET' | 'OTHER';
 
@@ -40,6 +42,7 @@ interface LatestSubmission {
 
 export default function EducationVerificationScreen() {
   const popup = usePopup();
+  const { subscriptionData } = useSubscription() || {};
   const [encodedUserId, setEncodedUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -125,7 +128,7 @@ export default function EducationVerificationScreen() {
       } else if (res.data.code === 403) {
         popup.premiumRequired(
           'Upgrade to Silver or above to verify your education.',
-          () => router.push('/(root)/screens/PremiumTab' as any)
+          buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Education Verification', minPlan: 'Silver' })
         );
       } else if (res.data.code === 409) {
         popup.warning('Already submitted', 'You already have a pending education verification.');
@@ -136,7 +139,7 @@ export default function EducationVerificationScreen() {
       if (e?.response?.data?.code === 403) {
         popup.premiumRequired(
           'Upgrade to Silver or above to verify your education.',
-          () => router.push('/(root)/screens/PremiumTab' as any)
+          buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Education Verification', minPlan: 'Silver' })
         );
       } else {
         popup.error('Upload failed', e?.response?.data?.message || 'Network error.');

@@ -80,14 +80,22 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
       alignItems: 'center',
       paddingHorizontal: 20,
       paddingVertical: 40,
-      backgroundColor: '#F5F5F5',
     }}>
+      {/* Same soft blue theme gradient used app-wide (explore.tsx, sign-up.tsx, LoginScreen.tsx)
+          instead of the flat '#F5F5F5' this screen had. */}
+      <LinearGradient
+        colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
+        locations={[0, 0.3, 0.6, 1.0]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
       <View style={{ width: '100%', maxWidth: 400 }}>
         {/* Sacred Header */}
         <View style={{ alignItems: 'center', marginBottom: 40 }}>
           <View style={{ position: 'relative', marginBottom: 24 }}>
             <LinearGradient
-              colors={['#f5f5f5', '#e0e0e0', '#f5f5f5']}
+              colors={['#eaf2fc', '#d0dfeb', '#eaf2fc']}
               style={{
                 width: 80,
                 height: 80,
@@ -101,7 +109,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 elevation: 16,
               }}
             >
-              {/* Sacred inner rings */}
+              {/* Inner rings */}
               <View style={{
                 position: 'absolute',
                 top: 8,
@@ -110,7 +118,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 bottom: 8,
                 borderRadius: 32,
                 borderWidth: 2,
-                borderColor: 'rgba(19, 0, 87, 0.4)',
+                borderColor: 'rgba(31, 127, 229, 0.35)',
               }} />
               <View style={{
                 position: 'absolute',
@@ -120,12 +128,12 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 bottom: 12,
                 borderRadius: 28,
                 borderWidth: 1,
-                borderColor: 'rgba(19, 0, 87, 0.3)',
+                borderColor: 'rgba(31, 127, 229, 0.25)',
               }} />
-              
-              {/* Sacred Shield Icon */}
-              <Icon name="security" size={36} color="#130057" />
-              
+
+              {/* Shield icon */}
+              <Icon name="security" size={36} color="#1F7FE5" />
+
               {/* Floating elements */}
               <View style={{
                 position: 'absolute',
@@ -133,7 +141,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 right: -4,
                 width: 12,
                 height: 12,
-                backgroundColor: 'rgba(19, 0, 87, 0.3)',
+                backgroundColor: 'rgba(31, 127, 229, 0.3)',
                 borderRadius: 6,
               }} />
               <View style={{
@@ -142,7 +150,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 left: -4,
                 width: 8,
                 height: 8,
-                backgroundColor: 'rgba(19, 0, 87, 0.3)',
+                backgroundColor: 'rgba(31, 127, 229, 0.3)',
                 borderRadius: 4,
               }} />
             </LinearGradient>
@@ -171,20 +179,19 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
           </View>
           
           <Text style={{
-            fontSize: 22,
-            fontFamily: 'Rubik-Medium',
-            color: '#5C1A1B',
+            fontSize: 20,
+            fontFamily: 'Rubik-Bold',
+            color: '#0f1724',
             marginBottom: 8,
             textAlign: 'center',
           }}>
             Forgot Password
           </Text>
           <Text style={{
-            // color: '#f5f5f5',
-            fontSize: 16,
-            fontFamily: 'Rubik-Medium',
+            fontSize: 12,
+            fontFamily: 'Rubik-Regular',
+            color: '#64748b',
             textAlign: 'center',
-            opacity: 0.9,
           }}>
             Restore access to your heart connection
           </Text>
@@ -268,7 +275,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               borderBottomRightRadius: 16,
             }} />
             
-            {/* Sacred patterns */}
+            {/* Decorative patterns */}
             <View style={{
               position: 'absolute',
               top: 24,
@@ -276,7 +283,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               marginLeft: -32,
               width: 64,
               height: 4,
-              backgroundColor: 'rgba(19, 0, 87, 0.1)',
+              backgroundColor: 'rgba(15, 23, 42, 0.06)',
               borderRadius: 2,
             }} />
             <View style={{
@@ -286,7 +293,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               marginLeft: -24,
               width: 48,
               height: 2,
-              backgroundColor: 'rgba(19, 0, 87, 0.1)',
+              backgroundColor: 'rgba(15, 23, 42, 0.06)',
               borderRadius: 1,
             }} />
             
@@ -295,12 +302,12 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 {/* Sacred Mobile Input */}
                 <View style={{ gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Icon name="email" size={16} color="#130057" />
+                    <Icon name="email" size={16} color="#1F7FE5" />
                     <Text style={{
                       fontSize: 12,
                       fontFamily: 'Rubik-Bold',
-                      color: '#130057',
-                      letterSpacing: 1,
+                      color: '#0f1724',
+                      letterSpacing: 0.3,
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
@@ -316,7 +323,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       justifyContent: 'center',
                       zIndex: 1,
                     }}>
-                      <Icon name="email" size={20} color="#130057" />
+                      <Icon name="email" size={20} color="#1F7FE5" />
                     </View>
                     <TextInput
                       defaultValue={phoneNumber}
@@ -325,16 +332,16 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         paddingLeft: 48,
                         paddingRight: 16,
                         paddingVertical: 16,
-                        backgroundColor: 'rgba(245, 245, 245, 0.9)',
-                        borderWidth: 2,
-                        borderColor: 'rgba(19, 0, 87, 0.1)',
+                        backgroundColor: '#ffffff',
+                        borderWidth: 1,
+                        borderColor: '#e2e8f0',
                         borderRadius: 16,
                         fontSize: 14,
-                        fontFamily: 'Rubik-Medium',
-                        color: '#130057',
+                        fontFamily: 'Rubik-Regular',
+                        color: '#333',
                       }}
                       placeholder="Enter your email"
-                      placeholderTextColor="rgba(19, 0, 87, 0.4)"
+                      placeholderTextColor="#999"
                       keyboardType="email-address"
                       autoCapitalize="none"
                     />
@@ -360,14 +367,14 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       <View style={{
                         width: 4,
                         height: 4,
-                        backgroundColor: '#f44336',
+                        backgroundColor: '#dc2626',
                         borderRadius: 2,
                         marginRight: 8,
                       }} />
                       <Text style={{
                         fontSize: 14,
-                        color: '#f44336',
-                        fontFamily: 'Rubik-Medium',
+                        color: '#dc2626',
+                        fontFamily: 'Rubik-Regular',
                       }}>
                         Please enter a valid email address
                       </Text>
@@ -382,26 +389,23 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                
                 >
                   <LinearGradient
-                    colors={isFormValid && !isLoading ? ['#1F7FE5', '#1F7FE5'] : ['#cccccc', '#999999']}
+                    colors={isFormValid && !isLoading ? ['#1F7FE5', '#1862b8'] : ['#cccccc', '#999999']}
                     style={{
                       paddingVertical: 16,
                       paddingHorizontal: 24,
                       borderRadius: 16,
                       alignItems: 'center',
-                      // shadowColor: '#000',
-                      // shadowOffset: { width: 0, height: 8 },
-                      // shadowOpacity: 0.3,
-                      // shadowRadius: 16,
-                      // elevation: 8,
                     }}
                   >
                     {isLoading ? (
+                      // No icon precedes this text (unlike the non-loading state below), so the
+                      // leftover `marginLeft: 12` it was copy-pasted with just indented it off
+                      // center for no reason — removed.
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{
-                          color: '#DADADA',
-                          fontSize: 18,
+                          color: '#fff',
+                          fontSize: 16,
                           fontFamily: 'Rubik-Bold',
-                          marginLeft: 12,
                         }}>
                           Sending Code...
                         </Text>
@@ -410,7 +414,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="security" size={20} color="white" />
                         <Text style={{
-                          color: '#DADADA',
+                          color: '#fff',
                           fontSize: 16,
                           fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
@@ -429,17 +433,17 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                     paddingVertical: 12,
                     paddingHorizontal: 16,
                     borderRadius: 16,
-                    backgroundColor: 'rgba(245, 245, 245, 0.1)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(19, 0, 87, 0.2)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderColor: '#e2e8f0',
                     alignItems: 'center',
                     flexDirection: 'row',
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon name="arrow-back" size={20} color="#130057" />
+                  <Icon name="arrow-back" size={20} color="#475569" />
                   <Text style={{
-                    color: '#130057',
+                    color: '#475569',
                     fontSize: 14,
                     fontFamily: 'Rubik-Medium',
                     marginLeft: 8,

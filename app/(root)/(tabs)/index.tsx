@@ -215,6 +215,7 @@ const Index = () => {
   const [newConnection, setNewConnection] = useState<any[]>([]);
   const [nearYouProfile, setNearYouProfile] = useState<any[]>([]);
   const [interestMatches, setInterestMatches] = useState<any[]>([]);
+  const [allMatches, setAllMatches] = useState<any[]>([]);
   const [userConnectionCount, setUserConnectionCount] = useState<ConnectionCount>({});
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [happyStories, setHappyStories] = useState<any[]>([]);
@@ -381,16 +382,17 @@ const Index = () => {
         setHasStarted(true);
         const casteIdValue = parseInt(userData.casteId!);
 
-        const [rec, conn, near, count, intMatch] = await Promise.all([
-          userApi.getDailyRecommendation(casteIdValue, userData.gender),
-          userApi.getNewConnections(casteIdValue, userData.gender),
-          userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location),
+        const [rec, conn, near, count, intMatch, all] = await Promise.all([
+          userApi.getDailyRecommendation(casteIdValue, userData.gender, userData.decodedUserId),
+          userApi.getNewConnections(casteIdValue, userData.gender, userData.decodedUserId),
+          userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location, userData.decodedUserId),
           userApi.userConnectionCount(userData.userId),
           userApi.getInterestMatchesByUser(
             casteIdValue,
             userData.gender === 'M' ? 'F' : 'M',
             userData.userId
           ).catch(() => ({ data: { data: [] } })),
+          userApi.getAllCasteProfilesByGender(casteIdValue, userData.gender).catch(() => ({ data: { data: [] } })),
         ]);
 
         setRecommendations(rec.data?.data?.slice(0, 7) || []);
@@ -398,6 +400,7 @@ const Index = () => {
         setNearYouProfile(near.data?.data?.slice(0, 7) || []);
         setUserConnectionCount(count.data?.data || {});
         setInterestMatches(intMatch.data?.data?.slice(0, 7) || []);
+        setAllMatches(all.data?.data?.slice(0, 7) || []);
 
         const [unreadRes, profileRes] = await Promise.all([
           userApi.getUnreadNotificationCount(userData.userId),
@@ -565,13 +568,14 @@ const Index = () => {
               onStatRefresh={async () => {
                 try {
                   const casteIdValue = parseInt(userData.casteId!);
-                  const [count, rec, conn, near, intMatch, unreadRes] = await Promise.all([
+                  const [count, rec, conn, near, intMatch, unreadRes, all] = await Promise.all([
                     userApi.userConnectionCount(userData.userId),
-                    userApi.getDailyRecommendation(casteIdValue, userData.gender),
-                    userApi.getNewConnections(casteIdValue, userData.gender),
-                    userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location),
+                    userApi.getDailyRecommendation(casteIdValue, userData.gender, userData.decodedUserId),
+                    userApi.getNewConnections(casteIdValue, userData.gender, userData.decodedUserId),
+                    userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location, userData.decodedUserId),
                     userApi.getInterestMatchesByUser(casteIdValue, userData.gender === 'M' ? 'F' : 'M', userData.userId).catch(() => ({ data: { data: [] } })),
                     userApi.getUnreadNotificationCount(userData.userId),
+                    userApi.getAllCasteProfilesByGender(casteIdValue, userData.gender).catch(() => ({ data: { data: [] } })),
                   ]);
                   setUserConnectionCount(count.data?.data || {});
                   setRecommendations(rec.data?.data?.slice(0, 7) || []);
@@ -579,6 +583,7 @@ const Index = () => {
                   setNearYouProfile(near.data?.data?.slice(0, 7) || []);
                   setInterestMatches(intMatch.data?.data?.slice(0, 7) || []);
                   setUnreadCount(unreadRes.data?.data);
+                  setAllMatches(all.data?.data?.slice(0, 7) || []);
                   popup.success('Refreshed', 'All sections updated successfully.');
                 } catch (e) {
                   console.error(e);
@@ -586,12 +591,14 @@ const Index = () => {
                 }
               }}
               onStatsPress={(key) => {
-                if (key === 'likes' || key === 'matches') {
+                if (key === 'matches') {
                   router.push({ pathname: '/screens/ListUser', params: { type: 'connection' } });
                 } else if (key === 'proposals') {
                   router.push('/(tabs)/mailBox');
                 } else if (key === 'views') {
                   router.push({ pathname: '/screens/ListUser', params: { type: 'viewed' } });
+                } else if (key === 'likes') {
+                  router.push({ pathname: '/screens/ListUser', params: { type: 'whoLikedMe' } });
                 }
               }}
             />
@@ -940,6 +947,63 @@ const Index = () => {
                     </VStack>
                   </Box>
                 ) : null}
+
+                {/* All Matches shelf — was the "All Matches" sub-tab inside the Explore tab's
+                    Search/Explore switcher; moved here so all passive browsing lives on Home,
+                    letting the Explore tab collapse down to just the filter form. */}
+                <Box
+                  overflow="hidden"
+                  backgroundColor="transparent"
+                  px={2}
+                  pt={2}
+                  borderRadius={20}
+                  mt={3}
+                >
+                  <VStack space={3}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        router.push({
+                          pathname: '/screens/listProfile',
+                          params: {
+                            type: 'allMatches',
+                            title: 'All Matches'
+                          }
+                        });
+                      }}
+                    >
+                      <HStack justifyContent="space-between" alignItems="center">
+                        <VStack>
+                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
+                            All Matches
+                          </Text>
+                          <HStack alignItems="center" space={1}>
+                            <Icon name="th-large" size={13} color="#8B3A3A" />
+                            <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
+                              Every profile in your community
+                            </Text>
+                          </HStack>
+                        </VStack>
+                        <Icon name="chevron-right" size={22} color="#94a3b8" />
+                      </HStack>
+                    </TouchableOpacity>
+                    <Center marginLeft={1} marginBottom={2}>
+                      {isLoading ? (
+                        <Box flexDirection="row" px={4} py={2}>
+                          {[1, 2, 3].map((item) => (
+                            <ProfileCardSmallSkeleton key={item} />
+                          ))}
+                        </Box>
+                      ) : (
+                        <SwiperProfile users={allMatches} onUserPress={(userId: any) => {
+                          router.push({
+                            pathname: '/screens/ProfileDetail',
+                            params: { userId: userId }
+                          });
+                        }} />
+                      )}
+                    </Center>
+                  </VStack>
+                </Box>
 
                 {/* last convo section  */}
                 {/* <Box

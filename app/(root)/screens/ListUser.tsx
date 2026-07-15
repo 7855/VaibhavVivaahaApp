@@ -9,7 +9,6 @@ import {
     Image,
     RefreshControl,
     StatusBar,
-    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,9 +19,11 @@ import dayjs from 'dayjs';
 
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
+import { useSubscription } from '../contexts/subscriptionContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 import VerifiedBadges from '../../../components/VerifiedBadges';
 
-type TabType = 'viewed' | 'connection' | 'shortlisted' | 'whoShortlistedMe';
+type TabType = 'viewed' | 'connection' | 'shortlisted' | 'whoShortlistedMe' | 'whoLikedMe' | 'revealedContacts';
 
 interface ShortlistedProfile {
     userId: number;
@@ -53,6 +54,8 @@ interface ViewedProfile {
     mobile: string;
     occupation: string;
     viewedAt: string;
+    likedAt?: string;
+    revealedAt?: string;
 }
 
 type ListItem = ShortlistedProfile | ViewedProfile;
@@ -102,15 +105,34 @@ const TAB_META: Record<TabType, {
         gradient: ['#9c4040', '#7a2d2d'],
         accent: '#ef4444',
     },
+    whoLikedMe: {
+        title: 'Who Liked You',
+        subtitle: 'People who liked your profile',
+        emptyTitle: 'No likes yet',
+        emptyText: 'When someone likes your profile, they\'ll show up here.',
+        icon: 'heart',
+        gradient: ['#9c4040', '#7a2d2d'],
+        accent: '#ec4899',
+    },
+    revealedContacts: {
+        title: 'Contact Reveals',
+        subtitle: 'Profiles whose contact info you\'ve viewed',
+        emptyTitle: 'No reveals yet',
+        emptyText: 'Profiles whose contact you reveal will show up here.',
+        icon: 'call',
+        gradient: ['#9c4040', '#7a2d2d'],
+        accent: '#1F7FE5',
+    },
 };
 
 export default function ListUser() {
     const popup = usePopup();
+    const { subscriptionData } = useSubscription() || {};
     const { type: urlType } = useLocalSearchParams();
 
     // Lazy-init from URL param to prevent double fetch on mount
     const initialType: TabType =
-        (typeof urlType === 'string' && ['viewed', 'connection', 'shortlisted', 'whoShortlistedMe'].includes(urlType))
+        (typeof urlType === 'string' && ['viewed', 'connection', 'shortlisted', 'whoShortlistedMe', 'whoLikedMe', 'revealedContacts'].includes(urlType))
             ? (urlType as TabType)
             : 'viewed';
 
@@ -159,6 +181,12 @@ export default function ListUser() {
             } else if (type === 'whoShortlistedMe') {
                 const response = await userApi.getWhoShortlistedMe(userId);
                 handleResponse(response, 'Failed to load who shortlisted you');
+            } else if (type === 'whoLikedMe') {
+                const response = await userApi.getWhoLikedMe(userId);
+                handleResponse(response, 'Failed to load who liked you');
+            } else if (type === 'revealedContacts') {
+                const response = await userApi.getRevealedContacts(userId);
+                handleResponse(response, 'Failed to load revealed contacts');
             } else {
                 const response = await userApi.getShortlistedMailbox(userId);
                 handleResponse(response, 'Failed to load shortlisted profiles');
@@ -215,6 +243,9 @@ export default function ListUser() {
 
     const renderCard = ({ item, index }: { item: ListItem; index: number }) => {
         const viewedAt = (item as ViewedProfile).viewedAt;
+        const likedAt = (item as ViewedProfile).likedAt;
+        const revealedAt = (item as ViewedProfile).revealedAt;
+        const mobile = (item as ViewedProfile).mobile;
         const meta2 = [
             item.age ? `${item.age} yrs` : null,
             item.location,
@@ -267,7 +298,16 @@ export default function ListUser() {
                             {meta2}
                         </Text>
                     ) : null}
-                    {(item as ShortlistedProfile).degree ? (
+                    {type === 'revealedContacts' && mobile ? (
+                        <View style={styles.chipsRow}>
+                            <View style={[styles.chip, { backgroundColor: '#dfecfb' }]}>
+                                <Ionicons name="call" size={10} color="#1F7FE5" />
+                                <Text style={[styles.chipText, { color: '#1862b8', fontFamily: 'Rubik-Medium' }]} numberOfLines={1}>
+                                    {mobile}
+                                </Text>
+                            </View>
+                        </View>
+                    ) : (item as ShortlistedProfile).degree ? (
                         <View style={styles.chipsRow}>
                             <View style={styles.chip}>
                                 <Ionicons name="school-outline" size={10} color="#6b7280" />
@@ -290,6 +330,20 @@ export default function ListUser() {
                             <Ionicons name="time-outline" size={10} color="#9ca3af" />
                             {'  '}
                             {dayjs(viewedAt).fromNow ? dayjs(viewedAt).format('DD MMM, hh:mm A') : dayjs(viewedAt).format('DD MMM, hh:mm A')}
+                        </Text>
+                    ) : null}
+                    {type === 'whoLikedMe' && likedAt ? (
+                        <Text style={styles.timestamp}>
+                            <Ionicons name="time-outline" size={10} color="#9ca3af" />
+                            {'  '}
+                            {dayjs(likedAt).format('DD MMM, hh:mm A')}
+                        </Text>
+                    ) : null}
+                    {type === 'revealedContacts' && revealedAt ? (
+                        <Text style={styles.timestamp}>
+                            <Ionicons name="time-outline" size={10} color="#9ca3af" />
+                            {'  '}
+                            Revealed {dayjs(revealedAt).format('DD MMM, hh:mm A')}
                         </Text>
                     ) : null}
                 </View>
@@ -350,12 +404,18 @@ export default function ListUser() {
                     <Text style={styles.upgradeSubtitle}>
                         {type === 'viewed'
                             ? 'Upgrade to Silver or above to see who has viewed your profile.'
+                            : type === 'whoLikedMe'
+                            ? 'Upgrade to Starter or above to see who has liked your profile.'
                             : type === 'connection'
                             ? 'Upgrade to access your matched connections and chat with them.'
                             : 'Upgrade your plan to unlock this feature.'}
                     </Text>
                     <TouchableOpacity
-                        onPress={() => router.push('/(root)/screens/PremiumTab' as any)}
+                        onPress={buildUpgradeAction({
+                            planTitle: subscriptionData?.planTitle,
+                            featureName: type === 'viewed' ? 'Who Viewed You' : type === 'whoLikedMe' ? 'Who Liked You' : type === 'connection' ? 'Connections' : 'This Feature',
+                            minPlan: type === 'viewed' ? 'Silver' : type === 'whoLikedMe' ? 'Starter' : undefined,
+                        })}
                         activeOpacity={0.88}
                         style={styles.upgradeBtnWrap}
                     >
@@ -504,7 +564,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 32,
-        paddingTop: Platform.OS === 'ios' ? 60 : 80,
     },
     loadingText: { marginTop: 14, fontSize: 13, color: '#6b7280' },
 

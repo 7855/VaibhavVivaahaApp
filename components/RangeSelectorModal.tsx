@@ -66,8 +66,8 @@ return (
       <View style={styles.centeredModalContent}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>{title}</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeButton}><X size={25}  /></Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={8}>
+            <X size={18} color="#475569" />
           </TouchableOpacity>
         </View>
         
@@ -135,20 +135,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(15,23,42,0.45)',
     padding: 20,
   },
   centeredModalContent: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
     width: '100%',
-    height:'50%',
-    // maxWidth: 500,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    height: '50%',
+    shadowColor: 'rgba(15,35,70,0.15)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
     elevation: 5,
   },
   modalHeader: {
@@ -156,19 +155,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    paddingBottom: 10,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#e2e8f0',
   },
   modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Rubik-Medium',
-    color: '#130001',
+    fontSize: 16,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
+    letterSpacing: -0.2,
   },
   closeButton: {
-    color: '#420001',
-    fontSize: 18,
-    fontFamily: 'Rubik-Bold',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pickersContainer: {
     flexDirection: 'row',
@@ -180,34 +183,42 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   pickerLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
+    fontSize: 12,
+    fontFamily: 'Rubik-Bold',
+    color: '#1F7FE5',
+    marginBottom: 6,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   pickerContainer: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#fff',
+    backgroundColor: '#f8fafc',
   },
   picker: {
-    color: '#130001',
+    color: '#0f1724',
   },
   pickerItem: {
-    color: '#130001',
+    color: '#0f1724',
   },
   applyButton: {
-    backgroundColor: '#420001',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: '#1F7FE5',
+    padding: 14,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#1F7FE5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   applyButtonText: {
-    color: '#DADADA',
-    fontFamily: 'Rubik-Medium',
-    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Rubik-Bold',
+    fontSize: 15,
   },
 });
 

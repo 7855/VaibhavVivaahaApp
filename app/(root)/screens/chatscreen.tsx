@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, StyleSheet, Keyboard, KeyboardAvoidingView, Platform, Animated, ImageBackground, Modal, FlatList, Alert, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, StyleSheet, Keyboard, KeyboardAvoidingView, Platform, Animated, ImageBackground, Modal, FlatList, Alert, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather, Fontisto } from '@expo/vector-icons';
 import { router, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Box, NativeBaseProvider, Pressable, Toast } from 'native-base';
@@ -8,6 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import userApi from '../api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
+import { useAuth } from '../contexts/AuthContext';
+import { webSocketService } from '../services/webSocketService';
 import base64 from 'react-native-base64';
 
 import {
@@ -19,6 +21,7 @@ import {
 } from 'react-native-popup-menu';
 import { SelectList } from 'react-native-dropdown-select-list';
 import { useSubscription } from '../contexts/subscriptionContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 // Remove this import since we're not using Checkbox anymore
 interface Message {
   id: string;
@@ -40,6 +43,7 @@ interface ChatScreenParams {
 function ChatScreen() {
   const { userData } = useUserData();
   const popup = usePopup();
+  const { userId: authUserId, addChatListener, removeChatListener } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
   const route = useLocalSearchParams();
@@ -54,12 +58,19 @@ function ChatScreen() {
   const [userId, setUserId] = useState('');
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // isLoading only ever reflected the premium/subscription check, which resolves almost
+  // instantly since subscriptionData comes from context (already cached app-wide) — so the
+  // loading screen disappeared well before the actual conversation content (messages, other
+  // user's online status, verification badges) had finished fetching, and the chat screen
+  // popped in its real content late/blank-looking right after. This tracks that fetch instead.
+  const [contentLoading, setContentLoading] = useState(true);
   const [error, setError] = useState('');
   const [chatStatus, setChatStatus] = useState('');
   const [initiatedBy, setInitiatedBy] = useState('');
   const [decryptedUserId, setDecryptedUserId] = useState<string>('');
   const [myProfile, setMyProfile] = useState<string>('');
   const [otherProfile, setOtherProfile] = useState<string>(profileImage || '');
+  const [otherUserGender, setOtherUserGender] = useState<string>((route.otherUserGender as string) || '');
   const animatedKeyboardHeight = useRef(new Animated.Value(0)).current;
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
@@ -329,31 +340,33 @@ function ChatScreen() {
 
 
   const inputTranslateY = useRef(new Animated.Value(0)).current;
+  // KeyboardAvoidingView's own 'padding' behavior on iOS measures its own onLayout position to
+  // decide how much space to reserve, and in this screen that measurement was evidently landing
+  // short (input still ends up behind the keyboard). Rather than guess at another automatic
+  // behavior, track the REAL keyboard height reported by the OS event directly and apply it as
+  // explicit bottom padding ourselves — deterministic, no reliance on KeyboardAvoidingView's
+  // internal frame math. Android keeps relying on windowSoftInputMode="adjustResize" (already
+  // resizes the window natively), so this stays 0 there.
+  const [iosKeyboardHeight, setIosKeyboardHeight] = useState(0);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
-        Animated.timing(inputTranslateY, {
-          toValue: -e.endCoordinates.height + 275,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
         setChatPadding(70); // ✅ Increase padding when keyboard is shown
-
+        if (Platform.OS === 'ios') {
+          setIosKeyboardHeight(e?.endCoordinates?.height || 0);
+        }
       }
     );
 
     const hideSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
-        Animated.timing(inputTranslateY, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
         setChatPadding(10); // ✅ Increase padding when keyboard is shown
-
+        if (Platform.OS === 'ios') {
+          setIosKeyboardHeight(0);
+        }
       }
     );
 
@@ -447,6 +460,7 @@ function ChatScreen() {
               educationVerified: d.educationVerified === true,
               incomeVerified: d.incomeVerified === true,
             });
+            if (d.gender) setOtherUserGender(d.gender);
           }
         } catch (_) {}
         const response = await userApi.getConversationData(conversationId);
@@ -492,16 +506,113 @@ function ChatScreen() {
       }
     };
 
-    fetchConversation();
-    fetchConversationStatus();
+    setContentLoading(true);
+    Promise.allSettled([fetchConversation(), fetchConversationStatus()]).finally(() => {
+      setContentLoading(false);
+    });
 
   }, [conversationId]);
+
+  // Live delivery: the backend already pushes a WebSocket 'chat_message' event to the receiver
+  // on every send (see ChatService.sendChatMessage), but nothing on this screen was ever
+  // listening for it — messages only ever showed up on the NEXT full fetch (e.g. re-opening the
+  // screen), never live while both sides were already chatting. Re-fetch from the same source of
+  // truth used everywhere else in this file (rather than hand-building the message shape from
+  // the WS payload, which lacks the DB row id / isRead / displayDateGroup).
+  useEffect(() => {
+    // AuthContext's userId is loaded asynchronously from AsyncStorage (see its checkUserStatus),
+    // separate from decryptedUserId here (derived from UserDataContext). This screen can mount
+    // and reach this effect before that async check resolves, in which case addChatListener bails
+    // out silently ("Cannot add chat listener: User not logged in") and, without authUserId in the
+    // dependency array, never retries — live message delivery would just never attach for that
+    // session. Depending on it here makes the effect re-run the moment auth finishes loading.
+    if (!authUserId) return;
+
+    const handleIncomingMessage = (data: any) => {
+      if (!data || String(data.conversationId) !== String(conversationId)) return;
+      userApi.getConversationData(conversationId).then((response) => {
+        if (response.data && response.data.data) {
+          const formattedMessages = response.data.data.map((msg: any) => ({
+            id: msg.id,
+            text: msg.message,
+            senderId: msg.senderId,
+            timestamp: formatDate(msg.createdAt),
+            isRead: msg.isRead,
+            sender: msg.senderId == decryptedUserId ? 'me' : 'other',
+            displayDateGroup: getDisplayDate(msg.createdAt),
+          }));
+          setMessages(formattedMessages.reverse());
+        }
+      }).catch((error) => console.error('Error refreshing conversation after live message:', error));
+
+      // markAsRead was previously only ever called once on mount (see the effect above), so a
+      // message that arrived live WHILE this screen was already open was shown to the reader but
+      // never actually marked read in the DB — the sender's tick stayed single-grey forever and
+      // the conversation list badge/bold-text never cleared even though the reader had plainly
+      // seen it. Since we're already open and looking at this conversation, mark it read the
+      // moment a new message lands; this also triggers the backend's 'message_read' WS push back
+      // to the sender, flipping their tick to blue live.
+      if (conversationId && decryptedUserId) {
+        userApi.markAsRead(parseInt(conversationId), parseInt(decryptedUserId)).catch(() => {});
+      }
+    };
+
+    addChatListener(handleIncomingMessage);
+    return () => removeChatListener();
+  }, [conversationId, decryptedUserId, authUserId]);
+
+  // Live read receipts: markMessagesAsRead (called when the OTHER person opens/views this
+  // conversation) now also pushes a 'message_read' WS event to us, the original sender — before
+  // this, our sent messages' tick only ever flipped from single-grey to double-blue on the next
+  // full re-fetch (e.g. leaving and re-opening the screen), never while both were still actively
+  // chatting. Uses webSocketService directly since AuthContext's addChatListener is hardcoded to
+  // the separate 'chat_message' channel only.
+  useEffect(() => {
+    const handleReadReceipt = (data: any) => {
+      if (!data || String(data.conversationId) !== String(conversationId)) return;
+      userApi.getConversationData(conversationId).then((response) => {
+        if (response.data && response.data.data) {
+          const formattedMessages = response.data.data.map((msg: any) => ({
+            id: msg.id,
+            text: msg.message,
+            senderId: msg.senderId,
+            timestamp: formatDate(msg.createdAt),
+            isRead: msg.isRead,
+            sender: msg.senderId == decryptedUserId ? 'me' : 'other',
+            displayDateGroup: getDisplayDate(msg.createdAt),
+          }));
+          setMessages(formattedMessages.reverse());
+        }
+      }).catch((error) => console.error('Error refreshing conversation after read receipt:', error));
+    };
+
+    webSocketService.addListener('message_read', handleReadReceipt);
+    return () => webSocketService.removeListener('message_read');
+  }, [conversationId, decryptedUserId]);
+
+  // Online status / last seen has no live push at all on the backend (no WebSocket broadcast
+  // on connect/disconnect) — it was only ever fetched once on mount, so it went stale for the
+  // whole time two people stayed in an open chat. Lightweight polling is a much smaller change
+  // than building a full presence-broadcast system for what only needs to be "reasonably fresh"
+  // in a matrimony chat, not real-time-precise.
+  useEffect(() => {
+    if (!otherUserId) return;
+    const pollOnlineStatus = async () => {
+      try {
+        const onlineStatusResponse = await userApi.getUserOnlineStatus(otherUserId);
+        setIsOtherUserOnline(onlineStatusResponse.data.data.isOnline);
+        setOtherUserLastseenTime(formatLastSeenTime(onlineStatusResponse.data.data.lastSeen));
+      } catch (_) { }
+    };
+    const intervalId = setInterval(pollOnlineStatus, 15000);
+    return () => clearInterval(intervalId);
+  }, [otherUserId]);
 
   const handleSend = async () => {
     if (!isPremium) {
       popup.premiumRequired(
         'Upgrade to Premium to send messages and unlock unlimited chats.',
-        () => router.push('/(root)/screens/PremiumTab')
+        buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Send Message' })
       );
       return;
     }
@@ -546,8 +657,14 @@ function ChatScreen() {
         sender: 'me'
       };
 
-      // Update local state first for instant UI update
-      setMessages(prev => [...prev, newMessage]);
+      // Update local state first for instant UI update. The FlatList is `inverted` and every
+      // other place messages get loaded (getConversationData) stores them NEWEST-FIRST
+      // (.reverse() after the chronological fetch) — index 0 renders at the visual bottom in an
+      // inverted list. Appending here put the new message at the END of the array instead,
+      // which rendered at the visual TOP (often off the currently-scrolled-into-view messages)
+      // until the next WS-triggered refetch re-sorted everything — that's the "message shows at
+      // the top with older ones below it, then corrects itself a couple seconds later" bug.
+      setMessages(prev => [newMessage, ...prev]);
       setInputText('');
 
       // console.log("inputText=======================>", inputText);
@@ -572,12 +689,12 @@ function ChatScreen() {
             const limit = resData?.data?.limit || 5;
             popup.premiumRequired(
               `You've used all ${limit} conversations in your plan. Upgrade to Classic or above for unlimited chats.`,
-              () => router.push('/(root)/screens/PremiumTab' as any)
+              buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Unlimited Chats', minPlan: 'Classic' })
             );
           } else {
             popup.premiumRequired(
               'Upgrade your plan to send messages.',
-              () => router.push('/(root)/screens/PremiumTab' as any)
+              buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Send Message' })
             );
           }
           return;
@@ -594,7 +711,7 @@ function ChatScreen() {
             errData?.message === 'CHAT_LIMIT_REACHED'
               ? `You've used all ${errData?.data?.limit || 5} conversations. Upgrade for unlimited chats.`
               : 'Upgrade your plan to send messages.',
-            () => router.push('/(root)/screens/PremiumTab' as any)
+            buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Send Message' })
           );
           return;
         }
@@ -691,7 +808,8 @@ function ChatScreen() {
 
   const LoadingScreen = () => (
     <View style={styles.loadingContainer}>
-      <Text style={styles.loadingText}>Checking your premium status...</Text>
+      <ActivityIndicator size="large" color="#420001" />
+      <Text style={[styles.loadingText, { marginTop: 14 }]}>Loading conversation...</Text>
       {error && (
         <Text style={styles.errorText}>{error}</Text>
       )}
@@ -701,7 +819,7 @@ function ChatScreen() {
   const PremiumRequiredScreen = () => (
     <TouchableOpacity
       style={styles.premiumContainer}
-      onPress={() => router.replace('/(root)/screens/PremiumTab')}
+      onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Messaging' })}
     >
       <View style={styles.premiumContent}>
         <Ionicons name="lock-closed" size={40} color="#ec4899" />
@@ -711,7 +829,7 @@ function ChatScreen() {
         </Text>
         <Pressable
           style={styles.upgradeButton}
-          onPress={() => router.replace('/(root)/screens/PremiumTab')}
+          onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Messaging' })}
         >
           <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
         </Pressable>
@@ -719,7 +837,7 @@ function ChatScreen() {
     </TouchableOpacity>
   );
 
-  if (isLoading) {
+  if (isLoading || contentLoading) {
     return <NativeBaseProvider>
       <LoadingScreen />
     </NativeBaseProvider>
@@ -753,15 +871,23 @@ function ChatScreen() {
                 onPress={() => router.push(`/screens/ProfileDetail?userId=${otherUserId}`)}
               >
                 <Image
-                  source={otherProfile ? { uri: otherProfile } : require('../../../assets/images/defaultAvatar.png')}
+                  source={
+                    otherProfile
+                      ? { uri: otherProfile }
+                      : otherUserGender === 'M'
+                      ? require('../../../assets/images/avatarMen.png')
+                      : otherUserGender === 'F'
+                      ? require('../../../assets/images/avatarWomen.png')
+                      : require('../../../assets/images/defaultAvatar.png')
+                  }
                   style={styles.profileImage}
                   resizeMode="cover"
                 />
                 <View style={styles.headerTextContainer}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
                     <Text style={styles.headerTitle} numberOfLines={1}
                       ellipsizeMode="tail">{otherUserName}</Text>
-                    <View style={{ marginLeft: 6 }}>
+                    <View style={{ marginLeft: 6, flexShrink: 0 }}>
                       <VerifiedBadges
                         idVerified={otherUserVerifications.idVerified}
                         educationVerified={otherUserVerifications.educationVerified}
@@ -867,9 +993,16 @@ function ChatScreen() {
             </View>
 
             {/* Chat and Input */}
+            {/* Android's manifest already sets windowSoftInputMode="adjustResize", which resizes
+                the whole window when the keyboard opens — no manual compensation needed there.
+                iOS doesn't auto-resize, but KeyboardAvoidingView's own 'padding' behavior kept
+                leaving the input behind the keyboard on this screen, so behavior is left
+                undefined on BOTH platforms and iOS gets an explicit paddingBottom driven by the
+                real measured keyboard height (iosKeyboardHeight, set above from the
+                keyboardWillShow/Hide events) instead. */}
             <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={{ flex: 1 }}
+              behavior={undefined}
+              style={{ flex: 1, paddingBottom: Platform.OS === 'ios' ? iosKeyboardHeight : 0 }}
             >
               <View style={{ flex: 1 }}>
                 {/* Messages */}
@@ -879,6 +1012,10 @@ function ChatScreen() {
                   keyExtractor={(item) => item.id.toString()}
                   contentContainerStyle={[styles.messagesContainer, { paddingTop: chatPadding }]}
                   keyboardShouldPersistTaps="handled"
+                  windowSize={10}
+                  initialNumToRender={15}
+                  maxToRenderPerBatch={10}
+                  removeClippedSubviews={true}
                   renderItem={({ item, index }) => {
                     const isMyMessage = item.senderId == decryptedUserId;
                     const showDateSeparator =
@@ -894,7 +1031,18 @@ function ChatScreen() {
 
                         <View style={isMyMessage ? styles.messageRightContainer : styles.messageLeftContainer}>
                           {!isMyMessage && (
-                            <Image source={profileImage ? { uri: profileImage } : require('../../../assets/images/defaultAvatar.png')} style={styles.avatar} />
+                            <Image
+                              source={
+                                profileImage
+                                  ? { uri: profileImage }
+                                  : otherUserGender === 'M'
+                                  ? require('../../../assets/images/avatarMen.png')
+                                  : otherUserGender === 'F'
+                                  ? require('../../../assets/images/avatarWomen.png')
+                                  : require('../../../assets/images/defaultAvatar.png')
+                              }
+                              style={styles.avatar}
+                            />
                           )}
 
                           <View style={isMyMessage ? styles.messageMetaRight : styles.messageMetaLeft}>
@@ -906,7 +1054,7 @@ function ChatScreen() {
                               </Text>
                               {isMyMessage &&
                                 (item.isRead ? (
-                                  <Ionicons name="checkmark-done-sharp" size={16} color="gray" />
+                                  <Ionicons name="checkmark-done-sharp" size={16} color="#34B7F1" />
                                 ) : (
                                   <Ionicons name="checkmark-sharp" size={16} color="gray" />
                                 ))}
@@ -914,7 +1062,18 @@ function ChatScreen() {
                           </View>
 
                           {isMyMessage && (
-                            <Image source={myProfile ? { uri: myProfile } : require('../../../assets/images/defaultAvatar.png')} style={styles.avatar} />
+                            <Image
+                              source={
+                                myProfile
+                                  ? { uri: myProfile }
+                                  : userData.gender === 'M'
+                                  ? require('../../../assets/images/avatarMen.png')
+                                  : userData.gender === 'F'
+                                  ? require('../../../assets/images/avatarWomen.png')
+                                  : require('../../../assets/images/defaultAvatar.png')
+                              }
+                              style={styles.avatar}
+                            />
                           )}
                         </View>
                       </View>
@@ -925,7 +1084,18 @@ function ChatScreen() {
                 {/* Input */}
                 <Animated.View style={[styles.inputContainer, { transform: [{ translateY: inputTranslateY }] }]}>
 
-                  <Image source={myProfile ? { uri: myProfile } : require('../../../assets/images/defaultAvatar.png')} style={styles.avatar} />
+                  <Image
+                    source={
+                      myProfile
+                        ? { uri: myProfile }
+                        : userData.gender === 'M'
+                        ? require('../../../assets/images/avatarMen.png')
+                        : userData.gender === 'F'
+                        ? require('../../../assets/images/avatarWomen.png')
+                        : require('../../../assets/images/defaultAvatar.png')
+                    }
+                    style={styles.avatar}
+                  />
                   <View style={styles.inputFieldWrapper}>
                     <TextInput
                       placeholder="Message"
@@ -1082,8 +1252,7 @@ const styles = StyleSheet.create({
   },
   headerTextContainer: {
     flex: 1,
-    marginBottom: 10
-
+    justifyContent: 'center',
   },
   profileImage: {
     width: 45,
@@ -1097,15 +1266,15 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: 'Rubik-Bold',
     color: '#DADADA',
-    marginTop: 4,
-    marginBottom: 2,
-    // flex: 1, // Takes up available space
-    // overflow: 'hidden', 
+    flexShrink: 1,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   lastSeen: {
     fontSize: 12,
     color: '#DADADA',
     opacity: 0.7,
+    includeFontPadding: false,
   },
   messageLeft: {
     backgroundColor: '#FFFFFF',

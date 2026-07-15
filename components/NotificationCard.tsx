@@ -39,10 +39,6 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onMar
         return `${Math.floor(diffInMinutes / 1440)}d ago`;
     };
 
-    const getInitials = (name?: string) => {
-        return name?.charAt(0).toUpperCase() || 'U';
-    };
-
     return (
         <View style={[styles.card, !notification.isRead && styles.unreadCard]}>
             {!notification.isRead && (
@@ -54,13 +50,10 @@ const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onMar
             <View style={styles.contentWrapper}>
                 {/* Avatar */}
                 <View style={styles.avatarWrapper}>
-                    {notification.avatar ? (
-                        <Image source={{ uri: notification.avatar }} style={styles.avatar} />
-                    ) : (
-                        <View style={styles.avatarFallback}>
-                            <Text style={styles.avatarInitial}>{getInitials(notification.userName)}</Text>
-                        </View>
-                    )}
+                    <Image
+                        source={notification.avatar ? { uri: notification.avatar } : require('../assets/images/defaultAvatar.png')}
+                        style={styles.avatar}
+                    />
                     {/* <View style={styles.iconWrapper}>{getIcon()}</View> */}
                 </View>
 
@@ -159,19 +152,6 @@ const styles = StyleSheet.create({
         borderRadius: 21,
         borderWidth: 2,
         borderColor: '#F6B733',
-    },
-    avatarFallback: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
-        backgroundColor: '#420001',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarInitial: {
-        color: '#F6B733',
-        fontSize: 16,
-        fontFamily: 'Rubik-Bold',
     },
     iconWrapper: {
 

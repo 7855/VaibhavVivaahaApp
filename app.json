@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/LotusLogo.jpeg",
+    "icon": "./assets/images/vaibhavsplash.jpeg",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/LotusLogo.jpeg",
+        "foregroundImage": "./assets/images/vaibhavsplash.jpeg",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.vaibhavvivaaha.app",
@@ -31,10 +31,17 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/LotusLogo.jpeg"
+      "favicon": "./assets/images/vaibhavsplash.jpeg"
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notificationIcon.png",
+          "color": "#420001"
+        }
+      ],
       [
         "expo-font",
         {

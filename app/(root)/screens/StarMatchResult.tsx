@@ -88,7 +88,7 @@
 //   const getPoruthamIcon = (key: string) => {
 //     const icons: Record<string, string> = {
 //       nadi: 'water',
-//       rajju: 'rope',
+//       rajju: 'link-variant',
 //       gana: 'account-group',
 //       yoni: 'paw',
 //       mahendra: 'crown',
@@ -630,7 +630,7 @@ const StarMatchResult = () => {
   const getPoruthamIcon = (key: string) => {
     const icons: Record<string, string> = {
       nadi: 'water',
-      rajju: 'rope',
+      rajju: 'link-variant',
       gana: 'account-group',
       yoni: 'paw',
       mahendra: 'crown',
@@ -644,10 +644,25 @@ const StarMatchResult = () => {
   };
 
   const handleShare = async () => {
+    if (!result || !formData) return;
     try {
-      await Share.share({
-        message: `Check out our compatibility score: ${result?.percentage}% - ${result?.verdict}`,
-      });
+      const parsed: FormData = JSON.parse(formData as string);
+      const emoji = (r: string) => r === 'PASS' ? '✅' : r === 'FAIL' ? '❌' : '⚠️';
+      const lines = result.results.map(r => `${emoji(r.result)} ${r.name}: ${r.score}/${r.weight}`);
+      const message = [
+        `🌟 Jathaga Porutham Result`,
+        `👰 Bride: ${parsed.bride.name} (${parsed.bride.star} / ${parsed.bride.rasi})`,
+        `🤵 Groom: ${parsed.groom.name} (${parsed.groom.star} / ${parsed.groom.rasi})`,
+        ``,
+        `📊 Score: ${result.score}/${result.totalWeight} Points (${result.percentage}%)`,
+        `🏆 Verdict: ${result.verdict}`,
+        ``,
+        `Detailed Porutham:`,
+        ...lines,
+        ``,
+        `Checked via Vaibhav Vivaaha Matrimony`,
+      ].join('\n');
+      await Share.share({ message });
     } catch (error) {
       console.error(error);
     }
@@ -657,7 +672,7 @@ const StarMatchResult = () => {
   if (isLoading || !result) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6c5ce7" />
+        <ActivityIndicator size="large" color="#1F7FE5" />
         <Text style={styles.loadingText}>Analyzing compatibility...</Text>
       </View>
     );
@@ -665,16 +680,16 @@ const StarMatchResult = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            {/* <MaterialIcons name="arrow-back-ios" size={24} color="#fff" /> */}
+            <MaterialIcons name="chevron-left" size={22} color="#1F7FE5" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Compatibility Result</Text>
           <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-            <MaterialIcons name="share" size={24} color="#420001" />
+            <MaterialIcons name="share" size={24} color="#1F7FE5" />
           </TouchableOpacity>
         </View>
 
@@ -723,10 +738,10 @@ const StarMatchResult = () => {
           {/* Results List */}
           <View style={styles.resultsContainer}>
             {result.results.map((item) => (
-              <View key={item.key} style={styles.resultCard}>
+              <View key={item.key} style={[styles.resultCard, { borderLeftColor: getResultColor(item.result) }]}>
                 <View style={styles.resultContent}>
                   <View style={styles.resultHeader}>
-                    <View style={[styles.resultBadge, { backgroundColor: `${getResultColor(item.result)}20`, borderColor: getResultColor(item.result) }]}>
+                    <View style={[styles.resultBadge, { backgroundColor: `${getResultColor(item.result)}15`, borderColor: getResultColor(item.result) }]}>
                       <Text style={[styles.resultBadgeText, { color: getResultColor(item.result) }]}>{item.result}</Text>
                     </View>
                     <Text style={styles.resultScore}>{item.score} / {item.weight}</Text>
@@ -734,7 +749,7 @@ const StarMatchResult = () => {
                   <Text style={styles.resultName}>{item.name}</Text>
                   <Text style={styles.resultReason}>{item.reason}</Text>
                 </View>
-                <View style={[styles.resultIcon, { backgroundColor: `${getResultColor(item.result)}10` }]}>
+                <View style={[styles.resultIcon, { backgroundColor: `${getResultColor(item.result)}15` }]}>
                   <MaterialCommunityIcons
                     name={getPoruthamIcon(item.key)}
                     size={28}
@@ -765,21 +780,21 @@ const StarMatchResult = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0d0b1a',
+    backgroundColor: '#f3f7fa',
   },
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#f3f7fa',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0d0b1a',
+    backgroundColor: '#f3f7fa',
   },
   loadingText: {
     marginTop: 16,
-    color: '#DADADA',
+    color: '#1F7FE5',
     fontSize: 16,
   },
   header: {
@@ -787,16 +802,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    // backgroundColor: 'rgba(13, 11, 26, 0.9)',
   },
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    shadowColor: 'rgba(15,35,70,0.06)',
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   headerTitle: {
-    color: '#420001',
+    color: '#0f1724',
     fontSize: 18,
     fontFamily: 'Rubik-Bold',
     textAlign: 'center',
@@ -814,7 +835,7 @@ const styles = StyleSheet.create({
   scoreCard: {
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#ffe0e0',
+    backgroundColor: '#dfecfb',
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
@@ -822,21 +843,21 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: '#420001',
+    backgroundColor: '#1F7FE5',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 10,
-    borderColor: '#b91c1c',
+    borderColor: '#1862b8',
     marginBottom: 24,
   },
   scorePercentage: {
     fontSize: 42,
     fontFamily: 'Rubik-Bold',
-    color: '#DADADA',
+    color: '#ffffff',
   },
   scoreLabel: {
     fontSize: 14,
-    color: '#a5b4fc',
+    color: 'rgba(255,255,255,0.8)',
     fontFamily: 'Rubik-Medium',
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -861,21 +882,21 @@ const styles = StyleSheet.create({
   verdictTitle: {
     fontSize: 24,
     fontFamily: 'Rubik-Bold',
-    color: '#420001',
+    color: '#1F7FE5',
     marginBottom: 4,
   },
   verdictSubtitle: {
     fontSize: 14,
-    color: '#b91c1c',
+    color: '#1862b8',
     textAlign: 'center',
   },
   scoreSummary: {
     width: '100%',
-    backgroundColor: 'rgba(50, 17, 212, 0.1)',
+    backgroundColor: '#eef6fd',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(50, 17, 212, 0.2)',
+    borderColor: '#cfe4f7',
   },
   scoreHeader: {
     flexDirection: 'row',
@@ -883,20 +904,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   scoreHeaderText: {
-    color: '#b91c1c',
+    color: '#1862b8',
     fontSize: 12,
     fontFamily: 'Rubik-Medium',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   scoreValue: {
-    color: '#420001',
+    color: '#1F7FE5',
     fontSize: 14,
     fontFamily: 'Rubik-Medium',
   },
   progressBar: {
     height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#e5e7eb',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -913,7 +934,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    color: '#420001',
+    color: '#1F7FE5',
     fontSize: 20,
     fontFamily: 'Rubik-Bold',
   },
@@ -928,12 +949,16 @@ const styles = StyleSheet.create({
   },
   resultCard: {
     flexDirection: 'row',
-    backgroundColor: '#420001',
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   resultContent: {
     flex: 1,
@@ -957,18 +982,18 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   resultScore: {
-    color: '#fbbf24',
+    color: '#1F7FE5',
     fontSize: 12,
     fontFamily: 'Rubik-Medium',
   },
   resultName: {
-    color: '#DADADA',
+    color: '#1a1a1a',
     fontSize: 16,
     fontFamily: 'Rubik-Medium',
     marginBottom: 4,
   },
   resultReason: {
-    color: '#9ca3af',
+    color: '#64748b',
     fontSize: 13,
     lineHeight: 18,
   },
@@ -984,20 +1009,25 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(13, 11, 26, 0.9)',
+    backgroundColor: '#fff',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -2 },
+    elevation: 4,
   },
   actionButton: {
-    backgroundColor: '#ffe0e0',
+    backgroundColor: '#dfecfb',
     height: 56,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   actionButtonText: {
-    color: '#420001',
+    color: '#1F7FE5',
     fontSize: 16,
     fontFamily: 'Rubik-Medium',
   },

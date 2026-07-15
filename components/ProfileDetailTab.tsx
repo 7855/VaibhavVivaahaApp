@@ -8,13 +8,14 @@ import userApi from '../app/(root)/api/userApi';
 import { Alert } from 'react-native';
 import FIcon from '@expo/vector-icons/Feather'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
 import { ScrollView } from 'react-native';
 import InterestChipGrid from './InterestChipGrid';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionsheetBackdrop } from './ActionSheet';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePopup } from '../app/(root)/contexts/PopupContext';
+import { useSubscription } from '../app/(root)/contexts/subscriptionContext';
+import { buildUpgradeAction } from '../app/(root)/utils/upgradeNavigation';
 
 
 const FirstRoute = ({
@@ -36,6 +37,7 @@ const FirstRoute = ({
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const popup = usePopup();
+  const { subscriptionData } = useSubscription() || {};
   const [revealedContact, setRevealedContact] = useState<{ mobile?: string; email?: string } | null>(null);
 
   useEffect(() => {
@@ -202,7 +204,7 @@ const FirstRoute = ({
 
                           {normalizedKey === 'mobileNumber' && !isPremium ? (
                             // 🔒 Free/Starter — no contact access at all
-                            <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                            <TouchableOpacity activeOpacity={0.7} onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Contact Details', minPlan: 'Classic' })} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
                               <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
                                 <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                               </View>
@@ -229,12 +231,12 @@ const FirstRoute = ({
                                   const limit = res.data?.data?.limit || 40;
                                   popup.premiumRequired(
                                     `You've used all ${limit} contact reveals. Upgrade to Silver for unlimited access.`,
-                                    () => router.push('/(root)/screens/PremiumTab' as any)
+                                    buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Contact Reveal', minPlan: 'Silver' })
                                   );
                                 } else {
                                   popup.premiumRequired(
                                     'Upgrade to Classic or above to view contacts.',
-                                    () => router.push('/(root)/screens/PremiumTab' as any)
+                                    buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Contact Reveal', minPlan: 'Classic' })
                                   );
                                 }
                               } catch (e) {
@@ -366,7 +368,7 @@ const FirstRoute = ({
 };
 
 
-const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: string) => void, isPremium = false) => (
+const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: string) => void, isPremium = false, planTitle?: string) => (
   <Box width="100%" alignItems="center">
     <Box
       width="full"
@@ -428,7 +430,7 @@ const renderDetailBox = (title: string, details: any, onHoroscopePress?: (uri: s
                     />
                   )
                 ) : (
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                  <TouchableOpacity activeOpacity={0.7} onPress={buildUpgradeAction({ planTitle, featureName: 'Contact & Horoscope' })} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
                     <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
                       <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                     </View>
@@ -480,6 +482,7 @@ const SecondRoute = ({
   const [horoscopePermission, setHoroscopePermission] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { subscriptionData } = useSubscription() || {};
 
   useEffect(() => {
     const loadUserId = async () => {
@@ -701,7 +704,7 @@ const SecondRoute = ({
                                 </TouchableOpacity>
                               )
                             ) : (
-                              <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                              <TouchableOpacity activeOpacity={0.7} onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Horoscope' })} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
                                 <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
                                   <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                                 </View>
@@ -715,7 +718,7 @@ const SecondRoute = ({
                           ) : key === 'Star' || key === 'Moonsign' || key === 'Dosham' ? (
                             isPremium ? (
                               isHidden ? (
-                                <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                                <TouchableOpacity activeOpacity={0.7} onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Star, Moonsign & Dosham' })} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
                                   <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
                                     <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                                   </View>
@@ -739,7 +742,7 @@ const SecondRoute = ({
                                 />
                               )
                             ) : (
-                              <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(root)/screens/PremiumTab' as any)} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
+                              <TouchableOpacity activeOpacity={0.7} onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Star, Moonsign & Dosham' })} style={{ backgroundColor: '#fff7ed', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' }}>
                                 <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffedd5', alignItems: 'center', justifyContent: 'center' }}>
                                   <Ionicons name="diamond-outline" size={14} color="#c2410c" />
                                 </View>
@@ -779,25 +782,31 @@ const SecondRoute = ({
   );
 };
 
-const ThirdRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
+const ThirdRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => {
+    const { subscriptionData } = useSubscription() || {};
+    return (
     <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
-          {renderDetailBox('Education Details', data, undefined, isPremium)}
+          {renderDetailBox('Education Details', data, undefined, isPremium, subscriptionData?.planTitle)}
         </View>
       </ScrollView>
     </SafeAreaView>
-);
+    );
+};
 
-const FourthRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => (
+const FourthRoute = ({ data, isPremium }: { data: any; isPremium: boolean }) => {
+    const { subscriptionData } = useSubscription() || {};
+    return (
     <SafeAreaView edges={['right', 'left', 'top']} style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}>
         <View style={{ flexGrow: 1, padding: 10, alignItems: 'center' }}>
-          {renderDetailBox('Family Details', data, undefined, isPremium)}
+          {renderDetailBox('Family Details', data, undefined, isPremium, subscriptionData?.planTitle)}
         </View>
       </ScrollView>
     </SafeAreaView>
-);
+    );
+};
 
 const FifthRoute = ({ data }: { data: any }) => {
   const hobbies: string[] = data?._hobbies || [];

@@ -17,6 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
+import { useSubscription } from '../contexts/subscriptionContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 
 type DocumentType = 'SALARY_SLIP' | 'ITR' | 'OFFER_LETTER' | 'OTHER';
 
@@ -38,6 +40,7 @@ interface LatestSubmission {
 
 export default function IncomeVerificationScreen() {
   const popup = usePopup();
+  const { subscriptionData } = useSubscription() || {};
   const [encodedUserId, setEncodedUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -131,7 +134,7 @@ export default function IncomeVerificationScreen() {
       } else if (res.data.code === 403) {
         popup.premiumRequired(
           'Upgrade to Gold or Platinum to verify your income.',
-          () => router.push('/(root)/screens/PremiumTab' as any)
+          buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Income Verification', minPlan: 'Gold' })
         );
       } else if (res.data.code === 409) {
         popup.warning(
@@ -145,7 +148,7 @@ export default function IncomeVerificationScreen() {
       if (e?.response?.data?.code === 403) {
         popup.premiumRequired(
           'Upgrade to Gold or Platinum to verify your income.',
-          () => router.push('/(root)/screens/PremiumTab' as any)
+          buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Income Verification', minPlan: 'Gold' })
         );
       } else {
         popup.error('Upload failed', e?.response?.data?.message || 'Network error. Please try again.');

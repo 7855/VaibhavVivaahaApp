@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://vaibhavvivaahamatrimony.com/BE';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://bf66-3-110-153-18.ngrok-free.app';
 
 const axiosClient = axios.create({
   baseURL: API_URL,

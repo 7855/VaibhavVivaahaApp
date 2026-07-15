@@ -1,6 +1,19 @@
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { LogBox, Platform } from 'react-native';
+
+// _layout.tsx already registers this same ignore pattern, but that call can lose the race:
+// Babel's CommonJS transform hoists ALL `import` statements (and their full module evaluation)
+// above other top-level statements in a file, so if anything upstream of _layout.tsx's own
+// imports transitively pulls in this file before _layout.tsx's LogBox.ignoreLogs(...) line runs,
+// the require() below fires — and expo-notifications logs this via a synchronous
+// module-level console.error the instant it's required in Expo Go on Android SDK 53+ — before
+// the ignore pattern is registered at all. Registering it again right here, immediately before
+// the require it's guarding, removes any ordering ambiguity: same file, same synchronous
+// execution, guaranteed to run first.
+LogBox.ignoreLogs([
+  'Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go',
+]);
 
 // expo-notifications crashes on Expo Go (Android) since SDK 53.
 // Lazy-import so the rest of the app still loads in Expo Go.

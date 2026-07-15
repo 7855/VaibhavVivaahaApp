@@ -21,7 +21,7 @@ import Animated, {
   withRepeat, withSequence, withDelay,
   runOnJS, Easing, interpolate,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../app/(root)/contexts/AuthContext';
 import { useUserData } from '../app/(root)/contexts/UserDataContext';
@@ -377,7 +377,7 @@ const SupportFAB: React.FC = () => {
   return (
     <>
       {/* ── FAB Button (3D) ── */}
-      <GestureHandlerRootView style={S.fabRoot}>
+      <View style={S.fabRoot}>
         <GestureDetector gesture={composedGesture}>
           <Animated.View style={[S.fab, fabStyle]}>
             {/* Speech cloud */}
@@ -413,7 +413,7 @@ const SupportFAB: React.FC = () => {
             )}
           </Animated.View>
         </GestureDetector>
-      </GestureHandlerRootView>
+      </View>
 
       {/* ── Tooltip Chat Bubble (no Modal — pure animated overlay) ── */}
       {chatOpen && (

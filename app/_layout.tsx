@@ -1,15 +1,31 @@
 import { LogBox, BackHandler } from 'react-native';
+import { enableFreeze } from 'react-native-screens';
 // NativeBase still calls the removed BackHandler.removeEventListener API.
 // Polyfill it as a no-op so it doesn't crash navigation on RN 0.74+.
 if (typeof (BackHandler as any).removeEventListener !== 'function') {
   (BackHandler as any).removeEventListener = () => ({ remove: () => {} });
 }
+
+// Expo Router's bottom tabs never unmount on navigation — pushing chatscreen.tsx on top of the
+// "Chat" tab leaves the conversation list (60+ rows: gradients, gesture handlers, WS listeners,
+// entrance animations) fully mounted and rendering in the background the whole time. That
+// background work competes with the foreground screen's own touch handling, which is exactly
+// why buttons on chatscreen.tsx (send, back arrow) needed several taps to register — nothing
+// wrong with those buttons specifically, the UI thread was just busy with an off-screen tab.
+// enableFreeze pauses non-focused screens' rendering/effects (via react-freeze) instead of
+// leaving them fully live in the background.
+enableFreeze(true);
 LogBox.ignoreLogs([
   'BackHandler.removeEventListener',
   'SafeAreaView has been deprecated',
+  // expo-notifications logs this via console.error the moment it's required in Expo
+  // Go on Android SDK 53+ — remote push genuinely isn't supported there (Expo platform
+  // limitation), and deviceInfo.ts already falls back gracefully. Non-fatal noise only.
+  'Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go',
 ]);
 
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -23,7 +39,7 @@ import { UserDataProvider } from './(root)/contexts/UserDataContext';
 import { PopupProvider } from './(root)/contexts/PopupContext';
 import { NativeBaseProvider } from 'native-base';
 import NoInternetOverlay from '../components/NoInternetOverlay';
-import SupportFAB from '../components/SupportFAB';
+import QuickAccessFAB from '../components/QuickAccessFAB';
 // ... other imports
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -49,25 +65,31 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <UserDataProvider>
-        <MasterProvider>
-          <SubscriptionProvider>
-            <AuthProvider>
-              <NativeBaseProvider>
-                <PopupProvider>
-                  <AlertNotificationRoot>
-                    <StatusBar style="auto" />
-                    <Stack screenOptions={{ headerShown: false }} />
-                    <SupportFAB />
-                    <NoInternetOverlay />
-                  </AlertNotificationRoot>
-                </PopupProvider>
-              </NativeBaseProvider>
-            </AuthProvider>
-          </SubscriptionProvider>
-        </MasterProvider>
-      </UserDataProvider>
-    </SafeAreaProvider>
+    // Single app-wide GestureHandlerRootView. FAB components (QuickAccessFAB,
+    // SupportFAB) must NOT wrap themselves in their own — a second, full-screen
+    // GestureHandlerRootView doesn't reliably honor pointerEvents="box-none" on
+    // Android and ends up swallowing every touch on screen except its own content.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <UserDataProvider>
+          <MasterProvider>
+            <SubscriptionProvider>
+              <AuthProvider>
+                <NativeBaseProvider>
+                  <PopupProvider>
+                    <AlertNotificationRoot>
+                      <StatusBar style="auto" />
+                      <Stack screenOptions={{ headerShown: false }} />
+                      <QuickAccessFAB />
+                      <NoInternetOverlay />
+                    </AlertNotificationRoot>
+                  </PopupProvider>
+                </NativeBaseProvider>
+              </AuthProvider>
+            </SubscriptionProvider>
+          </MasterProvider>
+        </UserDataProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -13,10 +13,12 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ProgressRing from '@/components/ProgressRing';
 import EditProfileModal from '@/components/editProfileModal';
+import EditInterestsModal from '@/components/EditInterestsModal';
 import userApi from '@/app/(root)/api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 
 const { width: SW } = Dimensions.get('window');
 const CACHE_MS = 30000;
@@ -136,6 +138,7 @@ const ProfileScreen = () => {
 
   const [isParent, setIsParent] = useState(false);
   const [image, setImage] = useState<string | null>(null);
+  const [interestsEditVisible, setInterestsEditVisible] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const lastFetchRef = useRef<number>(0);
 
@@ -152,6 +155,7 @@ const ProfileScreen = () => {
   const [boostData, setBoostData] = useState<any>(null);
   const [profileScore, setProfileScore] = useState<number>(0);
   const [requestQuota, setRequestQuota] = useState<any>(null);
+  const [contactRevealStatus, setContactRevealStatus] = useState<any>(null);
   const [countdown, setCountdown] = useState('');
   const [boostLoading, setBoostLoading] = useState(false);
 
@@ -175,9 +179,9 @@ const ProfileScreen = () => {
     const astro = astroArr[0] || {};
     const fam = famArr[0] || {};
     return [
-      { section: "PersonalDetail", data: { "First Name": data.firstName || "-", "Last Name": data.lastName || "-", Gender: data.gender === 'M' ? 'Male' : 'Female', "Date of Birth": data.dob || "-", Height: d.height || "-", Weight: d.weight || "-", "Physical Status": basic.physical_status || "-", "Marital Status": basic.marital_status || "-", "Mother Language": basic.mother_language || "Not specified" } },
+      { section: "PersonalDetail", data: { "First Name": data.firstName || "-", "Last Name": data.lastName || "-", Gender: data.gender === 'M' ? 'Male' : 'Female', "Date of Birth": data.dob || "-", Height: d.height || "-", Weight: d.weight || "-", "Physical Status": basic.physical_status || "-", "Marital Status": basic.marital_status || "-", "Mother Language": basic.mother_language || "Not specified", "Current Address": d.presentAddress || "-", "Native Place": d.permanentAddress || "-" } },
       { section: "ReligiousDetail", data: { Religion: "Hindu", Caste: "SC", Star: astro.star || "-", "Moon Sign": astro.moon_sign || "-", Dosham: astro.dosham || "-" } },
-      { section: "EducationalDetail", data: { Education: d.degree || "-", Occupation: d.occupation || "-", "Employing In": d.employedAt === 'GOVT' ? 'Government' : d.employedAt === 'PRIVATE' ? 'Private' : 'Self', "Annual Income": d.annualIncome ? d.annualIncome + "" : "-" } },
+      { section: "EducationalDetail", data: { Education: d.degree || "-", Occupation: d.occupation || "-", "Employing In": d.employedAt === 'GOVT' ? 'Government' : d.employedAt === 'PRIVATE' ? 'Private' : 'Self', "Annual Income": d.annualIncome ? d.annualIncome + "" : "-", "Job Place": d.jobPlace || "-", "Education in Detail": d.educationInDetail || "-" } },
       { section: "FamilyDetail", data: { "Family Type": fam.family_type?.trim() || "-", "Family Status": fam.family_status?.trim() || "-", "Fathers Name": fam.father?.trim() || "-", "Fathers Occupation": fam.father_occupation?.trim() || "-", "Mothers Name": fam.mother?.trim() || "-", "Mothers Occupation": fam.mother_occupation?.trim() || "-", "No of Siblings": fam.no_of_siblings?.toString() || "-", "No of Brothers": fam.no_of_brother?.toString() || "-", "No of Sisters": fam.no_of_sister?.toString() || "-", "Sister Married": fam.sister_married?.trim() || "-", "Brother Married": fam.brother_married?.trim() || "-" } },
       { section: "InterestsDetail", data: (() => { try { const h = d?.hobbies; return { _hobbies: Array.isArray(typeof h === 'string' ? JSON.parse(h) : h) ? (typeof h === 'string' ? JSON.parse(h) : h) : [] }; } catch { return { _hobbies: [] }; } })() }
     ];
@@ -221,7 +225,8 @@ const ProfileScreen = () => {
       userApi.getBoostStatus(userData.userId),
       userApi.getRequestQuota(userData.userId),
       userApi.getProfileCompletion(userData.userId),
-    ]).then(([sR, bR, qR, pR]) => {
+      userApi.getContactRevealStatus(userData.userId),
+    ]).then(([sR, bR, qR, pR, cR]) => {
       if (sR.status === 'fulfilled' && sR.value?.data?.code === 200) setStats(sR.value.data.data);
       if (bR.status === 'fulfilled' && bR.value?.data?.code === 200) setBoostData(bR.value.data.data);
       if (qR.status === 'fulfilled' && qR.value?.data?.code === 200) setRequestQuota(qR.value.data.data);
@@ -229,6 +234,7 @@ const ProfileScreen = () => {
         const pct = pR.value?.data?.data?.data?.completion?.percentage ?? pR.value?.data?.data?.data?.percentage ?? 0;
         setProfileScore(pct);
       }
+      if (cR.status === 'fulfilled' && cR.value?.data?.code === 200) setContactRevealStatus(cR.value.data.data);
     });
   }, [userData.userId]));
 
@@ -254,7 +260,10 @@ const ProfileScreen = () => {
   const handlePickImage = async () => {
     if (isParent) { popup.error('Not allowed', 'Family members cannot change the profile photo.'); return; }
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 1 });
+      // allowsEditing opens the OS's own crop screen, which on many Android OEM skins
+      // (MIUI, One UI, etc.) renders without visible Done/Cancel buttons, blocking the
+      // flow entirely. Skip it and upload the picked image as-is.
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
       if (!result.canceled && result.assets?.length) {
         const uri = result.assets[0].uri;
         setImage(uri);
@@ -282,7 +291,7 @@ const ProfileScreen = () => {
     const credits = boostData?.remainingCredits || 0;
     const cpm = boostData?.creditsPerMonth || 0;
     if (cpm === 0 && !boostData?.canBuyAddon) {
-      popup.premiumRequired('Upgrade to Classic or above to boost your profile.', () => router.push('/(root)/screens/PremiumTab' as any));
+      popup.premiumRequired('Upgrade to Classic or above to boost your profile.', buildUpgradeAction({ planTitle, featureName: 'Profile Boost', minPlan: 'Classic' }));
       return;
     }
     if (credits <= 0 && (cpm > 0 || boostData?.canBuyAddon)) {
@@ -309,7 +318,8 @@ const ProfileScreen = () => {
   const handleGalleryUpload = async () => {
     if (isParent) { popup.error('Not allowed', 'Family members cannot upload gallery images.'); return; }
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [3, 4], quality: 1 });
+      // See handlePickImage above re: allowsEditing's unreliable Android crop-screen buttons.
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
       if (!result.canceled && result.assets?.length) {
         const uri = result.assets[0].uri;
         const ext = uri.split('.').pop() || 'jpg';
@@ -344,7 +354,8 @@ const ProfileScreen = () => {
     if (isParent) { popup.error('Not allowed', 'Family members cannot upload horoscope.'); return; }
     if (!userData.userId) return;
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 1 });
+      // See handlePickImage above re: allowsEditing's unreliable Android crop-screen buttons.
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
       if (!result.canceled && result.assets?.length) {
         const uri = result.assets[0].uri;
         const ext = uri.split('.').pop() || 'jpg';
@@ -403,6 +414,7 @@ const ProfileScreen = () => {
           height: clean(data['Height']), weight: clean(data['Weight']),
           physicalStatus: clean(data['Physical Status']), maritalStatus: clean(data['Marital Status']),
           motherLanguage: clean(data['Mother Language']),
+          currentAddress: clean(data['Current Address']), nativePlace: clean(data['Native Place']),
         }),
         ReligiousDetail: (data) => ({
           userId, star: clean(data['Star']), moonSign: clean(data['Moon Sign']), dosham: clean(data['Dosham']),
@@ -411,6 +423,7 @@ const ProfileScreen = () => {
           userId, education: data['Education'] || '', occupation: data['Occupation'] || '',
           employedAt: data['Employing In'] === 'Private' ? 'PRIVATE' : data['Employing In'] === 'Government' ? 'GOVT' : data['Employing In'] === 'Self Employment' ? 'SELF' : '',
           annualIncome: data['Annual Income'] || '',
+          jobPlace: data['Job Place'] || '', educationInDetail: data['Education in Detail'] || '',
         }),
         FamilyDetail: (data) => ({
           userId, house: clean(data['Family Type']), familyStatus: clean(data['Family Status']),
@@ -523,9 +536,15 @@ const ProfileScreen = () => {
                 {userDetails?.profileImage ? (
                   <Image source={{ uri: userDetails.profileImage }} style={{ width: '100%', height: '100%' }} />
                 ) : (
-                  <Text style={{ fontSize: 22, color: '#fff', fontFamily: 'Rubik-Medium' }}>
-                    {(userDetails?.firstName || 'U').charAt(0)}{(userDetails?.lastName || '').charAt(0)}
-                  </Text>
+                  <Image
+                    source={
+                      userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                      userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                        require('../../../assets/images/defaultAvatar.png')
+                    }
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
                 )}
               </View>
               {imageUploading && (
@@ -609,7 +628,7 @@ const ProfileScreen = () => {
               if (isGoldPlus) {
                 router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any);
               } else {
-                popup.premiumRequired('Upgrade to Gold to see who shortlisted your profile.', () => router.push('/(root)/screens/PremiumTab' as any));
+                popup.premiumRequired('Upgrade to Gold to see who shortlisted your profile.', buildUpgradeAction({ planTitle, featureName: 'Who Shortlisted Me', minPlan: 'Gold' }));
               }
             }}>
               <View style={{ height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
@@ -682,6 +701,54 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           )}
 
+          {/* Contact Reveals — only plans with a numeric VIEW_PERSONAL_INFO quota (Classic) see
+              this; Free has no access at all, Silver+ is unlimited so there's nothing to track.
+              Previously this count only ever surfaced after already spending a reveal on some
+              profile's Contact card — no way to check it proactively. Tapping it now opens the
+              actual list of who those reveals went to, not just an upgrade nudge. */}
+          {contactRevealStatus?.applicable && !contactRevealStatus?.unlimited && (() => {
+            const isExhausted = contactRevealStatus.remaining <= 0;
+            const isLow = !isExhausted && contactRevealStatus.remaining <= Math.max(1, Math.round(contactRevealStatus.total * 0.1));
+            const isUrgent = isExhausted || isLow;
+            return (
+              <TouchableOpacity
+                style={[s.listCard, isUrgent && { borderWidth: 1, borderColor: C.pinkSoft }]}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'revealedContacts' } } as any)}
+              >
+                <View style={[s.listCardIcon, { backgroundColor: isUrgent ? C.pinkSoft : C.brandSoft }]}><Text style={{ fontSize: 22 }}>📞</Text></View>
+                <View style={s.listCardBody}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={s.listCardTitle}>Contact Reveals</Text>
+                    {isUrgent && (
+                      <View style={{ backgroundColor: C.pink, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 100 }}>
+                        <Text style={{ fontSize: 9.5, fontFamily: 'Rubik-Bold', color: '#fff', letterSpacing: 0.2 }}>
+                          {isExhausted ? 'LIMIT REACHED' : 'RUNNING LOW'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={s.listCardSub}>
+                    {isExhausted
+                      ? `All ${contactRevealStatus.total} used — upgrade for unlimited`
+                      : `${contactRevealStatus.remaining} of ${contactRevealStatus.total} remaining`}
+                  </Text>
+                  <View style={{ height: 5, borderRadius: 3, backgroundColor: C.bg, marginTop: 7, overflow: 'hidden' }}>
+                    <View
+                      style={{
+                        height: '100%',
+                        borderRadius: 3,
+                        width: `${Math.min(100, Math.round((contactRevealStatus.used / contactRevealStatus.total) * 100))}%`,
+                        backgroundColor: isUrgent ? C.pink : C.brand,
+                      }}
+                    />
+                  </View>
+                </View>
+                <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
+              </TouchableOpacity>
+            );
+          })()}
+
           {/* ─── YOUR DETAILS ─── */}
           <Text style={s.sectionTitle}>Your Details</Text>
 
@@ -697,11 +764,16 @@ const ProfileScreen = () => {
               <DetailField label="Weight" value={detail.weight} />
               <DetailField label="Mother tongue" value={basic.mother_language || detail.languages} />
               <DetailField label="Physical status" value={basic.physical_status} full />
+              <DetailField label="Address" value={detail.presentAddress} full />
+              <DetailField label="Native place" value={detail.permanentAddress} full />
             </View>
           </SectionCard>
 
           {/* Hobbies */}
-          <SectionCard emoji="🎨" title="Interests & Hobbies" subtitle={`${hobbies.length} selected`} onEdit={() => handleEdit(personalDetail?.[4])}>
+          <SectionCard emoji="🎨" title="Interests & Hobbies" subtitle={`${hobbies.length} selected`} onEdit={() => {
+            if (isParent) { popup.error('Not allowed', 'Family members cannot edit interests.'); return; }
+            setInterestsEditVisible(true);
+          }}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
               {hobbies.length > 0 ? hobbies.map((h: string, i: number) => (
                 <View key={i} style={s.chip}>
@@ -877,6 +949,15 @@ const ProfileScreen = () => {
         onClose={handleEditClose}
         section={editSection}
         onUpdate={handleEditUpdate}
+        refreshProfile={() => refreshProfile(false)}
+      />
+
+      {/* Edit Interests Modal — multi-select chip grid, not the generic text-input modal above */}
+      <EditInterestsModal
+        visible={interestsEditVisible}
+        onClose={() => setInterestsEditVisible(false)}
+        initialSelected={hobbies}
+        userId={userData.userId}
         refreshProfile={() => refreshProfile(false)}
       />
     </SafeAreaView>
