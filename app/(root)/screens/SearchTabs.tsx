@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    Alert,
     Text,
     View,
     StyleSheet,
@@ -364,15 +363,15 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     }
                 });
             } else if (response.data.code == 404) {
-                Alert.alert('No profiles found matching your search criteria');
+                popup.error('No Profiles Found', 'No profiles found matching your search criteria.');
             } else {
-                Alert.alert('Something Went Wrong. Please try again.');
+                popup.error('Something Went Wrong', 'Please try again.');
             }
 
         } catch (error) {
             console.error('Error searching profiles:', error);
             // Handle error (show error message to user)
-            Alert.alert('Something Went Wrong. Please try again.');
+            popup.error('Something Went Wrong', 'Please try again.');
         } finally {
             setIsSearchSubmitting(false);
         }
@@ -552,45 +551,47 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         }
     };
 
-    const handleDelete = async (searchId: number) => {
-        try {
-            // Show confirmation dialog
-            Alert.alert(
-                'Delete Saved Search',
-                'Are you sure you want to delete this saved search?',
-                [
-                    {
-                        text: 'Cancel',
-                        style: 'cancel',
-                    },
-                    {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: async () => {
-                            try {
-                                // Call your API to mark the search as inactive
-                                const response = await userApi.inActiveSavedSearch(searchId);
+    const handleDelete = (searchId: number) => {
+        const runDelete = async () => {
+            try {
+                const response = await userApi.inActiveSavedSearch(searchId);
 
-                                if (response.data.code === 200) {
-                                    // Remove the search from the local state
-                                    setSavedSearches(prev => prev.filter(search => search.id !== searchId));
+                if (response.data.code === 200) {
+                    setSavedSearches(prev => prev.filter(search => search.id !== searchId));
+                    popup.success('Success', 'Search deleted successfully');
+                } else {
+                    throw new Error(response.data.message || 'Failed to delete search');
+                }
+            } catch (error) {
+                console.error('Error deleting search:', error);
+                popup.error('Error', 'Failed to delete search. Please try again.');
+            }
+        };
 
-                                    // Show success message
-                                    Alert.alert('Success', 'Search deleted successfully');
-                                } else {
-                                    throw new Error(response.data.message || 'Failed to delete search');
-                                }
-                            } catch (error) {
-                                console.error('Error deleting search:', error);
-                                Alert.alert('Error', 'Failed to delete search. Please try again.');
-                            }
-                        },
+        // CommonPopup (via usePopup) instead of the native Alert.alert — Alert renders as the
+        // OS's own dialog, which looks and behaves differently on Android vs iOS. Every other
+        // popup in this app already goes through the shared cross-platform component. Using
+        // `show()` directly (not the `confirm()` shorthand, which hardcodes `variant: 'primary'`
+        // on its confirm button) so Delete can keep the destructive/red styling the original
+        // Alert.alert had via `style: 'destructive'`. Unlike the convenience helpers, `show()`
+        // doesn't auto-close the popup on button press, so each `onPress` here calls `hide()`
+        // itself first (same 100ms delay the helpers use, to let the close animation finish).
+        popup.show({
+            title: 'Delete Saved Search',
+            description: 'Are you sure you want to delete this saved search?',
+            variant: 'confirm',
+            buttons: [
+                { text: 'Cancel', variant: 'secondary', onPress: () => popup.hide() },
+                {
+                    text: 'Delete',
+                    variant: 'destructive',
+                    onPress: () => {
+                        popup.hide();
+                        setTimeout(runDelete, 100);
                     },
-                ]
-            );
-        } catch (error) {
-            console.error('Error showing delete confirmation:', error);
-        }
+                },
+            ],
+        });
     };
 
     const toggleSection = useCallback((section: 'basic' | 'religious' | 'job') => {
@@ -775,7 +776,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
     const handleProfileIdSearch = async () => {
         if (!profileId.trim()) {
-            Alert.alert('Error', 'Please enter a profile ID');
+            popup.warning('Missing Profile ID', 'Please enter a profile ID.');
             return;
         }
 
@@ -804,11 +805,11 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     }
                 });
             } else {
-                Alert.alert('Not Found', 'No profile found with this ID');
+                popup.error('Not Found', 'No profile found with this ID.');
             }
         } catch (error) {
             console.error('Error searching by profile ID:', error);
-            Alert.alert('Error', 'Failed to search profile. Please try again.');
+            popup.error('Error', 'Failed to search profile. Please try again.');
         } finally {
             setIsSearchSubmitting(false);
         }

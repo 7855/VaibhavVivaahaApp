@@ -59,6 +59,17 @@ const HOBBY_EMOJI: Record<string, string> = {
   art: '🎨', dance: '💃', cooking: '🍳', gardening: '🌱', spirituality: '🙏',
 };
 
+// `user_details.annualIncome` mixes two historical formats: plain numeric strings (older/seed
+// rows, e.g. "400000") and bracket-label strings most real profiles actually carry (e.g. "5-7L",
+// "20L+"). `Number("5-7L")` is NaN, which is exactly what was rendering — only format as currency
+// when the value is purely numeric; otherwise the bracket label is already human-readable as-is.
+const formatAnnualIncome = (raw?: string | null) => {
+  if (!raw) return '-';
+  const trimmed = String(raw).trim();
+  if (!trimmed) return '-';
+  return /^\d+$/.test(trimmed) ? `₹${Number(trimmed).toLocaleString('en-IN')}` : trimmed;
+};
+
 // ─── Helper: Detail Field ────────────────────────────
 const DetailField = ({ label, value, full }: { label: string; value: string; full?: boolean }) => {
   const display = (!value || value === 'null' || value === 'undefined') ? '-' : value;
@@ -411,6 +422,7 @@ const ProfileScreen = () => {
       const sectionMap: Record<string, (data: any) => any> = {
         PersonalDetail: (data) => ({
           userId, firstName: clean(data['First Name']), lastName: clean(data['Last Name']),
+          dateOfBirth: clean(data['Date of Birth']),
           height: clean(data['Height']), weight: clean(data['Weight']),
           physicalStatus: clean(data['Physical Status']), maritalStatus: clean(data['Marital Status']),
           motherLanguage: clean(data['Mother Language']),
@@ -442,12 +454,19 @@ const ProfileScreen = () => {
         FamilyDetail: userApi.updateFamilyInfo,
       };
 
-      const key = editSection?.title;
+      const key = editSection?.section;
       const formatter = sectionMap[key];
       const apiFn = apiMap[key];
 
       if (formatter && apiFn) {
-        await apiFn(formatter(updatedData));
+        // Backend returns HTTP 200 even on business failures (e.g. the dob validation added
+        // 2026-07-17) — this previously never checked res.data.code, so a rejected update still
+        // showed "updated successfully" while nothing actually saved.
+        const res = await apiFn(formatter(updatedData));
+        if (res?.data?.code !== 200) {
+          popup.error('Could not update', res?.data?.message || 'Please try again.');
+          return;
+        }
         const labels: Record<string, string> = {
           PersonalDetail: 'Personal details', ReligiousDetail: 'Religious details',
           EducationalDetail: 'Education details', FamilyDetail: 'Family details',
@@ -848,7 +867,7 @@ const ProfileScreen = () => {
               <DetailField label="Specialization" value={detail.educationInDetail} />
               <DetailField label="Occupation" value={detail.occupation} />
               <DetailField label="Sector" value={detail.employedAt === 'GOVT' ? 'Government' : detail.employedAt === 'PRIVATE' ? 'Private' : detail.employedAt === 'SELF' ? 'Self Employed' : detail.employedAt || '-'} />
-              <DetailField label="Income" value={detail.annualIncome ? `₹${Number(detail.annualIncome).toLocaleString('en-IN')}` : '-'} />
+              <DetailField label="Income" value={formatAnnualIncome(detail.annualIncome)} />
               <DetailField label="Job location" value={detail.jobPlace} />
             </View>
           </SectionCard>

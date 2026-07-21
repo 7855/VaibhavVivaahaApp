@@ -1,26 +1,36 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Crown, MessageCircle, Eye, Heart, Star, Shield, Users, Gift, Check, Sparkles, HeartHandshake, BellRing as Rings, Clock, CheckCircle, CircleDot, Circle } from 'lucide-react-native';
+import { Crown, Check, X, Clock, CheckCircle, CircleDot, Circle, Shield, Compass, Rocket, Award, Star, Gem } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
+import { Stack, router } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolation,
+  FadeInDown,
+  withRepeat,
+  withSequence,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 import userApi from '../api/userApi';
-import { router } from 'expo-router';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
-// import RazorpayCheckout from 'react-native-razorpay';
-// Auth context removed as it's not used in this component
 
-// Define Lucide icon component type
-type LucideIcon = React.ComponentType<{ size?: number; color?: string }>;
+// Same soft blue backdrop used app-wide (explore.tsx / profile.tsx) instead of a standalone
+// pink/rose theme, so this screen reads as part of the same app rather than a bolted-on paywall.
+const BG_GRADIENT = ['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa'] as const;
+const BG_LOCATIONS = [0, 0.3, 0.6, 1.0] as const;
 
-interface PremiumFeature {
-  id: number;
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  color: string;
-  bgColor: string;
-  isActive: boolean;
+const { width: SCREEN_W } = Dimensions.get('window');
+const CARD_MARGIN = 20;
+
+interface ChecklistRow {
+  label: string;
+  included: boolean;
 }
 
 interface Plan {
@@ -33,86 +43,260 @@ interface Plan {
   savings: string;
   isActive: boolean;
   isPopular?: boolean;
-  features?: string[];
+  checklist: ChecklistRow[];
   tagline?: string;
   planDescription?: string;
+  pricePerDay?: string;
 }
 
-// Mock API response simulating the exact structure to be expected from backend matching static JSON requests
-const MOCK_API_RESPONSE = {
-  status: "success",
-  heroTitle: "Unlock Premium Matrimony 💕",
-  heroSubtitle: "Find your soulmate faster with exclusive matrimony features ❤️",
-  data: [
-    {
-      id: 1, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 0, durationMonths: 0, period: "/free", price: "0.00", originalPrice: "0.00", title: "Free", discount: "", savings: "Starter",
-      tagline: "உங்கள் பயணம் தொடங்குகிறது",
-      planDescription: "Browse profiles and send 3 free interests. Partnerஐ பார்க்க முடியும் — join பண்ணி start பண்ணுங்கள்!",
-      features: ["Browse profiles by age, caste & location", "Save favourite profiles", "3 free interest requests"]
-    },
-    {
-      id: 2, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "199.00", originalPrice: "499.00", title: "Starter", discount: "60% OFF", savings: "Entry",
-      tagline: "முதல் அடி எடுங்கள்",
-      planDescription: "15 interests, see who viewed you, and explore advanced filters. Serious match தேட ஒரு perfect entry plan.",
-      features: ["Advanced filters — education, income & more", "15 interest requests", "See who viewed you (last 5)", "View all profile photos"]
-    },
-    {
-      id: 3, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "999.00", originalPrice: "1499.00", title: "Classic", discount: "33% OFF", savings: "Value",
-      tagline: "தெளிவான தேர்வு",
-      planDescription: "50 interests, full profile details, contact info, and limited \"who viewed\" — நிறைய options பாருங்கள்!",
-      features: ["50 interest requests", "See full profile details & all photos", "See phone & personal contact info", "See who viewed you (last 20)", "Save favourite profiles"]
-    },
-    {
-      id: 4, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "1499.00", originalPrice: "2499.00", title: "Classic", discount: "40% OFF", savings: "Best Value",
-      tagline: "தெளிவான தேர்வு",
-      planDescription: "50 interests, full profile details, contact info, and limited \"who viewed\" — நிறைய options பாருங்கள்!",
-      features: ["50 interest requests", "See full profile details & all photos", "See phone & personal contact info", "See who viewed you (last 20)", "Save favourite profiles"]
-    },
-    {
-      id: 5, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 90, durationMonths: 3, period: "/3 months", price: "1999.00", originalPrice: "2999.00", title: "Silver", discount: "33% OFF", savings: "Popular",
-      tagline: "இதயம் திறக்கும் நேரம்",
-      planDescription: "Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!",
-      features: ["Unlimited interest requests", "Chat directly with families", "Full profile & contact visibility", "Appear higher in search results", "See who viewed your profile"]
-    },
-    {
-      id: 6, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "2999.00", originalPrice: "3999.00", title: "Silver", discount: "25% OFF", savings: "Most Popular", isPopular: true,
-      tagline: "இதயம் திறக்கும் நேரம்",
-      planDescription: "Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!",
-      features: ["Unlimited interest requests", "Chat directly with families", "Full profile & contact visibility", "Appear higher in search results", "See who viewed your profile"]
-    },
-    {
-      id: 7, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 365, durationMonths: 12, period: "/12 months", price: "4499.00", originalPrice: "5999.00", title: "Silver", discount: "25% OFF", savings: "Long Term",
-      tagline: "இதயம் திறக்கும் நேரம்",
-      planDescription: "Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!",
-      features: ["Unlimited interest requests", "Chat directly with families", "Full profile & contact visibility", "Appear higher in search results", "See who viewed your profile"]
-    },
-    {
-      id: 8, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 180, durationMonths: 6, period: "/6 months", price: "4999.00", originalPrice: "6999.00", title: "Gold", discount: "28% OFF", savings: "Premium",
-      tagline: "தங்க வாழ்க்கை தொடர்புகள்",
-      planDescription: "Everything in Silver plus jathagam match, verification badge, and search boost. உங்கள் profile shine ஆகும்!",
-      features: ["Everything in Silver", "Jathagam compatibility check", "Verified badge on your profile", "Priority search placement", "See who viewed your profile"]
-    },
-    {
-      id: 9, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 365, durationMonths: 12, period: "/12 months", price: "7999.00", originalPrice: "10999.00", title: "Gold", discount: "27% OFF", savings: "Best Value",
-      tagline: "தங்க வாழ்க்கை தொடர்புகள்",
-      planDescription: "Everything in Silver plus jathagam match, verification badge, and search boost. உங்கள் profile shine ஆகும்!",
-      features: ["Everything in Silver", "Jathagam compatibility check", "Verified badge on your profile", "Priority search placement", "See who viewed your profile"]
-    },
-    {
-      id: 10, created: "2025-12-29 12:29:05", createdBy: "system", active: "Y", durationDays: 9999, durationMonths: 0, period: "/until marriage", price: "9999.00", originalPrice: "19999.00", title: "Platinum", discount: "50% OFF", savings: "Ultimate",
-      tagline: "திருமணம் வரை நம்மோட உதவி",
-      planDescription: "All features until your wedding day — family chat, WhatsApp sharing, priority support. நாங்கள் உங்களோடு இருக்கோம்!",
-      features: ["All Gold features", "Family-to-family direct chat", "Share profiles via WhatsApp", "Priority customer support", "Active until your wedding day"]
+// Real, derived value (price ÷ real duration) — not a fabricated stat. Only shown for plans with
+// a genuine short/medium duration (a few days to a year); skipped for Free (₹0) and Platinum
+// ("until marriage", durationDays=9999) where a per-day figure would be meaningless or misleading.
+function computePricePerDay(price: number, durationDays: number): string {
+  if (!durationDays || durationDays <= 0 || durationDays > 365 || price <= 0) return '';
+  const perDay = price / durationDays;
+  return `≈ ₹${perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day`;
+}
+
+// A curated, ordered subset of the real `features`/`planFeatures` tables (backend
+// PlanFeaturesController — same data the admin "Plan Features" matrix page edits). Expanded from
+// an earlier, shorter 11-row list — the actual gap between tiers is much bigger than that list
+// showed, and a member deciding whether a plan is worth buying needs to see the real breadth of
+// what changes, not just a token sample. `VIEW_PROFILE_DETAILS` and `PROFILE_BOOST` are
+// special-cased in `buildChecklistByPlan()` below (see its comment) since a raw non-null cell
+// value isn't the same as "meaningfully included" for those two.
+const CHECKLIST_ITEMS: { code: string; label: string }[] = [
+  { code: 'BASIC_SEARCH', label: 'Basic search filters' },
+  { code: 'ADV_SEARCH', label: 'Advanced search filters' },
+  { code: 'VIEW_PROFILE_DETAILS', label: 'Full profile details' },
+  { code: 'REQ_UNLIMITED', label: 'Unlimited interest requests' },
+  { code: 'MESSAGE', label: 'Direct messaging' },
+  { code: 'VIEW_PERSONAL_INFO', label: 'Reveal contact details' },
+  { code: 'WHO_VIEWED', label: 'See who viewed you' },
+  { code: 'WHO_LIKED', label: 'See who liked you' },
+  { code: 'WHO_SHORTLISTED_YOU', label: 'See who shortlisted you' },
+  { code: 'VERIFY_BADGE', label: 'Verified profile badge' },
+  { code: 'HIGH_VISIBILITY', label: 'Higher visibility in search' },
+  { code: 'PRIORITY_SEARCH', label: 'Priority placement in search' },
+  { code: 'HOROSCOPE_VIEW', label: 'Horoscope view' },
+  { code: 'STAR_MATCH', label: 'Star match compatibility' },
+  { code: 'SECURE_CONNECT', label: 'SecureConnect masked calling' },
+  { code: 'VOICE_CALL', label: 'In-app voice call' },
+  { code: 'VIDEO_PROFILE', label: 'Video profile' },
+  { code: 'WHATSAPP_SHARE', label: 'WhatsApp profile share' },
+  { code: 'FAMILY_LOGIN', label: 'Family / parent login' },
+  { code: 'SPEAK_FAMILY', label: 'Speak directly with families' },
+  { code: 'INCOME_VERIFIED_BADGE', label: 'Income verified badge' },
+  { code: 'PROFILE_BOOST', label: 'Monthly profile boost' },
+  { code: 'DEDICATED_RM', label: 'Dedicated relationship manager' },
+  { code: 'FAMILY_ASSISTED_MATCH', label: 'Family-assisted matchmaking' },
+];
+
+// Builds { planTitle: ChecklistRow[] } from the raw `/planFeatures/matrix` response
+// ({ plans, features, cells }) — cells only carry numeric ids, so this resolves them back to
+// plan titles / feature codes first.
+function buildChecklistByPlan(matrix: { plans?: any[]; features?: any[]; cells?: any[] }): Record<string, ChecklistRow[]> {
+  const featureIdToCode: Record<number, string> = {};
+  (matrix.features || []).forEach((f: any) => { featureIdToCode[f.id] = f.code; });
+
+  const planIdToTitle: Record<number, string> = {};
+  (matrix.plans || []).forEach((p: any) => { planIdToTitle[p.id] = p.title; });
+
+  const valuesByPlan: Record<string, Record<string, string>> = {};
+  (matrix.cells || []).forEach((cell: any) => {
+    const title = planIdToTitle[cell.subscriptionPlanId];
+    const code = featureIdToCode[cell.featureId];
+    if (!title || !code) return;
+    if (!valuesByPlan[title]) valuesByPlan[title] = {};
+    valuesByPlan[title][code] = cell.limitValue;
+  });
+
+  const result: Record<string, ChecklistRow[]> = {};
+  Object.keys(valuesByPlan).forEach((title) => {
+    result[title] = CHECKLIST_ITEMS.map(({ code, label }) => {
+      const value = valuesByPlan[title][code];
+      let included: boolean;
+      if (code === 'VIEW_PROFILE_DETAILS') {
+        included = value === 'FULL'; // Free's LIMITED shouldn't render as a checkmark
+      } else if (code === 'PROFILE_BOOST') {
+        included = Number(value) > 0; // Classic/Silver have a "0 per month" row — that's really "no boost"
+      } else {
+        included = value != null;
+      }
+      return { label, included };
+    });
+  });
+  return result;
+}
+
+// Same tier-color language used for plan badges on SearchResult.tsx / ProfileDetail.tsx, so a
+// plan card here visually matches the badge a member sees on their own profile elsewhere in the app.
+const TIER_ORDER = ['Free', 'Starter', 'Classic', 'Silver', 'Gold', 'Platinum'];
+function getTierKey(title: string): string {
+  return TIER_ORDER.find((t) => title.includes(t)) || 'Starter';
+}
+function getTierBadge(tier: string): { gradient: [string, string]; textColor: string } {
+  switch (tier) {
+    case 'Platinum': return { gradient: ['#eef2f7', '#c7d1db'], textColor: '#0f1724' };
+    case 'Gold': return { gradient: ['#FFE067', '#F6B733'], textColor: '#5E4200' };
+    case 'Silver': return { gradient: ['#f4f6f8', '#cbd5e1'], textColor: '#0f1724' };
+    case 'Classic': return { gradient: ['#e2a76f', '#8B4513'], textColor: '#fff' };
+    case 'Starter': return { gradient: ['#dfecfb', '#bcdcfa'], textColor: '#1F7FE5' };
+    default: return { gradient: ['#f1f5f9', '#e2e8f0'], textColor: '#64748b' };
+  }
+}
+
+// One distinct icon per tier for the card's medallion — gives each plan a memorable visual
+// identity beyond its name/badge, instead of every card looking identical apart from the price.
+type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+function getTierIcon(tier: string): LucideIcon {
+  switch (tier) {
+    case 'Starter': return Rocket;
+    case 'Classic': return Award;
+    case 'Silver': return Star;
+    case 'Gold': return Crown;
+    case 'Platinum': return Gem;
+    default: return Compass; // Free — start of the journey
+  }
+}
+
+const HERO_TITLE = "Pricing";
+const HERO_SUBTITLE = "Swipe to compare — pick the plan that fits your journey";
+
+// A short dash that grows/brightens as its page comes into focus — driven directly off the
+// carousel's live scroll position instead of the discrete `selectedPlan` state, so it animates
+// smoothly mid-swipe rather than snapping at the end.
+function DashDot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => {
+    const inputRange = [(index - 1) * SCREEN_W, index * SCREEN_W, (index + 1) * SCREEN_W];
+    const width = interpolate(scrollX.value, inputRange, [6, 18, 6], Extrapolation.CLAMP);
+    const opacity = interpolate(scrollX.value, inputRange, [0.35, 1, 0.35], Extrapolation.CLAMP);
+    return { width, opacity };
+  });
+  return <Animated.View style={[styles.dash, style]} />;
+}
+
+interface PlanCardProps {
+  plan: Plan;
+  index: number;
+  scrollX: SharedValue<number>;
+  isCurrentPlan: boolean;
+  onUpgrade: () => void;
+}
+
+// Extracted so each card can drive its own scroll-linked scale/opacity + popular-badge pulse via
+// Reanimated hooks (which must live inside a real component, not an inline renderItem closure).
+function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade }: PlanCardProps) {
+  const tier = getTierKey(plan.title);
+  const tierBadge = getTierBadge(tier);
+  const TierIcon = getTierIcon(tier);
+  const isPopularHighlight = !!plan.isPopular && !isCurrentPlan;
+
+  // Carousel "focus" effect — the centered card sits at full scale/opacity, neighbors ease back.
+  const cardStyle = useAnimatedStyle(() => {
+    const inputRange = [(index - 1) * SCREEN_W, index * SCREEN_W, (index + 1) * SCREEN_W];
+    const scale = interpolate(scrollX.value, inputRange, [0.92, 1, 0.92], Extrapolation.CLAMP);
+    const opacity = interpolate(scrollX.value, inputRange, [0.6, 1, 0.6], Extrapolation.CLAMP);
+    return { transform: [{ scale }], opacity };
+  });
+
+  // Subtle looping pulse on the "POPULAR" corner badge only — draws the eye without being gaudy.
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    if (isPopularHighlight) {
+      pulse.value = withRepeat(withSequence(withTiming(1.06, { duration: 700 }), withTiming(1, { duration: 700 })), -1, true);
     }
-  ]
-};
+  }, [isPopularHighlight]);
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+
+  const cornerBadge = isCurrentPlan
+    ? { label: 'ACTIVE', dot: '#10b981', bg: '#e8f7ef', text: '#0f7a48' }
+    : plan.isPopular
+      ? { label: 'POPULAR', dot: '#5E4200', bg: '#FFE067', text: '#5E4200' }
+      : plan.discount
+        ? { label: `SAVE ${plan.discount.replace(/\s*OFF/i, '')}`, dot: '#1F7FE5', bg: '#dfecfb', text: '#1F7FE5' }
+        : null;
+
+  return (
+    <View style={styles.cardPage}>
+      {/* No outer page scroll anymore — only the checklist below scrolls internally, so the price
+          and "Continue" button are always visible without an extra scroll-then-tap step. */}
+      <Animated.View style={[styles.planCard, isPopularHighlight && styles.planCardPopular, cardStyle]}>
+        {cornerBadge && (
+          <Animated.View style={[styles.cornerBadge, { backgroundColor: cornerBadge.bg }, pulseStyle]}>
+            <Text style={[styles.cornerBadgeText, { color: cornerBadge.text }]}>{cornerBadge.label}</Text>
+            <View style={[styles.cornerBadgeDot, { backgroundColor: cornerBadge.dot }]} />
+          </Animated.View>
+        )}
+
+        {/* Identity: medallion + name + tagline — decoupled from the money block below */}
+        <View style={styles.identityRow}>
+          <LinearGradient colors={tierBadge.gradient} style={styles.tierMedallion} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <TierIcon size={24} color={tierBadge.textColor} strokeWidth={2.2} />
+          </LinearGradient>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.planTitle}>{plan.title}</Text>
+            {plan.tagline ? <Text style={styles.planTagline}>{plan.tagline}</Text> : null}
+          </View>
+        </View>
+
+        {/* Money block */}
+        <View style={styles.priceBlock}>
+          <View style={styles.priceRow}>
+            {plan.originalPrice ? <Text style={styles.originalPrice}>{plan.originalPrice}</Text> : null}
+            <Text style={styles.price}>{plan.price}</Text>
+            {plan.period ? <Text style={styles.periodInline}>{plan.period}</Text> : null}
+          </View>
+          {plan.pricePerDay ? <Text style={styles.pricePerDay}>{plan.pricePerDay}</Text> : null}
+        </View>
+
+        {plan.planDescription ? <Text style={styles.planDescription}>{plan.planDescription}</Text> : null}
+
+        {plan.checklist.length > 0 && (
+          <ScrollView style={styles.checklistScroll} showsVerticalScrollIndicator={true} contentContainerStyle={styles.checklistScrollContent}>
+            <View style={styles.checklistDivider} />
+            <Text style={styles.checklistLabel}>WHAT'S INCLUDED</Text>
+            <View style={styles.checklist}>
+              {plan.checklist.map((row, i) => (
+                <Animated.View key={i} entering={FadeInDown.delay(i * 30).duration(240)} style={styles.checkRow}>
+                  <View style={[styles.checkIconWrap, row.included ? styles.checkIconIncluded : styles.checkIconExcluded]}>
+                    {row.included ? (
+                      <Check size={10} color="#ffffff" strokeWidth={3.5} />
+                    ) : (
+                      <X size={10} color="#94a3b8" strokeWidth={3.5} />
+                    )}
+                  </View>
+                  <Text style={[styles.checkLabel, !row.included && styles.checkLabelExcluded]}>{row.label}</Text>
+                </Animated.View>
+              ))}
+            </View>
+          </ScrollView>
+        )}
+
+        {isCurrentPlan ? (
+          <View style={styles.ghostButton}>
+            <Text style={styles.ghostButtonText}>Your Current Plan</Text>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.upgradeButton} onPress={onUpgrade} activeOpacity={0.9}>
+            <LinearGradient colors={['#1F7FE5', '#1862b8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.upgradeGradient}>
+              <Text style={styles.upgradeText}>Continue with this plan</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.trustLine}>
+          <Shield size={12} color="#94a3b8" strokeWidth={2} />
+          <Text style={styles.trustLineText}>Secure payment · Cancel anytime</Text>
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function PremiumTab() {
   const [selectedPlan, setSelectedPlan] = useState<number | null>(1);
-  const [premiumFeatures, setPremiumFeatures] = useState<PremiumFeature[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [heroTitle, setHeroTitle] = useState("Unlock Premium Matrimony 💕");
-  const [heroSubtitle, setHeroSubtitle] = useState("Find your soulmate faster with exclusive matrimony features ❤️");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,6 +306,15 @@ export default function PremiumTab() {
   const popup = usePopup();
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<any>(null);
+
+  // Must be called unconditionally, before any of this component's early returns below (loading/
+  // error/PENDING/APPROVED all `return` ahead of where this used to live) — Rules of Hooks.
+  const scrollX = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
 
   useEffect(() => {
     (async () => {
@@ -157,67 +350,42 @@ export default function PremiumTab() {
       setLoading(true);
       setError(null);
 
-      const [featuresResponse, plansResponse] = await Promise.all([
-        userApi.getAllActivePremiumFeatures().catch(() => ({ data: null })),
-        userApi.getAllActivePlans().catch(() => ({ data: null }))
+      const [plansResponse, matrixResponse] = await Promise.all([
+        userApi.getAllActivePlans(),
+        userApi.getPlanFeaturesMatrix().catch(() => null),
       ]);
+      const apiResponseData = plansResponse?.data?.data;
 
-      // If both API calls failed, throw an error to trigger the fallback
-      if (!featuresResponse?.data && !plansResponse?.data) {
+      if (!Array.isArray(apiResponseData) || apiResponseData.length === 0) {
         throw new Error('Failed to fetch premium data');
       }
 
-      // Map API response to match the existing component structure
-      const mappedFeatures: PremiumFeature[] = featuresResponse?.data?.data ? featuresResponse.data.data.map((feature: any) => {
-        const IconComponent = getIconComponent(feature.iconName);
-        return {
-          id: feature.id || Math.floor(Math.random() * 1000),
-          title: feature.title || 'Premium Feature',
-          description: feature.description || 'Exclusive feature for premium members',
-          icon: IconComponent,
-          color: feature.color || '#ec4899',
-          bgColor: feature.bgColor || '#fdf2f8',
-          isActive: feature.isActive !== false
-        };
-      }) : [];
+      const checklistByPlan = matrixResponse?.data?.data
+        ? buildChecklistByPlan(matrixResponse.data.data)
+        : {};
 
-      // NOTE: Here you would ideally make your API call like `const plansResponse = await fetch(/your-api-url).then(res => res.json())`
-      // For now, we are simulating the exact API network response with the MOCK_API_RESPONSE defined above
-      const apiResponseData = MOCK_API_RESPONSE.data;
-      const apiHeroTitle = MOCK_API_RESPONSE.heroTitle;
-      const apiHeroSubtitle = MOCK_API_RESPONSE.heroSubtitle;
-
-      if (!apiResponseData) {
-        throw new Error('Failed to fetch premium data');
-      }
-
-      setHeroTitle(apiHeroTitle || "Unlock Premium Matrimony 💕");
-      setHeroSubtitle(apiHeroSubtitle || "Find your soulmate faster with exclusive matrimony features ❤️");
-
-      // We maintain the mapping identical so when the API connects, exactly this block takes over.
+      // subscription_plans has exactly one row per tier — no duration-variant suffixing needed.
       const mappedPlans: Plan[] = apiResponseData.map((plan: any, index: number) => {
-        let derivedPrice = parseFloat(plan.price || '0');
-        let derivedOriginalPrice = parseFloat(plan.originalPrice || plan.price * 1.3 || '0');
+        const derivedPrice = parseFloat(plan.price || '0');
+        const derivedOriginalPrice = plan.originalPrice != null ? parseFloat(plan.originalPrice) : null;
+        const hasRealDiscount = derivedOriginalPrice != null && derivedOriginalPrice > derivedPrice;
 
         return {
-          id: plan.id || index + 1,
-          title: plan.durationMonths ? `${plan.title} (${plan.durationMonths} Months)` : plan.title,
+          id: plan.id ?? index + 1,
+          title: plan.title,
           price: `₹${derivedPrice.toLocaleString('en-IN')}`,
-          originalPrice: `₹${derivedOriginalPrice.toLocaleString('en-IN')}`,
-          period: plan.period || `/${plan.durationMonths || 1} ${(plan.durationMonths || 1) > 1 ? 'months' : 'month'}`,
-          discount: plan.discount || (() => {
-            if (derivedOriginalPrice > 0) {
-              const discountPercent = Math.round(((derivedOriginalPrice - derivedPrice) / derivedOriginalPrice) * 100);
-              return discountPercent > 0 ? `${discountPercent}% OFF` : '';
-            }
-            return '';
-          })(),
-          savings: plan.savings || 'Value',
-          isActive: plan.active === 'Y',
-          isPopular: plan.isPopular || false,
-          features: plan.features || [],
+          originalPrice: hasRealDiscount ? `₹${derivedOriginalPrice!.toLocaleString('en-IN')}` : '',
+          period: plan.period || '',
+          discount: plan.discount || (hasRealDiscount
+            ? `${Math.round(((derivedOriginalPrice! - derivedPrice) / derivedOriginalPrice!) * 100)}% OFF`
+            : ''),
+          savings: plan.savings || '',
+          isActive: true, // server already filters to isActive=Y rows
+          isPopular: !!plan.isPopular,
+          checklist: checklistByPlan[plan.title] || [],
           tagline: plan.tagline || '',
           planDescription: plan.planDescription || '',
+          pricePerDay: computePricePerDay(derivedPrice, Number(plan.durationDays) || 0),
         };
       });
 
@@ -226,299 +394,155 @@ export default function PremiumTab() {
       const popularIndex = mappedPlans.findIndex(p => p.isPopular);
       setSelectedPlan(popularIndex !== -1 ? popularIndex : 0);
     } catch (err) {
-      console.error('Error fetching premium data:', err);
-      setError('Failed to load premium features and plans. Please try again later.');
-
-      // Fallback to default data if API fails
-      setPremiumFeatures(defaultPremiumFeatures);
+      console.error('Error fetching premium plans:', err);
+      setError('Failed to load membership plans. Please try again later.');
       setPlans(defaultPlans);
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper function to map icon names to components
-  const getIconComponent = (iconName: string): LucideIcon => {
-    const iconMap: { [key: string]: LucideIcon } = {
-      'message-circle': MessageCircle as LucideIcon,
-      'eye': Eye as LucideIcon,
-      'heart': Heart as LucideIcon,
-      'star': Star as LucideIcon,
-      'shield': Shield as LucideIcon,
-      'users': Users as LucideIcon,
-      'gift': Gift as LucideIcon,
-      'crown': Crown as LucideIcon
-    };
-    return iconMap[iconName] || Star; // Default to Star if icon not found
-  };
-
-  // Default data in case API fails
-  const defaultPremiumFeatures: PremiumFeature[] = [
-    {
-      id: 1,
-      icon: MessageCircle as LucideIcon,
-      title: 'Unlimited Messaging',
-      description: 'Connect with unlimited profiles without restrictions',
-      color: '#ec4899',
-      bgColor: '#fdf2f8',
-      isActive: true
-    },
-    {
-      id: 2,
-      icon: Eye as LucideIcon,
-      title: 'Profile Visitors',
-      description: 'See who viewed your profile and when',
-      color: '#8b5cf6',
-      bgColor: '#f3e8ff',
-      isActive: true
-    },
-    {
-      id: 3,
-      icon: Heart as LucideIcon,
-      title: 'Priority Matching',
-      description: 'Get matched with premium profiles first',
-      color: '#ef4444',
-      bgColor: '#fef2f2',
-      isActive: true
-    },
-    {
-      id: 4,
-      icon: Star as LucideIcon,
-      title: 'Advanced Filters',
-      description: 'Filter by income, education, lifestyle preferences',
-      color: '#f59e0b',
-      bgColor: '#fffbeb',
-      isActive: true
-    },
-    {
-      id: 5,
-      icon: Shield as LucideIcon,
-      title: 'Verified Badge',
-      description: 'Stand out with a verified profile badge',
-      color: '#10b981',
-      bgColor: '#f0fdf4',
-      isActive: true
-    },
-    {
-      id: 6,
-      icon: Users as LucideIcon,
-      title: 'Premium Community',
-      description: 'Access to verified premium members only',
-      color: '#6366f1',
-      bgColor: '#eef2ff',
-      isActive: true
-    },
-    {
-      id: 7,
-      icon: Gift as LucideIcon,
-      title: 'Express Interest',
-      description: 'Send unlimited interest requests instantly',
-      color: '#d946ef',
-      bgColor: '#faf5ff',
-      isActive: true
-    }
-  ];
-
+  // Fallback only if the live API call fails — mirrors the actual 6 subscription_plans rows
+  // (see CLAUDE.md section 7), not fabricated duration variants. No checklist data available
+  // offline (that comes from the live /planFeatures/matrix call), so it's left empty per plan —
+  // the card just omits the "What's included" section in that rare failure case.
   const defaultPlans: Plan[] = [
     {
-      id: 1, title: 'Free', price: '₹0', originalPrice: '₹0', period: '/free', discount: '', savings: 'Starter', isActive: true, isPopular: false,
+      id: 1, title: 'Free', price: '₹0', originalPrice: '', period: '/lifetime', discount: '', savings: '', isActive: true, isPopular: false,
       tagline: 'உங்கள் பயணம் தொடங்குகிறது',
       planDescription: 'Browse profiles and send 3 free interests. Partnerஐ பார்க்க முடியும் — join பண்ணி start பண்ணுங்கள்!',
-      features: ['Browse profiles by age, caste & location', 'Save favourite profiles', '3 free interest requests']
+      checklist: [],
     },
     {
-      id: 2, title: 'Starter (3 Months)', price: '₹199', originalPrice: '₹499', period: '/3 months', discount: '60% OFF', savings: 'Entry', isActive: true, isPopular: false,
+      id: 2, title: 'Starter', price: '₹499', originalPrice: '', period: '/30 days', discount: '', savings: '', isActive: true, isPopular: false,
       tagline: 'முதல் அடி எடுங்கள்',
       planDescription: '15 interests, see who viewed you, and explore advanced filters. Serious match தேட ஒரு perfect entry plan.',
-      features: ['Advanced filters — education, income & more', '15 interest requests', 'See who viewed you (last 5)', 'View all profile photos']
+      checklist: [], pricePerDay: computePricePerDay(499, 30),
     },
     {
-      id: 3, title: 'Classic (3 Months)', price: '₹999', originalPrice: '₹1,499', period: '/3 months', discount: '33% OFF', savings: 'Value', isActive: true, isPopular: false,
+      id: 3, title: 'Classic', price: '₹999', originalPrice: '', period: '/3 months', discount: '', savings: '', isActive: true, isPopular: false,
       tagline: 'தெளிவான தேர்வு',
       planDescription: '50 interests, full profile details, contact info, and limited "who viewed" — நிறைய options பாருங்கள்!',
-      features: ['50 interest requests', 'See full profile details & all photos', 'See phone & personal contact info', 'See who viewed you (last 20)', 'Save favourite profiles']
+      checklist: [], pricePerDay: computePricePerDay(999, 90),
     },
     {
-      id: 4, title: 'Classic (6 Months)', price: '₹1,499', originalPrice: '₹2,499', period: '/6 months', discount: '40% OFF', savings: 'Best Value', isActive: true, isPopular: false,
-      tagline: 'தெளிவான தேர்வு',
-      planDescription: '50 interests, full profile details, contact info, and limited "who viewed" — நிறைய options பாருங்கள்!',
-      features: ['50 interest requests', 'See full profile details & all photos', 'See phone & personal contact info', 'See who viewed you (last 20)', 'Save favourite profiles']
-    },
-    {
-      id: 5, title: 'Silver (3 Months)', price: '₹1,999', originalPrice: '₹2,999', period: '/3 months', discount: '33% OFF', savings: 'Popular', isActive: true, isPopular: false,
+      id: 4, title: 'Silver', price: '₹2,499', originalPrice: '', period: '/3 months', discount: '', savings: '', isActive: true, isPopular: true,
       tagline: 'இதயம் திறக்கும் நேரம்',
       planDescription: 'Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!',
-      features: ['Unlimited interest requests', 'Chat directly with families', 'Full profile & contact visibility', 'Appear higher in search results', 'See who viewed your profile']
+      checklist: [], pricePerDay: computePricePerDay(2499, 90),
     },
     {
-      id: 6, title: 'Silver (6 Months)', price: '₹2,999', originalPrice: '₹3,999', period: '/6 months', discount: '25% OFF', savings: 'Most Popular', isActive: true, isPopular: true,
-      tagline: 'இதயம் திறக்கும் நேரம்',
-      planDescription: 'Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!',
-      features: ['Unlimited interest requests', 'Chat directly with families', 'Full profile & contact visibility', 'Appear higher in search results', 'See who viewed your profile']
-    },
-    {
-      id: 7, title: 'Silver (12 Months)', price: '₹4,499', originalPrice: '₹5,999', period: '/12 months', discount: '25% OFF', savings: 'Long Term', isActive: true, isPopular: false,
-      tagline: 'இதயம் திறக்கும் நேரம்',
-      planDescription: 'Unlimited requests, direct messaging, and full profile visibility. Oru real connection கட்ட இது right time!',
-      features: ['Unlimited interest requests', 'Chat directly with families', 'Full profile & contact visibility', 'Appear higher in search results', 'See who viewed your profile']
-    },
-    {
-      id: 8, title: 'Gold (6 Months)', price: '₹4,999', originalPrice: '₹6,999', period: '/6 months', discount: '28% OFF', savings: 'Premium', isActive: true, isPopular: false,
+      id: 5, title: 'Gold', price: '₹4,999', originalPrice: '', period: '/6 months', discount: '', savings: '', isActive: true, isPopular: true,
       tagline: 'தங்க வாழ்க்கை தொடர்புகள்',
       planDescription: 'Everything in Silver plus jathagam match, verification badge, and search boost. உங்கள் profile shine ஆகும்!',
-      features: ['Everything in Silver', 'Jathagam compatibility check', 'Verified badge on your profile', 'Priority search placement', 'See who viewed your profile']
+      checklist: [], pricePerDay: computePricePerDay(4999, 180),
     },
     {
-      id: 9, title: 'Gold (12 Months)', price: '₹7,999', originalPrice: '₹10,999', period: '/12 months', discount: '27% OFF', savings: 'Best Value', isActive: true, isPopular: false,
-      tagline: 'தங்க வாழ்க்கை தொடர்புகள்',
-      planDescription: 'Everything in Silver plus jathagam match, verification badge, and search boost. உங்கள் profile shine ஆகும்!',
-      features: ['Everything in Silver', 'Jathagam compatibility check', 'Verified badge on your profile', 'Priority search placement', 'See who viewed your profile']
-    },
-    {
-      id: 10, title: 'Platinum', price: '₹9,999', originalPrice: '₹19,999', period: '/until marriage', discount: '50% OFF', savings: 'Ultimate', isActive: true, isPopular: false,
+      id: 6, title: 'Platinum', price: '₹9,999', originalPrice: '', period: '/until marriage', discount: '', savings: '', isActive: true, isPopular: true,
       tagline: 'திருமணம் வரை நம்மோட உதவி',
       planDescription: 'All features until your wedding day — family chat, WhatsApp sharing, priority support. நாங்கள் உங்களோடு இருக்கோம்!',
-      features: ['All Gold features', 'Family-to-family direct chat', 'Share profiles via WhatsApp', 'Priority customer support', 'Active until your wedding day']
-    }
+      checklist: [],
+    },
   ];
-
-
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ec4899" />
-        <Text style={styles.loadingText}>Loading premium features...</Text>
-      </View>
+      <LinearGradient colors={BG_GRADIENT} locations={BG_LOCATIONS} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.loadingContainer}>
+        <Stack.Screen options={{ title: 'Membership Plans' }} />
+        <ActivityIndicator size="large" color="#1F7FE5" />
+        <Text style={styles.loadingText}>Loading plans…</Text>
+      </LinearGradient>
     );
   }
 
   if (error && !paymentStatus) {
     return (
-      <View style={styles.errorContainer}>
+      <LinearGradient colors={BG_GRADIENT} locations={BG_LOCATIONS} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.errorContainer}>
+        <Stack.Screen options={{ title: 'Membership Plans' }} />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={fetchData}
-        >
+        <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
     );
   }
 
   // PENDING payment — show payment under review
   if (paymentStatus === 'PENDING') {
     return (
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={['#fdf2f8', '#fef7ff', '#fff1f2']} style={styles.hero}>
-          <View style={styles.heroContent}>
-            <View style={[styles.crownContainer, { marginBottom: 16 }]}>
-              <LinearGradient colors={['#f97316', '#ea580c']} style={styles.crownGradient}>
-                <Clock size={32} color="#ffffff" />
-              </LinearGradient>
-            </View>
-            <Text style={[styles.heroTitle, { fontSize: 22 }]}>Payment Under Review</Text>
-            <Text style={styles.heroSubtitle}>Your payment is being verified. You'll be notified once approved.</Text>
+      <LinearGradient colors={BG_GRADIENT} locations={BG_LOCATIONS} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.container}>
+        <Stack.Screen options={{ title: 'Payment Status' }} />
+        <ScrollView contentContainerStyle={styles.statusScrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.statusIconCircle}>
+            <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.statusIconGradient}>
+              <Clock size={28} color="#ffffff" />
+            </LinearGradient>
           </View>
-        </LinearGradient>
+          <Text style={styles.statusTitle}>Payment Under Review</Text>
+          <Text style={styles.statusSubtitle}>Your payment is being verified. You'll be notified once approved.</Text>
 
-        <View style={{ padding: 20 }}>
-          {/* Payment Info Card */}
-          <View style={{
-            backgroundColor: '#fff',
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 20,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
-          }}>
-            <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#130001', marginBottom: 16 }}>Payment Details</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Payment Details</Text>
 
             {paymentData?.createdAt && (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                <Text style={{ color: '#6b7280', fontSize: 14 }}>Submitted</Text>
-                <Text style={{ color: '#130001', fontSize: 14, fontFamily: 'Rubik-Medium' }}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Submitted</Text>
+                <Text style={styles.detailValue}>
                   {new Date(paymentData.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
               </View>
             )}
 
             {paymentData?.utrNumber && (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                <Text style={{ color: '#6b7280', fontSize: 14 }}>UTR Number</Text>
-                <Text style={{ color: '#130001', fontSize: 14, fontFamily: 'Rubik-Medium' }}>{paymentData.utrNumber}</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>UTR Number</Text>
+                <Text style={styles.detailValue}>{paymentData.utrNumber}</Text>
               </View>
             )}
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: '#6b7280', fontSize: 14 }}>Status</Text>
-              <View style={{ backgroundColor: '#fef3c7', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
-                <Text style={{ color: '#d97706', fontSize: 12, fontFamily: 'Rubik-Bold' }}>PENDING</Text>
+            <View style={[styles.detailRow, { marginBottom: 0 }]}>
+              <Text style={styles.detailLabel}>Status</Text>
+              <View style={styles.pendingBadge}>
+                <Text style={styles.pendingBadgeText}>PENDING</Text>
               </View>
             </View>
           </View>
 
-          {/* Verification Steps */}
-          <View style={{
-            backgroundColor: '#fff',
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 20,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
-          }}>
-            <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#130001', marginBottom: 16 }}>Verification Progress</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Verification Progress</Text>
 
-            {/* Step 1 - Done */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <CheckCircle size={24} color="#10b981" />
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#130001' }}>Screenshot Uploaded</Text>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>Payment proof received</Text>
+            <View style={styles.stepRow}>
+              <CheckCircle size={22} color="#10b981" />
+              <View style={styles.stepText}>
+                <Text style={styles.stepTitleDone}>Screenshot Uploaded</Text>
+                <Text style={styles.stepSubtitle}>Payment proof received</Text>
               </View>
             </View>
 
-            {/* Step 2 - In Progress */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <CircleDot size={24} color="#f97316" />
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#f97316' }}>Payment Verification</Text>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>Admin is reviewing your payment</Text>
+            <View style={styles.stepRow}>
+              <CircleDot size={22} color="#1F7FE5" />
+              <View style={styles.stepText}>
+                <Text style={styles.stepTitleActive}>Payment Verification</Text>
+                <Text style={styles.stepSubtitle}>Admin is reviewing your payment</Text>
               </View>
             </View>
 
-            {/* Step 3 - Pending */}
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Circle size={24} color="#d1d5db" />
-              <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#9ca3af' }}>Premium Activation</Text>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>Will activate after approval</Text>
+            <View style={[styles.stepRow, { marginBottom: 0 }]}>
+              <Circle size={22} color="#d1d5db" />
+              <View style={styles.stepText}>
+                <Text style={styles.stepTitlePending}>Premium Activation</Text>
+                <Text style={styles.stepSubtitle}>Will activate after approval</Text>
               </View>
             </View>
           </View>
 
-          {/* Support Message */}
-          <View style={{
-            backgroundColor: '#eff6ff',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 40,
-            borderWidth: 1,
-            borderColor: '#bfdbfe',
-          }}>
-            <Text style={{ fontSize: 13, color: '#1e40af', textAlign: 'center', lineHeight: 20 }}>
+          <View style={styles.infoBanner}>
+            <Text style={styles.infoBannerText}>
               Verification usually takes a few hours. If you have any concerns, please contact our support team.
             </Text>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </LinearGradient>
     );
   }
 
@@ -531,77 +555,50 @@ export default function PremiumTab() {
   if (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free')) {
     const planName = subscriptionData?.planTitle || 'Premium';
     return (
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={['#fdf2f8', '#fef7ff', '#fff1f2']} style={styles.hero}>
-          <View style={styles.heroContent}>
-            <View style={[styles.crownContainer, { marginBottom: 16 }]}>
-              <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.crownGradient}>
-                <Crown size={32} color="#ffffff" />
-              </LinearGradient>
-            </View>
-            <Text style={[styles.heroTitle, { fontSize: 22 }]}>You're a {planName} Member!</Text>
-            <Text style={styles.heroSubtitle}>Enjoy all your premium features and find your perfect match.</Text>
+      <LinearGradient colors={BG_GRADIENT} locations={BG_LOCATIONS} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.container}>
+        <Stack.Screen options={{ title: 'Your Membership' }} />
+        <ScrollView contentContainerStyle={styles.statusScrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.statusIconCircle}>
+            <LinearGradient colors={['#FFE067', '#F6B733']} style={styles.statusIconGradient}>
+              <Crown size={28} color="#5E4200" />
+            </LinearGradient>
           </View>
-        </LinearGradient>
+          <Text style={styles.statusTitle}>You're a {planName} Member</Text>
+          <Text style={styles.statusSubtitle}>Enjoy every feature of your plan while you find your match.</Text>
 
-        <View style={{ padding: 20 }}>
-          <View style={{
-            backgroundColor: '#fff',
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 20,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <CheckCircle size={24} color="#10b981" />
-              <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#130001', marginLeft: 10 }}>Active Subscription</Text>
+          <View style={styles.card}>
+            <View style={styles.activeHeaderRow}>
+              <CheckCircle size={22} color="#10b981" />
+              <Text style={styles.activeHeaderText}>Active Subscription</Text>
             </View>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ color: '#6b7280', fontSize: 14 }}>Plan</Text>
-              <Text style={{ color: '#130001', fontSize: 14, fontFamily: 'Rubik-Medium' }}>{planName}</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Plan</Text>
+              <Text style={styles.detailValue}>{planName}</Text>
             </View>
 
             {subscriptionData?.endDate && (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: '#6b7280', fontSize: 14 }}>Valid Until</Text>
-                <Text style={{ color: '#130001', fontSize: 14, fontFamily: 'Rubik-Medium' }}>
+              <View style={[styles.detailRow, { marginBottom: 0 }]}>
+                <Text style={styles.detailLabel}>Valid Until</Text>
+                <Text style={styles.detailValue}>
                   {new Date(subscriptionData.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
               </View>
             )}
           </View>
 
-          <TouchableOpacity
-            style={{
-              backgroundColor: '#1F7FE5',
-              borderRadius: 12,
-              padding: 16,
-              alignItems: 'center',
-              marginBottom: 40,
-            }}
-            onPress={() => router.back()}
-          >
-            <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Rubik-Medium' }}>Go Back</Text>
+          <TouchableOpacity style={styles.goBackButton} onPress={() => router.back()} activeOpacity={0.85}>
+            <Text style={styles.goBackButtonText}>Go Back</Text>
           </TouchableOpacity>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </LinearGradient>
     );
   }
 
-  const handleUpgradePress = () => {
-    if (selectedPlan === null || !plans[selectedPlan]) {
-      popup.warning('Select a Plan', 'Please select a plan to continue.');
-      return;
-    }
-    const plan = plans[selectedPlan];
+  const handleUpgradePress = (plan: Plan) => {
     popup.confirm(
       'Confirm Upgrade',
-      `Continue with ${plan.title} plan at ₹${plan.price}?`,
+      `Continue with ${plan.title} plan at ${plan.price}?`,
       () => {
         router.push({
           pathname: '/screens/PaymentScreen',
@@ -617,207 +614,60 @@ export default function PremiumTab() {
       'Cancel'
     );
   };
-  const upgradePlan = async () => {
-    console.log("upgradePlan=============>");
-  }
+
+  const currentPlanTitle = subscriptionData?.planTitle || 'Free';
+
+  const onCarouselScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    setSelectedPlan(idx);
+  };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Hero Section */}
-      <LinearGradient
-        colors={['#fdf2f8', '#fef7ff', '#fff1f2']}
-        style={styles.hero}>
-        {/* Floating Hearts */}
-        <View style={styles.floatingHearts}>
-          <Heart size={16} color="#f472b6" fill="#f472b6" style={[styles.floatingHeart, styles.heart1]} />
-          <Heart size={12} color="#ec4899" fill="#ec4899" style={[styles.floatingHeart, styles.heart2]} />
-          <Heart size={14} color="#be185d" fill="#be185d" style={[styles.floatingHeart, styles.heart3]} />
-          <Heart size={10} color="#f9a8d4" fill="#f9a8d4" style={[styles.floatingHeart, styles.heart4]} />
-        </View>
+    <LinearGradient colors={BG_GRADIENT} locations={BG_LOCATIONS} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.container}>
+      <Stack.Screen options={{ title: 'Membership Plans' }} />
 
-        <View style={styles.heroContent}>
-          <View style={styles.crownContainer}>
-            <LinearGradient
-              colors={['#f59e0b', '#d97706']}
-              style={styles.crownGradient}>
-              <Crown size={32} color="#ffffff" />
-            </LinearGradient>
-            <View style={styles.heartAccent}>
-              <Heart size={12} color="#ec4899" fill="#ec4899" />
-            </View>
-          </View>
-          <Text style={styles.heroTitle}> {heroTitle}</Text>
-          {/* <Text style={styles.heroTitle}>💕 Matrimony 💕</Text> */}
-
-          <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
-        </View>
-      </LinearGradient>
-
-      {/* Premium Features Grid */}
-      {/* <View style={styles.featuresSection}>
-        <View style={styles.sectionHeader}>
-          <HeartHandshake size={20} color="#d946ef" />
-          <Text style={styles.sectionTitle}>Premium Matrimony Features</Text>
-          <HeartHandshake size={20} color="#d946ef" />
-        </View>
-
-        <View style={styles.featuresGrid}>
-          {premiumFeatures.map((feature, index) => {
-            const IconComponent = feature.icon;
-            const isEven = index % 2 === 0;
-
-            return (
-              <View key={index} style={[styles.featureCard, isEven ? styles.leftCard : styles.rightCard]}>
-                <View style={[styles.featureIcon, { backgroundColor: feature.bgColor }]}>
-                  <IconComponent size={20} color={feature.color} />
-                </View>
-                <View style={styles.featureContent}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.description}</Text>
-                </View>
-                <View style={styles.premiumBadge}>
-                  <Heart size={10} color="#ec4899" fill="#ec4899" />
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      </View> */}
-
-      {/* Pricing Plans */}
-      <View style={styles.pricingSection}>
-        {/* <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>💍 Choose Your Matrimony Plan </Text>
-        </View> */}
-        {/* <Text style={styles.pricingSubtitle}>💕 Start your premium matrimony journey today 💕</Text> */}
-
-        <View style={styles.plansContainer}>
-          {plans.map((plan, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.planCard,
-                selectedPlan === index ? styles.selectedPlan : null,
-                plan.isPopular && { marginTop: 15 }
-              ]}
-              onPress={() => setSelectedPlan(index)}>
-              {plan.title.toLowerCase() === 'free' && (
-                <View style={[styles.popularBadge, { backgroundColor: '#f3f4f6', borderColor: '#d1d5db', shadowColor: 'transparent' }]}>
-                  <Text style={[styles.popularText, { color: '#130001' }]}>CURRENT PLAN</Text>
-                </View>
-              )}
-              {plan.isPopular && (
-                <View style={styles.popularBadge}>
-                  <Text style={styles.popularText}>POPULAR</Text>
-                </View>
-              )}
-
-              <View style={styles.planHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.planTitle}>{plan.title}</Text>
-                  {plan.tagline ? (
-                    <Text style={styles.planTagline}>{plan.tagline}</Text>
-                  ) : null}
-                </View>
-                <View style={styles.discountBadge}>
-                  <Text style={styles.discountText}>{plan.discount}</Text>
-                </View>
-              </View>
-
-              {selectedPlan === index && plan.planDescription ? (
-                <Text style={styles.planDescription}>{plan.planDescription}</Text>
-              ) : null}
-
-              <View style={styles.priceSection}>
-                <View style={styles.priceRow}>
-                  <Text style={[styles.price, plan.isPopular && styles.popularPrice]}>{plan.price}</Text>
-                  <Text style={styles.originalPrice}>{plan.originalPrice}</Text>
-                </View>
-                <Text style={styles.period}>/ {plan.title}</Text>
-              </View>
-
-              <View style={styles.planFeatures}>
-                {(plan.features || []).map((feature, fIndex) => (
-                  <View key={fIndex} style={styles.featureRow}>
-                    <Check size={14} color="#10b981" />
-                    <Text style={styles.featureText}>{feature}</Text>
-                  </View>
-                ))}
-              </View>
-            </TouchableOpacity>
+      {/* Header: page title left, live scroll-linked dash indicator right (mirrors reference) */}
+      <View style={styles.headerRow}>
+        <Text style={styles.pageTitle}>{HERO_TITLE}</Text>
+        <View style={styles.dashRow}>
+          {plans.map((_, i) => (
+            <DashDot key={i} index={i} scrollX={scrollX} />
           ))}
         </View>
       </View>
+      <Text style={styles.introSubtitle}>{HERO_SUBTITLE}</Text>
 
-      {/* CTA Section */}
-      <View style={styles.ctaSection}>
-        {/* <View style={styles.urgencyBanner}>
-          <LinearGradient
-            colors={['#fef2f2', '#fdf2f8']}
-            style={styles.urgencyGradient}>
-            <Heart size={14} color="#ec4899" fill="#ec4899" />
-            <Text style={styles.urgencyText}>💕 Join 1000+ couples who found love this month! 💕</Text>
-            <Heart size={14} color="#ec4899" fill="#ec4899" />
-          </LinearGradient>
-        </View> */}
-
-        {selectedPlan !== null && plans[selectedPlan]?.title.toLowerCase() === 'free' ? (
-          <View style={[styles.upgradeButton, { opacity: 0.6 }]}>
-            <LinearGradient
-              colors={['#9ca3af', '#6b7280']}
-              style={styles.upgradeGradient}>
-              <Text style={styles.upgradeText}>Current Plan Selected</Text>
-            </LinearGradient>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.upgradeButton} onPress={() => handleUpgradePress()}>
-            <LinearGradient
-              colors={['#1F7FE5', '#8B0000']}
-              style={styles.upgradeGradient}>
-              <Text style={styles.upgradeText}>Start Premium Journey</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+      <Animated.FlatList
+        style={styles.carousel}
+        data={plans}
+        keyExtractor={(p: Plan) => String(p.id)}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        initialScrollIndex={selectedPlan ?? 0}
+        getItemLayout={(_: unknown, index: number) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={onCarouselScrollEnd}
+        renderItem={({ item, index }: { item: Plan; index: number }) => (
+          <PlanCard
+            plan={item}
+            index={index}
+            scrollX={scrollX}
+            isCurrentPlan={item.title === currentPlanTitle}
+            onUpgrade={() => handleUpgradePress(item)}
+          />
         )}
-
-        {/* <View style={styles.guaranteeSection}>
-          <Heart size={16} color="#ec4899" fill="#ec4899" />
-          <Text style={styles.guaranteeText}>💕 7-day money-back guarantee • Secure payment 💕</Text>
-        </View> */}
-      </View>
-
-      {/* Success Stats */}
-      {/* <View style={styles.statsSection}>
-        <LinearGradient
-          colors={['#fef7ff', '#fff1f2', '#ffffff']}
-          style={styles.statsGradient}>
-          <View style={styles.statsHeader}>
-            <Heart size={16} color="#ec4899" fill="#ec4899" />
-            <Text style={styles.statsTitle}>💕 Join Thousands of Happy Couples 💕</Text>
-            <Heart size={16} color="#ec4899" fill="#ec4899" />
-          </View>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>💍 50K+</Text>
-              <Text style={styles.statLabel}>Happy Marriages</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>💕 95%</Text>
-              <Text style={styles.statLabel}>Success Rate</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>⭐ 4.8</Text>
-              <Text style={styles.statLabel}>User Rating</Text>
-            </View>
-          </View>
-        </LinearGradient>
-      </View> */}
-    </ScrollView>
+      />
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -826,8 +676,9 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 13,
+    fontFamily: 'Rubik-Medium',
+    color: '#64748b',
   },
   errorContainer: {
     flex: 1,
@@ -836,431 +687,443 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    fontSize: 16,
-    color: '#ef4444',
+    fontSize: 14,
+    fontFamily: 'Rubik-Medium',
+    color: '#dc2626',
     textAlign: 'center',
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: '#ec4899',
+    backgroundColor: '#1F7FE5',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   retryButtonText: {
-    color: '#DADADA',
+    color: '#fff',
     fontFamily: 'Rubik-Medium',
-    fontSize: 16,
-  },
-  selectedPlan: {
-    borderColor: '#ec4899',
-    transform: [{ scale: 1.02 }],
-    shadowColor: '#ec4899',
-    shadowOpacity: 0.15,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  hero: {
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  heroContent: {
-    alignItems: 'center',
-  },
-  crownContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginBottom: 16,
-    shadowColor: '#f59e0b',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6,
-    position: 'relative',
-  },
-  crownGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heartAccent: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 2,
-    shadowColor: '#ec4899',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  floatingHearts: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  floatingHeart: {
-    position: 'absolute',
-    opacity: 0.6,
-  },
-  heart1: {
-    top: 80,
-    left: 30,
-  },
-  heart2: {
-    top: 120,
-    right: 40,
-  },
-  heart3: {
-    top: 60,
-    right: 80,
-  },
-  heart4: {
-    top: 100,
-    left: 60,
-  },
-  heroTitle: {
-    fontSize: 22,
-    fontFamily: 'Rubik-Bold',
-    color: '#130001',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  heroSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 20,
   },
-  featuresSection: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    gap: 8,
-    paddingHorizontal: 10,
 
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Rubik-Medium',
-    color: '#130001',
-    textAlign: 'center',
-  },
-  featuresGrid: {
-    gap: 12,
-  },
-  featureCard: {
+  // Header — page title + live scroll-linked dash indicator, top-right (matches reference)
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-    position: 'relative',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    paddingHorizontal: 24,
   },
-  leftCard: {
-    marginRight: 40,
+  pageTitle: {
+    fontSize: 24,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
   },
-  rightCard: {
-    marginLeft: 40,
+  introSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Rubik-Regular',
+    color: '#64748b',
+    paddingHorizontal: 24,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
-  featureIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+
+  // Dash indicator
+  dashRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+    gap: 4,
   },
-  featureContent: {
+  dash: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#1F7FE5',
+  },
+
+  // Swipeable card — flex-bounded (not a free-scrolling page) so only the checklist below scrolls
+  // internally; price/description stay fixed at top and the CTA/trust line stay pinned at the
+  // bottom, reachable without any scroll-then-tap step.
+  carousel: {
     flex: 1,
   },
-  featureTitle: {
-    fontSize: 15,
-    fontFamily: 'Rubik-Medium',
-    color: '#130001',
-    marginBottom: 2,
-  },
-  featureDescription: {
-    fontSize: 12,
-    color: '#6b7280',
-    lineHeight: 16,
-  },
-  premiumBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#fce7f3',
-  },
-  pricingSection: {
-    padding: 20,
-    paddingTop: 10,
-    backgroundColor: '#fafafa',
-  },
-  pricingSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  plansContainer: {
-    gap: 12,
+  cardPage: {
+    width: SCREEN_W,
+    paddingHorizontal: CARD_MARGIN,
+    paddingBottom: 16,
+    flex: 1,
   },
   planCard: {
+    flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
+    borderRadius: 28,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowColor: 'rgba(15,35,70,0.12)',
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
-  popularPlan: {
-    borderColor: '#ec4899',
-    transform: [{ scale: 1.02 }],
-    shadowColor: '#ec4899',
-    shadowOpacity: 0.15,
+  // Popular-plan highlight ring — mirrors the reference's yellow border around its featured card.
+  planCardPopular: {
+    borderWidth: 2.5,
+    borderColor: '#F6B733',
+    shadowColor: '#F6B733',
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
-  popularBadge: {
+  // Corner badge — anchored top-right, matching the reference's "Active •" / "Popular •" /
+  // "Save X% •" pill-with-dot treatment that sits into the card's own corner.
+  cornerBadge: {
     position: 'absolute',
-    top: -12,
-    alignSelf: 'center',
-    backgroundColor: '#fff1f2',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ec4899',
-    shadowColor: '#ec4899',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  popularBadgeGradient: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  popularText: {
-    fontSize: 11,
-    fontFamily: 'Rubik-Bold',
-    color: '#ec4899', // Primary active color
-    letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-  planHeader: {
+    top: 18,
+    right: 18,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
+    zIndex: 2,
+  },
+  cornerBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Rubik-Bold',
+    letterSpacing: 0.4,
+  },
+  cornerBadgeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  // Identity — medallion + name + tagline, decoupled from the corner badge (paddingRight clears it)
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+    paddingRight: 60,
+  },
+  tierMedallion: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   planTitle: {
-    fontSize: 18,
-    fontFamily: 'Rubik-Medium',
-    color: '#130001',
+    fontSize: 19,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
   },
   planTagline: {
-    fontSize: 11,
-    color: '#9c4040',
+    fontSize: 11.5,
+    fontFamily: 'Rubik-Regular',
+    color: '#1F7FE5',
     fontStyle: 'italic',
     marginTop: 2,
   },
   planDescription: {
-    fontSize: 12,
-    color: '#4b5563',
+    fontSize: 12.5,
+    fontFamily: 'Rubik-Regular',
+    color: '#64748b',
     lineHeight: 18,
-    marginTop: 4,
-    marginBottom: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f3e8e8',
+    marginTop: 10,
   },
-  discountBadge: {
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  discountText: {
-    fontSize: 11,
-    fontFamily: 'Rubik-Medium',
-    color: '#16a34a',
-  },
-  priceSection: {
-    marginBottom: 16,
+  priceBlock: {
+    marginTop: 0,
   },
   priceRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     gap: 8,
-    marginBottom: 4,
+    flexWrap: 'wrap',
   },
   price: {
-    fontSize: 28,
-    fontFamily: 'Rubik-Bold',
-    color: '#130001',
+    fontSize: 32,
+    fontFamily: 'Rubik-ExtraBold',
+    color: '#0f1724',
   },
-  popularPrice: {
-    color: '#be185d',
+  pricePerDay: {
+    fontSize: 11,
+    fontFamily: 'Rubik-Medium',
+    color: '#1F7FE5',
+    marginTop: 3,
   },
   originalPrice: {
-    fontSize: 16,
-    color: '#9ca3af',
+    fontSize: 15,
+    fontFamily: 'Rubik-Regular',
+    color: '#cbd5e1',
     textDecorationLine: 'line-through',
   },
-  period: {
-    fontSize: 14,
-    color: '#6b7280',
+  periodInline: {
+    fontSize: 12.5,
+    fontFamily: 'Rubik-Regular',
+    color: '#94a3b8',
   },
-  planFeatures: {
-    gap: 8,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  featureText: {
-    fontSize: 13,
-    color: '#374151',
-  },
-  ctaSection: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  urgencyBanner: {
-    width: '100%',
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  urgencyGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  urgencyText: {
-    fontSize: 13,
-    fontFamily: 'Rubik-Medium',
-    color: '#be185d',
-    textAlign: 'center',
-  },
-  upgradeButton: {
-    width: '100%',
-    marginBottom: 16,
-    shadowColor: '#1F7FE5',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  upgradeGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  upgradeText: {
-    fontSize: 16,
-    fontFamily: 'Rubik-Medium',
-    color: '#DADADA',
-  },
-  guaranteeSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  guaranteeText: {
-    fontSize: 13,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  statsSection: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  statsGradient: {
-    padding: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-  },
-  statsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  statsTitle: {
-    fontSize: 16,
-    fontFamily: 'Rubik-Medium',
-    color: '#130001',
-    textAlign: 'center',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
+
+  // Checklist — the only internally-scrolling region in the card (flex:1 fills whatever space is
+  // left between the fixed header/price/description above and the fixed CTA/trust line below).
+  checklistScroll: {
     flex: 1,
   },
-  statNumber: {
-    fontSize: 18,
-    fontFamily: 'Rubik-Bold',
-    color: '#be185d',
-    marginBottom: 4,
+  checklistScrollContent: {
+    paddingBottom: 4,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
+  checklistDivider: {
+    borderTopWidth: 1,
+    borderStyle: 'dashed',
+    borderTopColor: '#e2e8f0',
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  checklistLabel: {
+    fontSize: 10,
     fontFamily: 'Rubik-Medium',
+    color: '#94a3b8',
+    letterSpacing: 1,
+    marginBottom: 10,
   },
-  statDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 12,
+  checklist: {
+    gap: 9,
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  checkIconWrap: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkIconIncluded: {
+    backgroundColor: '#16a34a',
+  },
+  checkIconExcluded: {
+    backgroundColor: '#f1f5f9',
+  },
+  checkLabel: {
+    flex: 1,
+    fontSize: 12.5,
+    fontFamily: 'Rubik-Regular',
+    color: '#334155',
+  },
+  checkLabelExcluded: {
+    color: '#cbd5e1',
+  },
+
+  // CTA (inside card) — fixed area below the scrollable checklist, always visible/reachable
+  upgradeButton: {
+    width: '100%',
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#1F7FE5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  upgradeGradient: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  upgradeText: {
+    fontSize: 15,
+    fontFamily: 'Rubik-Bold',
+    color: '#ffffff',
+    letterSpacing: 0.2,
+  },
+  // Ghost/outline button for the current-plan state — mirrors the reference's "Cancel" treatment
+  // (border only, no fill) instead of a solid grey disabled button.
+  ghostButton: {
+    width: '100%',
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13.5,
+  },
+  ghostButtonText: {
+    fontSize: 15,
+    fontFamily: 'Rubik-Bold',
+    color: '#94a3b8',
+    letterSpacing: 0.2,
+  },
+  trustLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  trustLineText: {
+    fontSize: 11,
+    fontFamily: 'Rubik-Regular',
+    color: '#94a3b8',
+  },
+
+  // Shared status card layout (PENDING / APPROVED branches)
+  statusScrollContent: {
+    padding: 20,
+    alignItems: 'center',
+    paddingBottom: 50,
+  },
+  statusIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  statusIconGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusTitle: {
+    fontSize: 19,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  statusSubtitle: {
+    fontSize: 13,
+    fontFamily: 'Rubik-Regular',
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  card: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: 'rgba(15,35,70,0.08)',
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
+    marginBottom: 14,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontFamily: 'Rubik-Regular',
+    color: '#64748b',
+  },
+  detailValue: {
+    fontSize: 13,
+    fontFamily: 'Rubik-Medium',
+    color: '#0f1724',
+  },
+  pendingBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 100,
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Rubik-Bold',
+    color: '#d97706',
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  stepText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  stepTitleDone: {
+    fontSize: 13.5,
+    fontFamily: 'Rubik-Medium',
+    color: '#0f1724',
+  },
+  stepTitleActive: {
+    fontSize: 13.5,
+    fontFamily: 'Rubik-Medium',
+    color: '#1F7FE5',
+  },
+  stepTitlePending: {
+    fontSize: 13.5,
+    fontFamily: 'Rubik-Medium',
+    color: '#94a3b8',
+  },
+  stepSubtitle: {
+    fontSize: 11.5,
+    fontFamily: 'Rubik-Regular',
+    color: '#64748b',
+    marginTop: 1,
+  },
+  infoBanner: {
+    width: '100%',
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  infoBannerText: {
+    fontSize: 12.5,
+    fontFamily: 'Rubik-Regular',
+    color: '#1e40af',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  activeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  activeHeaderText: {
+    fontSize: 15,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
+  },
+  goBackButton: {
+    width: '100%',
+    backgroundColor: '#1F7FE5',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  goBackButtonText: {
+    fontSize: 15,
+    fontFamily: 'Rubik-Bold',
+    color: '#ffffff',
   },
 });

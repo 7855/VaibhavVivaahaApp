@@ -18,33 +18,47 @@ export interface UpgradePlanOption {
   price: string;
   period: string;
   tagline: string;
+  features: string[];
 }
 
 // Real DB-verified pricing (see CLAUDE.md section 7) — kept here rather than fetched, since this
 // screen is a lightweight "pick one, raise a request" picker, not the full plan-comparison list.
+// `features` mirrors the same bullet copy used on PremiumTab.tsx's plan cards, so a user picking a
+// plan through the assisted "talk to a Relationship Manager" flow (RelationshipManagerView.tsx)
+// sees exactly what they're signing up for, not just a bare price.
 export const ALL_UPGRADE_PLANS: UpgradePlanOption[] = [
-  { title: 'Starter', price: '₹499', period: '30 days', tagline: 'முதல் அடி எடுங்கள்' },
-  { title: 'Classic', price: '₹999', period: '90 days', tagline: 'தெளிவான தேர்வு' },
-  { title: 'Silver', price: '₹2,499', period: '90 days', tagline: 'இதயம் திறக்கும் நேரம்' },
-  { title: 'Gold', price: '₹4,999', period: '180 days', tagline: 'தங்க வாழ்க்கை தொடர்புகள்' },
-  { title: 'Platinum', price: '₹9,999', period: 'Until marriage', tagline: 'திருமணம் வரை நம்மோட உதவி' },
+  {
+    title: 'Starter', price: '₹499', period: '30 days', tagline: 'முதல் அடி எடுங்கள்',
+    features: ['Advanced filters — education, income & more', '15 interest requests', 'See who viewed you (last 5)', 'View all profile photos'],
+  },
+  {
+    title: 'Classic', price: '₹999', period: '90 days', tagline: 'தெளிவான தேர்வு',
+    features: ['50 interest requests', 'See full profile details & all photos', 'See phone & personal contact info', 'See who viewed you (last 20)'],
+  },
+  {
+    title: 'Silver', price: '₹2,499', period: '90 days', tagline: 'இதயம் திறக்கும் நேரம்',
+    features: ['Unlimited interest requests', 'Chat directly with families', 'Full profile & contact visibility', 'Appear higher in search results'],
+  },
+  {
+    title: 'Gold', price: '₹4,999', period: '180 days', tagline: 'தங்க வாழ்க்கை தொடர்புகள்',
+    features: ['Everything in Silver', 'Jathagam compatibility check', 'Verified badge on your profile', 'Priority search placement'],
+  },
+  {
+    title: 'Platinum', price: '₹9,999', period: 'Until marriage', tagline: 'திருமணம் வரை நம்மோட உதவி',
+    features: ['All Gold features', 'Family-to-family direct chat', 'Share profiles via WhatsApp', 'Active until your wedding day'],
+  },
 ];
 
 const PAYMENT_MODE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — same key/TTL as PaymentScreen.tsx
 
-// Same cache key PaymentScreen.tsx already reads/writes, so both stay in sync — whichever one
-// hits the network first "primes" it for the other.
+// This decides which SCREEN a user lands on (self-serve QR checkout vs. the assisted "contact us"
+// picker) — unlike PaymentScreen.tsx, there's no second chance to correct course once that
+// navigation happens. It previously returned an up-to-5-minute-old cached value without ever
+// re-checking the network, so flipping PAYMENT_MODE in the admin panel could leave users routed
+// to the stale destination for up to 5 minutes after the change. Always fetch fresh now; the
+// cache is only a fallback if the network call itself fails, and still gets written so
+// PaymentScreen.tsx's own optimistic first-paint has something recent to show.
 async function resolvePaymentMode(): Promise<'QR' | 'CONTACT'> {
-  try {
-    const cached = await AsyncStorage.getItem('paymentModeCache');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed?.expiresAt && Date.now() < parsed.expiresAt && parsed.mode) {
-        return parsed.mode;
-      }
-    }
-  } catch {}
-
   try {
     const modeRes = await userApi.getPaymentMode();
     let mode: 'QR' | 'CONTACT' = 'CONTACT'; // Play Store-safe fallback
@@ -52,13 +66,29 @@ async function resolvePaymentMode(): Promise<'QR' | 'CONTACT'> {
       try {
         const parsed = JSON.parse(modeRes.data.data.valueColumn);
         if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT') mode = parsed.mode;
-      } catch {}
+        else console.warn('[upgradeNavigation] PAYMENT_MODE value has an unexpected shape:', modeRes.data.data.valueColumn);
+      } catch (e) {
+        console.warn('[upgradeNavigation] Failed to parse PAYMENT_MODE valueColumn:', modeRes.data.data.valueColumn, e);
+      }
+    } else {
+      console.warn('[upgradeNavigation] No PAYMENT_MODE data in response, defaulting to CONTACT. Response:', JSON.stringify(modeRes?.data));
     }
     await AsyncStorage.setItem('paymentModeCache', JSON.stringify({
       mode, expiresAt: Date.now() + PAYMENT_MODE_CACHE_TTL,
     }));
     return mode;
-  } catch {
+  } catch (e) {
+    console.warn('[upgradeNavigation] getPaymentMode failed, falling back to cache/CONTACT:', (e as any)?.message || e);
+    // Network failure — fall back to the last known-good value rather than always forcing
+    // CONTACT, so a brief connectivity blip doesn't wrongly bounce QR-mode users to the
+    // assisted picker.
+    try {
+      const cached = await AsyncStorage.getItem('paymentModeCache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.mode) return parsed.mode;
+      }
+    } catch {}
     return 'CONTACT';
   }
 }

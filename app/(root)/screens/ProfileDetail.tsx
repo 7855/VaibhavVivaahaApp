@@ -17,6 +17,7 @@ import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { buildUpgradeAction } from '../utils/upgradeNavigation';
 import { LinearGradient } from 'expo-linear-gradient';
+import { REPORT_REASONS } from '@/constants/data';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_ASPECT = 5 / 4;
@@ -347,7 +348,9 @@ const ProfileDetailRevamp = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState('');
-  const REPORT_REASONS = ['Spam', 'Abuse', 'Harassment', 'Fake Profile', 'Inappropriate Photos', 'Others'];
+  // Defaults to true — reporting a whole profile is a decisive action where blocking too is the
+  // expected default, but the admin/user can still uncheck it. Previously this was forced/silent.
+  const [reportAlsoBlock, setReportAlsoBlock] = useState(true);
   // Persists the "already sent" state across remounts (e.g. leaving and reopening this profile),
   // same pattern as interestStatus/permissionRequests below — checked once against this specific
   // target user's pending VOICE_CALL rows rather than relying only on the in-session toast.
@@ -582,22 +585,39 @@ const ProfileDetailRevamp = () => {
   };
 
   const openImageModal = async () => {
+    // Nothing to zoom into when this profile has no real photo — the default gendered avatar
+    // isn't a "photo" to expand, and without this guard the modal opened with an empty
+    // gallery, rendering an <Image source={{uri: undefined}}> (blank/broken image).
+    if (!hasProfileImage) return;
     setCurrentImageIndex(0);
     if (!planTitle || planTitle === 'Free') {
       popup.premiumRequired('Upgrade to Starter or above to view all profile photos.', buildUpgradeAction({ planTitle, featureName: 'Full Profile Photos', minPlan: 'Starter' }));
       return;
     }
     try {
-      const encodeId = btoa(userDetailId);
+      const encodeId = btoa(String(userDetailId));
       const res = await userApi.getUserGalleryImages(encodeId);
+      const mainPhoto = userDetails?.profileImage;
+
+      let images: string[] = [];
       if (res?.data?.data?.length > 0) {
-        setGalleryImages(res.data.data.map((img: any) => img.userImage));
-      } else if (userDetails?.profileImage) {
-        setGalleryImages([userDetails.profileImage]);
+        const galleryUrls: string[] = res.data.data.map((img: any) => img.userImage);
+        // Always put the hero profile photo first, then the rest of the gallery
+        // de-duped (the profile photo may or may not already be a gallery entry).
+        if (mainPhoto) {
+          images = [mainPhoto, ...galleryUrls.filter((url) => url !== mainPhoto)];
+        } else {
+          images = galleryUrls;
+        }
+      } else if (mainPhoto) {
+        images = [mainPhoto];
       }
+
+      if (images.length > 0) setGalleryImages(images);
       setImageModalVisible(true);
     } catch (e) {
-      setGalleryImages([userDetails?.profileImage]);
+      const mainPhoto = userDetails?.profileImage;
+      if (mainPhoto) setGalleryImages([mainPhoto]);
       setImageModalVisible(true);
     }
   };
@@ -799,6 +819,14 @@ const ProfileDetailRevamp = () => {
       popup.premiumRequired('Star Match is a premium feature. Upgrade to discover horoscope compatibility.', buildUpgradeAction({ planTitle, featureName: 'Star Match' }));
       return;
     }
+    // Same rule as Request Call: matching this member's horoscope against yours requires
+    // their consent via an accepted interest first. The standalone Star Match utility
+    // (settingsPage.tsx / QuickAccessFAB.tsx, no viewedUserId) is unaffected — this check
+    // only applies to the profile-initiated flow.
+    if (interestStatus !== 'APPROVED') {
+      popup.info('Not connected yet', 'You can check Star Match compatibility once this member accepts your interest.');
+      return;
+    }
     const detail = userDetails?.userDetail?.[0];
     let viewedStar = '', viewedRasi = '', viewedPlace = '', viewedDob = userDetails?.dob || '';
     if (detail) {
@@ -831,20 +859,32 @@ const ProfileDetailRevamp = () => {
   const handleReportUser = () => {
     if (isParent) { popup.error('Not allowed', 'Parent accounts cannot report users.'); return; }
     setSelectedReason('');
+    setReportAlsoBlock(true);
     setReportModalVisible(true);
   };
 
   const handleReportSubmit = async () => {
     if (!selectedReason) { popup.error('Select Reason', 'Please select a reason for reporting.'); return; }
     try {
-      await userApi.reportUser({ reportedByUserId: userData.userId, reportedUserId: userId, reason: selectedReason });
+      await userApi.reportUser({
+        reportedByUserId: userData.userId,
+        reportedUserId: userId,
+        reason: selectedReason,
+        blockUser: reportAlsoBlock,
+      });
       setReportModalVisible(false);
-      popup.success('Reported', 'Your report has been submitted. Our team will review it.');
+      popup.success(
+        'Reported',
+        reportAlsoBlock
+          ? 'Your report has been submitted and this user has been blocked.'
+          : 'Your report has been submitted. Our team will review it.'
+      );
     } catch { popup.error('Error', 'Could not submit report. Try again.'); }
   };
 
   // ─── Derived values ────────────────────────────────
   const profileImage = userDetails?.profileImage;
+  const hasProfileImage = !!profileImage;
   const isFree = !planTitle || planTitle === 'Free';
   const isVerifiedPlan = ['Silver', 'Gold', 'Platinum'].includes(userDetails?.subscriptionTitle || '');
   const anyVerified = userDetails?.idVerified || userDetails?.educationVerified || userDetails?.incomeVerified;
@@ -971,15 +1011,24 @@ const ProfileDetailRevamp = () => {
               resizeMode="cover"
             />
           ) : (
-            <Image
-              source={
-                userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
-                userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
-                  require('../../../assets/images/defaultAvatar.png')
-              }
-              style={StyleSheet.absoluteFillObject}
-              resizeMode="cover"
-            />
+            // The default avatar assets are square (500x500/512x512), but this frame is a 4:5
+            // portrait rectangle. `resizeMode="cover"` (used for real photos, which are already
+            // portrait-cropped by the upload flow) was center-cropping ~12.5% off each side of
+            // these square, near-full-bleed illustrations — clipping hair/shoulders and making
+            // the avatar look zoomed-in/off-center compared to a real photo in the same frame.
+            // `contain` + a neutral fill behind it keeps the whole illustration visible and
+            // properly centered instead.
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#eef1f5', justifyContent: 'center', alignItems: 'center' }]}>
+              <Image
+                source={
+                  userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                  userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                    require('../../../assets/images/defaultAvatar.png')
+                }
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="contain"
+              />
+            </View>
           )}
 
           {/* Gradient overlay at bottom — purely decorative (darkens the lower half for text
@@ -1010,7 +1059,11 @@ const ProfileDetailRevamp = () => {
             <TouchableOpacity style={s.sideBtn} onPress={handleShortlist}>
               {isShortlisted ? <BookmarkCheck size={22} color="#1F7FE5" /> : <Bookmark size={22} color="#0f1724" />}
             </TouchableOpacity>
-            <TouchableOpacity style={[s.sideBtn, { backgroundColor: 'rgba(255,255,255,0.8)' }]} onPress={openImageModal}>
+            <TouchableOpacity
+              style={[s.sideBtn, { backgroundColor: 'rgba(255,255,255,0.8)' }, !hasProfileImage && { opacity: 0.4 }]}
+              onPress={openImageModal}
+              disabled={!hasProfileImage}
+            >
               <Maximize2 size={20} color="#0f1724" />
             </TouchableOpacity>
           </View>
@@ -1141,10 +1194,29 @@ const ProfileDetailRevamp = () => {
                   </TouchableOpacity>
                 );
               })()}
-              <TouchableOpacity style={s.secondaryBtn} onPress={handleStarMatch} activeOpacity={0.8}>
-                <Star size={18} color="#1F7FE5" />
-                <Text style={s.secondaryBtnText}>Match Score</Text>
-              </TouchableOpacity>
+              {(() => {
+                // Only grey out for "not matched yet" — Free/insufficient-plan taps still
+                // go through to show the upgrade popup (existing behavior for that case).
+                const matchLocked = isPremiumValue && interestStatus !== 'APPROVED';
+                return (
+                  <TouchableOpacity
+                    style={[s.secondaryBtn, matchLocked && s.secondaryBtnDisabled]}
+                    onPress={handleStarMatch}
+                    disabled={matchLocked}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Star size={18} color={matchLocked ? '#94a3b8' : '#1F7FE5'} />
+                        <Text style={[s.secondaryBtnText, matchLocked && s.secondaryBtnTextDisabled]}>Match Score</Text>
+                      </View>
+                      {matchLocked && (
+                        <Text style={s.secondaryBtnSubtext}>Available after they accept your interest</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
 
             {/* WhatsApp Share */}
@@ -1188,6 +1260,16 @@ const ProfileDetailRevamp = () => {
                 </TouchableOpacity>
               ))}
             </View>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}
+              onPress={() => setReportAlsoBlock((v) => !v)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name={reportAlsoBlock ? 'checkbox' : 'square-outline'} size={20} color={reportAlsoBlock ? '#dc2626' : '#94a3b8'} />
+              <Text style={{ fontSize: 13, fontFamily: 'Rubik-Medium', color: '#334155', flex: 1 }}>
+                Also block this user
+              </Text>
+            </TouchableOpacity>
             <View style={s.reportBtnRow}>
               <TouchableOpacity style={s.reportCancelBtn} onPress={() => setReportModalVisible(false)}>
                 <Text style={s.reportCancelTxt}>Cancel</Text>

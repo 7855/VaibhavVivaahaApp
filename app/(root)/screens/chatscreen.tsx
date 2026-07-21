@@ -22,6 +22,7 @@ import {
 import { SelectList } from 'react-native-dropdown-select-list';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { REPORT_REASONS } from '@/constants/data';
 // Remove this import since we're not using Checkbox anymore
 interface Message {
   id: string;
@@ -143,12 +144,17 @@ function ChatScreen() {
   const [blockedId, setBlockedId] = useState('');
 
 
-  const [reportReasons, setReportReasons] = useState([
-    { key: '1', value: 'Spam' },
-    { key: '2', value: 'Abuse' },
-    { key: '3', value: 'Harassment' },
-    { key: '4', value: 'Others' },
-  ]);
+  // Shared with ProfileDetail.tsx — was previously a separate, out-of-sync list here (missing
+  // "Fake Profile"/"Inappropriate Photos" for no reason).
+  const reportReasons = REPORT_REASONS.map((r, i) => ({ key: String(i + 1), value: r }));
+
+  // Set only when reporting a specific message (long-press on a bubble) rather than the whole
+  // profile via the header menu — null means "reporting the profile itself".
+  const [reportedMessage, setReportedMessage] = useState<{ id: string | number; text: string } | null>(null);
+  // Blocking defaults to checked for a profile-level report (a decisive action) but unchecked for
+  // a single reported message (you might still want to keep chatting after one bad message) —
+  // either way it's now an explicit user choice, not a forced side effect of reporting.
+  const [reportAlsoBlock, setReportAlsoBlock] = useState(true);
 
   const handleBlockUser = () => {
     if (isParent) { blockedForParent('block other users'); return; }
@@ -182,6 +188,17 @@ function ChatScreen() {
 
   const handleReportUser = async () => {
     if (isParent) { blockedForParent('report other users'); return; }
+    setReportedMessage(null);
+    setSelectedReason('');
+    setReportAlsoBlock(true);
+    setShowReportModal(true);
+  };
+
+  const handleReportMessage = (item: { id: string | number; text: string }) => {
+    if (isParent) { blockedForParent('report messages'); return; }
+    setReportedMessage(item);
+    setSelectedReason('');
+    setReportAlsoBlock(false);
     setShowReportModal(true);
   };
 
@@ -263,17 +280,27 @@ function ChatScreen() {
         return;
       }
 
-      const requestBody = {
+      const requestBody: Record<string, unknown> = {
         reportedByUserId: storedUserId,
         reportedUserId: parseInt(otherUserId),
-        reason: reasonToSend
+        reason: reasonToSend,
+        blockUser: reportAlsoBlock,
       };
+      if (reportedMessage) {
+        requestBody.reportedMessageId = reportedMessage.id;
+        requestBody.messageContent = reportedMessage.text;
+      }
 
       await userApi.reportUser(requestBody);
+      setShowReportModal(false);
 
-      popup.success('Reported', 'User reported successfully. Our team will review.', () =>
-        router.navigate('/myChatList')
-      );
+      const message = reportAlsoBlock
+        ? 'User reported and blocked successfully.'
+        : 'Your report has been submitted. Our team will review it.';
+      // Only navigate away when blocking actually happened — the conversation becomes
+      // unusable either way, but reporting a single message without blocking should let
+      // the user stay right where they were.
+      popup.success('Reported', message, reportAlsoBlock ? () => router.navigate('/myChatList') : undefined);
     } catch (error) {
       console.error('Error reporting user:', error);
       popup.error('Error', 'Failed to report user. Please try again.');
@@ -1045,7 +1072,11 @@ function ChatScreen() {
                             />
                           )}
 
-                          <View style={isMyMessage ? styles.messageMetaRight : styles.messageMetaLeft}>
+                          <TouchableOpacity
+                            activeOpacity={isMyMessage ? 1 : 0.7}
+                            onLongPress={isMyMessage ? undefined : () => handleReportMessage({ id: item.id, text: item.text })}
+                            style={isMyMessage ? styles.messageMetaRight : styles.messageMetaLeft}
+                          >
                             <Text style={isMyMessage ? styles.messageRight : styles.messageLeft}>{item.text}</Text>
 
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1059,7 +1090,7 @@ function ChatScreen() {
                                   <Ionicons name="checkmark-sharp" size={16} color="gray" />
                                 ))}
                             </View>
-                          </View>
+                          </TouchableOpacity>
 
                           {isMyMessage && (
                             <Image
@@ -1168,10 +1199,19 @@ function ChatScreen() {
               <View style={styles.modalOverlay}>
                 <TouchableWithoutFeedback>
                   <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Report User</Text>
+                    <Text style={styles.modalTitle}>{reportedMessage ? 'Report Message' : 'Report User'}</Text>
                     <Text style={styles.modalDescription}>
-                      Are you sure you want to report this user for inappropriate behavior?
+                      {reportedMessage
+                        ? 'Why are you reporting this message?'
+                        : 'Are you sure you want to report this user for inappropriate behavior?'}
                     </Text>
+                    {reportedMessage ? (
+                      <View style={{ backgroundColor: '#f3f4f6', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                        <Text style={{ fontSize: 12, color: '#374151', fontStyle: 'italic' }} numberOfLines={3}>
+                          &ldquo;{reportedMessage.text}&rdquo;
+                        </Text>
+                      </View>
+                    ) : null}
 
                     <Text style={styles.reasonLabel}>Reason:</Text>
                     <Box alignItems="center" width="100%" marginBottom={5}>
@@ -1191,6 +1231,17 @@ function ChatScreen() {
                         closeicon={<Ionicons name="close" size={17} />}
                       />
                     </Box>
+
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}
+                      onPress={() => setReportAlsoBlock((v) => !v)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name={reportAlsoBlock ? 'checkbox' : 'square-outline'} size={20} color={reportAlsoBlock ? '#dc2626' : '#94a3b8'} />
+                      <Text style={{ fontSize: 13, fontFamily: 'Rubik-Medium', color: '#334155', flex: 1 }}>
+                        Also block this user
+                      </Text>
+                    </TouchableOpacity>
 
                     <View style={styles.modalButtons}>
                       <Pressable

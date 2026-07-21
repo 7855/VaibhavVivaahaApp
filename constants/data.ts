@@ -163,3 +163,20 @@ export const gallery = [
     image: images.japan,
   },
 ];
+
+// Shared between ProfileDetail.tsx (profile-level reports) and chatscreen.tsx (both profile-level
+// and per-message reports) — previously two separate hardcoded lists that had drifted out of sync
+// (chatscreen's was missing "Fake Profile"/"Inappropriate Photos" for no reason). Includes the
+// matrimony-specific categories real matrimony platforms typically offer beyond generic
+// spam/harassment.
+export const REPORT_REASONS = [
+  'Fake Profile',
+  'Inappropriate Photos',
+  'Already Married',
+  'Underage',
+  'Scam / Financial Fraud',
+  'Spam',
+  'Abuse',
+  'Harassment',
+  'Others',
+];

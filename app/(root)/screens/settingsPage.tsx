@@ -335,30 +335,33 @@ const SettingsPage: React.FC = () => {
                   }
                 />
               )}
-              <SettingItem
-                  icon={<Ionicons name="people-circle" size={20} color="#d4a017" />}
-                  title="Family Access"
-                  subtitle="Add a parent / family login"
-                  onPress={() => {
-                    const isGoldPlus = subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum';
-                    if (!isGoldPlus) {
-                      // Routes to the generalized upgrade-request picker (see
-                      // utils/upgradeNavigation.ts) instead of a self-serve checkout — same
-                      // admin-callback flow PaymentScreen uses in CONTACT mode.
-                      popup.premiumRequired(
-                        'Upgrade to Gold or Platinum to add family members who can help find your match.',
-                        buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Family Access', minPlan: 'Gold' })
-                      );
-                      return;
-                    }
-                    router.push('/(root)/screens/FamilyAccessScreen' as any);
-                  }}
-                  rightElement={
-                    <View style={[styles.premiumBadge, { backgroundColor: '#d4a017' }]}>
-                      <Text style={styles.premiumText}>Gold+</Text>
-                    </View>
-                  }
-                />
+              {(() => {
+                  const isGoldPlus = subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum';
+                  return (
+                    <SettingItem
+                      icon={<Ionicons name="people-circle" size={20} color="#d4a017" />}
+                      title="Family Access"
+                      subtitle="Add a parent / family login"
+                      onPress={() => {
+                        if (!isGoldPlus) {
+                          popup.premiumRequired(
+                            'Upgrade to Gold or Platinum to add family members who can help find your match.',
+                            buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Family Access', minPlan: 'Gold' })
+                          );
+                          return;
+                        }
+                        router.push('/(root)/screens/FamilyAccessScreen' as any);
+                      }}
+                      rightElement={
+                        isGoldPlus ? undefined : (
+                          <View style={[styles.premiumBadge, { backgroundColor: '#d4a017' }]}>
+                            <Text style={styles.premiumText}>Gold+</Text>
+                          </View>
+                        )
+                      }
+                    />
+                  );
+                })()}
             </>
           )}
 
@@ -463,7 +466,7 @@ const SettingsPage: React.FC = () => {
               icon={<Ionicons name="ban" size={20} color="#6b7280" />}
               title="Blocked Users"
               subtitle="Manage who you've blocked"
-              onPress={() => router.push('/(root)/screens/BlockedUsersScreen' as any)}
+              onPress={() => router.push('/screens/BlockedUsersScreen' as any)}
             />
           )}
           <SettingItem

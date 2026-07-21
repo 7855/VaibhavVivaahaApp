@@ -1,470 +1,3 @@
-// import React, { useState, useEffect } from 'react';
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   ScrollView,
-//   TouchableOpacity,
-//   ActivityIndicator,
-//   Dimensions,
-//   Share,
-//   SafeAreaView,
-//   StatusBar
-// } from 'react-native';
-// import { LinearGradient } from 'expo-linear-gradient';
-// import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-// import { useRouter } from 'expo-router';
-
-// const { width } = Dimensions.get('window');
-
-// interface PoruthamResult {
-//   key: string;
-//   name: string;
-//   result: 'PASS' | 'FAIL' | 'PARTIAL';
-//   reason: string;
-//   weight: number;
-//   score: number;
-// }
-
-// interface MatchResult {
-//   score: number;
-//   percentage: number;
-//   verdict: string;
-//   totalWeight: number;
-//   results: PoruthamResult[];
-// }
-
-// const StarMatchResult = () => {
-//   const router = useRouter();
-//   const [isLoading, setIsLoading] = useState(true);
-//   const [result, setResult] = useState<MatchResult | null>(null);
-
-//   useEffect(() => {
-//     const mockResponse: MatchResult = {
-//       score: 70,
-//       percentage: 78,
-//       verdict: "GOOD MATCH",
-//       totalWeight: 90,
-//       results: [
-//         { key: "nadi", name: "Nadi Porutham", result: "PASS", reason: "Different Nadi", weight: 30, score: 30 },
-//         { key: "rajju", name: "Rajju Porutham", result: "PASS", reason: "Rajju groups not identical (compatible)", weight: 15, score: 15 },
-//         { key: "gana", name: "Gana Porutham", result: "PASS", reason: "Gana compatible", weight: 10, score: 10 },
-//         { key: "yoni", name: "Yoni Porutham", result: "FAIL", reason: "Yoni mismatch: Serpent vs Horse", weight: 8, score: 0 },
-//         { key: "mahendra", name: "Mahendra Porutham", result: "FAIL", reason: "Not in Mahendra position", weight: 6, score: 0 },
-//         { key: "streedhirga", name: "Stree Dirga Porutham", result: "PASS", reason: "Sthree Dirgha condition satisfied", weight: 6, score: 6 },
-//         { key: "rasi", name: "Rasi Porutham", result: "PASS", reason: "Rasi compatible", weight: 5, score: 5 },
-//         { key: "rasi_adhipathi", name: "Rasi Adhipathi Porutham", result: "PARTIAL", reason: "Lords SUN and VENUS neutral", weight: 5, score: 2 },
-//         { key: "vasya", name: "Vasya Porutham", result: "FAIL", reason: "Vasya not compatible", weight: 3, score: 0 },
-//         { key: "dina", name: "Dina Porutham", result: "PASS", reason: "Dina compatible", weight: 2, score: 2 }
-//       ]
-//     };
-
-//     const timer = setTimeout(() => {
-//       setResult(mockResponse);
-//       setIsLoading(false);
-//     }, 800);
-
-//     return () => clearTimeout(timer);
-//   }, []);
-
-//   const getResultColor = (result: string) => {
-//     switch (result) {
-//       case 'PASS': return '#10b981';
-//       case 'FAIL': return '#ef4444';
-//       case 'PARTIAL': return '#f59e0b';
-//       default: return '#6b7280';
-//     }
-//   };
-
-//   const getResultIcon = (result: string) => {
-//     switch (result) {
-//       case 'PASS': return 'check-circle';
-//       case 'FAIL': return 'close-circle';
-//       case 'PARTIAL': return 'alert-circle';
-//       default: return 'help-circle';
-//     }
-//   };
-
-//   const getPoruthamIcon = (key: string) => {
-//     const icons: Record<string, string> = {
-//       nadi: 'water',
-//       rajju: 'link-variant',
-//       gana: 'account-group',
-//       yoni: 'paw',
-//       mahendra: 'crown',
-//       streedhirga: 'gender-female',
-//       rasi: 'zodiac-aries',
-//       rasi_adhipathi: 'star',
-//       vasya: 'handshake',
-//       dina: 'calendar-heart'
-//     };
-//     return icons[key] || 'help-circle';
-//   };
-
-//   const handleShare = async () => {
-//     try {
-//       await Share.share({
-//         message: `Check out our compatibility score: ${result?.percentage}% - ${result?.verdict}`,
-//       });
-//     } catch (error) {
-//       console.error(error);
-//     }
-//   };
-
-//   if (isLoading || !result) {
-//     return (
-//       <View style={styles.loadingContainer}>
-//         <ActivityIndicator size="large" color="#6c5ce7" />
-//         <Text style={styles.loadingText}>Analyzing compatibility...</Text>
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <SafeAreaView style={styles.safeArea}>
-//       <StatusBar barStyle="light-content" />
-//       <View style={styles.container}>
-//         {/* Header */}
-//         <View style={styles.header}>
-//           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-//             <MaterialIcons name="arrow-back-ios" size={24} color="#fff" />
-//           </TouchableOpacity>
-//           <Text style={styles.headerTitle}>Compatibility Result</Text>
-//           <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-//             <MaterialIcons name="share" size={24} color="#fff" />
-//           </TouchableOpacity>
-//         </View>
-
-//         <ScrollView style={styles.scrollView}>
-//           {/* Score Card */}
-//           <View style={styles.scoreCard}>
-//             <View style={styles.scoreCircle}>
-//               <Text style={styles.scorePercentage}>{result.percentage}%</Text>
-//               <Text style={styles.scoreLabel}>Match</Text>
-//             </View>
-
-//             <View style={styles.verdictContainer}>
-//               <View style={[styles.verdictBadge, { backgroundColor: `${getResultColor('PASS')}20`, borderColor: getResultColor('PASS') }]}>
-//                 <Text style={[styles.verdictText, { color: getResultColor('PASS') }]}>{result.verdict}</Text>
-//               </View>
-//               <Text style={styles.verdictTitle}>Uttama Porutham</Text>
-//               <Text style={styles.verdictSubtitle}>Highly compatible for a prosperous life</Text>
-//             </View>
-
-//             {/* Score Summary */}
-//             <View style={styles.scoreSummary}>
-//               <View style={styles.scoreHeader}>
-//                 <Text style={styles.scoreHeaderText}>Score Summary</Text>
-//                 <Text style={styles.scoreValue}>{result.score} / {result.totalWeight} Points</Text>
-//               </View>
-//               <View style={styles.progressBar}>
-//                 <View 
-//                   style={[
-//                     styles.progressFill, 
-//                     { 
-//                       width: `${(result.score / result.totalWeight) * 100}%`,
-//                       backgroundColor: getResultColor('PASS')
-//                     }
-//                   ]} 
-//                 />
-//               </View>
-//             </View>
-//           </View>
-
-//           {/* Detailed Analysis */}
-//           <View style={styles.sectionHeader}>
-//             <Text style={styles.sectionTitle}>Detailed Analysis</Text>
-//             <Text style={styles.sectionSubtitle}>{result.results.length} Factor Match</Text>
-//           </View>
-
-//           {/* Results List */}
-//           <View style={styles.resultsContainer}>
-//             {result.results.map((item) => (
-//               <View key={item.key} style={styles.resultCard}>
-//                 <View style={styles.resultContent}>
-//                   <View style={styles.resultHeader}>
-//                     <View style={[styles.resultBadge, { backgroundColor: `${getResultColor(item.result)}20`, borderColor: getResultColor(item.result) }]}>
-//                       <Text style={[styles.resultBadgeText, { color: getResultColor(item.result) }]}>{item.result}</Text>
-//                     </View>
-//                     <Text style={styles.resultScore}>{item.score} / {item.weight}</Text>
-//                   </View>
-//                   <Text style={styles.resultName}>{item.name}</Text>
-//                   <Text style={styles.resultReason}>{item.reason}</Text>
-//                 </View>
-//                 <View style={[styles.resultIcon, { backgroundColor: `${getResultColor(item.result)}10` }]}>
-//                   <MaterialCommunityIcons 
-//                     name={getPoruthamIcon(item.key)} 
-//                     size={28} 
-//                     color={getResultColor(item.result)} 
-//                   />
-//                 </View>
-//               </View>
-//             ))}
-//           </View>
-
-//           <View style={styles.spacer} />
-//         </ScrollView>
-
-//         {/* Fixed Footer */}
-//         <View style={styles.footer}>
-//           <TouchableOpacity 
-//             style={styles.actionButton}
-//             onPress={() => router.push('/(root)/screens/StarMatchForm')}
-//           >
-//             <Text style={styles.actionButtonText}>Check Another Match</Text>
-//           </TouchableOpacity>
-//         </View>
-//       </View>
-//     </SafeAreaView>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   safeArea: {
-//     flex: 1,
-//     backgroundColor: '#0d0b1a',
-//   },
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#0d0b1a',
-//   },
-//   loadingContainer: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     backgroundColor: '#0d0b1a',
-//   },
-//   loadingText: {
-//     marginTop: 16,
-//     color: '#fff',
-//     fontSize: 16,
-//   },
-//   header: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//     padding: 16,
-//     backgroundColor: 'rgba(13, 11, 26, 0.9)',
-//   },
-//   backButton: {
-//     width: 40,
-//     height: 40,
-//     justifyContent: 'center',
-//     alignItems: 'flex-start',
-//   },
-//   headerTitle: {
-//     color: '#fff',
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//     textAlign: 'center',
-//     flex: 1,
-//   },
-//   shareButton: {
-//     width: 40,
-//     height: 40,
-//     justifyContent: 'center',
-//     alignItems: 'flex-end',
-//   },
-//   scrollView: {
-//     flex: 1,
-//   },
-//   scoreCard: {
-//     alignItems: 'center',
-//     padding: 24,
-//     backgroundColor: '#1a1629',
-//     borderBottomLeftRadius: 24,
-//     borderBottomRightRadius: 24,
-//   },
-//   scoreCircle: {
-//     width: 180,
-//     height: 180,
-//     borderRadius: 90,
-//     backgroundColor: '#0d0b1a',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     borderWidth: 10,
-//     borderColor: '#3211d4',
-//     marginBottom: 24,
-//   },
-//   scorePercentage: {
-//     fontSize: 42,
-//     fontWeight: 'bold',
-//     color: '#fff',
-//   },
-//   scoreLabel: {
-//     fontSize: 14,
-//     color: '#a5b4fc',
-//     fontWeight: '600',
-//     textTransform: 'uppercase',
-//     letterSpacing: 1,
-//   },
-//   verdictContainer: {
-//     alignItems: 'center',
-//     marginBottom: 24,
-//   },
-//   verdictBadge: {
-//     paddingHorizontal: 12,
-//     paddingVertical: 4,
-//     borderRadius: 12,
-//     borderWidth: 1,
-//     marginBottom: 8,
-//   },
-//   verdictText: {
-//     fontSize: 12,
-//     fontWeight: 'bold',
-//     textTransform: 'uppercase',
-//     letterSpacing: 0.5,
-//   },
-//   verdictTitle: {
-//     fontSize: 24,
-//     fontWeight: 'bold',
-//     color: '#fff',
-//     marginBottom: 4,
-//   },
-//   verdictSubtitle: {
-//     fontSize: 14,
-//     color: '#9ca3af',
-//     textAlign: 'center',
-//   },
-//   scoreSummary: {
-//     width: '100%',
-//     backgroundColor: 'rgba(50, 17, 212, 0.1)',
-//     borderRadius: 12,
-//     padding: 16,
-//     borderWidth: 1,
-//     borderColor: 'rgba(50, 17, 212, 0.2)',
-//   },
-//   scoreHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     marginBottom: 8,
-//   },
-//   scoreHeaderText: {
-//     color: '#a5b4fc',
-//     fontSize: 12,
-//     fontWeight: '600',
-//     textTransform: 'uppercase',
-//     letterSpacing: 0.5,
-//   },
-//   scoreValue: {
-//     color: '#fff',
-//     fontSize: 14,
-//     fontWeight: '600',
-//   },
-//   progressBar: {
-//     height: 6,
-//     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-//     borderRadius: 3,
-//     overflow: 'hidden',
-//   },
-//   progressFill: {
-//     height: '100%',
-//     borderRadius: 3,
-//   },
-//   sectionHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'flex-end',
-//     paddingHorizontal: 16,
-//     marginTop: 32,
-//     marginBottom: 16,
-//   },
-//   sectionTitle: {
-//     color: '#fff',
-//     fontSize: 20,
-//     fontWeight: 'bold',
-//   },
-//   sectionSubtitle: {
-//     color: '#6b7280',
-//     fontSize: 12,
-//     fontWeight: '500',
-//   },
-//   resultsContainer: {
-//     paddingHorizontal: 12,
-//     marginBottom: 100,
-//   },
-//   resultCard: {
-//     flexDirection: 'row',
-//     backgroundColor: '#1a1629',
-//     borderRadius: 16,
-//     padding: 16,
-//     marginBottom: 12,
-//     borderWidth: 1,
-//     borderColor: 'rgba(255, 255, 255, 0.05)',
-//   },
-//   resultContent: {
-//     flex: 1,
-//     marginRight: 12,
-//   },
-//   resultHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     marginBottom: 8,
-//   },
-//   resultBadge: {
-//     paddingHorizontal: 8,
-//     paddingVertical: 2,
-//     borderRadius: 4,
-//     borderWidth: 1,
-//   },
-//   resultBadgeText: {
-//     fontSize: 10,
-//     fontWeight: 'bold',
-//     textTransform: 'uppercase',
-//   },
-//   resultScore: {
-//     color: '#fbbf24',
-//     fontSize: 12,
-//     fontWeight: '600',
-//   },
-//   resultName: {
-//     color: '#fff',
-//     fontSize: 16,
-//     fontWeight: '600',
-//     marginBottom: 4,
-//   },
-//   resultReason: {
-//     color: '#9ca3af',
-//     fontSize: 13,
-//     lineHeight: 18,
-//   },
-//   resultIcon: {
-//     width: 56,
-//     height: 56,
-//     borderRadius: 12,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   footer: {
-//     position: 'absolute',
-//     bottom: 0,
-//     left: 0,
-//     right: 0,
-//     backgroundColor: 'rgba(13, 11, 26, 0.9)',
-//     padding: 16,
-//     borderTopWidth: 1,
-//     borderTopColor: 'rgba(255, 255, 255, 0.1)',
-//   },
-//   actionButton: {
-//     backgroundColor: '#6c5ce7',
-//     height: 56,
-//     borderRadius: 14,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   actionButtonText: {
-//     color: '#fff',
-//     fontSize: 16,
-//     fontWeight: '600',
-//   },
-//   spacer: {
-//     height: 100,
-//   },
-// });
-
-// export default StarMatchResult;
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -487,6 +20,32 @@ import userApi from '../api/userApi';
 
 const { width } = Dimensions.get('window');
 
+// ─── Design Tokens ────────────────────────────────────────
+const C = {
+  bg: '#F9F6F1',
+  cardBg: '#FFFFFF',
+  headerBg: '#FFFFFF',
+  ink: '#1C1917',
+  inkMid: '#57534E',
+  inkSoft: '#78716C',
+  inkMute: '#A8A29E',
+  gold: '#C07D20',
+  goldDark: '#92580F',
+  goldLight: '#FEF3C7',
+  goldBorder: '#F6D589',
+  pass: '#15803D',
+  passBg: '#DCFCE7',
+  passBorder: '#86EFAC',
+  fail: '#DC2626',
+  failBg: '#FEE2E2',
+  failBorder: '#FCA5A5',
+  partial: '#C2410C',
+  partialBg: '#FFEDD5',
+  partialBorder: '#FDBA74',
+  border: '#E7E5E4',
+  shadow: 'rgba(28,25,23,0.06)',
+};
+
 interface PoruthamResult {
   key: string;
   name: string;
@@ -504,36 +63,9 @@ interface MatchResult {
   results: PoruthamResult[];
 }
 
-interface ApiResponse {
-  code: number;
-  status: string;
-  message: string;
-  data: {
-    percentage: number;
-    score: number;
-    totalWeight: number;
-    verdict: string;
-    results: PoruthamResult[];
-  };
-}
-
 interface FormData {
-  bride: {
-    name: string;
-    dob: string;
-    tob: string;
-    place: string;
-    star: string;
-    rasi: string;
-  };
-  groom: {
-    name: string;
-    dob: string;
-    tob: string;
-    place: string;
-    star: string;
-    rasi: string;
-  };
+  bride: { name: string; dob: string; tob: string; place: string; star: string; rasi: string; };
+  groom: { name: string; dob: string; tob: string; place: string; star: string; rasi: string; };
 }
 
 const StarMatchResult = () => {
@@ -545,62 +77,45 @@ const StarMatchResult = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Parse the form data from route params
         let requestData = {
-          bride: {
-            name: "Bride",
-            dob: "1990-01-01",
-            tob: "00:00",
-            place: "Unknown",
-            star: "Aswini",
-            rasi: "mesham"
-          },
-          groom: {
-            name: "Groom",
-            dob: "1990-01-01",
-            tob: "00:00",
-            place: "Unknown",
-            star: "Aswini",
-            rasi: "mesham"
-          }
+          bride: { name: 'Bride', dob: '1990-01-01', tob: '00:00', place: 'Unknown', star: 'Aswini', rasi: 'mesham' },
+          groom: { name: 'Groom', dob: '1990-01-01', tob: '00:00', place: 'Unknown', star: 'Aswini', rasi: 'mesham' },
         };
 
         if (formData) {
           try {
             requestData = JSON.parse(formData);
-            console.log('Parsed form data for star match:', JSON.stringify(requestData, null, 2));
           } catch (e) {
             console.error('Error parsing formData:', e);
           }
         }
 
-        // Make the API call with the request data
         const response = await userApi.starMatching(requestData);
-        console.log('Star Match API Response:', response.data);
 
-        // Transform the API response to match your MatchResult interface
+        if (response.data?.code === 403 && response.data?.message === 'INTEREST_NOT_APPROVED') {
+          Alert.alert('Not connected yet', 'You can check Star Match compatibility once this member accepts your interest.', [
+            { text: 'OK', onPress: () => router.back() },
+          ]);
+          return;
+        }
+
         if (response.data && response.data.data) {
           const apiData = response.data.data;
-          const formattedResult: MatchResult = {
+          setResult({
             score: apiData.score,
             percentage: apiData.percentage,
             totalWeight: apiData.totalWeight,
             verdict: apiData.verdict,
-            results: apiData.results || []
-          };
-          setResult(formattedResult);
+            results: apiData.results || [],
+          });
+        } else {
+          Alert.alert('Error', response.data?.message || 'Failed to fetch compatibility results. Please try again.', [
+            { text: 'OK', onPress: () => router.back() },
+          ]);
         }
       } catch (error) {
         console.error('Error fetching star match data:', error);
-        // Fallback to show error state
-        const mockResponse: MatchResult = {
-          score: 0,
-          percentage: 0,
-          totalWeight: 100,
-          verdict: 'ERROR',
-          results: []
-        };
-        setResult(mockResponse);
+        setResult({ score: 0, percentage: 0, totalWeight: 100, verdict: 'ERROR', results: [] });
         Alert.alert('Error', 'Failed to fetch compatibility results. Please try again.');
       } finally {
         setIsLoading(false);
@@ -609,38 +124,49 @@ const StarMatchResult = () => {
     fetchData();
   }, [formData]);
 
-  const getResultColor = (result: string) => {
-    switch (result) {
-      case 'PASS': return '#10b981';
-      case 'FAIL': return '#ef4444';
-      case 'PARTIAL': return '#f59e0b';
-      default: return '#6b7280';
+  const getStatusColors = (status: string) => {
+    switch (status) {
+      case 'PASS':    return { text: C.pass,    bg: C.passBg,    border: C.passBorder };
+      case 'FAIL':    return { text: C.fail,    bg: C.failBg,    border: C.failBorder };
+      case 'PARTIAL': return { text: C.partial, bg: C.partialBg, border: C.partialBorder };
+      default:        return { text: C.inkSoft, bg: '#F5F5F4',   border: C.border };
     }
   };
 
-  const getResultIcon = (result: string) => {
-    switch (result) {
-      case 'PASS': return 'check-circle';
-      case 'FAIL': return 'close-circle';
-      case 'PARTIAL': return 'alert-circle';
-      default: return 'help-circle';
+  const getStatusEmoji = (status: string) => {
+    switch (status) {
+      case 'PASS': return '✓';
+      case 'FAIL': return '✗';
+      case 'PARTIAL': return '~';
+      default: return '?';
     }
   };
 
   const getPoruthamIcon = (key: string) => {
     const icons: Record<string, string> = {
-      nadi: 'water',
-      rajju: 'link-variant',
-      gana: 'account-group',
-      yoni: 'paw',
-      mahendra: 'crown',
-      streedhirga: 'gender-female',
-      rasi: 'zodiac-aries',
-      rasi_adhipathi: 'star',
-      vasya: 'handshake',
-      dina: 'calendar-heart'
+      nadi: 'water', rajju: 'link-variant', gana: 'account-group', yoni: 'paw',
+      mahendra: 'crown', streedhirga: 'gender-female', rasi: 'zodiac-aries',
+      rasi_adhipathi: 'star', vasya: 'handshake', dina: 'calendar-heart',
     };
     return icons[key] || 'help-circle';
+  };
+
+  const getVerdictLabel = (verdict: string) => {
+    if (!verdict) return 'Result';
+    return verdict.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+  };
+
+  const getVerdictMeta = (pct: number) => {
+    if (pct >= 80) return { label: 'Excellent Match', sub: 'A highly auspicious and prosperous union' };
+    if (pct >= 60) return { label: 'Good Match', sub: 'A compatible and harmonious alliance' };
+    if (pct >= 40) return { label: 'Average Match', sub: 'Compatibility exists with some caution' };
+    return { label: 'Low Match', sub: 'Consider consulting an astrologer' };
+  };
+
+  const getProgressColor = (pct: number) => {
+    if (pct >= 70) return C.pass;
+    if (pct >= 40) return C.partial;
+    return C.fail;
   };
 
   const handleShare = async () => {
@@ -668,372 +194,196 @@ const StarMatchResult = () => {
     }
   };
 
-
   if (isLoading || !result) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1F7FE5" />
-        <Text style={styles.loadingText}>Analyzing compatibility...</Text>
+      <View style={s.loadingWrap}>
+        <ActivityIndicator size="large" color={C.gold} />
+        <Text style={s.loadingText}>Analysing compatibility…</Text>
+        <Text style={s.loadingHint}>Computing Jathaga Porutham</Text>
       </View>
     );
   }
 
+  const verdictMeta = getVerdictMeta(result.percentage);
+  const progressColor = getProgressColor(result.percentage);
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <MaterialIcons name="chevron-left" size={22} color="#1F7FE5" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Compatibility Result</Text>
-          <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-            <MaterialIcons name="share" size={24} color="#1F7FE5" />
-          </TouchableOpacity>
+    <SafeAreaView style={s.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.headerBg} />
+
+      {/* Header */}
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn}>
+          <MaterialIcons name="chevron-left" size={26} color={C.ink} />
+        </TouchableOpacity>
+        <View style={s.headerCenter}>
+          <Text style={s.headerTitle}>Jathaga Porutham</Text>
+          <Text style={s.headerSub}>Compatibility Analysis</Text>
+        </View>
+        <TouchableOpacity onPress={handleShare} style={s.iconBtn}>
+          <MaterialIcons name="share" size={22} color={C.inkMid} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* Score Hero */}
+        <LinearGradient
+          colors={['#FEF9EF', '#FDF4DC', '#F9ECC8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={s.heroCard}
+        >
+          <View style={s.circleWrap}>
+            <LinearGradient
+              colors={['#E9A922', '#C07D20', '#92580F']}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 0.8, y: 1 }}
+              style={s.circleOuter}
+            >
+              <View style={s.circleInner}>
+                <Text style={s.circlePct}>{result.percentage}%</Text>
+                <Text style={s.circleLabel}>Match</Text>
+              </View>
+            </LinearGradient>
+            <Text style={s.starDeco}>✦</Text>
+          </View>
+
+          <Text style={s.verdictHeading}>{verdictMeta.label}</Text>
+          <Text style={s.verdictBody}>{verdictMeta.sub}</Text>
+
+          <View style={s.verdictPill}>
+            <Text style={s.verdictPillText}>{getVerdictLabel(result.verdict)}</Text>
+          </View>
+
+          <View style={s.summaryBox}>
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>Total Score</Text>
+              <Text style={s.summaryScore}>{result.score} / {result.totalWeight} pts</Text>
+            </View>
+            <View style={s.bar}>
+              <View style={[s.barFill, { width: `${(result.score / result.totalWeight) * 100}%` as any, backgroundColor: progressColor }]} />
+            </View>
+            <View style={s.summaryRow}>
+              <Text style={s.summaryFactors}>{result.results.length} factors checked</Text>
+              <Text style={[s.summaryPct, { color: progressColor }]}>{result.percentage}% compatible</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* Section header */}
+        <View style={s.sectionHead}>
+          <View style={s.sectionAccent} />
+          <Text style={s.sectionTitle}>Detailed Analysis</Text>
         </View>
 
-        <ScrollView style={styles.scrollView}>
-          {/* Score Card */}
-          <View style={styles.scoreCard}>
-            <View style={styles.scoreCircle}>
-              <Text style={styles.scorePercentage}>{result.percentage}%</Text>
-              <Text style={styles.scoreLabel}>Match</Text>
-            </View>
-
-            <View style={styles.verdictContainer}>
-              <View style={[styles.verdictBadge, { backgroundColor: `${getResultColor('PASS')}20`, borderColor: getResultColor('PASS') }]}>
-                <Text style={[styles.verdictText, { color: getResultColor('PASS') }]}>{result.verdict}</Text>
-              </View>
-              <Text style={styles.verdictTitle}>Uttama Porutham</Text>
-              <Text style={styles.verdictSubtitle}>Highly compatible for a prosperous life</Text>
-            </View>
-
-            {/* Score Summary */}
-            <View style={styles.scoreSummary}>
-              <View style={styles.scoreHeader}>
-                <Text style={styles.scoreHeaderText}>Score Summary</Text>
-                <Text style={styles.scoreValue}>{result.score} / {result.totalWeight} Points</Text>
-              </View>
-              <View style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${(result.score / result.totalWeight) * 100}%`,
-                      backgroundColor: getResultColor('PASS')
-                    }
-                  ]}
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* Detailed Analysis */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Detailed Analysis</Text>
-            <Text style={styles.sectionSubtitle}>{result.results.length} Factor Match</Text>
-          </View>
-
-          {/* Results List */}
-          <View style={styles.resultsContainer}>
-            {result.results.map((item) => (
-              <View key={item.key} style={[styles.resultCard, { borderLeftColor: getResultColor(item.result) }]}>
-                <View style={styles.resultContent}>
-                  <View style={styles.resultHeader}>
-                    <View style={[styles.resultBadge, { backgroundColor: `${getResultColor(item.result)}15`, borderColor: getResultColor(item.result) }]}>
-                      <Text style={[styles.resultBadgeText, { color: getResultColor(item.result) }]}>{item.result}</Text>
+        {/* Result cards */}
+        <View style={s.cardList}>
+          {result.results.map((item) => {
+            const sc = getStatusColors(item.result);
+            return (
+              <View key={item.key} style={s.card}>
+                <View style={s.cardBody}>
+                  <View style={s.cardTopRow}>
+                    <View style={[s.badge, { backgroundColor: sc.bg, borderColor: sc.border }]}>
+                      <Text style={[s.badgeText, { color: sc.text }]}>
+                        {getStatusEmoji(item.result)} {item.result}
+                      </Text>
                     </View>
-                    <Text style={styles.resultScore}>{item.score} / {item.weight}</Text>
+                    <Text style={s.cardScore}>{item.score} / {item.weight}</Text>
                   </View>
-                  <Text style={styles.resultName}>{item.name}</Text>
-                  <Text style={styles.resultReason}>{item.reason}</Text>
+                  <Text style={s.cardName}>{item.name}</Text>
+                  <Text style={s.cardReason}>{item.reason}</Text>
                 </View>
-                <View style={[styles.resultIcon, { backgroundColor: `${getResultColor(item.result)}15` }]}>
-                  <MaterialCommunityIcons
-                    name={getPoruthamIcon(item.key)}
-                    size={28}
-                    color={getResultColor(item.result)}
-                  />
+                <View style={[s.cardIconWrap, { backgroundColor: sc.bg }]}>
+                  <MaterialCommunityIcons name={getPoruthamIcon(item.key) as any} size={26} color={sc.text} />
                 </View>
+                <View style={[s.cardStrip, { backgroundColor: sc.text }]} />
               </View>
-            ))}
-          </View>
-
-          <View style={styles.spacer} />
-        </ScrollView>
-
-        {/* Fixed Footer */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push('/(root)/screens/StarMatch')}
-          >
-            <Text style={styles.actionButtonText}>Check Another Match</Text>
-          </TouchableOpacity>
+            );
+          })}
         </View>
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Footer */}
+      <View style={s.footer}>
+        <TouchableOpacity
+          style={s.footerBtn}
+          onPress={() => router.push('/(root)/screens/StarMatch')}
+          activeOpacity={0.85}
+        >
+          <MaterialIcons name="refresh" size={18} color="#FFFBF0" style={{ marginRight: 8 }} />
+          <Text style={s.footerBtnText}>Check Another Match</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f3f7fa',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#f3f7fa',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f3f7fa',
-  },
-  loadingText: {
-    marginTop: 16,
-    color: '#1F7FE5',
-    fontSize: 16,
-  },
+const SHADOW = {
+  shadowColor: C.shadow,
+  shadowOpacity: 1,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg, gap: 10 },
+  loadingText: { fontSize: 16, fontFamily: 'Rubik-Medium', color: C.ink, marginTop: 6 },
+  loadingHint: { fontSize: 13, color: C.inkSoft },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.headerBg, paddingHorizontal: 12, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: 'rgba(15,35,70,0.06)',
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  iconBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#F5F5F4',
+    justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: {
-    color: '#0f1724',
-    fontSize: 18,
-    fontFamily: 'Rubik-Bold',
-    textAlign: 'center',
-    flex: 1,
-  },
-  shareButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scoreCard: {
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#dfecfb',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  scoreCircle: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: '#1F7FE5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 10,
-    borderColor: '#1862b8',
-    marginBottom: 24,
-  },
-  scorePercentage: {
-    fontSize: 42,
-    fontFamily: 'Rubik-Bold',
-    color: '#ffffff',
-  },
-  scoreLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    fontFamily: 'Rubik-Medium',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  verdictContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  verdictBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  verdictText: {
-    fontSize: 12,
-    fontFamily: 'Rubik-Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  verdictTitle: {
-    fontSize: 24,
-    fontFamily: 'Rubik-Bold',
-    color: '#1F7FE5',
-    marginBottom: 4,
-  },
-  verdictSubtitle: {
-    fontSize: 14,
-    color: '#1862b8',
-    textAlign: 'center',
-  },
-  scoreSummary: {
-    width: '100%',
-    backgroundColor: '#eef6fd',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#cfe4f7',
-  },
-  scoreHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  scoreHeaderText: {
-    color: '#1862b8',
-    fontSize: 12,
-    fontFamily: 'Rubik-Medium',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  scoreValue: {
-    color: '#1F7FE5',
-    fontSize: 14,
-    fontFamily: 'Rubik-Medium',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    marginTop: 32,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    color: '#1F7FE5',
-    fontSize: 20,
-    fontFamily: 'Rubik-Bold',
-  },
-  sectionSubtitle: {
-    color: '#6b7280',
-    fontSize: 12,
-    fontFamily: 'Rubik-Medium',
-  },
-  resultsContainer: {
-    paddingHorizontal: 12,
-    marginBottom: 100,
-  },
-  resultCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  resultContent: {
-    flex: 1,
-    marginRight: 12,
-  },
-  resultHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  resultBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  resultBadgeText: {
-    fontSize: 10,
-    fontFamily: 'Rubik-Bold',
-    textTransform: 'uppercase',
-  },
-  resultScore: {
-    color: '#1F7FE5',
-    fontSize: 12,
-    fontFamily: 'Rubik-Medium',
-  },
-  resultName: {
-    color: '#1a1a1a',
-    fontSize: 16,
-    fontFamily: 'Rubik-Medium',
-    marginBottom: 4,
-  },
-  resultReason: {
-    color: '#64748b',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  resultIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: -2 },
-    elevation: 4,
-  },
-  actionButton: {
-    backgroundColor: '#dfecfb',
-    height: 56,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    color: '#1F7FE5',
-    fontSize: 16,
-    fontFamily: 'Rubik-Medium',
-  },
-  spacer: {
-    height: 100,
-  },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: C.ink },
+  headerSub: { fontSize: 12, color: C.inkSoft, marginTop: 1 },
+  scroll: { flex: 1 },
+  heroCard: { alignItems: 'center', paddingTop: 28, paddingBottom: 28, paddingHorizontal: 20 },
+  circleWrap: { position: 'relative', marginBottom: 20 },
+  circleOuter: { width: 160, height: 160, borderRadius: 80, justifyContent: 'center', alignItems: 'center', padding: 6 },
+  circleInner: { width: '100%', height: '100%', borderRadius: 80, backgroundColor: '#FFFBF0', justifyContent: 'center', alignItems: 'center' },
+  circlePct: { fontSize: 40, fontFamily: 'Rubik-Bold', color: C.goldDark, lineHeight: 44 },
+  circleLabel: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.gold, textTransform: 'uppercase', letterSpacing: 1 },
+  starDeco: { position: 'absolute', top: -8, right: -12, fontSize: 22, color: C.gold, opacity: 0.5 },
+  verdictHeading: { fontSize: 22, fontFamily: 'Rubik-Bold', color: C.ink, textAlign: 'center', marginBottom: 4 },
+  verdictBody: { fontSize: 13, color: C.inkMid, textAlign: 'center', marginBottom: 14, paddingHorizontal: 20 },
+  verdictPill: { backgroundColor: C.goldLight, borderRadius: 20, borderWidth: 1, borderColor: C.goldBorder, paddingHorizontal: 16, paddingVertical: 5, marginBottom: 20 },
+  verdictPillText: { fontSize: 12, fontFamily: 'Rubik-Bold', color: C.goldDark, textTransform: 'uppercase', letterSpacing: 0.8 },
+  summaryBox: { width: '100%', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.goldBorder },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  summaryLabel: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.inkSoft, textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryScore: { fontSize: 14, fontFamily: 'Rubik-Bold', color: C.ink },
+  summaryFactors: { fontSize: 11, color: C.inkMute },
+  summaryPct: { fontSize: 12, fontFamily: 'Rubik-Bold' },
+  bar: { height: 8, backgroundColor: '#E7E5E4', borderRadius: 4, overflow: 'hidden', marginBottom: 6 },
+  barFill: { height: '100%', borderRadius: 4 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 14, gap: 8 },
+  sectionAccent: { width: 4, height: 20, borderRadius: 2, backgroundColor: C.gold },
+  sectionTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: C.ink },
+  cardList: { paddingHorizontal: 12, gap: 10 },
+  card: { flexDirection: 'row', backgroundColor: C.cardBg, borderRadius: 14, padding: 14, overflow: 'hidden', marginBottom: 10, ...SHADOW },
+  cardBody: { flex: 1, marginRight: 10 },
+  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  badgeText: { fontSize: 10, fontFamily: 'Rubik-Bold', textTransform: 'uppercase', letterSpacing: 0.3 },
+  cardScore: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.inkMid },
+  cardName: { fontSize: 15, fontFamily: 'Rubik-Bold', color: C.ink, marginBottom: 3 },
+  cardReason: { fontSize: 12, color: C.inkSoft, lineHeight: 17 },
+  cardIconWrap: { width: 52, height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  cardStrip: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+  footer: { backgroundColor: C.cardBg, padding: 16, borderTopWidth: 1, borderTopColor: C.border, ...SHADOW },
+  footerBtn: { backgroundColor: C.goldDark, height: 52, borderRadius: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  footerBtnText: { fontSize: 15, fontFamily: 'Rubik-Bold', color: '#FFFBF0', letterSpacing: 0.3 },
 });
 
 export default StarMatchResult;

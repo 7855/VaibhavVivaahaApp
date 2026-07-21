@@ -4,7 +4,7 @@ import {
   View,
   StyleSheet,
   TextInput,
-
+  TouchableOpacity,
   FlatList,
   Platform,
   KeyboardAvoidingView,
@@ -22,6 +22,9 @@ import {
 import { SelectList } from 'react-native-dropdown-select-list';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import EIcon from '@expo/vector-icons/Entypo';
+import { Ionicons } from '@expo/vector-icons';
+import moment from 'moment';
+import { usePopup } from '../app/(root)/contexts/PopupContext';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -212,9 +215,11 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   onUpdate,
   refreshProfile,
 }) => {
+  const popup = usePopup();
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState<Date>(new Date()); // iOS spinner's in-progress value
 
   useEffect(() => {
     if (section?.data) {
@@ -240,15 +245,15 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const handleSubmit = () => {
     if (!section) return;
-    
-    // Update parent component
+
+    // onUpdate (profile.tsx's handleEditUpdate) already awaits the save API call and THEN
+    // calls refreshProfile itself once the save actually resolves. Calling refreshProfile()
+    // again here — synchronously, before the save has even completed — fired a second,
+    // unsequenced GET that raced the post-save one. Whichever response landed last simply
+    // overwrote state, so on a normal mobile network the stale pre-save GET could easily
+    // finish after the correct post-save one, silently reverting the screen to old data.
     onUpdate(formData);
-    
-    // Refresh profile data
-    if (refreshProfile) {
-      refreshProfile();
-    }
-    
+
     // Close the modal
     onClose();
   };
@@ -274,36 +279,99 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </Box>
         );
 
-      case 'Date of Birth':
+      case 'Date of Birth': {
+        // Mirrors sign-up.tsx's DOB picker exactly (same platform split, same validation, same
+        // visual pattern) so editing your DOB later looks and behaves like setting it at signup.
+        const parsedDate = value ? new Date(value) : null;
+        const hasValidDate = !!parsedDate && !isNaN(parsedDate.getTime());
+        const displayDate = hasValidDate ? moment(parsedDate).format('DD MMM YYYY') : '';
+
+        const commitDate = (candidate: Date) => {
+          if (candidate > new Date()) {
+            popup.warning('Invalid Date', 'Date of birth cannot be a future date.');
+            return;
+          }
+          const today = new Date();
+          let age = today.getFullYear() - candidate.getFullYear();
+          const monthDiff = today.getMonth() - candidate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < candidate.getDate())) age--;
+          if (age < 18) {
+            popup.warning('Age Restriction', 'You must be at least 18 years old.');
+            return;
+          }
+          handleChange(key, candidate.toISOString().split('T')[0]);
+        };
+
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
             <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
               {label}
             </Text>
-            <View>
-              <TextInput
-                placeholder="YYYY-MM-DD"
-                defaultValue={value}
-                style={styles.input}
-                onPressIn={() => setShowDatePicker(true)}
+
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+            >
+              <Text style={{ color: hasValidDate ? '#130001' : '#999', fontSize: 14, fontFamily: 'Rubik-Regular' }}>
+                {displayDate || 'Select Date'}
+              </Text>
+              <Ionicons name="calendar" size={18} color="#1F7FE5" />
+            </TouchableOpacity>
+
+            {/* Android: native dialog pops directly, no wrapping Modal — see sign-up.tsx's own
+                comment for why double-wrapping this in a Modal causes a "picker reopens" bug. */}
+            {Platform.OS === 'android' && showDatePicker && (
+              <DateTimePicker
+                value={hasValidDate ? (parsedDate as Date) : new Date()}
+                mode="date"
+                display="default"
+                maximumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (event.type === 'set' && selectedDate) {
+                    commitDate(selectedDate);
+                  }
+                }}
               />
-              {showDatePicker && (
-                <DateTimePicker
-                  value={new Date(value)}
-                  mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(false);
-                    if (selectedDate) {
-                      const formattedDate = selectedDate.toISOString().split('T')[0];
-                      handleChange(key, formattedDate);
-                    }
-                  }}
-                />
-              )}
-            </View>
+            )}
+
+            {/* iOS: inline spinner needs our own Modal + Confirm step to commit the value. */}
+            {Platform.OS === 'ios' && (
+              <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 12, width: '85%', overflow: 'hidden' }}>
+                    <View style={{ padding: 0, alignItems: 'center', height: 250, justifyContent: 'center' }}>
+                      <DateTimePicker
+                        value={tempDate || (hasValidDate ? (parsedDate as Date) : new Date())}
+                        mode="date"
+                        display="spinner"
+                        textColor="#0f1724"
+                        themeVariant="dark"
+                        maximumDate={new Date()}
+                        style={{ backgroundColor: '#fff' }}
+                        onChange={(event, selectedDate) => {
+                          if (selectedDate) setTempDate(selectedDate);
+                        }}
+                      />
+                    </View>
+                    <View style={{ backgroundColor: '#fff', paddingVertical: 10, alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setShowDatePicker(false);
+                          commitDate(tempDate);
+                        }}
+                        style={{ backgroundColor: '#1F7FE5', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8 }}
+                      >
+                        <Text style={{ color: '#fff', fontFamily: 'Rubik-Bold' }}>Confirm</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </Modal>
+            )}
           </Box>
         );
+      }
 
       case 'Marital Status':
         return (
@@ -322,6 +390,24 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               boxStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
               dropdownStyles={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 12 }}
               inputStyles={{ fontSize: 14, color: '#130001' }}
+            />
+          </Box>
+        );
+
+      case 'Weight':
+        return (
+          <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+              {label}
+            </Text>
+            <TextInput
+              placeholder={label}
+              value={value}
+              // Numbers only — no letters, no special characters.
+              onChangeText={(text: string) => handleChange(key, text.replace(/[^0-9]/g, ''))}
+              style={styles.input}
+              keyboardType="number-pad"
+              maxLength={3}
             />
           </Box>
         );
@@ -651,8 +737,26 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </Box>
         );
 
+      case 'First Name':
+      case 'Last Name':
+        return (
+          <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+              {label}
+            </Text>
+            <TextInput
+              placeholder={label}
+              value={value}
+              // Letters only — no spaces, no special characters. Controlled (value, not
+              // defaultValue) so a blocked character never visibly appears even for a frame.
+              onChangeText={(text: string) => handleChange(key, text.replace(/[^A-Za-z]/g, ''))}
+              style={styles.input}
+              autoCapitalize="words"
+            />
+          </Box>
+        );
+
       case 'Current Address':
-      case 'Education in Detail':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
             <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
@@ -665,6 +769,65 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
               multiline
               numberOfLines={3}
+            />
+          </Box>
+        );
+
+      case 'Education in Detail':
+        return (
+          <Box key={key} bg="white" p="1" rounded="lg" shadow="lg" mb="3">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+              {label}
+            </Text>
+            <TextInput
+              placeholder={label}
+              value={value}
+              // Letters, numbers and spaces only — no special characters/symbols. Numbers stay
+              // allowed (years like 2019, percentages like 85), unlike Name/Job Place.
+              onChangeText={(text: string) => handleChange(key, text.replace(/[^A-Za-z0-9\s]/g, ''))}
+              style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
+              multiline
+              numberOfLines={3}
+            />
+          </Box>
+        );
+
+      case 'Job Place':
+        return (
+          <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+              {label}
+            </Text>
+            <TextInput
+              placeholder={label}
+              value={value}
+              // Letters and spaces only — no special characters or digits, same rule as
+              // First/Last Name but allowing spaces since place names can be multi-word.
+              onChangeText={(text: string) => handleChange(key, text.replace(/[^A-Za-z\s]/g, ''))}
+              style={styles.input}
+            />
+          </Box>
+        );
+
+      case 'No of Brothers':
+      case 'No of Sisters':
+      case 'Brother Married':
+      case 'Sister Married':
+        return (
+          <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+              {label}
+            </Text>
+            <TextInput
+              placeholder={label}
+              value={value}
+              // Numbers only — no letters, no special characters. Controlled so a blocked
+              // character never visibly appears, same pattern as First/Last Name above.
+              // Capped to a single digit (0-9) — nobody has 10+ siblings in the same category.
+              onChangeText={(text: string) => handleChange(key, text.replace(/[^0-9]/g, ''))}
+              style={styles.input}
+              keyboardType="number-pad"
+              maxLength={1}
             />
           </Box>
         );

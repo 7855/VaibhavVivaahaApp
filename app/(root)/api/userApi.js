@@ -289,6 +289,9 @@ const userApi = {
   getAllActivePlans: () =>
     axiosClient.get(`/subscriptionPlans/getAllActivePlans`),
 
+  getPlanFeaturesMatrix: () =>
+    axiosClient.get(`/planFeatures/matrix`),
+
   getAllActivePremiumFeatures: () =>
     axiosClient.get(`/premiumFeatures/getAllActiveFeatures`),
 

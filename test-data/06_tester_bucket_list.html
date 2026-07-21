@@ -1,0 +1,2088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tester Bucket List — Chat, Mailbox, Privacy & Recent Fixes</title>
+<style>
+  :root {
+    --bg-base: #FBF7F5;
+    --bg-card: #FFFFFF;
+    --bg-nav: #FFFDFD;
+    --ink-main: #2C181B;
+    --ink-muted: #6E5A5D;
+    --primary: #58181F;
+    --primary-soft: #853A43;
+    --gold: #A9721C;
+    --gold-light: #FBF4E8;
+    --border: #E8DDDA;
+    --border-strong: #D5C4C0;
+    
+    --success-bg: #E7F4EE;
+    --success-fg: #1E6643;
+    --success-border: #D1EADF;
+    
+    --info-bg: #E5F0FF;
+    --info-fg: #1E50A2;
+    
+    --bug-bg: #FFF0F2;
+    --bug-fg: #B32638;
+    
+    --repro-bg: #F3EBFC;
+    --repro-fg: #6B21A8;
+
+    --shadow: 0 1px 3px rgba(88, 24, 31, 0.04), 0 4px 18px rgba(88, 24, 31, 0.03);
+    --font-serif: Georgia, serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    
+    --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  [data-theme="dark"] {
+    --bg-base: #140C0E;
+    --bg-card: #1E1215;
+    --bg-nav: #1B0F12;
+    --ink-main: #F4EBEB;
+    --ink-muted: #C0AEB1;
+    --primary: #E0858D;
+    --primary-soft: #C55E67;
+    --gold: #F5B951;
+    --gold-light: #2A1D11;
+    --border: #2F1E22;
+    --border-strong: #442F34;
+    
+    --success-bg: #152E20;
+    --success-fg: #81E6AB;
+    --success-border: #204C33;
+    
+    --info-bg: #13243D;
+    --info-fg: #82B3FF;
+    
+    --bug-bg: #371518;
+    --bug-fg: #F48C96;
+    
+    --repro-bg: #28153B;
+    --repro-fg: #D8B4FE;
+    
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg-base: #140C0E;
+      --bg-card: #1E1215;
+      --bg-nav: #1B0F12;
+      --ink-main: #F4EBEB;
+      --ink-muted: #C0AEB1;
+      --primary: #E0858D;
+      --primary-soft: #C55E67;
+      --gold: #F5B951;
+      --gold-light: #2A1D11;
+      --border: #2F1E22;
+      --border-strong: #442F34;
+      
+      --success-bg: #152E20;
+      --success-fg: #81E6AB;
+      --success-border: #204C33;
+      
+      --info-bg: #13243D;
+      --info-fg: #82B3FF;
+      
+      --bug-bg: #371518;
+      --bug-fg: #F48C96;
+      
+      --repro-bg: #28153B;
+      --repro-fg: #D8B4FE;
+      
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg-base);
+    color: var(--ink-main);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  /* SIDEBAR NAV */
+  nav.sidebar {
+    background: var(--bg-nav);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 36px 24px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  nav.sidebar .brand {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: normal;
+    color: var(--primary);
+    margin: 0 0 4px 0;
+    letter-spacing: -0.01em;
+  }
+
+  nav.sidebar .brand-sub {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 32px;
+  }
+
+  .nav-group {
+    margin-bottom: 24px;
+  }
+
+  .nav-group-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    font-weight: 700;
+    margin-bottom: 8px;
+    opacity: 0.8;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--ink-muted);
+    text-decoration: none;
+    font-size: 13.5px;
+    padding: 7px 10px;
+    margin: 2px -10px;
+    border-radius: 6px;
+    transition: var(--transition);
+  }
+
+  .nav-link:hover, .nav-link:focus-visible {
+    color: var(--primary-soft);
+    background: var(--gold-light);
+    outline: none;
+  }
+
+  .nav-link.active {
+    color: var(--primary);
+    background: var(--gold-light);
+    font-weight: 600;
+  }
+
+  .nav-link .counter {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--border);
+    color: var(--ink-muted);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: normal;
+  }
+
+  .nav-link.active .counter {
+    background: var(--primary-soft);
+    color: #FFFFFF;
+  }
+
+  /* MAIN AREA */
+  main {
+    padding: 48px 64px 120px;
+    max-width: 960px;
+  }
+
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; }
+    nav.sidebar { display: none; }
+    main { padding: 32px 24px 80px; }
+  }
+
+  /* HEADER & CONTROLS */
+  header.masthead {
+    margin-bottom: 40px;
+  }
+
+  header.masthead .kicker {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gold);
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  header.masthead h1 {
+    font-family: var(--font-serif);
+    font-size: 38px;
+    font-weight: 400;
+    line-height: 1.15;
+    color: var(--primary);
+    margin: 0 0 12px 0;
+  }
+
+  header.masthead p.subtitle {
+    font-size: 16px;
+    color: var(--ink-muted);
+    margin: 0;
+    max-width: 72ch;
+  }
+
+  /* CONTROL TOOLBAR */
+  .control-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 40px;
+    position: sticky;
+    top: 16px;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.9);
+  }
+  
+  [data-theme="dark"] .control-bar {
+    background: rgba(30, 18, 21, 0.9);
+  }
+
+  .progress-widget {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .progress-widget .label {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--primary);
+  }
+
+  .progress-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    flex-grow: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-soft) 100%);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .progress-text {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-main);
+    white-space: nowrap;
+  }
+
+  .search-wrapper {
+    position: relative;
+    width: 240px;
+  }
+
+  .search-wrapper input {
+    width: 100%;
+    padding: 8px 12px 8px 32px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-size: 13.5px;
+    background: var(--bg-base);
+    color: var(--ink-main);
+    outline: none;
+    transition: var(--transition);
+  }
+
+  .search-wrapper input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(88, 24, 31, 0.08);
+  }
+
+  .search-wrapper svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: var(--ink-muted);
+    pointer-events: none;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-card);
+    color: var(--ink-main);
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:hover {
+    background: var(--border);
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #FFFFFF;
+    border-color: var(--primary);
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-soft);
+    border-color: var(--primary-soft);
+  }
+
+  /* SECTIONS */
+  section {
+    margin-bottom: 52px;
+    scroll-margin-top: 90px;
+  }
+
+  .section-header {
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .section-header h2 {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: normal;
+    color: var(--primary);
+    margin: 0;
+  }
+
+  .section-header h2 span.num {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    color: var(--gold);
+    margin-right: 8px;
+  }
+
+  .section-header .section-progress {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+
+  p.section-intro {
+    font-size: 14.5px;
+    color: var(--ink-muted);
+    margin-top: -12px;
+    margin-bottom: 20px;
+    max-width: 80ch;
+  }
+
+  /* ACCOUNTS GRID */
+  .accounts-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 36px;
+  }
+
+  .accounts-card h3 {
+    margin-top: 0;
+    font-size: 16px;
+    color: var(--primary);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .accounts-card p {
+    font-size: 13.5px;
+    color: var(--ink-muted);
+    margin: 0 0 16px 0;
+  }
+
+  .accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .account-tile {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: var(--bg-base);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    transition: var(--transition);
+  }
+
+  .account-tile:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow);
+  }
+
+  .account-tile .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .account-tile .plan-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--gold-light);
+    color: var(--gold);
+    border: 1px solid rgba(169, 114, 28, 0.15);
+  }
+
+  .account-tile .name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink-main);
+  }
+
+  .account-tile .data-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--bg-card);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px dashed var(--border);
+  }
+
+  .account-tile .data-row span.label {
+    color: var(--ink-muted);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+
+  .copy-btn {
+    border: none;
+    background: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    border-radius: 3px;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    transition: var(--transition);
+  }
+
+  .copy-btn:hover {
+    background: var(--border);
+    color: var(--primary);
+  }
+
+  .copy-btn.copied {
+    color: var(--success-fg);
+    background: var(--success-bg);
+  }
+
+  .account-note {
+    margin-top: 16px;
+    background: var(--gold-light);
+    border-left: 3px solid var(--gold);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    color: var(--ink-main);
+  }
+  
+  .account-note code {
+    font-family: var(--font-mono);
+    background: rgba(169, 114, 28, 0.1);
+    color: var(--gold);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  /* LEGEND */
+  .legend-box {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 32px;
+    font-size: 13px;
+    color: var(--ink-muted);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* LIST ITEMS */
+  .checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .check-item {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    align-items: start;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px 14px 14px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: var(--transition);
+  }
+
+  .check-item:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+
+  .check-item.checked {
+    background: var(--bg-base);
+    border-color: var(--border);
+    box-shadow: none;
+  }
+
+  /* CUSTOM CHECKBOX */
+  .checkbox-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 22px;
+    width: 22px;
+    margin-top: 1px;
+  }
+
+  .custom-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-strong);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    background: var(--bg-card);
+  }
+
+  .check-item:hover .custom-checkbox {
+    border-color: var(--primary-soft);
+  }
+
+  .check-item.checked .custom-checkbox {
+    background: var(--success-fg);
+    border-color: var(--success-fg);
+  }
+
+  .custom-checkbox svg {
+    width: 12px;
+    height: 12px;
+    color: #FFFFFF;
+    stroke-width: 4px;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: var(--transition);
+  }
+
+  .check-item.checked .custom-checkbox svg {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* CHECK CONTENT */
+  .check-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .check-title {
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink-main);
+    transition: var(--transition);
+  }
+
+  .check-item.checked .check-title {
+    color: var(--ink-muted);
+    opacity: 0.8;
+  }
+
+  .check-title strong {
+    font-weight: 600;
+    color: var(--primary);
+  }
+  
+  .check-item.checked .check-title strong {
+    color: var(--ink-muted);
+  }
+
+  /* BADGES & DETAILS */
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .badge-bug {
+    background: var(--bug-bg);
+    color: var(--bug-fg);
+  }
+
+  .badge-repro {
+    background: var(--repro-bg);
+    color: var(--repro-fg);
+  }
+
+  .badge-code {
+    font-family: var(--font-mono);
+    background: var(--bg-base);
+    color: var(--ink-muted);
+    border: 1px solid var(--border);
+    font-size: 11px;
+  }
+
+  .badge-arrow {
+    color: var(--ink-muted);
+    font-weight: normal;
+  }
+
+  /* CALLOUT CARDS */
+  .callout-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+  }
+
+  .callout-box.warning {
+    border-left: 4px solid var(--gold);
+  }
+
+  .callout-box h4 {
+    margin: 0 0 6px 0;
+    font-size: 15px;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .callout-box p {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--ink-muted);
+  }
+
+  .callout-box p code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--bg-base);
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+
+  /* THEME SWITCHER */
+  .theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+  }
+
+  .theme-toggle:hover {
+    background: var(--border);
+    color: var(--primary);
+  }
+
+  .theme-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .sun-icon { display: block; }
+  .moon-icon { display: none; }
+  [data-theme="dark"] .sun-icon { display: none; }
+  [data-theme="dark"] .moon-icon { display: block; }
+
+  /* UTILS */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<nav class="sidebar" aria-label="Table of contents">
+  <div class="brand">Vaibhav Vivaaha</div>
+  <div class="brand-sub">Tester Bucket List</div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Setup &amp; Info</div>
+    <a href="#overview" class="nav-link active">Overview</a>
+    <a href="#accounts" class="nav-link">Test Accounts</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Checklist Sections</div>
+    <a href="#connections" class="nav-link" data-section="connections">1 · Connections <span class="counter" id="counter-connections">0/5</span></a>
+    <a href="#mailbox" class="nav-link" data-section="mailbox">2 · Mailbox <span class="counter" id="counter-mailbox">0/7</span></a>
+    <a href="#privacy" class="nav-link" data-section="privacy">3 · Privacy &amp; Perms <span class="counter" id="counter-privacy">0/9</span></a>
+    <a href="#reveal" class="nav-link" data-section="reveal">4 · Contact Reveal <span class="counter" id="counter-reveal">0/12</span></a>
+    <a href="#chat" class="nav-link" data-section="chat">5 · Chat Screen <span class="counter" id="counter-chat">0/7</span></a>
+    <a href="#convlist" class="nav-link" data-section="convlist">6 · Chat List <span class="counter" id="counter-convlist">0/6</span></a>
+    <a href="#wholiked" class="nav-link" data-section="wholiked">7 · Who Liked You <span class="counter" id="counter-wholiked">0/3</span></a>
+    <a href="#push" class="nav-link" data-section="push">8 · Push Notifications <span class="counter" id="counter-push">0/2</span></a>
+  </div>
+
+  <div class="nav-group" style="margin-top: auto;">
+    <a href="#known-items" class="nav-link">Known Exclusions</a>
+  </div>
+</nav>
+
+<main>
+  <header class="masthead" id="overview">
+    <span class="kicker">Interactive QA Checklist</span>
+    <h1>Tester Bucket List</h1>
+    <p class="subtitle">
+      Companion verification tool for Chat, Mailbox, Privacy/Permissions, Contact Reveal, and recent UI redesigns. Handles real-time completion tracking and state persistence.
+    </p>
+  </header>
+
+  <!-- CONTROL TOOLBAR -->
+  <div class="control-bar">
+    <div class="progress-widget">
+      <span class="label">Overall Progress</span>
+      <div class="progress-track">
+        <div class="progress-fill" id="overall-progress-bar"></div>
+      </div>
+      <span class="progress-text" id="overall-progress-text">0 / 50 (0%)</span>
+    </div>
+    
+    <div class="search-wrapper">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+      </svg>
+      <input type="text" id="search-input" placeholder="Search tasks, repros...">
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn" id="btn-reset" title="Reset all checklist items">
+        <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8.89M9 11l3 3L22 4"></path>
+        </svg>
+        Reset
+      </button>
+      <button class="theme-toggle" id="theme-toggle-btn" title="Toggle Light/Dark Theme">
+        <!-- Sun icon (for dark mode, to switch to light) -->
+        <svg class="sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path>
+        </svg>
+        <!-- Moon icon (for light mode, to switch to dark) -->
+        <svg class="moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="legend-box">
+    <div class="legend-item"><span class="badge badge-bug">Bug Fixed</span> What was broken before (assists in checking regression)</div>
+    <div class="legend-item"><span class="badge badge-repro">Repro Details</span> Step-by-step account sequence for reproduction</div>
+  </div>
+
+  <!-- TEST ACCOUNTS -->
+  <section id="accounts">
+    <div class="accounts-card">
+      <h3>Test Accounts Reference</h3>
+      <p>All seeded test accounts use the login PIN <code>1234</code>. Click the buttons below to copy values quickly.</p>
+      
+      <div class="accounts-grid">
+        <!-- Free Male -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannFree TestMale</span>
+            <span class="plan-badge">Free</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 696</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '696')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9111000001</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9111000001')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+        <!-- Free Female -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannFree TestFemale</span>
+            <span class="plan-badge">Free</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 697</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '697')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9111000002</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9111000002')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+        
+        <!-- Starter Male -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannStarter TestMale</span>
+            <span class="plan-badge">Starter</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 698</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '698')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9112000001</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9112000001')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+        <!-- Starter Female -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannStarter TestFemale</span>
+            <span class="plan-badge">Starter</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 699</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '699')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9112000002</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9112000002')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+
+        <!-- Classic Male -->
+        <div class="account-tile" style="border-color: var(--gold);">
+          <div class="header-row">
+            <span class="name">VannClassic TestMale</span>
+            <span class="plan-badge" style="background: var(--gold-light); color: var(--gold);">Classic</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 700</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '700')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9113000001</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9113000001')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+        <!-- Classic Female -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannClassic TestFemale</span>
+            <span class="plan-badge">Classic</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 701</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '701')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9113000002</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9113000002')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+
+        <!-- Silver Male -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannSilver TestMale</span>
+            <span class="plan-badge">Silver</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 702</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '702')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9114000001</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9114000001')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+        <!-- Silver Female -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannSilver TestFemale</span>
+            <span class="plan-badge">Silver</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 703</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '703')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9114000002</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9114000002')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+
+        <!-- Gold Male -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannGold TestMale</span>
+            <span class="plan-badge">Gold</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 704</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '704')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9115000001</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9115000001')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+        <!-- Gold Female -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannGold TestFemale</span>
+            <span class="plan-badge">Gold</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 705</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '705')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9115000002</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9115000002')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+
+        <!-- Platinum Male -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannPlatinum TestMale</span>
+            <span class="plan-badge">Platinum</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 706</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '706')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9116000001</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9116000001')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+        <!-- Platinum Female -->
+        <div class="account-tile">
+          <div class="header-row">
+            <span class="name">VannPlatinum TestFemale</span>
+            <span class="plan-badge">Platinum</span>
+          </div>
+          <div class="data-row">
+            <span class="label">ID: 707</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '707')" title="Copy User ID">ID</button>
+          </div>
+          <div class="data-row">
+            <span class="label">Mobile: 9116000002</span>
+            <button class="copy-btn" onclick="event.stopPropagation(); copyText(this, '9116000002')" title="Copy Phone Number">Phone</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="account-note">
+        <strong>Important Setup Note:</strong> <code>VannClassic TestMale (700)</code> currently has <strong>58/60</strong> send requests used and <strong>39/40</strong> contact reveals used (specifically seeded for quota-exhaustion tests). <strong>Do not reset or change these counts in the DB</strong> during testing, as they are essential for quota checks.
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 1: Interest requests / connections -->
+  <section id="connections" data-sect="connections">
+    <div class="section-header">
+      <h2><span class="num">1</span>Interest requests / connections</h2>
+      <span class="section-progress" id="progress-connections">0 / 5 checked</span>
+    </div>
+    <p class="section-intro">Verify interactions, pending/approved flow logic, and chat list syncing on connection cancellations.</p>
+    
+    <div class="checklist">
+      <div class="check-item" data-id="conn-1">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Cancel a <strong>PENDING</strong> sent request (Sent By You tab, X icon) <span class="badge-arrow">→</span> removes instantly, no confirmation popup.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="conn-2">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Cancel an <strong>APPROVED</strong> connection (X icon on an already-accepted item) <span class="badge-arrow">→</span> <strong>must</strong> show a confirmation popup before doing anything.</div>
+          <div class="badge-row">
+            <span class="badge badge-bug">Bug Fixed: Used to delete instantly with no warning, identical to pending cancellations</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="conn-3">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Confirm removal of an approved connection with <strong>no messages ever exchanged</strong> <span class="badge-arrow">→</span> the conversation also disappears from both sides' chat list.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="conn-4">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Confirm removal of an approved connection <strong>with real messages exchanged</strong> <span class="badge-arrow">→</span> the conversation is preserved (chat history not lost), only the "connection" status changes.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="conn-5">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Send interest <span class="badge-arrow">→</span> other side <strong>declines</strong> <span class="badge-arrow">→</span> sender can send again later and it works (not blocked by "already exists").</div>
+          <div class="badge-row">
+            <span class="badge badge-repro">Repro: 700 → 703, decline from 703, re-send from 700's ProfileDetail screen</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: Mailbox — Received / Sent By You / Permissions tabs -->
+  <section id="mailbox" data-sect="mailbox">
+    <div class="section-header">
+      <h2><span class="num">2</span>Mailbox — Received / Sent By You / Permissions tabs</h2>
+      <span class="section-progress" id="progress-mailbox">0 / 7 checked</span>
+    </div>
+    <p class="section-intro">All three tabs should refetch automatically when you switch away and back — <strong>not</strong> just on first load.</p>
+    
+    <div class="checklist">
+      <div class="check-item" data-id="mail-1">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Received tab:</strong> send new interest from another test account, without touching receiver's app, switch to another bottom tab and back to Request <span class="badge-arrow">→</span> new request appears without needing an app restart.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="mail-2">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Sent By You tab:</strong> same check — send from elsewhere, switch tabs, confirm it shows up.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="mail-3">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Permissions tab:</strong> same check for a new permission request (see section 3).</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="mail-4">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Permissions tab — tap the ✓ (accept) or ✗ (decline) icon on a request <span class="badge-arrow">→</span> <strong>must actually work</strong>, no error.</div>
+          <div class="badge-row">
+            <span class="badge badge-bug">Bug Fixed: Threw a 400 error ("...For input string: undefined") on every tap — button did nothing</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="mail-5">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Permissions tab — tap ✗ (decline) <span class="badge-arrow">→</span> <strong>must</strong> show a confirmation popup before declining.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="mail-6">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">After accepting or declining a permission request <span class="badge-arrow">→</span> <strong>it disappears from the list immediately</strong> (don't need to leave and come back).</div>
+          <div class="badge-row">
+            <span class="badge badge-bug">Bug Fixed: The item used to stay in the list showing the same accept/reject buttons even after being decided</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="mail-7">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Declining a permission request <span class="badge-arrow">→</span> the <strong>requester</strong> gets a notification saying it was declined (previously only approvals notified).</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 3: Privacy settings / restricted-field permission requests -->
+  <section id="privacy" data-sect="privacy">
+    <div class="section-header">
+      <h2><span class="num">3</span>Privacy settings / restricted-field permission requests</h2>
+      <span class="section-progress" id="progress-privacy">0 / 9 checked</span>
+    </div>
+    <p class="section-intro"><strong>Owner side:</strong> Settings → Privacy — toggle "hide mobile number" / "hide profile photo" / "hide horoscope".</p>
+    
+    <div class="checklist">
+      <div class="check-item" data-id="priv-1">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Toggle a field ON twice in a row (or double-tap fast) <span class="badge-arrow">→</span> only <strong>one</strong> row should be created, not a duplicate.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="priv-2">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Viewer side:</strong> profile photo hidden by owner <span class="badge-arrow">→</span> shows <strong>blurred photo</strong> + dark overlay + "Ask Permission" button.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="priv-3">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Viewer side:</strong> mobile hidden by owner <span class="badge-arrow">→</span> Contact section shows "Ask Permission" card (lock icon), not the raw number.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="priv-4">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Tap "Ask Permission" (mobile or horoscope) <span class="badge-arrow">→</span> button changes to "Permission requested" (hourglass icon).</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="priv-5">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Leave the profile screen and come back</strong> <span class="badge-arrow">→</span> button should still say "Permission requested", not reset to "Ask Permission".</div>
+          <div class="badge-row">
+            <span class="badge badge-bug">Bug Fixed: Used to reset to "Tap to request access" every time you reopened, and subsequent taps silently failed</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="priv-6">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Owner declines the permission request <span class="badge-arrow">→</span> viewer's button reverts to "Ask Permission" (tappable again), <strong>not</strong> stuck showing "Permission requested" forever.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="priv-7">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Viewer re-requests after a decline <span class="badge-arrow">→</span> works (doesn't say "already exists").</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="priv-8">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Owner <strong>approves</strong> a mobile/photo/horoscope permission request <span class="badge-arrow">→</span> viewer's profile view of that owner <strong>actually unlocks</strong> that field (real photo/number/horoscope shows, not still blurred/locked).</div>
+          <div class="badge-row">
+            <span class="badge badge-bug">Bug Fixed: Approving previously just sent a notification and updated a DB status — nothing actually unlocked for the viewer</span>
+            <span class="badge badge-repro">Repro: 703 asks 698 for mobile → 698 approves from Permissions tab → 703 reopens 698's profile → mobile should show</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: Contact Reveal & Horoscope (Classic plan) -->
+  <section id="reveal" data-sect="reveal">
+    <div class="section-header">
+      <h2><span class="num">4</span>Contact Reveal &amp; Horoscope (Classic plan)</h2>
+      <span class="section-progress" id="progress-reveal">0 / 12 checked</span>
+    </div>
+    
+    <div class="checklist">
+      <div class="check-item" data-id="rev-1">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">As a Classic viewer (700 or 701) open a profile with contact hidden <span class="badge-arrow">→</span> Contact section shows <strong>"Reveal Contact &amp; Horoscope"</strong> button (not "Reveal Contact").</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-2">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Tap it <span class="badge-arrow">→</span> mobile number shows immediately; if you also have an <strong>accepted interest</strong> with that profile, horoscope shows too in the same tap.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-3">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">If interest is <strong>not yet accepted</strong> <span class="badge-arrow">→</span> tapping reveal still unlocks contact, and shows message explaining horoscope needs accepted interest first.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-4">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">If interest <strong>is accepted</strong> but the profile genuinely has no horoscope uploaded <span class="badge-arrow">→</span> shows "This member hasn't added their horoscope yet" — <strong>not</strong> reveal button or "available after interest" text.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-5">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Same "Reveal Contact &amp; Horoscope" button also appears directly in the <strong>Horoscope section</strong> if locked <span class="badge-arrow">→</span> tapping either button (Contact or Horoscope) does the same combined reveal.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-6">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Reveal count decrements correctly — check "X of 40 remaining" updates after each new profile revealed.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-7">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Re-opening a <strong>previously revealed</strong> profile shows the number immediately, does not consume a 2nd reveal.</div>
+        </div>
+      </div>
+
+      <!-- Profile Tab Sub-Checklist -->
+      <div class="check-item" data-id="rev-8" style="margin-top: 12px; border-left: 3px solid var(--primary-soft);">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Profile tab — Contact Reveals:</strong> Classic plan shows a "Contact Reveals" card with a progress bar and "X of 40 remaining".</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-9" style="border-left: 3px solid var(--primary-soft);">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Profile tab — Contact Reveals:</strong> Free / Starter plan card does <strong>not</strong> appear at all.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-10" style="border-left: 3px solid var(--primary-soft);">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Profile tab — Contact Reveals:</strong> Silver+ plan card does <strong>not</strong> appear (unlimited, nothing to track).</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-11" style="border-left: 3px solid var(--primary-soft);">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Profile tab — Contact Reveals:</strong> When remaining ≤ ~10% of total (e.g. 3 or fewer left) <span class="badge-arrow">→</span> card shows a pink "RUNNING LOW" badge and pink progress bar/border.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="rev-12" style="border-left: 3px solid var(--primary-soft);">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Profile tab — Contact Reveals:</strong> Tap the card <span class="badge-arrow">→</span> opens a list of every profile whose contact you've revealed, showing name/photo, mobile number, and date.</div>
+          <div class="badge-row">
+            <span class="badge badge-repro">Repro: Use VannClassic TestMale (700) for this — already has 39 reveals seeded</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: Chat screen -->
+  <section id="chat" data-sect="chat">
+    <div class="section-header">
+      <h2><span class="num">5</span>Chat screen</h2>
+      <span class="section-progress" id="progress-chat">0 / 7 checked</span>
+    </div>
+    
+    <div class="checklist">
+      <div class="check-item" data-id="chat-1">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>iOS:</strong> open keyboard while typing a message <span class="badge-arrow">→</span> input box stays visible above keyboard, not hidden behind it.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="chat-2">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Two accounts in the same chat: Account A sends message <span class="badge-arrow">→</span> Account B sees it appear live immediately without leaving/reopening.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="chat-3">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Account B reads the message while in chat <span class="badge-arrow">→</span> Account A's tick on that message turns from single grey to double <strong>blue</strong> live, without leaving.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="chat-4">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Go back to the conversation list after reading messages <span class="badge-arrow">→</span> unread badge/bold text clears (doesn't stay showing unread).</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="chat-5">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Online / "last seen" status updates within ~15 seconds of the other person going online/offline.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="chat-6">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">If the other person has no profile photo <span class="badge-arrow">→</span> shows correct gendered default avatar (not broken image, not wrong gender), in header, bubbles, input.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="chat-7">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Header:</strong> name + online status center-aligned with profile photo, doesn't overlap the 3-dot menu (check specifically on Android).</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 6: Conversation list (footer tab "Chat"/"My Connections") -->
+  <section id="convlist" data-sect="convlist">
+    <div class="section-header">
+      <h2><span class="num">6</span>Conversation list (footer tab "Chat"/"My Connections")</h2>
+      <span class="section-progress" id="progress-convlist">0 / 6 checked</span>
+    </div>
+    
+    <div class="checklist">
+      <div class="check-item" data-id="list-1">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Search bar filters the list by name as you type; clearing it shows everyone again.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="list-2">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Sending yourself a message from another account while on this screen <span class="badge-arrow">→</span> new message and updated "last message" text appear live instantly.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="list-3">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Unread conversations show bold name/msg + a small blue dot + a blue unread-count badge; read conversations are plain gray.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="list-4">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Swipe a conversation left <span class="badge-arrow">→</span> red delete button appears, tapping it removes the row.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="list-5">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Timestamps read like WhatsApp: today shows time, yesterday shows "Yesterday", this week shows weekday name, older shows date.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="list-6">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Verified badge (shield icon) shows on the avatar corner for verified users.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 7: "Who Liked You" (home page) -->
+  <section id="wholiked" data-sect="wholiked">
+    <div class="section-header">
+      <h2><span class="num">7</span>"Who Liked You" (home page)</h2>
+      <span class="section-progress" id="progress-wholiked">0 / 3 checked</span>
+    </div>
+    
+    <div class="checklist">
+      <div class="check-item" data-id="like-1">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Home page <span class="badge-arrow">→</span> tap the "Likes" (heart) stat <span class="badge-arrow">→</span> opens a real list of who liked you, <strong>not</strong> a "Coming soon" popup.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="like-2">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title"><strong>Free plan:</strong> tapping it shows an upgrade wall ("Upgrade to Starter or above...").</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="like-3">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">Starter shows up to 5 likers; Classic up to 20; Silver+ unlimited <span class="badge-arrow">→</span> verify the cap actually applies if you have more likes than the limit.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 8: Push notifications -->
+  <section id="push" data-sect="push">
+    <div class="section-header">
+      <h2><span class="num">8</span>Push notifications</h2>
+      <span class="section-progress" id="progress-push">0 / 2 checked</span>
+    </div>
+    
+    <div class="checklist">
+      <div class="check-item" data-id="push-1">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">On a real device build (<strong>not</strong> Expo Go) <span class="badge-arrow">→</span> a received push notification shows the app's own logo, not the Expo Go icon.</div>
+        </div>
+      </div>
+
+      <div class="check-item" data-id="push-2">
+        <div class="checkbox-container">
+          <div class="custom-checkbox">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+        </div>
+        <div class="check-content">
+          <div class="check-title">In Expo Go on Android: no red error screen about "push notifications removed" should interrupt normal use (functionality expected to be unavailable, just no crashes/scary banners).</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KNOWN EXCLUSIONS -->
+  <section id="known-items">
+    <div class="section-header">
+      <h2>Known, deliberately-not-fixed items</h2>
+    </div>
+    <p class="section-intro">These are intentional behaviours or separate out-of-scope issues. Do not report them as bugs.</p>
+    
+    <div class="callout-box warning">
+      <h4>
+        <svg style="width:16px;height:16px;color:var(--gold)" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        Horoscope Privacy Rule
+      </h4>
+      <p>Horoscope still requires an accepted interest even for Classic's combined reveal. This is an intentional privacy rule, not a bug. Flagged to product owner for possible future change.</p>
+    </div>
+
+    <div class="callout-box warning">
+      <h4>
+        <svg style="width:16px;height:16px;color:var(--gold)" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        Subscription Lookup Pattern Fragility
+      </h4>
+      <p><code>findTopByUserIdOrderByCreatedAtDesc</code> lookup pattern exists in ~11 backend service methods beyond the fixed one (<code>ChatService</code>). If you hit a "false upgrade required" popup (especially after renewal), note the action/screen — this pattern is known fragile and not yet swept everywhere.</p>
+    </div>
+
+    <div class="callout-box warning">
+      <h4>
+        <svg style="width:16px;height:16px;color:var(--gold)" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        Hardcoded Pricing Page Mock Data
+      </h4>
+      <p><code>PremiumTab.tsx</code> shows hardcoded mock data, not live DB prices/limits. Pricing page inaccuracies are a known separate, larger item.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+  // DOM Elements
+  const searchInput = document.getElementById('search-input');
+  const btnReset = document.getElementById('btn-reset');
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
+  const overallProgressBar = document.getElementById('overall-progress-bar');
+  const overallProgressText = document.getElementById('overall-progress-text');
+  
+  const checkItems = document.querySelectorAll('.check-item');
+  const sections = document.querySelectorAll('section[data-sect]');
+  
+  const STORAGE_KEY = 'vvm_tester_bucket_list_state';
+  
+  // Initialize State
+  let checkedState = {};
+  
+  function loadState() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        checkedState = JSON.parse(data);
+      }
+    } catch (e) {
+      console.error('Failed to load state from localStorage', e);
+    }
+  }
+  
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(checkedState));
+    } catch (e) {
+      console.error('Failed to save state to localStorage', e);
+    }
+  }
+
+  // Apply State to DOM
+  function applyState() {
+    checkItems.forEach(item => {
+      const id = item.getAttribute('data-id');
+      if (checkedState[id]) {
+        item.classList.add('checked');
+      } else {
+        item.classList.remove('checked');
+      }
+    });
+    updateProgress();
+  }
+
+  // Update progress calculations
+  function updateProgress() {
+    let grandTotal = checkItems.length;
+    let grandChecked = 0;
+    
+    // Track per-section stats
+    const sectionCounts = {};
+    sections.forEach(sec => {
+      const sectName = sec.getAttribute('data-sect');
+      sectionCounts[sectName] = { total: 0, checked: 0 };
+    });
+    
+    checkItems.forEach(item => {
+      const id = item.getAttribute('data-id');
+      const isChecked = item.classList.contains('checked');
+      
+      if (isChecked) grandChecked++;
+      
+      // Find parent section
+      const parentSection = item.closest('section[data-sect]');
+      if (parentSection) {
+        const sectName = parentSection.getAttribute('data-sect');
+        if (sectionCounts[sectName]) {
+          sectionCounts[sectName].total++;
+          if (isChecked) {
+            sectionCounts[sectName].checked++;
+          }
+        }
+      }
+    });
+    
+    // Update overall UI
+    const percent = grandTotal > 0 ? Math.round((grandChecked / grandTotal) * 100) : 0;
+    overallProgressBar.style.width = `${percent}%`;
+    overallProgressText.textContent = `${grandChecked} / ${grandTotal} (${percent}%)`;
+    
+    // Update per-section headers and nav links
+    Object.keys(sectionCounts).forEach(sectName => {
+      const counts = sectionCounts[sectName];
+      
+      // Update section header progress text
+      const progressEl = document.getElementById(`progress-${sectName}`);
+      if (progressEl) {
+        progressEl.textContent = `${counts.checked} / ${counts.total} checked`;
+      }
+      
+      // Update sidebar nav counter
+      const counterEl = document.getElementById(`counter-${sectName}`);
+      if (counterEl) {
+        counterEl.textContent = `${counts.checked}/${counts.total}`;
+      }
+    });
+  }
+
+  // Bind Events
+  checkItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      // Don't toggle if they click a copy button
+      if (e.target.closest('.copy-btn')) return;
+      
+      const id = item.getAttribute('data-id');
+      const isChecked = item.classList.toggle('checked');
+      checkedState[id] = isChecked;
+      
+      saveState();
+      updateProgress();
+    });
+  });
+
+  // Search filter
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase().trim();
+    
+    checkItems.forEach(item => {
+      const titleText = item.querySelector('.check-title').textContent.toLowerCase();
+      const badgeText = Array.from(item.querySelectorAll('.badge')).map(b => b.textContent.toLowerCase()).join(' ');
+      
+      const match = titleText.includes(query) || badgeText.includes(query);
+      
+      if (match || query === '') {
+        item.classList.remove('hidden');
+      } else {
+        item.classList.add('hidden');
+      }
+    });
+    
+    // Hide sections that have no matching visible items
+    sections.forEach(sec => {
+      const visibleItems = sec.querySelectorAll('.check-item:not(.hidden)');
+      if (visibleItems.length === 0 && query !== '') {
+        sec.classList.add('hidden');
+      } else {
+        sec.classList.remove('hidden');
+      }
+    });
+  });
+
+  // Reset functionality
+  btnReset.addEventListener('click', () => {
+    if (confirm('Are you sure you want to clear all checkbox selections? This cannot be undone.')) {
+      checkedState = {};
+      saveState();
+      applyState();
+    }
+  });
+
+  // Copy to clipboard helper
+  function copyText(btnElement, textToCopy) {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      btnElement.classList.add('copied');
+      const originalText = btnElement.textContent;
+      btnElement.textContent = '✓';
+      setTimeout(() => {
+        btnElement.classList.remove('copied');
+        btnElement.textContent = originalText;
+      }, 1200);
+    }).catch(err => {
+      console.error('Could not copy text: ', err);
+    });
+  }
+
+  // Theme Management
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('vvm_tester_theme', theme);
+  }
+
+  themeToggleBtn.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || getSystemTheme();
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    applyTheme(newTheme);
+  });
+
+  // Initialize theme from localStorage or system preference
+  const savedTheme = localStorage.getItem('vvm_tester_theme');
+  if (savedTheme) {
+    applyTheme(savedTheme);
+  } else {
+    applyTheme(getSystemTheme());
+  }
+
+  // Sidebar link tracking / scroll spy
+  window.addEventListener('scroll', () => {
+    let currentSectionId = 'overview';
+    const scrollPosition = window.scrollY + 100;
+    
+    // Check which section is in view
+    sections.forEach(sec => {
+      if (sec.offsetTop <= scrollPosition) {
+        currentSectionId = sec.getAttribute('id');
+      }
+    });
+    
+    if (document.getElementById('accounts').offsetTop <= scrollPosition && document.getElementById('connections').offsetTop > scrollPosition) {
+      currentSectionId = 'accounts';
+    }
+    
+    // Update active nav link
+    const allLinks = document.querySelectorAll('.sidebar .nav-link');
+    allLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href === `#${currentSectionId}`) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+  });
+
+  // Page Load Setup
+  loadState();
+  applyState();
+</script>
+
+</body>
+</html>

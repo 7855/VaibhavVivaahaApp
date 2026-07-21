@@ -11,6 +11,7 @@ import { saveDeviceInfo } from '../../../utils/deviceInfo';
 import { useUserData } from '../contexts/UserDataContext';
 import CommonPopup from '../../../components/CommonPopup';
 import { usePopup } from '../contexts/PopupContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LoginScreenProps {
   onForgetPin?: () => void;
@@ -20,6 +21,7 @@ const { width, height } = Dimensions.get('window');
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => {
   const { loadUserData } = useUserData();
+  const { login } = useAuth();
   const popup = usePopup();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [welcomeVisible, setWelcomeVisible] = useState(false);
@@ -64,6 +66,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => {} }) => 
               // Store only non-null values
               await AsyncStorage.setItem('userId', response.data.data.userId)
               await AsyncStorage.setItem('mobileNumber', mobileNumber)
+
+              // Sync AuthContext's in-memory userId/isOnline state. AuthContext only ever reads
+              // AsyncStorage once, at app boot (checkUserStatus) — without this call, useAuth()-gated
+              // UI (e.g. QuickAccessFAB, gated on `if (!userId) return null`) stays hidden after a
+              // same-session logout→login, since nothing else ever tells AuthContext a new user
+              // signed in. Previously required a full app restart to recover.
+              await login(response.data.data.userId).catch(() => {});
               
               // Only store profileImage if it exists
               if (response.data.data.profileImage) {

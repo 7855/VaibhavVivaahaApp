@@ -213,15 +213,23 @@ const PaymentScreen = () => {
             // Fetch fresh
             try {
                 const [modeRes, contactRes] = await Promise.all([
-                    userApi.getPaymentMode().catch(() => null),
-                    userApi.getAdminContact().catch(() => null),
+                    userApi.getPaymentMode().catch((e) => { console.warn('[PaymentScreen] getPaymentMode failed:', e?.message || e); return null; }),
+                    userApi.getAdminContact().catch((e) => { console.warn('[PaymentScreen] getAdminContact failed:', e?.message || e); return null; }),
                 ]);
                 let mode: PaymentMode = 'CONTACT'; // Play Store-safe fallback
                 if (modeRes?.data?.data?.valueColumn) {
                     try {
                         const parsed = JSON.parse(modeRes.data.data.valueColumn);
                         if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT') mode = parsed.mode;
-                    } catch {}
+                        else console.warn('[PaymentScreen] PAYMENT_MODE value has an unexpected shape:', modeRes.data.data.valueColumn);
+                    } catch (e) {
+                        console.warn('[PaymentScreen] Failed to parse PAYMENT_MODE valueColumn:', modeRes.data.data.valueColumn, e);
+                    }
+                } else {
+                    // This is the branch that silently defaulted to CONTACT with zero visibility
+                    // before — logs exactly what came back so a stuck-on-CONTACT report is
+                    // actually diagnosable instead of a black box.
+                    console.warn('[PaymentScreen] No PAYMENT_MODE data in response, defaulting to CONTACT. Response:', JSON.stringify(modeRes?.data));
                 }
                 if (contactRes?.data?.data?.valueColumn) {
                     try {
@@ -232,7 +240,8 @@ const PaymentScreen = () => {
                 await AsyncStorage.setItem('paymentModeCache', JSON.stringify({
                     mode, expiresAt: Date.now() + PAYMENT_MODE_CACHE_TTL,
                 }));
-            } catch {
+            } catch (e) {
+                console.warn('[PaymentScreen] Unexpected error resolving payment mode, defaulting to CONTACT:', e);
                 setPaymentMode('CONTACT'); // safer default if network fails
             }
         })();

@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
@@ -96,14 +96,17 @@ const FamilyAccessScreen = () => {
 
   const handleCreate = async () => {
     if (!parentName.trim() || !mobile.trim() || !pin.trim()) {
+      setShowAdd(false);
       popup.error('Missing details', 'Name, mobile and PIN are all required.');
       return;
     }
     if (mobile.length !== 10) {
+      setShowAdd(false);
       popup.error('Invalid mobile', 'Please enter a valid 10-digit mobile number.');
       return;
     }
     if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+      setShowAdd(false);
       popup.error('Invalid PIN', 'PIN must be exactly 4 digits.');
       return;
     }
@@ -125,15 +128,18 @@ const FamilyAccessScreen = () => {
           `${createdName} can now log in with mobile ${createdMobile} and PIN ${createdPin}. Share these credentials with them.`
         );
       } else if (res.data.code === 403) {
+        setShowAdd(false);
         popup.premiumRequired(
           'Family Access is available on Gold and Platinum plans. Upgrade to invite a parent or family member.',
           buildUpgradeAction({ planTitle, featureName: 'Family Access', minPlan: 'Gold' })
         );
       } else {
+        setShowAdd(false);
         showApiError(res.data.message, res.data.message || 'Something went wrong. Please try again.');
       }
     } catch (e: any) {
       const msg = e?.response?.data?.message;
+      setShowAdd(false);
       showApiError(msg, 'Network error. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
@@ -165,13 +171,7 @@ const FamilyAccessScreen = () => {
   if (!isGoldPlus) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Family Access</Text>
-          <View style={{ width: 24 }} />
-        </View>
+        <Stack.Screen options={{ title: 'Family Access' }} />
         <View style={styles.center}>
           <Ionicons name="lock-closed" size={64} color="#d4a017" />
           <Text style={styles.lockText}>Family Access is a Gold/Platinum feature</Text>
@@ -186,15 +186,16 @@ const FamilyAccessScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Family Access</Text>
-        <TouchableOpacity onPress={() => setShowAdd(true)}>
-          <Ionicons name="add-circle" size={26} color="#9c4040" />
-        </TouchableOpacity>
-      </View>
+      <Stack.Screen
+        options={{
+          title: 'Family Access',
+          headerRight: () => (
+            <TouchableOpacity onPress={() => setShowAdd(true)} style={{ paddingHorizontal: 4 }}>
+              <Ionicons name="add-circle" size={26} color="#1F7FE5" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
 
       <Text style={styles.subtitle}>
         Add a family member who can log in with their own mobile number to view and manage your matches on their phone.
@@ -404,8 +405,6 @@ const FamilyAccessScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderColor: '#f3f4f6' },
-  title: { fontSize: 18, fontFamily: 'Rubik-Medium', color: '#111' },
   subtitle: { fontSize: 13, color: '#6b7280', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: { marginTop: 12, color: '#6b7280', fontSize: 15 },

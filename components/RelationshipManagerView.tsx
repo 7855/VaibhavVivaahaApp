@@ -20,11 +20,13 @@ import {
   Phone,
   MessageCircle,
   CheckCircle,
+  Check,
   Shield,
   Clock,
   Sparkles,
 } from 'lucide-react-native';
 import userApi from '../app/(root)/api/userApi';
+import { ALL_UPGRADE_PLANS } from '../app/(root)/utils/upgradeNavigation';
 
 const FALLBACK_PHONE = '+917904547565';
 const TIME_SLOTS = ['Morning', 'Afternoon', 'Evening', 'Anytime'];
@@ -66,6 +68,10 @@ const RelationshipManagerView: React.FC<Props> = ({
   const rmName = adminContact?.rmName || 'Our team';
   const rmTitle = adminContact?.rmTitle || 'Relationship Manager';
   const callbackHours = adminContact?.callbackHours || '10 AM – 8 PM (Mon–Sat)';
+  // None of the 6 plan tier names are substrings of one another, so a plain `includes` safely
+  // matches both a bare title ("Gold", from UpgradePlanScreen) and a duration-suffixed one
+  // ("Classic (3 Months)", from PremiumTab.tsx) against the canonical feature list.
+  const planFeatures = ALL_UPGRADE_PLANS.find((p) => planTitle.includes(p.title))?.features || [];
 
   const [name, setName] = useState(defaultName.trim());
   const [mobile, setMobile] = useState(defaultMobile);
@@ -225,6 +231,23 @@ const RelationshipManagerView: React.FC<Props> = ({
             </View>
             <Text style={s.planPrice}>{planPrice}</Text>
           </View>
+
+          {planFeatures.length > 0 && (
+            <>
+              <View style={s.planFeaturesDivider} />
+              <Text style={s.planFeaturesLabel}>WHAT YOU'LL GET</Text>
+              <View style={s.planFeaturesList}>
+                {planFeatures.map((feature, i) => (
+                  <View key={i} style={s.planFeatureRow}>
+                    <View style={s.planFeatureCheck}>
+                      <Check size={11} color="#1F7FE5" strokeWidth={3} />
+                    </View>
+                    <Text style={s.planFeatureText}>{feature}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
         </View>
 
         {/* Callback form */}
@@ -401,6 +424,15 @@ const s = StyleSheet.create({
   planTitle: { fontSize: 16, fontFamily: 'Rubik-Bold', color: '#0f1724' },
   planPeriod: { fontSize: 11, fontFamily: 'Rubik-Regular', color: '#64748b', marginTop: 2 },
   planPrice: { fontSize: 18, fontFamily: 'Rubik-ExtraBold', color: '#1F7FE5' },
+  planFeaturesDivider: { height: 1, backgroundColor: '#f1f5f9', marginTop: 14, marginBottom: 12 },
+  planFeaturesLabel: { fontSize: 10, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: 1, marginBottom: 10 },
+  planFeaturesList: { gap: 9 },
+  planFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  planFeatureCheck: {
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#dfecfb', alignItems: 'center', justifyContent: 'center',
+  },
+  planFeatureText: { flex: 1, fontSize: 12.5, fontFamily: 'Rubik-Regular', color: '#334155', lineHeight: 18 },
 
   // Form
   formCard: {
