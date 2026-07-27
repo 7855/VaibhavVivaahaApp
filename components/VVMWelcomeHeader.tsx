@@ -11,8 +11,9 @@ import {
   View, Text, Image,
   TouchableOpacity, StyleSheet, Platform,
 } from 'react-native';
-import { LinearGradient }     from 'expo-linear-gradient';
-import { useSafeAreaInsets }  from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bell, Heart, Send, Eye,
   UserCheck, RefreshCw, Clock,
@@ -27,7 +28,7 @@ import Animated, {
 // ───────────��─────────────��───────────────────
 const getGreetWord = () => {
   const h = new Date().getHours();
-  if (h >= 5  && h < 12) return 'morning';
+  if (h >= 5 && h < 12) return 'morning';
   if (h >= 12 && h < 17) return 'afternoon';
   return 'evening'; // covers 17:00 through 04:59 — no "Good Night" greeting
 };
@@ -36,11 +37,11 @@ const getGreetWord = () => {
 const resolveTier = (name = '') => {
   const k = name.toLowerCase();
   if (k.includes('platinum')) return { label: 'Platinum', colors: ['#6C63FF', '#4F46E5'] as const, glow: 'rgba(108,99,255,0.35)' };
-  if (k.includes('gold'))     return { label: 'Gold',     colors: ['#C59A40', '#A67C28'] as const, glow: 'rgba(197,154,64,0.38)' };
-  if (k.includes('silver'))   return { label: 'Silver',   colors: ['#7E909E', '#5F7385'] as const, glow: 'rgba(95,115,133,0.3)'  };
-  if (k.includes('starter'))  return { label: 'Starter',  colors: ['#4A9CD8', '#3280B8'] as const, glow: 'rgba(74,156,216,0.3)'  };
-  if (k.includes('classic'))  return { label: 'Classic',  colors: ['#C48550', '#A66D38'] as const, glow: 'rgba(196,133,80,0.3)'  };
-  return                             { label: 'Free',     colors: ['#8899AA', '#6B7D8E'] as const, glow: 'transparent'            };
+  if (k.includes('gold')) return { label: 'Gold', colors: ['#C59A40', '#A67C28'] as const, glow: 'rgba(197,154,64,0.38)' };
+  if (k.includes('silver')) return { label: 'Silver', colors: ['#7E909E', '#5F7385'] as const, glow: 'rgba(95,115,133,0.3)' };
+  if (k.includes('starter')) return { label: 'Starter', colors: ['#4A9CD8', '#3280B8'] as const, glow: 'rgba(74,156,216,0.3)' };
+  if (k.includes('classic')) return { label: 'Classic', colors: ['#C48550', '#A66D38'] as const, glow: 'rgba(196,133,80,0.3)' };
+  return { label: 'Free', colors: ['#8899AA', '#6B7D8E'] as const, glow: 'transparent' };
 };
 
 // ───��─────────────────────────────────────────
@@ -74,10 +75,10 @@ const OnlineDot = () => {
   useEffect(() => {
     sc.value = withRepeat(withSequence(
       withTiming(1.9, { duration: 1200, easing: Easing.out(Easing.ease) }),
-      withTiming(1,   { duration: 0 }),
+      withTiming(1, { duration: 0 }),
     ), -1, false);
     op.value = withRepeat(withSequence(
-      withTiming(0,   { duration: 1200, easing: Easing.out(Easing.ease) }),
+      withTiming(0, { duration: 1200, easing: Easing.out(Easing.ease) }),
       withTiming(0.6, { duration: 0 }),
     ), -1, false);
   }, []);
@@ -115,18 +116,18 @@ interface Props {
 const VVMWelcomeHeader: React.FC<Props> = ({
   userData,
   tierName,
-  unreadCount    = 0,
-  activityCount  = 0,
-  stats          = { likes: 0, proposals: 0, views: 0, matches: 0 },
+  unreadCount = 0,
+  activityCount = 0,
+  stats = { likes: 0, proposals: 0, views: 0, matches: 0 },
   router,
-  isVerified     = false,
-  memberId       = '',
+  isVerified = false,
+  memberId = '',
   onActivityPress,
   onStatRefresh,
   onStatsPress,
 }) => {
   const insets = useSafeAreaInsets();
-  const tier   = resolveTier(tierName);
+  const tier = resolveTier(tierName);
   const [refreshing, setRefreshing] = useState(false);
   const refreshSpin = useSharedValue(0);
   const refreshAnimStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${refreshSpin.value}deg` }] }));
@@ -152,10 +153,10 @@ const VVMWelcomeHeader: React.FC<Props> = ({
         : require('../assets/images/defaultAvatar.png'));
 
   const STAT_CONFIG = [
-    { key: 'likes',     label: 'Likes',     value: stats.likes,     bg: '#8B3A3A', Icon: Heart,     ic: '#ffffff', filled: false },
-    { key: 'proposals', label: 'Proposals', value: stats.proposals, bg: '#8B3A3A', Icon: Send,      ic: '#ffffff', filled: false },
-    { key: 'views',     label: 'Views',     value: stats.views,     bg: '#8B3A3A', Icon: Eye,       ic: '#ffffff', filled: false },
-    { key: 'matches',   label: 'Matches',   value: stats.matches,   bg: '#8B3A3A', Icon: UserCheck, ic: '#ffffff', filled: false },
+    { key: 'likes', label: 'Likes', value: stats.likes, bg: '#8B3A3A', Icon: Heart, ic: '#ffffff', filled: false },
+    { key: 'proposals', label: 'Proposals', value: stats.proposals, bg: '#8B3A3A', Icon: Send, ic: '#ffffff', filled: false },
+    { key: 'views', label: 'Views', value: stats.views, bg: '#8B3A3A', Icon: Eye, ic: '#ffffff', filled: false },
+    { key: 'matches', label: 'Matches', value: stats.matches, bg: '#8B3A3A', Icon: UserCheck, ic: '#ffffff', filled: false },
   ];
 
   return (
@@ -181,7 +182,7 @@ const VVMWelcomeHeader: React.FC<Props> = ({
                 style={S.logoGrad}
               />
               <View style={S.logoInner}>
-                <Image source={require('../assets/images/LotusLogo.jpeg')} style={S.brandLogo} />
+                <Image source={require('../assets/images/LotusLogo.png')} style={S.brandLogo} />
               </View>
             </View>
             <View>
@@ -265,6 +266,8 @@ const VVMWelcomeHeader: React.FC<Props> = ({
 
       {/* ── STATS CARD ─────────────────────── */}
       <View style={S.statsCard}>
+        <BlurView intensity={45} tint="light" style={StyleSheet.absoluteFillObject} />
+        <View style={S.statsCardTint} pointerEvents="none" />
         <LinearGradient
           colors={['#1F7FE5', '#8b6fd9', '#e85a7a']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -384,11 +387,16 @@ const S = StyleSheet.create({
   // Stats card
   statsCard: {
     marginHorizontal: 14, marginTop: 10,
-    backgroundColor: '#FFFFFF', borderRadius: 24, overflow: 'hidden',
+    borderRadius: 24, overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)',
     ...Platform.select({
       ios: { shadowColor: '#0f2346', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 },
       android: { elevation: 4 },
     }),
+  },
+  statsCardTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   statsAccent: { height: 3 },
   statsGrid: { flexDirection: 'row', paddingVertical: 16, paddingHorizontal: 8 },
@@ -398,7 +406,7 @@ const S = StyleSheet.create({
   statCount: { fontSize: 20, fontFamily: 'Rubik-Bold', color: '#0f1724', letterSpacing: -0.8, lineHeight: 22 },
   statLbl: { fontSize: 11, fontFamily: 'Rubik-Medium', color: '#64748b' },
   statsFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 13, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
-  sfLeft:  { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  sfLeft: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   sfMetaTxt: { fontSize: 10, fontFamily: 'Rubik-Regular', color: '#94a3b8' },
   sfRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   sfCtaTxt: { fontSize: 10, fontFamily: 'Rubik-Medium', color: '#1F7FE5' },

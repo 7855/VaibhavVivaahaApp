@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/vaibhavsplash.jpeg",
+    "icon": "./assets/images/vaibhavsplash.png",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/vaibhavsplash.jpeg",
+        "foregroundImage": "./assets/images/vaibhavsplash.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.vaibhavvivaaha.app",
@@ -31,7 +31,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/vaibhavsplash.jpeg"
+      "favicon": "./assets/images/vaibhavsplash.png"
     },
     "plugins": [
       "expo-router",
@@ -168,7 +168,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/vaibhavsplash.jpeg",
+          "image": "./assets/images/vaibhavsplash.png",
           "imageWidth": 280,
           "resizeMode": "contain",
           "backgroundColor": "#420001",

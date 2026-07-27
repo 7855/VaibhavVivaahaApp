@@ -30,8 +30,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect } from 'react';
-import { AlertNotificationRoot } from 'react-native-alert-notification';
+import { AlertNotificationRoot, Toast, ALERT_TYPE } from 'react-native-alert-notification';
 import { AuthProvider } from './(root)/contexts/AuthContext';
 import { MasterProvider } from './(root)/contexts/MasterDataContext';
 import { SubscriptionProvider } from './(root)/contexts/subscriptionContext';
@@ -59,6 +60,27 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  // App-wide screenshot/screen-recording guard. Android: FLAG_SECURE blocks both
+  // outright (screenshot capture fails silently, and the screen shows blank in the
+  // recents/app-switcher preview and in any recording). iOS has no API to block
+  // either — Apple only allows detecting that a screenshot was taken after the fact,
+  // so addScreenshotListener is the only mitigation there (screen recording on iOS
+  // can't be detected or blocked by a managed Expo app at all).
+  useEffect(() => {
+    ScreenCapture.preventScreenCaptureAsync().catch(() => {});
+    const subscription = ScreenCapture.addScreenshotListener(() => {
+      Toast.show({
+        type: ALERT_TYPE.WARNING,
+        title: 'Screenshot detected',
+        textBody: 'Please respect other members’ privacy.',
+      });
+    });
+    return () => {
+      subscription.remove();
+      ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+    };
+  }, []);
 
   if (!fontsLoaded) {
     return null;

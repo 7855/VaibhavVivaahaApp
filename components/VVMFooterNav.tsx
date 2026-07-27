@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -121,14 +122,20 @@ const VVMFooterNav: React.FC<VVMFooterNavProps> = ({
 
   return (
     <View style={[s.navWrap, { paddingBottom: Math.max(insets.bottom, 14) + 4 }]}>
-      <View style={s.navBar}>
-        {leftTabs.map((tab) => (
-          <TabItem key={tab.key} tab={tab} active={active === tab.key} onPress={() => handleTab(tab.key)} />
-        ))}
-        <MatchesFAB active={active === 'matches'} onPress={() => handleTab('matches')} />
-        {rightTabs.map((tab) => (
-          <TabItem key={tab.key} tab={tab} active={active === tab.key} onPress={() => handleTab(tab.key)} />
-        ))}
+      <View style={s.navBarShadowWrap}>
+        <View style={s.navBarGlass} pointerEvents="none">
+          <BlurView intensity={55} tint="light" style={StyleSheet.absoluteFillObject} />
+          <View style={s.navBarTint} />
+        </View>
+        <View style={s.navBar}>
+          {leftTabs.map((tab) => (
+            <TabItem key={tab.key} tab={tab} active={active === tab.key} onPress={() => handleTab(tab.key)} />
+          ))}
+          <MatchesFAB active={active === 'matches'} onPress={() => handleTab('matches')} />
+          {rightTabs.map((tab) => (
+            <TabItem key={tab.key} tab={tab} active={active === tab.key} onPress={() => handleTab(tab.key)} />
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -143,18 +150,37 @@ const s = StyleSheet.create({
     right: 0,
     paddingHorizontal: 14,
   },
-  navBar: {
-    height: 68,
-    backgroundColor: COLORS.white,
+  navBarShadowWrap: {
     borderRadius: 22,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-around',
-    paddingHorizontal: 4,
     ...Platform.select({
       ios: { shadowColor: '#0f1724', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.12, shadowRadius: 28 },
       android: { elevation: 10 },
     }),
+  },
+  // Separate, clipped background layer — the blur/tint must be clipped to the
+  // pill's rounded corners, but the FAB (which pokes above the bar via a
+  // negative marginTop) must NOT be clipped, so it lives in a sibling view.
+  navBarGlass: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  navBarTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  navBar: {
+    height: 68,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-around',
+    paddingHorizontal: 4,
   },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 0, position: 'relative' },
   tabInner: { alignItems: 'center', justifyContent: 'center', paddingTop: 11, gap: 4 },

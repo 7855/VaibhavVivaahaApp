@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -64,6 +65,8 @@ const ProfileCompletionBar = () => {
     <View style={styles.container}>
       <View style={styles.widgetContainer}>
         <View style={styles.profileCompletionWidget}>
+          <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFillObject} />
+          <View style={styles.widgetTint} pointerEvents="none" />
           <View style={styles.progressSection}>
             <View style={styles.progressRingContainer}>
               <ProgressRing
@@ -138,14 +141,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 12,
     borderRadius: 28,
-    backgroundColor: '#fff',
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(229, 231, 235, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 1,
+  },
+  widgetTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   progressSection: {
     flexDirection: 'row',
