@@ -478,7 +478,7 @@ const ReceivedTab = () => {
               </View>
               <View style={styles.matchInfo}>
                 <View style={styles.infoText}>
-                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text></View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text></View>
                   <Text style={styles.occupation}>
                     {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
                   </Text>
@@ -628,7 +628,7 @@ const SentTab = () => {
               </View>
               <View style={styles.matchInfo}>
                 <View style={styles.infoText}>
-                  <View style={{flexDirection:'row',alignItems:'center',flexWrap:'wrap'}}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                     <Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text>
                   </View>
                   <Text style={styles.occupation}>
@@ -642,12 +642,12 @@ const SentTab = () => {
                     borderRadius: 10,
                     backgroundColor: item.acceptStatus === 'APPROVED' ? '#4CAF50'
                       : item.acceptStatus === 'REJECTED' ? '#f44336'
-                      : '#9E9E9E',
+                        : '#9E9E9E',
                   }}>
                     <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>
                       {item.acceptStatus === 'APPROVED' ? 'Accepted'
                         : item.acceptStatus === 'REJECTED' ? 'Declined'
-                        : 'Pending'}
+                          : 'Pending'}
                     </Text>
                   </View>
                 </View>
@@ -1301,20 +1301,20 @@ const ShortlistedTab = () => {
 
   if (loading) {
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
-          <ScrollView style={{ padding: 16 }}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <NBHStack key={i} space={3} alignItems="center" py={3} borderBottomWidth={1} borderColor="gray.200">
-                <Skeleton size={12} rounded="full" />
-                <VStack flex={1} space={2}>
-                  <Skeleton h={4} w="50%" rounded="sm" />
-                  <Skeleton h={3} w="80%" rounded="sm" />
-                </VStack>
-                <Skeleton size={10} rounded="full" />
-              </NBHStack>
-            ))}
-          </ScrollView>
-        </SafeAreaView>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
+        <ScrollView style={{ padding: 16 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <NBHStack key={i} space={3} alignItems="center" py={3} borderBottomWidth={1} borderColor="gray.200">
+              <Skeleton size={12} rounded="full" />
+              <VStack flex={1} space={2}>
+                <Skeleton h={4} w="50%" rounded="sm" />
+                <Skeleton h={3} w="80%" rounded="sm" />
+              </VStack>
+              <Skeleton size={10} rounded="full" />
+            </NBHStack>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -1327,69 +1327,69 @@ const ShortlistedTab = () => {
   }
 
   return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
-        <ScrollView className='mb-3'>
-          <View className='ml-5 mt-2 mb-2'>
-            <NBText fontSize={'lg'} fontWeight={'semibold'} fontFamily="Rubik-Medium"> Shortlisted</NBText>
-          </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
+      <ScrollView className='mb-3'>
+        <View className='ml-5 mt-2 mb-2'>
+          <NBText fontSize={'lg'} fontWeight={'semibold'} fontFamily="Rubik-Medium"> Shortlisted</NBText>
+        </View>
 
-          <View className='mb-10'>
-            {data.map(member => (
-              <VStack key={member.userId} space={2} alignItems="center">
-                <Center w="100%" h="75" rounded="md">
-                  <Stack direction="row" m={5} space={3} alignItems="center">
-                    {/* Profile Picture */}
-                    <Center shadow={3}>
-                      <NBImage
-                        source={member.profileImage ? {
-                          uri: member.profileImage,
-                        } : require('../../../assets/images/defaultAvatar.png')}
-                        alt="Img"
-                        size="50px"
-                        borderRadius="full"
-                      />
-                    </Center>
+        <View className='mb-10'>
+          {data.map(member => (
+            <VStack key={member.userId} space={2} alignItems="center">
+              <Center w="100%" h="75" rounded="md">
+                <Stack direction="row" m={5} space={3} alignItems="center">
+                  {/* Profile Picture */}
+                  <Center shadow={3}>
+                    <NBImage
+                      source={member.profileImage ? {
+                        uri: member.profileImage,
+                      } : require('../../../assets/images/defaultAvatar.png')}
+                      alt="Img"
+                      size="50px"
+                      borderRadius="full"
+                    />
+                  </Center>
 
-                    {/* Profile Details */}
-                    <VStack flex={1} space={1}>
-                      <NBHStack alignItems="center" space={1}>
-                        <NBText fontSize="md" fontWeight="semibold" fontFamily="Rubik-Medium" isTruncated maxWidth="85%">
-                          {member.firstName} {member.lastName}
-                        </NBText>
-                        <VerifiedBadges idVerified={member.idVerified} educationVerified={member.educationVerified} incomeVerified={member.incomeVerified} mode="compact" size="sm" />
-                      </NBHStack>
-                      <NBText fontSize="sm" color="gray.500">{member.location}, {member.degree}, {member.annualIncome}, {member.occupation}</NBText>
-                    </VStack>
+                  {/* Profile Details */}
+                  <VStack flex={1} space={1}>
+                    <NBHStack alignItems="center" space={1}>
+                      <NBText fontSize="md" fontWeight="semibold" fontFamily="Rubik-Medium" isTruncated maxWidth="85%">
+                        {member.firstName} {member.lastName}
+                      </NBText>
+                      <VerifiedBadges idVerified={member.idVerified} educationVerified={member.educationVerified} incomeVerified={member.incomeVerified} mode="compact" size="sm" />
+                    </NBHStack>
+                    <NBText fontSize="sm" color="gray.500">{member.location}, {member.degree}, {member.annualIncome}, {member.occupation}</NBText>
+                  </VStack>
 
-                    {/* Remove Button with Icon */}
-                    <View style={styles.iconActions}>
-                      <TouchableOpacity
-                        style={{
-                          borderWidth: 1,
-                          borderColor: '#ff0000',
-                          borderRadius: 25,
-                          width: 40,
-                          height: 40,
-                          justifyContent: 'center',
-                          alignItems: 'center'
-                        }}
-                        onPress={() => handleRemove(member.shortlistedId)}
-                      >
-                        <Ionicons name="close" size={20} color="#ff0000" />
-                      </TouchableOpacity>
-                    </View>
-                  </Stack>
-                </Center>
-                <Divider my="1" _light={{
-                  bg: "gray.200"
-                }} _dark={{
-                  bg: "gray.50"
-                }} />
-              </VStack>
-            ))}
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+                  {/* Remove Button with Icon */}
+                  <View style={styles.iconActions}>
+                    <TouchableOpacity
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#ff0000',
+                        borderRadius: 25,
+                        width: 40,
+                        height: 40,
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}
+                      onPress={() => handleRemove(member.shortlistedId)}
+                    >
+                      <Ionicons name="close" size={20} color="#ff0000" />
+                    </TouchableOpacity>
+                  </View>
+                </Stack>
+              </Center>
+              <Divider my="1" _light={{
+                bg: "gray.200"
+              }} _dark={{
+                bg: "gray.50"
+              }} />
+            </VStack>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 

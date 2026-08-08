@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import {
     View,
-    Text,
     TextInput,
     TouchableOpacity,
-    Alert,
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
@@ -15,9 +13,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Eye, EyeOff, Lock, CheckCircle } from 'lucide-react-native';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
+import { useTranslation } from 'react-i18next';
+import AppText from '../../../components/AppText';
 
 export default function SetNewPasswordScreen() {
     const popup = usePopup();
+    const { t } = useTranslation();
     const params = useLocalSearchParams<{ resetToken?: string }>();
     const resetToken = params.resetToken as string | undefined;
 
@@ -33,7 +34,7 @@ export default function SetNewPasswordScreen() {
     const handleSubmit = async () => {
         if (!isValid) return;
         if (!resetToken) {
-            popup.error('Session Expired', 'Reset session expired. Please try again.', () =>
+            popup.error(t('auth.setNewPin.sessionExpiredTitle'), t('auth.setNewPin.sessionExpiredMessage'), () =>
                 router.replace('/(root)/(main)/ResetPasswordScreen')
             );
             return;
@@ -48,16 +49,16 @@ export default function SetNewPasswordScreen() {
 
             if (res.data?.code === 200) {
                 popup.success(
-                    'PIN Reset',
-                    'Your PIN has been reset successfully. Please login with your new PIN.',
+                    t('auth.setNewPin.resetSuccessTitle'),
+                    t('auth.setNewPin.resetSuccessMessage'),
                     () => router.replace('/(root)/(main)/LoginScreen')
                 );
             } else {
-                popup.error('Error', res.data?.message || 'Failed to reset PIN. Please try again.');
+                popup.error(t('common.error'), res.data?.message || t('login.errors.genericMessage'));
             }
         } catch (err) {
             console.error('Reset password error:', err);
-            popup.error('Error', 'Failed to reset PIN. Please try again.');
+            popup.error(t('common.error'), t('login.errors.genericMessage'));
         } finally {
             setLoading(false);
         }
@@ -74,12 +75,12 @@ export default function SetNewPasswordScreen() {
                         <Lock size={40} color="#fff" strokeWidth={2.5} />
                     </View>
 
-                    <Text style={styles.title}>Set New PIN</Text>
-                    <Text style={styles.subtitle}>Create a new 4-digit PIN to secure your account</Text>
+                    <AppText weight="bold" style={styles.title}>{t('auth.setNewPin.title')}</AppText>
+                    <AppText weight="regular" style={styles.subtitle}>{t('auth.setNewPin.subtitle')}</AppText>
 
                     {/* New PIN */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>New PIN</Text>
+                        <AppText weight="medium" style={styles.label}>{t('auth.changePin.newPin')}</AppText>
                         <View style={styles.inputWrap}>
                             <TextInput
                                 style={styles.input}
@@ -99,7 +100,7 @@ export default function SetNewPasswordScreen() {
 
                     {/* Confirm PIN */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Confirm PIN</Text>
+                        <AppText weight="medium" style={styles.label}>{t('auth.changePin.confirmPin')}</AppText>
                         <View style={[styles.inputWrap, !pinsMatch && confirmPin.length > 0 && styles.inputWrapError]}>
                             <TextInput
                                 style={styles.input}
@@ -116,12 +117,12 @@ export default function SetNewPasswordScreen() {
                             </TouchableOpacity>
                         </View>
                         {!pinsMatch && confirmPin.length > 0 && (
-                            <Text style={styles.errorText}>PINs don't match</Text>
+                            <AppText weight="regular" style={styles.errorText}>{t('auth.changePin.pinsDoNotMatch')}</AppText>
                         )}
                         {pinsMatch && confirmPin.length === 4 && (
                             <View style={styles.matchRow}>
                                 <CheckCircle size={14} color="#10b981" />
-                                <Text style={styles.matchText}>PINs match</Text>
+                                <AppText weight="medium" style={styles.matchText}>{t('auth.changePin.pinsMatch')}</AppText>
                             </View>
                         )}
                     </View>
@@ -134,12 +135,12 @@ export default function SetNewPasswordScreen() {
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.submitBtnText}>Reset PIN</Text>
+                            <AppText weight="medium" style={styles.submitBtnText}>{t('auth.setNewPin.submit')}</AppText>
                         )}
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Text style={styles.backBtnText}>Go Back</Text>
+                        <AppText weight="medium" style={styles.backBtnText}>{t('common.back')}</AppText>
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
@@ -171,7 +172,6 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 24,
-        fontFamily: 'Rubik-Bold',
         color: '#130001',
         textAlign: 'center',
         marginBottom: 6,
@@ -187,7 +187,6 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 13,
-        fontFamily: 'Rubik-Medium',
         color: '#374151',
         marginBottom: 8,
     },
@@ -230,7 +229,6 @@ const styles = StyleSheet.create({
     matchText: {
         color: '#10b981',
         fontSize: 12,
-        fontFamily: 'Rubik-Medium',
     },
     submitBtn: {
         backgroundColor: '#1F7FE5',
@@ -251,7 +249,6 @@ const styles = StyleSheet.create({
     submitBtnText: {
         color: '#fff',
         fontSize: 15,
-        fontFamily: 'Rubik-Medium',
     },
     backBtn: {
         alignItems: 'center',
@@ -261,6 +258,5 @@ const styles = StyleSheet.create({
     backBtnText: {
         color: '#1F7FE5',
         fontSize: 14,
-        fontFamily: 'Rubik-Medium',
     },
 });

@@ -126,10 +126,10 @@ const StarMatchResult = () => {
 
   const getStatusColors = (status: string) => {
     switch (status) {
-      case 'PASS':    return { text: C.pass,    bg: C.passBg,    border: C.passBorder };
-      case 'FAIL':    return { text: C.fail,    bg: C.failBg,    border: C.failBorder };
+      case 'PASS': return { text: C.pass, bg: C.passBg, border: C.passBorder };
+      case 'FAIL': return { text: C.fail, bg: C.failBg, border: C.failBorder };
       case 'PARTIAL': return { text: C.partial, bg: C.partialBg, border: C.partialBorder };
-      default:        return { text: C.inkSoft, bg: '#F5F5F4',   border: C.border };
+      default: return { text: C.inkSoft, bg: '#F5F5F4', border: C.border };
     }
   };
 

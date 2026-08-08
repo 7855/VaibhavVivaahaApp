@@ -114,7 +114,7 @@ const StarMatch = () => {
         setIsLoadingData(true);
         let viewedData: any = {};
         if (viewedProfile) {
-          try { viewedData = JSON.parse(viewedProfile); } catch (e) {}
+          try { viewedData = JSON.parse(viewedProfile); } catch (e) { }
         }
         let loggedInData: any = {};
         if (userData.userId) {
@@ -128,8 +128,8 @@ const StarMatch = () => {
                 try {
                   const astro = (JSON.parse(detail.astronomicInfo || '[]'))[0] || {};
                   star = astro.star || ''; rasi = astro.moon_sign || '';
-                } catch {}
-                try { place = (JSON.parse(detail.basicInfo || '{}')).place_of_birth || ''; } catch {}
+                } catch { }
+                try { place = (JSON.parse(detail.basicInfo || '{}')).place_of_birth || ''; } catch { }
               }
               loggedInData = {
                 name: `${profile.firstName || ''} ${profile.lastName || ''}`.trim(),
@@ -156,7 +156,7 @@ const StarMatch = () => {
           bride: { name: brideData.name || '', dob: brideData.dob || '', time: { hour: '12', minute: '00', period: 'AM' }, place: brideData.place || '', star: findMatchingStar(brideData.star || ''), rasi: findMatchingRasi(brideData.rasi || '') },
           groom: { name: groomData.name || '', dob: groomData.dob || '', time: { hour: '12', minute: '00', period: 'AM' }, place: groomData.place || '', star: findMatchingStar(groomData.star || ''), rasi: findMatchingRasi(groomData.rasi || '') },
         });
-      } catch {} finally { setIsLoadingData(false); }
+      } catch { } finally { setIsLoadingData(false); }
     };
     loadProfileData();
   }, [viewedProfile, userData.userId]);

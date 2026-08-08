@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, TextInput, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
@@ -8,6 +8,8 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { NativeBaseProvider } from 'native-base';
 import { usePopup } from '../contexts/PopupContext';
+import { useTranslation } from 'react-i18next';
+import AppText from '../../../components/AppText';
 
 interface ChangePinScreenProps {
   onBack: () => void;
@@ -17,6 +19,7 @@ interface ChangePinScreenProps {
 const { width, height } = Dimensions.get('window');
 const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete }) => {
   const popup = usePopup();
+  const { t } = useTranslation();
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [showNewPin, setShowNewPin] = useState(false);
@@ -31,7 +34,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
       const phoneNumber = await AsyncStorage.getItem('resetPhoneNumber');
       if (!phoneNumber) {
         setIsLoading(false);
-        popup.error('Error', 'Phone number not found');
+        popup.error(t('common.error'), t('login.errors.genericMessage'));
         return;
       }
 
@@ -41,23 +44,22 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
       };
 
       const response = await userApi.changePin(requestBody);
-      // console.log('Change PIN response:', response.data);
 
       if (response.data.code === 200) {
         setIsLoading(false);
         popup.success(
-          'PIN Updated',
-          'Your PIN has been changed successfully.',
+          t('auth.changePin.pinUpdatedTitle'),
+          t('auth.changePin.pinUpdatedMessage'),
           () => router.replace('/(root)/(main)/LoginScreen')
         );
       } else {
         setIsLoading(false);
-        popup.error('Error', 'Something went wrong. Please try again.');
+        popup.error(t('common.error'), t('login.errors.genericMessage'));
       }
     } catch (error) {
       console.error('Error changing PIN:', error);
       setIsLoading(false);
-      popup.error('Error', 'Failed to change PIN. Please try again.');
+      popup.error(t('common.error'), t('login.errors.genericMessage'));
     }
   };
 
@@ -84,9 +86,6 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
       paddingHorizontal: 20,
       paddingVertical: 40,
     }}>
-      {/* Same soft blue theme gradient used app-wide (explore.tsx, sign-up.tsx, LoginScreen.tsx,
-          ResetPasswordScreen.tsx, OTPValidationScreen.tsx) instead of the flat '#F5F5F5' this
-          screen had. */}
       <LinearGradient
         colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
         locations={[0, 0.3, 0.6, 1.0]}
@@ -193,7 +192,6 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               borderColor: '#1F7FE5',
             }} />
             
-            {/* Sacred ornaments */}
             <View style={{
               position: 'absolute',
               top: -8,
@@ -216,25 +214,22 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
             }} />
           </View>
           
-          <Text style={{
+          <AppText weight="bold" style={{
             fontSize: 20,
-            fontFamily: 'Rubik-Bold',
             color: '#0f1724',
             marginBottom: 8,
             textAlign: 'center',
           }}>
-            Create PIN
-          </Text>
-          <Text style={{
+            {t('auth.changePin.title')}
+          </AppText>
+          <AppText weight="regular" style={{
             fontSize: 12,
-            fontFamily: 'Rubik-Regular',
             color: '#64748b',
             textAlign: 'center',
           }}>
-            Establish your security PIN
-          </Text>
+            {t('auth.changePin.subtitle')}
+          </AppText>
           
-          {/* Sacred divider */}
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -255,9 +250,8 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
           </View>
         </View>
 
-        {/* Sacred PIN Creation Card */}
+        {/* Card */}
         <View style={{ position: 'relative' }}>
-          {/* Card Background */}
           <View style={{
             backgroundColor: 'white',
             borderRadius: 24,
@@ -267,7 +261,6 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
             shadowRadius: 24,
             elevation: 24,
           }}>
-            {/* Sacred corner decorations */}
             <View style={{
               position: 'absolute',
               top: 12,
@@ -313,7 +306,6 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
               borderBottomRightRadius: 16,
             }} />
             
-            {/* Decorative patterns */}
             <View style={{
               position: 'absolute',
               top: 24,
@@ -341,16 +333,15 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                 <View style={{ gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Icon name="lock" size={16} color="#1F7FE5" />
-                    <Text style={{
+                    <AppText weight="bold" style={{
                       fontSize: 12,
-                      fontFamily: 'Rubik-Bold',
                       color: '#0f1724',
                       letterSpacing: 0.3,
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
-                      New PIN
-                    </Text>
+                      {t('auth.changePin.newPin')}
+                    </AppText>
                   </View>
                   <View style={{ position: 'relative' }}>
                     <View style={{
@@ -379,7 +370,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         color: '#0f1724',
                         letterSpacing: 8,
                       }}
-                      placeholder="New PIN"
+                      placeholder={t('auth.changePin.newPin')}
                       placeholderTextColor="#999"
                       secureTextEntry={!showNewPin}
                       keyboardType="numeric"
@@ -427,13 +418,12 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         borderRadius: 2,
                         marginRight: 8,
                       }} />
-                      <Text style={{
+                      <AppText weight="regular" style={{
                         fontSize: 14,
                         color: '#dc2626',
-                        fontFamily: 'Rubik-Regular',
                       }}>
-                        Sacred PIN must be exactly 4 digits
-                      </Text>
+                        {t('auth.changePin.pinMustBe4')}
+                      </AppText>
                     </View>
                   )}
                 </View>
@@ -442,16 +432,15 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                 <View style={{ gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Icon name="security" size={16} color="#1F7FE5" />
-                    <Text style={{
+                    <AppText weight="bold" style={{
                       fontSize: 12,
-                      fontFamily: 'Rubik-Bold',
                       color: '#0f1724',
                       letterSpacing: 0.3,
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
-                      Confirm PIN
-                    </Text>
+                      {t('auth.changePin.confirmPin')}
+                    </AppText>
                   </View>
                   <View style={{ position: 'relative' }}>
                     <View style={{
@@ -480,7 +469,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         color: '#0f1724',
                         letterSpacing: 8,
                       }}
-                      placeholder="Confirm PIN"
+                      placeholder={t('auth.changePin.confirmPin')}
                       placeholderTextColor="#999"
                       secureTextEntry={!showConfirmPin}
                       keyboardType="numeric"
@@ -523,13 +512,12 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         borderRadius: 2,
                         marginRight: 8,
                       }} />
-                      <Text style={{
+                      <AppText weight="regular" style={{
                         fontSize: 14,
                         color: '#dc2626',
-                        fontFamily: 'Rubik-Regular',
                       }}>
-                        Sacred PIN must be exactly 4 digits
-                      </Text>
+                        {t('auth.changePin.pinMustBe4')}
+                      </AppText>
                     </View>
                   )}
                   {confirmPin.length === 4 && !pinsMatch && (
@@ -541,25 +529,23 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                         borderRadius: 2,
                         marginRight: 8,
                       }} />
-                      <Text style={{
+                      <AppText weight="regular" style={{
                         fontSize: 14,
                         color: '#dc2626',
-                        fontFamily: 'Rubik-Regular',
                       }}>
-                        Your PIN do not match
-                      </Text>
+                        {t('auth.changePin.pinsDoNotMatch')}
+                      </AppText>
                     </View>
                   )}
                   {isFormValid && (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Icon name="check-circle" size={16} color="#4CAF50" style={{ marginRight: 8 }} />
-                      <Text style={{
+                      <AppText weight="medium" style={{
                         fontSize: 14,
                         color: '#4CAF50',
-                        fontFamily: 'Rubik-Medium',
                       }}>
-                        PINs match perfectly!
-                      </Text>
+                        {t('auth.changePin.pinsMatch')}
+                      </AppText>
                     </View>
                   )}
                 </View>
@@ -587,29 +573,24 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                     }}
                   >
                     {isLoading ? (
-                      // No icon precedes this text (unlike the non-loading state below), so the
-                      // leftover `marginLeft: 12` it was copy-pasted with just indented it off
-                      // center for no reason — removed.
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={{
+                        <AppText weight="bold" style={{
                           color: '#fff',
                           fontSize: 18,
-                          fontFamily: 'Rubik-Bold',
                         }}>
-                          Securing PIN...
-                        </Text>
+                          {t('auth.changePin.securingPin')}
+                        </AppText>
                       </View>
                     ) : (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="star" size={20} color="white" />
-                        <Text style={{
+                        <AppText weight="bold" style={{
                           color: '#fff',
                           fontSize: 18,
-                          fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
                         }}>
-                          Change PIN
-                        </Text>
+                          {t('auth.changePin.changePinButton')}
+                        </AppText>
                       </View>
                     )}
                   </LinearGradient>
@@ -631,60 +612,24 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   }}
                 >
                   <Icon name="arrow-back" size={20} color="#475569" />
-                  <Text style={{
+                  <AppText weight="medium" style={{
                     color: '#475569',
                     fontSize: 14,
-                    fontFamily: 'Rubik-Medium',
                     marginLeft: 8,
                   }}>
-                    Return to Previous Step
-                  </Text>
+                    {t('auth.changePin.returnPrevious')}
+                  </AppText>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </View>
-
-        {/* Divine Security Guidance */}
-        {/* <View style={{
-          marginTop: 24,
-          padding: 20,
-          backgroundColor: 'rgba(245, 245, 245, 0.1)',
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: 'rgba(245, 245, 245, 0.2)',
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            <View style={{
-              width: 24,
-              height: 24,
-              backgroundColor: 'rgba(245, 245, 245, 0.2)',
-              borderRadius: 12,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginRight: 12,
-              marginTop: 2,
-            }}>
-              <Icon name="star" size={12} color="#f5f5f5" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{
-                fontSize: 14,
-                color: '#f5f5f5',
-                fontWeight: '500',
-                lineHeight: 20,
-              }}>
-                <Text style={{ fontWeight: 'bold' }}>Divine Security:</Text> Choose a sacred PIN that resonates with your heart but remains secure from others. This will protect your blessed matrimonial journey.
-              </Text>
-            </View>
-          </View>
-        </View> */}
       </View>
     </View>
     </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
     </NativeBaseProvider>
-  )
-};
+  );
+}
 
 export default ChangePinScreen;

@@ -21,7 +21,7 @@ const FollowUserList = () => {
           <View className='ml-5 mt-2 mb-2'>
             <NBText fontSize={'lg'} fontWeight={'semibold'}>{title}</NBText>
           </View>
-          <Box w="full" h="0.9" bg="gray.200"  />
+          <Box w="full" h="0.9" bg="gray.200" />
 
           <View className='mb-10'>
             {usersData.map((user: any) => (
@@ -35,9 +35,9 @@ const FollowUserList = () => {
                           uri: user.profileImage || 'https://wallpaperaccess.com/full/317513.jpg',
                         }}
                         alt="Profile"
-                       size="50px"
+                        size="50px"
                         rounded="full"
-                        
+
                       />
                     </Center>
 

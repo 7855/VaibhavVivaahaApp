@@ -144,7 +144,25 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
       } else if (response.data.code === 401) {
         popup.error('Invalid PIN', 'The PIN you entered is incorrect. Please try again.')
       } else if (response.data.code === 403) {
-        popup.error('Account Blocked', response.data.message || 'Your account has been blocked by the administrator.')
+        // Backend now blocks PENDING/REJECTED at login too (previously only BANNED/SUSPENDED
+        // returned 403 here) — those two carry real userStatus/rejectionReason data so we can
+        // still route to ProfileUnderVerificationScreen instead of just showing an error popup,
+        // same UX as the old 200-response path used to give a PENDING/REJECTED user.
+        const pendingData = response.data.data;
+        const pendingStatus = pendingData?.userStatus;
+        if (pendingStatus === 'PENDING' || pendingStatus === 'REJECTED') {
+          if (pendingData.userId) await AsyncStorage.setItem('userId', pendingData.userId);
+          await AsyncStorage.setItem('firstName', pendingData.firstName || '');
+          await AsyncStorage.setItem('userStatus', pendingStatus);
+          if (pendingData.rejectionReason) {
+            await AsyncStorage.setItem('rejectionReason', pendingData.rejectionReason);
+          } else {
+            await AsyncStorage.removeItem('rejectionReason');
+          }
+          router.replace('/(root)/(main)/ProfileUnderVerificationScreen');
+        } else {
+          popup.error('Account Blocked', response.data.message || 'Your account has been blocked by the administrator.')
+        }
       } else {
         popup.error('Login Failed', 'Something went wrong. Please try again.')
       }

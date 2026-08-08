@@ -141,7 +141,7 @@ const MyChatList = () => {
         if (quotaRes.data?.code === 200) {
           setChatQuota(quotaRes.data.data);
         }
-      } catch (_) {}
+      } catch (_) { }
 
       dataLoadedRef.current = true;
     } catch (error: any) {

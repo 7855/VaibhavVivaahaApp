@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
     View,
-    Text,
     StyleSheet,
     TouchableOpacity,
     ScrollView,
-    Alert,
     Linking,
     ActivityIndicator,
-    Image,
     SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,9 +13,12 @@ import { router } from 'expo-router';
 import { Clock, AlertTriangle, LogOut, MessageCircle, RefreshCw } from 'lucide-react-native';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
+import { useTranslation } from 'react-i18next';
+import AppText from '../../../components/AppText';
 
 export default function ProfileUnderVerificationScreen() {
     const popup = usePopup();
+    const { t } = useTranslation();
     const [userStatus, setUserStatus] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState<string | null>(null);
     const [firstName, setFirstName] = useState<string>('');
@@ -52,8 +52,8 @@ export default function ProfileUnderVerificationScreen() {
 
     const handleLogout = () => {
         popup.confirm(
-            'Logout',
-            'Are you sure you want to logout?',
+            t('settings.logoutConfirm.title'),
+            t('settings.logoutConfirm.description'),
             async () => {
                 await AsyncStorage.multiRemove([
                     'authToken', 'refreshToken', 'userId', 'firstName', 'lastName', 'gender',
@@ -62,8 +62,8 @@ export default function ProfileUnderVerificationScreen() {
                 ]);
                 router.replace('/(root)/(main)');
             },
-            'Logout',
-            'Cancel'
+            t('settings.logoutConfirm.confirm'),
+            t('common.cancel')
         );
     };
 
@@ -77,12 +77,12 @@ export default function ProfileUnderVerificationScreen() {
                 await AsyncStorage.removeItem('rejectionReason');
                 setUserStatus('PENDING');
                 setRejectionReason(null);
-                popup.success('Resubmitted', 'Your profile has been resubmitted for review.');
+                popup.success(t('auth.underVerification.resubmittedTitle'), t('auth.underVerification.resubmittedMessage'));
             } else {
-                popup.error('Error', res.data?.message || 'Failed to resubmit profile');
+                popup.error(t('common.error'), res.data?.message || t('login.errors.genericMessage'));
             }
         } catch (err) {
-            popup.error('Error', 'Failed to resubmit profile. Please try again.');
+            popup.error(t('common.error'), t('login.errors.genericMessage'));
         } finally {
             setResubmitting(false);
         }
@@ -102,53 +102,40 @@ export default function ProfileUnderVerificationScreen() {
                             <Clock size={44} color="#fff" strokeWidth={2.5} />
                         )}
                     </View>
-                    <Text style={styles.title}>
-                        {isRejected ? 'Profile Needs Update' : 'Profile Under Review'}
-                    </Text>
-                    {firstName ? <Text style={styles.subtitle}>Hi {firstName},</Text> : null}
+                    <AppText weight="bold" style={styles.title}>
+                        {isRejected ? t('auth.underVerification.titleRejected') : t('auth.underVerification.titlePending')}
+                    </AppText>
+                    {firstName ? <AppText weight="medium" style={styles.subtitle}>Hi {firstName},</AppText> : null}
                 </View>
 
                 {/* Message */}
                 {isRejected ? (
                     <View style={styles.rejectionCard}>
-                        <Text style={styles.rejectionTitle}>Rejection Reason</Text>
-                        <Text style={styles.rejectionText}>
-                            {rejectionReason || 'Please review your profile and resubmit with accurate information.'}
-                        </Text>
+                        <AppText weight="bold" style={styles.rejectionTitle}>{t('auth.underVerification.statusRejected')}</AppText>
+                        <AppText weight="regular" style={styles.rejectionText}>
+                            {rejectionReason || t('auth.underVerification.subtitleRejected')}
+                        </AppText>
                     </View>
                 ) : (
                     <View style={styles.messageCard}>
-                        <Text style={styles.messageText}>
-                            Thank you for registering with Vaibhav Vivaaha! Your profile is currently being reviewed by our team.
-                        </Text>
+                        <AppText weight="regular" style={styles.messageText}>
+                            {t('auth.underVerification.subtitlePending')}
+                        </AppText>
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Estimated time:</Text>
-                            <Text style={styles.infoValue}>Usually within 24 hours</Text>
-                        </View>
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Status:</Text>
+                            <AppText weight="medium" style={styles.infoLabel}>Status:</AppText>
                             <View style={styles.statusBadge}>
-                                <Text style={styles.statusBadgeText}>PENDING</Text>
+                                <AppText weight="bold" style={styles.statusBadgeText}>{t('auth.underVerification.statusPending')}</AppText>
                             </View>
                         </View>
                     </View>
                 )}
 
-                {/* What happens next */}
+                {/* Why review */}
                 <View style={styles.stepsCard}>
-                    <Text style={styles.stepsTitle}>What happens next?</Text>
-                    <View style={styles.stepItem}>
-                        <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
-                        <Text style={styles.stepText}>Our team reviews your profile details</Text>
-                    </View>
-                    <View style={styles.stepItem}>
-                        <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
-                        <Text style={styles.stepText}>You'll receive an email once approved</Text>
-                    </View>
-                    <View style={styles.stepItem}>
-                        <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
-                        <Text style={styles.stepText}>Login again to access all features</Text>
-                    </View>
+                    <AppText weight="bold" style={styles.stepsTitle}>{t('auth.underVerification.whyReview')}</AppText>
+                    <AppText weight="regular" style={styles.stepText}>
+                        {t('auth.underVerification.reviewReason')}
+                    </AppText>
                 </View>
 
                 {/* Actions */}
@@ -164,7 +151,7 @@ export default function ProfileUnderVerificationScreen() {
                             ) : (
                                 <>
                                     <RefreshCw size={18} color="#fff" />
-                                    <Text style={styles.primaryBtnText}>Resubmit Profile</Text>
+                                    <AppText weight="bold" style={styles.primaryBtnText}>{t('auth.underVerification.resubmitProfile')}</AppText>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -172,12 +159,12 @@ export default function ProfileUnderVerificationScreen() {
 
                     <TouchableOpacity style={styles.secondaryBtn} onPress={handleContactSupport}>
                         <MessageCircle size={18} color="#1F7FE5" />
-                        <Text style={styles.secondaryBtnText}>Contact Support</Text>
+                        <AppText weight="bold" style={styles.secondaryBtnText}>{t('auth.underVerification.contactSupport')}</AppText>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.ghostBtn} onPress={handleLogout}>
                         <LogOut size={16} color="#666" />
-                        <Text style={styles.ghostBtnText}>Logout</Text>
+                        <AppText weight="medium" style={styles.ghostBtnText}>{t('settings.logout.title')}</AppText>
                     </TouchableOpacity>
                 </View>
             </ScrollView>

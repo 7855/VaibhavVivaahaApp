@@ -67,7 +67,7 @@ export default function IdVerificationScreen() {
         setIdVerified(res.data.data.idVerified === true);
         setLatest(res.data.data.latestSubmission || null);
       }
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const pickImage = async () => {

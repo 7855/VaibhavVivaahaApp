@@ -74,12 +74,12 @@ type QuickAccessItem = {
 
 // Backup data — used until the keyValue fetch resolves, and if it fails entirely
 const DEFAULT_QUICK_ACCESS_ITEMS: QuickAccessItem[] = [
-  { id: 'PREMIUM',             label: 'Upgrade',              icon: 'crown',           color: '#B8860B', minPlan: null,   order: 1 },
-  { id: 'STAR_MATCH',          label: 'Star Match',           icon: 'star',            color: '#1A0010', minPlan: null,   order: 2 },
-  { id: 'FAMILY_ACCESS',       label: 'Family Access',        icon: 'users',           color: '#1A0010', minPlan: 'Gold', order: 3 },
-  { id: 'FAVOURITES',          label: 'My Favourites',        icon: 'heart',           color: '#B8860B', minPlan: null,   order: 4 },
-  { id: 'PERMISSION_REQUESTS', label: 'Permission Requests',  icon: 'lock',            color: '#1A0010', minPlan: null,   order: 5 },
-  { id: 'SHORTLISTED_YOU',     label: 'Shortlisted You',      icon: 'bookmark-check',  color: '#B8860B', minPlan: 'Gold', order: 6 },
+  { id: 'PREMIUM', label: 'Upgrade', icon: 'crown', color: '#B8860B', minPlan: null, order: 1 },
+  { id: 'STAR_MATCH', label: 'Star Match', icon: 'star', color: '#1A0010', minPlan: null, order: 2 },
+  { id: 'FAMILY_ACCESS', label: 'Family Access', icon: 'users', color: '#1A0010', minPlan: 'Gold', order: 3 },
+  { id: 'FAVOURITES', label: 'My Favourites', icon: 'heart', color: '#B8860B', minPlan: null, order: 4 },
+  { id: 'PERMISSION_REQUESTS', label: 'Permission Requests', icon: 'lock', color: '#1A0010', minPlan: null, order: 5 },
+  { id: 'SHORTLISTED_YOU', label: 'Shortlisted You', icon: 'bookmark-check', color: '#B8860B', minPlan: 'Gold', order: 6 },
 ];
 
 function isPlanAtLeast(planTitle: string | null | undefined, minPlan: string | null | undefined) {

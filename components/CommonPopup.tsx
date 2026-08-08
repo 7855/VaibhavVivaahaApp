@@ -86,7 +86,7 @@ const CommonPopup: React.FC<CommonPopupProps> = ({
       onRequestClose={() => dismissable && onClose?.()}
     >
       <TouchableOpacity activeOpacity={1} onPress={handleBackdropPress} style={styles.backdrop}>
-        <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: POPUP_WIDTH }}>
+        <TouchableOpacity activeOpacity={1} onPress={() => { }} style={{ width: POPUP_WIDTH }}>
           <Animated.View style={{ opacity, transform: [{ scale }] }}>
             <View style={styles.card}>
               {/* Title */}

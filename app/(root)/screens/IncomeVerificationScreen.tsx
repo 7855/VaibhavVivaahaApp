@@ -66,7 +66,7 @@ export default function IncomeVerificationScreen() {
         setIncomeVerified(res.data.data.incomeVerified === true);
         setLatest(res.data.data.latestSubmission || null);
       }
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const pickImage = async () => {

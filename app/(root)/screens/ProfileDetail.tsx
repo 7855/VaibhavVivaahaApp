@@ -374,7 +374,7 @@ const ProfileDetailRevamp = () => {
         );
         if (alreadyPending) setCallRequestSent(true);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [userId, userData.userId]);
 
   // Single parallel load — all API calls fire at once for <1.5s load
@@ -394,7 +394,7 @@ const ProfileDetailRevamp = () => {
       ]);
 
       // Fire-and-forget: record profile view (don't block render)
-      userApi.viewedProfile(userData.userId, userId).catch(() => {});
+      userApi.viewedProfile(userData.userId, userId).catch(() => { });
 
       // Process profile response
       if (profileRes.status === 'fulfilled') {
@@ -471,7 +471,7 @@ const ProfileDetailRevamp = () => {
             setSubscriptionId(sub.data.data.subscriptionId || sub.data.data.id);
             setIsPremiumValue(!!sub.data.data.entitlements?.viewPersonalInfo);
           }
-        } catch {}
+        } catch { }
       }
 
       setLoading(false);
@@ -941,349 +941,349 @@ const ProfileDetailRevamp = () => {
   // ─── Render ────────────────────────────────────────
   return (
     <MenuProvider>
-    <View style={[s.root, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <View style={[s.root, { paddingTop: insets.top }]}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Image Gallery Modal */}
-      <Modal visible={isImageModalVisible} transparent animationType="fade">
-        <View style={s.modalOverlay}>
-          <TouchableOpacity style={[s.modalClose, { top: insets.top + 10 }]} onPress={() => setImageModalVisible(false)}>
-            <Ionicons name="close" size={28} color="#fff" />
-          </TouchableOpacity>
-          <FlatList
-            data={galleryImages?.length ? galleryImages : [profileImage]}
-            keyExtractor={(_, i) => i.toString()}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => setCurrentImageIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH))}
-            renderItem={({ item }) => (
-              <View style={{ width: SCREEN_WIDTH, justifyContent: 'center', alignItems: 'center' }}>
-                <Image source={{ uri: item }} style={s.modalImage} resizeMode="contain" />
+        {/* Image Gallery Modal */}
+        <Modal visible={isImageModalVisible} transparent animationType="fade">
+          <View style={s.modalOverlay}>
+            <TouchableOpacity style={[s.modalClose, { top: insets.top + 10 }]} onPress={() => setImageModalVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <FlatList
+              data={galleryImages?.length ? galleryImages : [profileImage]}
+              keyExtractor={(_, i) => i.toString()}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => setCurrentImageIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH))}
+              renderItem={({ item }) => (
+                <View style={{ width: SCREEN_WIDTH, justifyContent: 'center', alignItems: 'center' }}>
+                  <Image source={{ uri: item }} style={s.modalImage} resizeMode="contain" />
+                </View>
+              )}
+            />
+            {/* Dot indicators */}
+            {galleryImages.length > 1 && (
+              <View style={s.dotRow}>
+                {galleryImages.map((_, i) => (
+                  <View key={i} style={[s.dot, currentImageIndex === i && s.dotActive]} />
+                ))}
               </View>
             )}
-          />
-          {/* Dot indicators */}
-          {galleryImages.length > 1 && (
-            <View style={s.dotRow}>
-              {galleryImages.map((_, i) => (
-                <View key={i} style={[s.dot, currentImageIndex === i && s.dotActive]} />
-              ))}
-            </View>
-          )}
-        </View>
-      </Modal>
+          </View>
+        </Modal>
 
-      <ScrollView style={s.root} bounces={false} showsVerticalScrollIndicator={false}>
-        {/* ─── Hero Image ─── */}
-        <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT, overflow: 'hidden', position: 'relative' }}>
-          {hiddenFeildsValue.includes('profileImage') && !approvedFields.includes('PROFILE_IMAGE') ? (
-            /* Hidden by profile owner — ask permission */
-            <View style={{ flex: 1 }}>
+        <ScrollView style={s.root} bounces={false} showsVerticalScrollIndicator={false}>
+          {/* ─── Hero Image ─── */}
+          <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT, overflow: 'hidden', position: 'relative' }}>
+            {hiddenFeildsValue.includes('profileImage') && !approvedFields.includes('PROFILE_IMAGE') ? (
+              /* Hidden by profile owner — ask permission */
+              <View style={{ flex: 1 }}>
+                <Image
+                  source={
+                    profileImage ? { uri: profileImage } :
+                      userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                        userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                          require('../../../assets/images/defaultAvatar.png')
+                  }
+                  style={StyleSheet.absoluteFillObject}
+                  resizeMode="cover"
+                  blurRadius={30}
+                />
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }]}>
+                  <Ionicons name="eye-off" size={40} color="rgba(255,255,255,0.8)" />
+                  <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Rubik-Medium', marginTop: 10, textAlign: 'center' }}>User has restricted their profile photo</Text>
+                  <TouchableOpacity
+                    onPress={handlePermissionRequest}
+                    style={{ marginTop: 14, backgroundColor: permissionRequests.profileImage ? '#EF4444' : '#1F7FE5', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24 }}
+                  >
+                    <Text style={{ color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 13 }}>
+                      {permissionRequests.profileImage ? 'Cancel Request' : 'Ask Permission'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : profileImage ? (
               <Image
-                source={
-                  profileImage ? { uri: profileImage } :
-                  userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
-                  userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
-                    require('../../../assets/images/defaultAvatar.png')
-                }
+                source={{ uri: profileImage }}
                 style={StyleSheet.absoluteFillObject}
                 resizeMode="cover"
-                blurRadius={30}
               />
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }]}>
-                <Ionicons name="eye-off" size={40} color="rgba(255,255,255,0.8)" />
-                <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Rubik-Medium', marginTop: 10, textAlign: 'center' }}>User has restricted their profile photo</Text>
-                <TouchableOpacity
-                  onPress={handlePermissionRequest}
-                  style={{ marginTop: 14, backgroundColor: permissionRequests.profileImage ? '#EF4444' : '#1F7FE5', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24 }}
-                >
-                  <Text style={{ color: '#fff', fontFamily: 'Rubik-Bold', fontSize: 13 }}>
-                    {permissionRequests.profileImage ? 'Cancel Request' : 'Ask Permission'}
-                  </Text>
-                </TouchableOpacity>
+            ) : (
+              // The default avatar assets are square (500x500/512x512), but this frame is a 4:5
+              // portrait rectangle. `resizeMode="cover"` (used for real photos, which are already
+              // portrait-cropped by the upload flow) was center-cropping ~12.5% off each side of
+              // these square, near-full-bleed illustrations — clipping hair/shoulders and making
+              // the avatar look zoomed-in/off-center compared to a real photo in the same frame.
+              // `contain` + a neutral fill behind it keeps the whole illustration visible and
+              // properly centered instead.
+              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#eef1f5', justifyContent: 'center', alignItems: 'center' }]}>
+                <Image
+                  source={
+                    userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                      userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                        require('../../../assets/images/defaultAvatar.png')
+                  }
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="contain"
+                />
               </View>
-            </View>
-          ) : profileImage ? (
-            <Image
-              source={{ uri: profileImage }}
-              style={StyleSheet.absoluteFillObject}
-              resizeMode="cover"
-            />
-          ) : (
-            // The default avatar assets are square (500x500/512x512), but this frame is a 4:5
-            // portrait rectangle. `resizeMode="cover"` (used for real photos, which are already
-            // portrait-cropped by the upload flow) was center-cropping ~12.5% off each side of
-            // these square, near-full-bleed illustrations — clipping hair/shoulders and making
-            // the avatar look zoomed-in/off-center compared to a real photo in the same frame.
-            // `contain` + a neutral fill behind it keeps the whole illustration visible and
-            // properly centered instead.
-            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#eef1f5', justifyContent: 'center', alignItems: 'center' }]}>
-              <Image
-                source={
-                  userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
-                  userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
-                    require('../../../assets/images/defaultAvatar.png')
-                }
-                style={{ width: '100%', height: '100%' }}
-                resizeMode="contain"
-              />
-            </View>
-          )}
+            )}
 
-          {/* Gradient overlay at bottom — purely decorative (darkens the lower half for text
+            {/* Gradient overlay at bottom — purely decorative (darkens the lower half for text
               legibility), but being an absolutely-positioned View covering half the hero image
               with no pointerEvents, it silently swallowed taps meant for anything underneath it
               in that zone — including the "Ask Permission"/"Cancel Request" button, whose centered
               content (icon + text + button) commonly extends past the container's vertical
               midpoint on a tall hero image. */}
-          <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.5)']} style={[StyleSheet.absoluteFillObject, { top: '50%' }]} />
+            <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.5)']} style={[StyleSheet.absoluteFillObject, { top: '50%' }]} />
 
-          {/* Verified compact badge on image */}
-          {(anyVerified || isVerifiedPlan) && (
-            <View style={{ position: 'absolute', top: insets.top + 56, right: 16, zIndex: 20 }}>
-              <VerifiedBadges
-                idVerified={userDetails?.idVerified}
-                educationVerified={userDetails?.educationVerified}
-                incomeVerified={userDetails?.incomeVerified}
-                mode="compact" color="gold"
-              />
-            </View>
-          )}
-
-          {/* Action buttons — right side */}
-          <View style={[s.sideActions, { bottom: 60 }]}>
-            <TouchableOpacity style={[s.sideBtn, { backgroundColor: '#FF6B6B' }]} onPress={handleLike}>
-              <Heart size={22} color="#fff" fill={isLiked ? '#fff' : 'none'} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.sideBtn} onPress={handleShortlist}>
-              {isShortlisted ? <BookmarkCheck size={22} color="#1F7FE5" /> : <Bookmark size={22} color="#0f1724" />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.sideBtn, { backgroundColor: 'rgba(255,255,255,0.8)' }, !hasProfileImage && { opacity: 0.4 }]}
-              onPress={openImageModal}
-              disabled={!hasProfileImage}
-            >
-              <Maximize2 size={20} color="#0f1724" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ─── Floating header buttons ─── */}
-        <View style={[s.headerRow, { top: 8 }]}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-            <ChevronLeft size={22} color="#fff" />
-          </TouchableOpacity>
-          <Menu>
-            <MenuTrigger>
-              <View style={s.headerBtn}>
-                <MoreVertical size={22} color="#fff" />
-              </View>
-            </MenuTrigger>
-            <MenuOptions customStyles={{ optionsContainer: { borderRadius: 14, paddingVertical: 6, width: 210, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 } }}>
-              <MenuOption onSelect={handleBlockUser}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
-                  <ShieldAlert size={18} color="#334155" />
-                  <View>
-                    <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#1e293b' }}>Block</Text>
-                    <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Hide each other. Reversible.</Text>
-                  </View>
-                </View>
-              </MenuOption>
-              <View style={{ height: 1, backgroundColor: '#f1f5f9', marginHorizontal: 12 }} />
-              <MenuOption onSelect={handleReportUser}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
-                  <Flag size={18} color="#dc2626" />
-                  <View>
-                    <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#dc2626' }}>Report User</Text>
-                    <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Flag for moderator review.</Text>
-                  </View>
-                </View>
-              </MenuOption>
-            </MenuOptions>
-          </Menu>
-        </View>
-
-        {/* ─── Profile Card (overlaps image) ─── */}
-        <View style={s.profileCard}>
-          {/* Verified tag above name */}
-          {(anyVerified || isVerifiedPlan) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-              <MaterialIcons name="verified" size={14} color="#1F7FE5" />
-              <Text style={{ fontSize: 10, fontFamily: 'Rubik-Bold', color: '#1F7FE5', textTransform: 'uppercase', letterSpacing: 0.8 }}>Verified Profile</Text>
-            </View>
-          )}
-          {/* Name */}
-          <View style={{ marginBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <Text style={s.nameText}>{userDetails?.firstName} {userDetails?.lastName}</Text>
-            {userDetails?.memberId && (
-              <View style={{ backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                <Text style={{ fontSize: 11, fontFamily: 'Rubik-Bold', color: '#64748b', letterSpacing: 0.2 }}>
-                  {userDetails.memberId}
-                </Text>
+            {/* Verified compact badge on image */}
+            {(anyVerified || isVerifiedPlan) && (
+              <View style={{ position: 'absolute', top: insets.top + 56, right: 16, zIndex: 20 }}>
+                <VerifiedBadges
+                  idVerified={userDetails?.idVerified}
+                  educationVerified={userDetails?.educationVerified}
+                  incomeVerified={userDetails?.incomeVerified}
+                  mode="compact" color="gold"
+                />
               </View>
             )}
+
+            {/* Action buttons — right side */}
+            <View style={[s.sideActions, { bottom: 60 }]}>
+              <TouchableOpacity style={[s.sideBtn, { backgroundColor: '#FF6B6B' }]} onPress={handleLike}>
+                <Heart size={22} color="#fff" fill={isLiked ? '#fff' : 'none'} />
+              </TouchableOpacity>
+              <TouchableOpacity style={s.sideBtn} onPress={handleShortlist}>
+                {isShortlisted ? <BookmarkCheck size={22} color="#1F7FE5" /> : <Bookmark size={22} color="#0f1724" />}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.sideBtn, { backgroundColor: 'rgba(255,255,255,0.8)' }, !hasProfileImage && { opacity: 0.4 }]}
+                onPress={openImageModal}
+                disabled={!hasProfileImage}
+              >
+                <Maximize2 size={20} color="#0f1724" />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Age, Height, Location */}
-          <Text style={s.subText}>
-            {userDetails?.age} Yrs, {userDetails?.userDetail?.[0]?.height || ''} • {userDetails?.location || ''}
-          </Text>
-
-          {/* Occupation */}
-          <Text style={s.occupationText}>{occupation}</Text>
-
-          {/* Verification badges */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-            {userDetails?.idVerified && (
-              <View style={s.badge}><MaterialIcons name="badge" size={13} color="#1F7FE5" /><Text style={s.badgeText}>ID Confirmed</Text></View>
-            )}
-            {userDetails?.educationVerified && (
-              <View style={s.badge}><MaterialIcons name="school" size={13} color="#1F7FE5" /><Text style={s.badgeText}>Edu Confirmed</Text></View>
-            )}
-            {userDetails?.incomeVerified && (
-              <View style={s.badge}><MaterialIcons name="payments" size={13} color="#1F7FE5" /><Text style={s.badgeText}>Income Confirmed</Text></View>
-            )}
-          </View>
-
-          {/* ─── Action Buttons ─── */}
-          <View style={{ marginTop: 14, gap: 8 }}>
-            {/* Send Interest / Pending / Chat Now — full width */}
-            <TouchableOpacity
-              style={[s.primaryBtn, { backgroundColor: interestButtonConfig.bg }]}
-              onPress={handleSendInterest}
-              disabled={interestButtonConfig.disabled}
-              activeOpacity={0.85}
-            >
-              <MaterialIcons name={interestButtonConfig.icon} size={20} color="#fff" />
-              <Text style={s.primaryBtnText}>{interestButtonConfig.label}</Text>
+          {/* ─── Floating header buttons ─── */}
+          <View style={[s.headerRow, { top: 8 }]}>
+            <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+              <ChevronLeft size={22} color="#fff" />
             </TouchableOpacity>
+            <Menu>
+              <MenuTrigger>
+                <View style={s.headerBtn}>
+                  <MoreVertical size={22} color="#fff" />
+                </View>
+              </MenuTrigger>
+              <MenuOptions customStyles={{ optionsContainer: { borderRadius: 14, paddingVertical: 6, width: 210, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 } }}>
+                <MenuOption onSelect={handleBlockUser}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
+                    <ShieldAlert size={18} color="#334155" />
+                    <View>
+                      <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#1e293b' }}>Block</Text>
+                      <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Hide each other. Reversible.</Text>
+                    </View>
+                  </View>
+                </MenuOption>
+                <View style={{ height: 1, backgroundColor: '#f1f5f9', marginHorizontal: 12 }} />
+                <MenuOption onSelect={handleReportUser}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
+                    <Flag size={18} color="#dc2626" />
+                    <View>
+                      <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#dc2626' }}>Report User</Text>
+                      <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Flag for moderator review.</Text>
+                    </View>
+                  </View>
+                </MenuOption>
+              </MenuOptions>
+            </Menu>
+          </View>
 
-            {/* Call + Match side by side */}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              {!isParent && (() => {
-                const isPaidPlan = planTitle && planTitle !== 'Free' && planTitle !== 'Starter';
-                // Only grey this out for the "not matched yet" reason — an insufficient-plan
-                // tap should still go through and show the upgrade popup (existing behavior).
-                const callLocked = isPaidPlan && interestStatus !== 'APPROVED';
+          {/* ─── Profile Card (overlaps image) ─── */}
+          <View style={s.profileCard}>
+            {/* Verified tag above name */}
+            {(anyVerified || isVerifiedPlan) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                <MaterialIcons name="verified" size={14} color="#1F7FE5" />
+                <Text style={{ fontSize: 10, fontFamily: 'Rubik-Bold', color: '#1F7FE5', textTransform: 'uppercase', letterSpacing: 0.8 }}>Verified Profile</Text>
+              </View>
+            )}
+            {/* Name */}
+            <View style={{ marginBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <Text style={s.nameText}>{userDetails?.firstName} {userDetails?.lastName}</Text>
+              {userDetails?.memberId && (
+                <View style={{ backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                  <Text style={{ fontSize: 11, fontFamily: 'Rubik-Bold', color: '#64748b', letterSpacing: 0.2 }}>
+                    {userDetails.memberId}
+                  </Text>
+                </View>
+              )}
+            </View>
 
-                if (callRequestSent) {
+            {/* Age, Height, Location */}
+            <Text style={s.subText}>
+              {userDetails?.age} Yrs, {userDetails?.userDetail?.[0]?.height || ''} • {userDetails?.location || ''}
+            </Text>
+
+            {/* Occupation */}
+            <Text style={s.occupationText}>{occupation}</Text>
+
+            {/* Verification badges */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+              {userDetails?.idVerified && (
+                <View style={s.badge}><MaterialIcons name="badge" size={13} color="#1F7FE5" /><Text style={s.badgeText}>ID Confirmed</Text></View>
+              )}
+              {userDetails?.educationVerified && (
+                <View style={s.badge}><MaterialIcons name="school" size={13} color="#1F7FE5" /><Text style={s.badgeText}>Edu Confirmed</Text></View>
+              )}
+              {userDetails?.incomeVerified && (
+                <View style={s.badge}><MaterialIcons name="payments" size={13} color="#1F7FE5" /><Text style={s.badgeText}>Income Confirmed</Text></View>
+              )}
+            </View>
+
+            {/* ─── Action Buttons ─── */}
+            <View style={{ marginTop: 14, gap: 8 }}>
+              {/* Send Interest / Pending / Chat Now — full width */}
+              <TouchableOpacity
+                style={[s.primaryBtn, { backgroundColor: interestButtonConfig.bg }]}
+                onPress={handleSendInterest}
+                disabled={interestButtonConfig.disabled}
+                activeOpacity={0.85}
+              >
+                <MaterialIcons name={interestButtonConfig.icon} size={20} color="#fff" />
+                <Text style={s.primaryBtnText}>{interestButtonConfig.label}</Text>
+              </TouchableOpacity>
+
+              {/* Call + Match side by side */}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {!isParent && (() => {
+                  const isPaidPlan = planTitle && planTitle !== 'Free' && planTitle !== 'Starter';
+                  // Only grey this out for the "not matched yet" reason — an insufficient-plan
+                  // tap should still go through and show the upgrade popup (existing behavior).
+                  const callLocked = isPaidPlan && interestStatus !== 'APPROVED';
+
+                  if (callRequestSent) {
+                    return (
+                      <TouchableOpacity style={[s.secondaryBtn, s.secondaryBtnSent]} disabled activeOpacity={1}>
+                        <Clock size={18} color="#1F7FE5" />
+                        <Text style={[s.secondaryBtnText, s.secondaryBtnSentText]}>Request Sent</Text>
+                      </TouchableOpacity>
+                    );
+                  }
                   return (
-                    <TouchableOpacity style={[s.secondaryBtn, s.secondaryBtnSent]} disabled activeOpacity={1}>
-                      <Clock size={18} color="#1F7FE5" />
-                      <Text style={[s.secondaryBtnText, s.secondaryBtnSentText]}>Request Sent</Text>
+                    <TouchableOpacity
+                      style={[s.secondaryBtn, callLocked && s.secondaryBtnDisabled]}
+                      onPress={handleRequestCall}
+                      disabled={callLocked}
+                      activeOpacity={0.8}
+                    >
+                      <View style={{ alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <Phone size={18} color={callLocked ? '#94a3b8' : '#1F7FE5'} />
+                          <Text style={[s.secondaryBtnText, callLocked && s.secondaryBtnTextDisabled]}>Request Call</Text>
+                        </View>
+                        {callLocked && (
+                          <Text style={s.secondaryBtnSubtext}>Available after they accept your interest</Text>
+                        )}
+                      </View>
                     </TouchableOpacity>
                   );
-                }
-                return (
-                  <TouchableOpacity
-                    style={[s.secondaryBtn, callLocked && s.secondaryBtnDisabled]}
-                    onPress={handleRequestCall}
-                    disabled={callLocked}
-                    activeOpacity={0.8}
-                  >
-                    <View style={{ alignItems: 'center' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <Phone size={18} color={callLocked ? '#94a3b8' : '#1F7FE5'} />
-                        <Text style={[s.secondaryBtnText, callLocked && s.secondaryBtnTextDisabled]}>Request Call</Text>
+                })()}
+                {(() => {
+                  // Only grey out for "not matched yet" — Free/insufficient-plan taps still
+                  // go through to show the upgrade popup (existing behavior for that case).
+                  const matchLocked = isPremiumValue && interestStatus !== 'APPROVED';
+                  return (
+                    <TouchableOpacity
+                      style={[s.secondaryBtn, matchLocked && s.secondaryBtnDisabled]}
+                      onPress={handleStarMatch}
+                      disabled={matchLocked}
+                      activeOpacity={0.8}
+                    >
+                      <View style={{ alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <Star size={18} color={matchLocked ? '#94a3b8' : '#1F7FE5'} />
+                          <Text style={[s.secondaryBtnText, matchLocked && s.secondaryBtnTextDisabled]}>Match Score</Text>
+                        </View>
+                        {matchLocked && (
+                          <Text style={s.secondaryBtnSubtext}>Available after they accept your interest</Text>
+                        )}
                       </View>
-                      {callLocked && (
-                        <Text style={s.secondaryBtnSubtext}>Available after they accept your interest</Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })()}
-              {(() => {
-                // Only grey out for "not matched yet" — Free/insufficient-plan taps still
-                // go through to show the upgrade popup (existing behavior for that case).
-                const matchLocked = isPremiumValue && interestStatus !== 'APPROVED';
-                return (
-                  <TouchableOpacity
-                    style={[s.secondaryBtn, matchLocked && s.secondaryBtnDisabled]}
-                    onPress={handleStarMatch}
-                    disabled={matchLocked}
-                    activeOpacity={0.8}
-                  >
-                    <View style={{ alignItems: 'center' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <Star size={18} color={matchLocked ? '#94a3b8' : '#1F7FE5'} />
-                        <Text style={[s.secondaryBtnText, matchLocked && s.secondaryBtnTextDisabled]}>Match Score</Text>
-                      </View>
-                      {matchLocked && (
-                        <Text style={s.secondaryBtnSubtext}>Available after they accept your interest</Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })()}
-            </View>
+                    </TouchableOpacity>
+                  );
+                })()}
+              </View>
 
-            {/* WhatsApp Share */}
-            {!isParent && (
-              <TouchableOpacity style={s.shareBtn} onPress={handleWhatsAppShare} activeOpacity={0.8}>
-                <Share2 size={16} color="#6D6A85" />
-                <Text style={s.shareBtnText}>Share Profile via WhatsApp</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* ─── Inline Tabs (matching HTML design) ─── */}
-          {personalDetail && <InlineProfileTabs
-            personalDetail={personalDetail}
-            isPremium={isPremiumValue}
-            hiddenFields={hiddenFeildsValue}
-            profileDetailId={String(userDetailId || '')}
-            currentUserId={currentUserId || ''}
-            planTitle={planTitle || ''}
-            interestStatus={interestStatus}
-            permissionRequests={permissionRequests}
-            approvedFields={approvedFields}
-          />}
-        </View>
-      </ScrollView>
-
-      {/* ─── Report Modal ─── */}
-      <Modal visible={reportModalVisible} transparent animationType="fade">
-        <View style={s.reportOverlay}>
-          <View style={s.reportCard}>
-            <Text style={s.reportTitle}>Report User</Text>
-            <Text style={s.reportDesc}>Why are you reporting {userDetails?.firstName || 'this user'}?</Text>
-            <View style={s.reportReasons}>
-              {REPORT_REASONS.map((reason) => (
-                <TouchableOpacity
-                  key={reason}
-                  style={[s.reportChip, selectedReason === reason && s.reportChipActive]}
-                  onPress={() => setSelectedReason(reason)}
-                >
-                  <Text style={[s.reportChipText, selectedReason === reason && s.reportChipTextActive]}>{reason}</Text>
+              {/* WhatsApp Share */}
+              {!isParent && (
+                <TouchableOpacity style={s.shareBtn} onPress={handleWhatsAppShare} activeOpacity={0.8}>
+                  <Share2 size={16} color="#6D6A85" />
+                  <Text style={s.shareBtnText}>Share Profile via WhatsApp</Text>
                 </TouchableOpacity>
-              ))}
+              )}
             </View>
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}
-              onPress={() => setReportAlsoBlock((v) => !v)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name={reportAlsoBlock ? 'checkbox' : 'square-outline'} size={20} color={reportAlsoBlock ? '#dc2626' : '#94a3b8'} />
-              <Text style={{ fontSize: 13, fontFamily: 'Rubik-Medium', color: '#334155', flex: 1 }}>
-                Also block this user
-              </Text>
-            </TouchableOpacity>
-            <View style={s.reportBtnRow}>
-              <TouchableOpacity style={s.reportCancelBtn} onPress={() => setReportModalVisible(false)}>
-                <Text style={s.reportCancelTxt}>Cancel</Text>
+
+            {/* ─── Inline Tabs (matching HTML design) ─── */}
+            {personalDetail && <InlineProfileTabs
+              personalDetail={personalDetail}
+              isPremium={isPremiumValue}
+              hiddenFields={hiddenFeildsValue}
+              profileDetailId={String(userDetailId || '')}
+              currentUserId={currentUserId || ''}
+              planTitle={planTitle || ''}
+              interestStatus={interestStatus}
+              permissionRequests={permissionRequests}
+              approvedFields={approvedFields}
+            />}
+          </View>
+        </ScrollView>
+
+        {/* ─── Report Modal ─── */}
+        <Modal visible={reportModalVisible} transparent animationType="fade">
+          <View style={s.reportOverlay}>
+            <View style={s.reportCard}>
+              <Text style={s.reportTitle}>Report User</Text>
+              <Text style={s.reportDesc}>Why are you reporting {userDetails?.firstName || 'this user'}?</Text>
+              <View style={s.reportReasons}>
+                {REPORT_REASONS.map((reason) => (
+                  <TouchableOpacity
+                    key={reason}
+                    style={[s.reportChip, selectedReason === reason && s.reportChipActive]}
+                    onPress={() => setSelectedReason(reason)}
+                  >
+                    <Text style={[s.reportChipText, selectedReason === reason && s.reportChipTextActive]}>{reason}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}
+                onPress={() => setReportAlsoBlock((v) => !v)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={reportAlsoBlock ? 'checkbox' : 'square-outline'} size={20} color={reportAlsoBlock ? '#dc2626' : '#94a3b8'} />
+                <Text style={{ fontSize: 13, fontFamily: 'Rubik-Medium', color: '#334155', flex: 1 }}>
+                  Also block this user
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.reportSubmitBtn, !selectedReason && { opacity: 0.5 }]} onPress={handleReportSubmit}>
-                <LinearGradient colors={['#dc2626', '#b91c1c']} style={s.reportSubmitGrad}>
-                  <Text style={s.reportSubmitTxt}>Report</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              <View style={s.reportBtnRow}>
+                <TouchableOpacity style={s.reportCancelBtn} onPress={() => setReportModalVisible(false)}>
+                  <Text style={s.reportCancelTxt}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.reportSubmitBtn, !selectedReason && { opacity: 0.5 }]} onPress={handleReportSubmit}>
+                  <LinearGradient colors={['#dc2626', '#b91c1c']} style={s.reportSubmitGrad}>
+                    <Text style={s.reportSubmitTxt}>Report</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+      </View>
     </MenuProvider>
   );
 };

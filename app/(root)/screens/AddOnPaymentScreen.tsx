@@ -63,7 +63,7 @@ export default function AddOnPaymentScreen() {
           (r: any) => r.status === 'PENDING' && r.note === featureNote
         );
         if (pending) setHasPending(true);
-      } catch (_) {}
+      } catch (_) { }
       finally { setCheckingPending(false); }
     })();
   }, [userData.userId, featureNote]);
@@ -175,93 +175,93 @@ export default function AddOnPaymentScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Feature info card */}
-        <View style={s.featureCard}>
-          <Text style={s.featureEmoji}>🚀</Text>
-          <Text style={s.featureTitle}>{featureTitle}</Text>
-          <Text style={s.featurePrice}>₹{price}</Text>
-          {description ? <Text style={s.featureDesc}>{description}</Text> : null}
-        </View>
-
-        {/* Step 1 — Pay via UPI */}
-        <View style={s.stepCard}>
-          <View style={s.stepHeader}>
-            <View style={s.stepBadge}>
-              <Text style={s.stepBadgeText}>1</Text>
-            </View>
-            <Text style={s.stepTitle}>Pay via UPI</Text>
-          </View>
-          <Text style={s.stepDesc}>Send ₹{price} to the UPI ID below using any UPI app (GPay, PhonePe, Paytm).</Text>
-
-          <TouchableOpacity style={s.upiRow} onPress={handleCopyUPI}>
-            <Text style={s.upiId}>{UPI_ID}</Text>
-            <View style={[s.copyBtn, copied && { backgroundColor: '#10b981' }]}>
-              <Ionicons name={copied ? 'checkmark' : 'copy'} size={14} color="#fff" />
-              <Text style={s.copyBtnText}>{copied ? 'Copied' : 'Copy'}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Step 2 — Upload screenshot */}
-        <View style={s.stepCard}>
-          <View style={s.stepHeader}>
-            <View style={s.stepBadge}>
-              <Text style={s.stepBadgeText}>2</Text>
-            </View>
-            <Text style={s.stepTitle}>Upload Payment Screenshot</Text>
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Feature info card */}
+          <View style={s.featureCard}>
+            <Text style={s.featureEmoji}>🚀</Text>
+            <Text style={s.featureTitle}>{featureTitle}</Text>
+            <Text style={s.featurePrice}>₹{price}</Text>
+            {description ? <Text style={s.featureDesc}>{description}</Text> : null}
           </View>
 
-          {screenshotUri ? (
-            <View style={s.previewBox}>
-              <Image source={{ uri: screenshotUri }} style={s.preview} />
-              <TouchableOpacity style={s.removeBtn} onPress={() => setScreenshotUri(null)}>
-                <Ionicons name="close-circle" size={26} color="#dc2626" />
-              </TouchableOpacity>
+          {/* Step 1 — Pay via UPI */}
+          <View style={s.stepCard}>
+            <View style={s.stepHeader}>
+              <View style={s.stepBadge}>
+                <Text style={s.stepBadgeText}>1</Text>
+              </View>
+              <Text style={s.stepTitle}>Pay via UPI</Text>
             </View>
-          ) : (
-            <TouchableOpacity style={s.uploadBtn} onPress={pickScreenshot}>
-              <Ionicons name="cloud-upload" size={24} color="#420001" />
-              <Text style={s.uploadBtnText}>Pick Screenshot</Text>
+            <Text style={s.stepDesc}>Send ₹{price} to the UPI ID below using any UPI app (GPay, PhonePe, Paytm).</Text>
+
+            <TouchableOpacity style={s.upiRow} onPress={handleCopyUPI}>
+              <Text style={s.upiId}>{UPI_ID}</Text>
+              <View style={[s.copyBtn, copied && { backgroundColor: '#10b981' }]}>
+                <Ionicons name={copied ? 'checkmark' : 'copy'} size={14} color="#fff" />
+                <Text style={s.copyBtnText}>{copied ? 'Copied' : 'Copy'}</Text>
+              </View>
             </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Step 3 — Enter UTR */}
-        <View style={s.stepCard}>
-          <View style={s.stepHeader}>
-            <View style={s.stepBadge}>
-              <Text style={s.stepBadgeText}>3</Text>
-            </View>
-            <Text style={s.stepTitle}>Enter UTR / Transaction Number</Text>
           </View>
-          <TextInput
-            style={s.input}
-            placeholder="e.g. 312345678901"
-            placeholderTextColor="#9ca3af"
-            value={utrNumber}
-            onChangeText={setUtrNumber}
-            keyboardType="default"
-            maxLength={30}
-          />
-        </View>
 
-        {/* Submit */}
-        <TouchableOpacity
-          style={[s.submitBtn, (!screenshotUri || !utrNumber.trim() || uploading) && { opacity: 0.5 }]}
-          onPress={handleSubmit}
-          disabled={!screenshotUri || !utrNumber.trim() || uploading}
-        >
-          {uploading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={s.submitBtnText}>Submit Payment</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
+          {/* Step 2 — Upload screenshot */}
+          <View style={s.stepCard}>
+            <View style={s.stepHeader}>
+              <View style={s.stepBadge}>
+                <Text style={s.stepBadgeText}>2</Text>
+              </View>
+              <Text style={s.stepTitle}>Upload Payment Screenshot</Text>
+            </View>
+
+            {screenshotUri ? (
+              <View style={s.previewBox}>
+                <Image source={{ uri: screenshotUri }} style={s.preview} />
+                <TouchableOpacity style={s.removeBtn} onPress={() => setScreenshotUri(null)}>
+                  <Ionicons name="close-circle" size={26} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={s.uploadBtn} onPress={pickScreenshot}>
+                <Ionicons name="cloud-upload" size={24} color="#420001" />
+                <Text style={s.uploadBtnText}>Pick Screenshot</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Step 3 — Enter UTR */}
+          <View style={s.stepCard}>
+            <View style={s.stepHeader}>
+              <View style={s.stepBadge}>
+                <Text style={s.stepBadgeText}>3</Text>
+              </View>
+              <Text style={s.stepTitle}>Enter UTR / Transaction Number</Text>
+            </View>
+            <TextInput
+              style={s.input}
+              placeholder="e.g. 312345678901"
+              placeholderTextColor="#9ca3af"
+              value={utrNumber}
+              onChangeText={setUtrNumber}
+              keyboardType="default"
+              maxLength={30}
+            />
+          </View>
+
+          {/* Submit */}
+          <TouchableOpacity
+            style={[s.submitBtn, (!screenshotUri || !utrNumber.trim() || uploading) && { opacity: 0.5 }]}
+            onPress={handleSubmit}
+            disabled={!screenshotUri || !utrNumber.trim() || uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                <Text style={s.submitBtnText}>Submit Payment</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

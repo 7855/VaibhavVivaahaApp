@@ -234,7 +234,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setIsLoading(true);
     }
   }, [isOpen]);
-  
+
 
   const handleChange = (key: string, value: string) => {
     setFormData((prev) => ({
@@ -661,24 +661,24 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </Box>
         );
 
-        case 'Family Status':
-          return (
-            <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-              <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
-                {label}
-              </Text>
-              <SelectList
-                data={familyStatuses.map(status => ({ key: status, value: status } as const))}
-                setSelected={(val: string) => handleChange(key, val)}
-                save="value"
-                defaultOption={{ key: value, value: value }}
-                boxStyles={styles.input}
-                inputStyles={styles.inputText}
-                dropdownStyles={styles.dropdownBox}
-                dropdownTextStyles={styles.dropdownText}
-              />
-            </Box>
-          );
+      case 'Family Status':
+        return (
+          <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
+            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+              {label}
+            </Text>
+            <SelectList
+              data={familyStatuses.map(status => ({ key: status, value: status } as const))}
+              setSelected={(val: string) => handleChange(key, val)}
+              save="value"
+              defaultOption={{ key: value, value: value }}
+              boxStyles={styles.input}
+              inputStyles={styles.inputText}
+              dropdownStyles={styles.dropdownBox}
+              dropdownTextStyles={styles.dropdownText}
+            />
+          </Box>
+        );
 
       case 'Fathers Occupation':
         return (

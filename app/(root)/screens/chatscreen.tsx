@@ -489,7 +489,7 @@ function ChatScreen() {
             });
             if (d.gender) setOtherUserGender(d.gender);
           }
-        } catch (_) {}
+        } catch (_) { }
         const response = await userApi.getConversationData(conversationId);
         if (response.data && response.data.data) {
           // Get conversation data
@@ -580,7 +580,7 @@ function ChatScreen() {
       // moment a new message lands; this also triggers the backend's 'message_read' WS push back
       // to the sender, flipping their tick to blue live.
       if (conversationId && decryptedUserId) {
-        userApi.markAsRead(parseInt(conversationId), parseInt(decryptedUserId)).catch(() => {});
+        userApi.markAsRead(parseInt(conversationId), parseInt(decryptedUserId)).catch(() => { });
       }
     };
 
@@ -902,10 +902,10 @@ function ChatScreen() {
                     otherProfile
                       ? { uri: otherProfile }
                       : otherUserGender === 'M'
-                      ? require('../../../assets/images/avatarMen.png')
-                      : otherUserGender === 'F'
-                      ? require('../../../assets/images/avatarWomen.png')
-                      : require('../../../assets/images/defaultAvatar.png')
+                        ? require('../../../assets/images/avatarMen.png')
+                        : otherUserGender === 'F'
+                          ? require('../../../assets/images/avatarWomen.png')
+                          : require('../../../assets/images/defaultAvatar.png')
                   }
                   style={styles.profileImage}
                   resizeMode="cover"
@@ -1063,10 +1063,10 @@ function ChatScreen() {
                                 profileImage
                                   ? { uri: profileImage }
                                   : otherUserGender === 'M'
-                                  ? require('../../../assets/images/avatarMen.png')
-                                  : otherUserGender === 'F'
-                                  ? require('../../../assets/images/avatarWomen.png')
-                                  : require('../../../assets/images/defaultAvatar.png')
+                                    ? require('../../../assets/images/avatarMen.png')
+                                    : otherUserGender === 'F'
+                                      ? require('../../../assets/images/avatarWomen.png')
+                                      : require('../../../assets/images/defaultAvatar.png')
                               }
                               style={styles.avatar}
                             />
@@ -1098,10 +1098,10 @@ function ChatScreen() {
                                 myProfile
                                   ? { uri: myProfile }
                                   : userData.gender === 'M'
-                                  ? require('../../../assets/images/avatarMen.png')
-                                  : userData.gender === 'F'
-                                  ? require('../../../assets/images/avatarWomen.png')
-                                  : require('../../../assets/images/defaultAvatar.png')
+                                    ? require('../../../assets/images/avatarMen.png')
+                                    : userData.gender === 'F'
+                                      ? require('../../../assets/images/avatarWomen.png')
+                                      : require('../../../assets/images/defaultAvatar.png')
                               }
                               style={styles.avatar}
                             />
@@ -1120,10 +1120,10 @@ function ChatScreen() {
                       myProfile
                         ? { uri: myProfile }
                         : userData.gender === 'M'
-                        ? require('../../../assets/images/avatarMen.png')
-                        : userData.gender === 'F'
-                        ? require('../../../assets/images/avatarWomen.png')
-                        : require('../../../assets/images/defaultAvatar.png')
+                          ? require('../../../assets/images/avatarMen.png')
+                          : userData.gender === 'F'
+                            ? require('../../../assets/images/avatarWomen.png')
+                            : require('../../../assets/images/defaultAvatar.png')
                     }
                     style={styles.avatar}
                   />

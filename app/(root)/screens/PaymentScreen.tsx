@@ -208,7 +208,7 @@ const PaymentScreen = () => {
                         setPaymentMode(parsed.mode);
                     }
                 }
-            } catch {}
+            } catch { }
 
             // Fetch fresh
             try {
@@ -234,7 +234,7 @@ const PaymentScreen = () => {
                 if (contactRes?.data?.data?.valueColumn) {
                     try {
                         setAdminContact(JSON.parse(contactRes.data.data.valueColumn));
-                    } catch {}
+                    } catch { }
                 }
                 setPaymentMode(mode);
                 await AsyncStorage.setItem('paymentModeCache', JSON.stringify({
@@ -256,7 +256,7 @@ const PaymentScreen = () => {
                 if (role === 'PARENT') {
                     router.replace('/(root)/(tabs)' as any);
                 }
-            } catch (_) {}
+            } catch (_) { }
         })();
     }, []);
 

@@ -69,7 +69,7 @@ export default function EducationVerificationScreen() {
         setEducationVerified(res.data.data.educationVerified === true);
         setLatest(res.data.data.latestSubmission || null);
       }
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const pickImage = async () => {

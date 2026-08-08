@@ -143,7 +143,7 @@ const NotificationScreen: React.FC = () => {
         if (hasUnread && userId) {
           try {
             await userApi.markAllAsReadByReceiverId(userId);
-          } catch (_) {}
+          } catch (_) { }
         }
       } catch (error) {
         console.error('Error fetching notifications:', error);
@@ -246,56 +246,56 @@ const NotificationScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#d0dfeb' }} edges={['top']}>
-    <LinearGradient colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']} locations={[0, 0.3, 0.6, 1.0]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ flex: 1 }}>
-      {/* Custom header */}
-      <View style={styles.customHeader}>
-        <TouchableOpacity style={styles.headerBackBtn} onPress={() => router.back()}>
-          <MaterialIcons name="chevron-left" size={22} color="#1e293b" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      <NotificationHeader
-        unreadCount={notificationCounts.all}
-        onMarkAllAsRead={handleMarkAllAsRead}
-        onClearAll={handleClearAllNotifications}
-      />
-      <FlatList
-        data={filteredNotifications}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={() => (
-          <>
-            <NotificationFilterComponent
-              activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
-              counts={notificationCounts}
-            />
-          </>
-        )}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyBox}>
-            <View style={styles.emptyIcon} />
-            <Text style={styles.emptyTitle}>No notifications</Text>
-            <Text style={styles.emptyMessage}>
-              {activeFilter === 'all'
-                ? "You're all caught up! No new notifications at the moment."
-                : `No ${activeFilter.replace('_', ' ')} notifications found.`}
-            </Text>
-          </View>
-        )}
-        renderItem={({ item }) => (
-          <View style={{ paddingHorizontal: 8 }}>
+      <LinearGradient colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']} locations={[0, 0.3, 0.6, 1.0]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ flex: 1 }}>
+        {/* Custom header */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity style={styles.headerBackBtn} onPress={() => router.back()}>
+            <MaterialIcons name="chevron-left" size={22} color="#1e293b" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <NotificationHeader
+          unreadCount={notificationCounts.all}
+          onMarkAllAsRead={handleMarkAllAsRead}
+          onClearAll={handleClearAllNotifications}
+        />
+        <FlatList
+          data={filteredNotifications}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={() => (
+            <>
+              <NotificationFilterComponent
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+                counts={notificationCounts}
+              />
+            </>
+          )}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyBox}>
+              <View style={styles.emptyIcon} />
+              <Text style={styles.emptyTitle}>No notifications</Text>
+              <Text style={styles.emptyMessage}>
+                {activeFilter === 'all'
+                  ? "You're all caught up! No new notifications at the moment."
+                  : `No ${activeFilter.replace('_', ' ')} notifications found.`}
+              </Text>
+            </View>
+          )}
+          renderItem={({ item }) => (
+            <View style={{ paddingHorizontal: 8 }}>
 
-            <NotificationCard
-              notification={item}
-              onMarkAsRead={handleMarkAsRead}
-              onDelete={handleDelete}
-            />
-          </View>
-        )}
-        contentContainerStyle={styles.content}
-      />
-    </LinearGradient>
+              <NotificationCard
+                notification={item}
+                onMarkAsRead={handleMarkAsRead}
+                onDelete={handleDelete}
+              />
+            </View>
+          )}
+          contentContainerStyle={styles.content}
+        />
+      </LinearGradient>
     </SafeAreaView>
   );
 };

@@ -1,11 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import { View, TextInput, TouchableOpacity, Image, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import AppText from '../../../components/AppText';
 
 const OtpVerification = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [otp, setOtp] = useState(['', '', '', '']);
   const [showResend, setShowResend] = useState(false);
   const [timer, setTimer] = useState(30);
@@ -44,7 +47,6 @@ const OtpVerification = () => {
       newOtp[index] = '';
       setOtp(newOtp);
       
-      // Only move to previous input if not at first input
       if (index > 0) {
         const prevInput = inputs[index - 1]?.current;
         if (prevInput) {
@@ -57,9 +59,7 @@ const OtpVerification = () => {
 
   const onSubmit = () => {
     if (otp.every((digit) => digit !== '')) {
-    //   navigation.navigate('');
-    console.log("otp submit",otp);
-    
+      console.log("otp submit", otp);
     }
   };
 
@@ -79,7 +79,7 @@ const OtpVerification = () => {
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
 
-        <Text style={styles.otpHeading}>OTP</Text>
+        <AppText weight="medium" style={styles.otpHeading}>{t('auth.otp.heading')}</AppText>
         </View>
       </View>
 
@@ -87,12 +87,11 @@ const OtpVerification = () => {
         <Image source={require('../../../assets/images/otp.png')} style={styles.image} resizeMode="contain" />
       </View>
 
-      <Text style={styles.verificationTitle}>Verification Code</Text>
+      <AppText weight="bold" style={styles.verificationTitle}>{t('auth.otp.verificationCode')}</AppText>
 
       <View style={styles.verificationTextContainer}>
-        <Text style={styles.notifyText}>We have sent verification code to</Text>
-        <Text style={styles.notifyText}>your mobile number</Text>
-        <Text style={styles.mobileNumber}>+91-6379829750</Text>
+        <AppText weight="medium" style={styles.notifyText}>{t('auth.otp.sentMobile')}</AppText>
+        <AppText weight="medium" style={styles.mobileNumber}>+91-6379829750</AppText>
       </View>
 
       <View style={styles.otpContainer}>
@@ -111,18 +110,18 @@ const OtpVerification = () => {
       </View>
 
       <View style={styles.resendSection}>
-        <Text style={{ fontFamily: 'Rubik-Medium' }}>Didn't get OTP?</Text>
+        <AppText weight="medium">{t('auth.otp.didntGetOtp')}</AppText>
         {showResend ? (
           <TouchableOpacity onPress={resendOtp}>
-            <Text style={styles.resendText}> Resend OTP</Text>
+            <AppText weight="medium" style={styles.resendText}> {t('auth.otp.resendOtp')}</AppText>
           </TouchableOpacity>
         ) : (
-          <Text style={styles.resendText}> Resend SMS in {timer}s</Text>
+          <AppText weight="medium" style={styles.resendText}> {t('auth.otp.resendSmsIn', { seconds: timer })}</AppText>
         )}
       </View>
 
       <TouchableOpacity style={styles.continueButton} onPress={onSubmit}>
-        <Text style={styles.continueText}>Continue</Text>
+        <AppText weight="bold" style={styles.continueText}>{t('login.continue')}</AppText>
       </TouchableOpacity>
     </View>
     </SafeAreaView>
@@ -145,13 +144,13 @@ const styles = StyleSheet.create({
     width: '80%',
     gap: 10,
   },
-  otpHeading: { fontSize: 20, fontFamily: 'Rubik-Medium', marginLeft: 10 },
+  otpHeading: { fontSize: 20, marginLeft: 10 },
   centeredView: { alignItems: 'center', marginBottom: 20 },
   image: { width: '100%', height: 200 },
-  verificationTitle: { textAlign: 'center', fontSize: 22, fontFamily: 'Rubik-Bold', marginBottom: 20 },
+  verificationTitle: { textAlign: 'center', fontSize: 22, marginBottom: 20 },
   verificationTextContainer: { alignItems: 'center', marginBottom: 15 },
-  notifyText: { fontSize: 16, color: '#3F506A', fontFamily: 'Rubik-Medium' },
-  mobileNumber: { fontSize: 15, fontFamily: 'Rubik-Medium', color: '#3F506A', marginTop: 8 },
+  notifyText: { fontSize: 16, color: '#3F506A' },
+  mobileNumber: { fontSize: 15, color: '#3F506A', marginTop: 8 },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
@@ -179,7 +178,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  resendText: { color: 'gray', fontFamily: 'Rubik-Medium', marginLeft: 6 },
+  resendText: { color: 'gray', marginLeft: 6 },
   continueButton: {
     backgroundColor: '#dc2626',
     paddingVertical: 14,
@@ -189,7 +188,6 @@ const styles = StyleSheet.create({
   continueText: {
     color: '#DADADA',
     fontSize: 18,
-    fontFamily: 'Rubik-Bold',
     textAlign: 'center',
   },
 });

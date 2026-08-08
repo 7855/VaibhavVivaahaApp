@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, KeyboardAvoidingView, TouchableWithoutFeedback, Platform, Keyboard } from 'react-native';
+import { View, TextInput, TouchableOpacity, Dimensions, KeyboardAvoidingView, TouchableWithoutFeedback, Platform, Keyboard } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { NativeBaseProvider } from 'native-base';
 import { usePopup } from '../contexts/PopupContext';
+import { useTranslation } from 'react-i18next';
+import AppText from '../../../components/AppText';
 
 interface ResetPasswordScreenProps {
   onBack: () => void;
@@ -20,8 +22,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onContinue }) => {
   const router = useRouter();
   const popup = usePopup();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
-  // Kept as `phoneNumber` state variable alias for minimal JSX changes below
   const phoneNumber = email;
   const setPhoneNumber = setEmail;
   const [isLoading, setIsLoading] = useState(false);
@@ -32,14 +34,13 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
 
     try {
       const response = await userApi.forgotPassword({ email });
-      console.log('Forgot-password response:', response.data.code);
 
       if (response.data.code === 200) {
         await AsyncStorage.setItem('resetEmail', email);
         setIsLoading(false);
         popup.success(
-          'OTP Sent',
-          `A reset code has been sent to ${email}. Please check your inbox.`,
+          t('signup.otpSentTitle'),
+          t('signup.otpSentMessage', { email }),
           () => {
             router.push({
               pathname: '/(root)/(main)/OTPValidationScreen',
@@ -49,29 +50,21 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
         );
       } else if (response.data.code === 404) {
         setIsLoading(false);
-        popup.error('Not Registered', 'No account found with this email address.');
+        popup.error(t('login.errors.notRegisteredTitle'), t('auth.forgotPassword.notRegisteredMessage'));
       } else {
         setIsLoading(false);
-        popup.error('Error', response.data.message || 'Something went wrong. Please try again.');
+        popup.error(t('common.error'), response.data.message || t('login.errors.genericMessage'));
       }
     } catch (error) {
       console.error('Error sending OTP:', error);
       setIsLoading(false);
-      popup.error('Error', 'Failed to send OTP. Please try again.');
+      popup.error(t('common.error'), t('signup.sendOtpFailedMessage'));
     }
   };
 
   const isFormValid = EMAIL_REGEX.test(email);
 
   return (
-    // <KeyboardAvoidingView
-    //   style={{
-    //     flex: 1,
-    //     justifyContent: 'center',
-    //     backgroundColor: '#f9fafb',
-    //   }}
-    //   behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    // >
     <NativeBaseProvider>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={{
@@ -81,8 +74,6 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
       paddingHorizontal: 20,
       paddingVertical: 40,
     }}>
-      {/* Same soft blue theme gradient used app-wide (explore.tsx, sign-up.tsx, LoginScreen.tsx)
-          instead of the flat '#F5F5F5' this screen had. */}
       <LinearGradient
         colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
         locations={[0, 0.3, 0.6, 1.0]}
@@ -91,7 +82,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
       <View style={{ width: '100%', maxWidth: 400 }}>
-        {/* Sacred Header */}
+        {/* Header */}
         <View style={{ alignItems: 'center', marginBottom: 40 }}>
           <View style={{ position: 'relative', marginBottom: 24 }}>
             <LinearGradient
@@ -109,7 +100,6 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 elevation: 16,
               }}
             >
-              {/* Inner rings */}
               <View style={{
                 position: 'absolute',
                 top: 8,
@@ -131,10 +121,8 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 borderColor: 'rgba(31, 127, 229, 0.25)',
               }} />
 
-              {/* Shield icon */}
               <Icon name="security" size={36} color="#1F7FE5" />
 
-              {/* Floating elements */}
               <View style={{
                 position: 'absolute',
                 top: -4,
@@ -155,7 +143,6 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               }} />
             </LinearGradient>
             
-            {/* Sacred geometry around logo */}
             <View style={{
               position: 'absolute',
               top: -12,
@@ -178,25 +165,22 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
             }} />
           </View>
           
-          <Text style={{
+          <AppText weight="bold" style={{
             fontSize: 20,
-            fontFamily: 'Rubik-Bold',
             color: '#0f1724',
             marginBottom: 8,
             textAlign: 'center',
           }}>
-            Forgot Password
-          </Text>
-          <Text style={{
+            {t('auth.forgotPassword.title')}
+          </AppText>
+          <AppText weight="regular" style={{
             fontSize: 12,
-            fontFamily: 'Rubik-Regular',
             color: '#64748b',
             textAlign: 'center',
           }}>
-            Restore access to your heart connection
-          </Text>
+            {t('auth.forgotPassword.subtitle')}
+          </AppText>
           
-          {/* Decorative divider */}
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -217,9 +201,8 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
           </View>
         </View>
 
-        {/* Sacred Recovery Card */}
+        {/* Card */}
         <View style={{ position: 'relative' }}>
-          {/* Card Background */}
           <View style={{
             backgroundColor: 'white',
             borderRadius: 24,
@@ -229,7 +212,6 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
             shadowRadius: 24,
             elevation: 24,
           }}>
-            {/* Traditional corner decorations */}
             <View style={{
               position: 'absolute',
               top: 12,
@@ -275,7 +257,6 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               borderBottomRightRadius: 16,
             }} />
             
-            {/* Decorative patterns */}
             <View style={{
               position: 'absolute',
               top: 24,
@@ -299,20 +280,19 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
             
             <View style={{ padding: 36 }}>
               <View style={{ gap: 28 }}>
-                {/* Sacred Mobile Input */}
+                {/* Email Input */}
                 <View style={{ gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Icon name="email" size={16} color="#1F7FE5" />
-                    <Text style={{
+                    <AppText weight="bold" style={{
                       fontSize: 12,
-                      fontFamily: 'Rubik-Bold',
                       color: '#0f1724',
                       letterSpacing: 0.3,
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
-                      Registered Email
-                    </Text>
+                      {t('auth.forgotPassword.emailLabel')}
+                    </AppText>
                   </View>
                   <View style={{ position: 'relative' }}>
                     <View style={{
@@ -340,7 +320,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         fontFamily: 'Rubik-Regular',
                         color: '#333',
                       }}
-                      placeholder="Enter your email"
+                      placeholder={t('auth.forgotPassword.emailPlaceholder')}
                       placeholderTextColor="#999"
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -371,22 +351,20 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                         borderRadius: 2,
                         marginRight: 8,
                       }} />
-                      <Text style={{
+                      <AppText weight="regular" style={{
                         fontSize: 14,
                         color: '#dc2626',
-                        fontFamily: 'Rubik-Regular',
                       }}>
-                        Please enter a valid email address
-                      </Text>
+                        {t('auth.forgotPassword.invalidEmail')}
+                      </AppText>
                     </View>
                   )}
                 </View>
 
-                {/* Sacred Continue Button */}
+                {/* Continue Button */}
                 <TouchableOpacity
                   onPress={handleContinue}
                   disabled={!isFormValid || isLoading}
-               
                 >
                   <LinearGradient
                     colors={isFormValid && !isLoading ? ['#1F7FE5', '#1862b8'] : ['#cccccc', '#999999']}
@@ -398,35 +376,30 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                     }}
                   >
                     {isLoading ? (
-                      // No icon precedes this text (unlike the non-loading state below), so the
-                      // leftover `marginLeft: 12` it was copy-pasted with just indented it off
-                      // center for no reason — removed.
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={{
+                        <AppText weight="bold" style={{
                           color: '#fff',
                           fontSize: 16,
-                          fontFamily: 'Rubik-Bold',
                         }}>
-                          Sending Code...
-                        </Text>
+                          {t('auth.forgotPassword.sendingOtp')}
+                        </AppText>
                       </View>
                     ) : (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="security" size={20} color="white" />
-                        <Text style={{
+                        <AppText weight="bold" style={{
                           color: '#fff',
                           fontSize: 16,
-                          fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
                         }}>
-                          Send Verification Code
-                        </Text>
+                          {t('auth.forgotPassword.sendOtp')}
+                        </AppText>
                       </View>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Sacred Back Button */}
+                {/* Back Button */}
                 <TouchableOpacity
                   onPress={() => router.back()}
                   style={{
@@ -442,27 +415,22 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                   }}
                 >
                   <Icon name="arrow-back" size={20} color="#475569" />
-                  <Text style={{
+                  <AppText weight="medium" style={{
                     color: '#475569',
                     fontSize: 14,
-                    fontFamily: 'Rubik-Medium',
                     marginLeft: 8,
                   }}>
-                    Return to Login Screen
-                  </Text>
+                    {t('login.signIn')}
+                  </AppText>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </View>
-
-        {/* VVM Assurance note removed */}
       </View>
     </View>
       </TouchableWithoutFeedback>
     </NativeBaseProvider>
-    // </KeyboardAvoidingView>
-
   );
 };
 

@@ -254,7 +254,7 @@ const Index = () => {
           if (isActive && response.data?.data?.data) {
             setPercentage(response.data.data.data.percentage);
           }
-        } catch (_) {}
+        } catch (_) { }
       };
 
       fetchUnreadCount();
@@ -549,92 +549,92 @@ const Index = () => {
           end={{ x: 0, y: 1 }}
           style={{ flex: 1 }}
         >
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
+          <ScrollView contentContainerStyle={styles.scrollViewContent}>
 
-          <View>
-            <VVMWelcomeHeader
-              userData={userData}
-              tierName={tierStyle?.name}
-              unreadCount={unreadCount}
-              router={router}
-              isVerified={false}
-              memberId={memberId}
-              stats={{
-                likes: userConnectionCount.Hearts || 0,
-                proposals: userConnectionCount.Proposals || 0,
-                views: userConnectionCount.Admirers || 0,
-                matches: userConnectionCount.Matches || 0,
-              }}
-              onStatRefresh={async () => {
-                try {
-                  const casteIdValue = parseInt(userData.casteId!);
-                  const [count, rec, conn, near, intMatch, unreadRes, all] = await Promise.all([
-                    userApi.userConnectionCount(userData.userId),
-                    userApi.getDailyRecommendation(casteIdValue, userData.gender, userData.decodedUserId),
-                    userApi.getNewConnections(casteIdValue, userData.gender, userData.decodedUserId),
-                    userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location, userData.decodedUserId),
-                    userApi.getInterestMatchesByUser(casteIdValue, userData.gender === 'M' ? 'F' : 'M', userData.userId).catch(() => ({ data: { data: [] } })),
-                    userApi.getUnreadNotificationCount(userData.userId),
-                    userApi.getAllCasteProfilesByGender(casteIdValue, userData.gender).catch(() => ({ data: { data: [] } })),
-                  ]);
-                  setUserConnectionCount(count.data?.data || {});
-                  setRecommendations(rec.data?.data?.slice(0, 7) || []);
-                  setNewConnection(conn.data?.data?.slice(0, 7) || []);
-                  setNearYouProfile(near.data?.data?.slice(0, 7) || []);
-                  setInterestMatches(intMatch.data?.data?.slice(0, 7) || []);
-                  setUnreadCount(unreadRes.data?.data);
-                  setAllMatches(all.data?.data?.slice(0, 7) || []);
-                  popup.success('Refreshed', 'All sections updated successfully.');
-                } catch (e) {
-                  console.error(e);
-                  popup.error('Refresh failed', 'Please try again.');
-                }
-              }}
-              onStatsPress={(key) => {
-                if (key === 'matches') {
-                  router.push({ pathname: '/screens/ListUser', params: { type: 'connection' } });
-                } else if (key === 'proposals') {
-                  router.push('/(tabs)/mailBox');
-                } else if (key === 'views') {
-                  router.push({ pathname: '/screens/ListUser', params: { type: 'viewed' } });
-                } else if (key === 'likes') {
-                  router.push({ pathname: '/screens/ListUser', params: { type: 'whoLikedMe' } });
-                }
-              }}
-            />
+            <View>
+              <VVMWelcomeHeader
+                userData={userData}
+                tierName={tierStyle?.name}
+                unreadCount={unreadCount}
+                router={router}
+                isVerified={false}
+                memberId={memberId}
+                stats={{
+                  likes: userConnectionCount.Hearts || 0,
+                  proposals: userConnectionCount.Proposals || 0,
+                  views: userConnectionCount.Admirers || 0,
+                  matches: userConnectionCount.Matches || 0,
+                }}
+                onStatRefresh={async () => {
+                  try {
+                    const casteIdValue = parseInt(userData.casteId!);
+                    const [count, rec, conn, near, intMatch, unreadRes, all] = await Promise.all([
+                      userApi.userConnectionCount(userData.userId),
+                      userApi.getDailyRecommendation(casteIdValue, userData.gender, userData.decodedUserId),
+                      userApi.getNewConnections(casteIdValue, userData.gender, userData.decodedUserId),
+                      userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location, userData.decodedUserId),
+                      userApi.getInterestMatchesByUser(casteIdValue, userData.gender === 'M' ? 'F' : 'M', userData.userId).catch(() => ({ data: { data: [] } })),
+                      userApi.getUnreadNotificationCount(userData.userId),
+                      userApi.getAllCasteProfilesByGender(casteIdValue, userData.gender).catch(() => ({ data: { data: [] } })),
+                    ]);
+                    setUserConnectionCount(count.data?.data || {});
+                    setRecommendations(rec.data?.data?.slice(0, 7) || []);
+                    setNewConnection(conn.data?.data?.slice(0, 7) || []);
+                    setNearYouProfile(near.data?.data?.slice(0, 7) || []);
+                    setInterestMatches(intMatch.data?.data?.slice(0, 7) || []);
+                    setUnreadCount(unreadRes.data?.data);
+                    setAllMatches(all.data?.data?.slice(0, 7) || []);
+                    popup.success('Refreshed', 'All sections updated successfully.');
+                  } catch (e) {
+                    console.error(e);
+                    popup.error('Refresh failed', 'Please try again.');
+                  }
+                }}
+                onStatsPress={(key) => {
+                  if (key === 'matches') {
+                    router.push({ pathname: '/screens/ListUser', params: { type: 'connection' } });
+                  } else if (key === 'proposals') {
+                    router.push('/(tabs)/mailBox');
+                  } else if (key === 'views') {
+                    router.push({ pathname: '/screens/ListUser', params: { type: 'viewed' } });
+                  } else if (key === 'likes') {
+                    router.push({ pathname: '/screens/ListUser', params: { type: 'whoLikedMe' } });
+                  }
+                }}
+              />
 
-            <Box alignItems="center">
-              <Box
-                overflow="hidden"
-                width="100%"
-                height="100%"
-                p={0}
-                m={0}
-                borderTopLeftRadius={30}
-                borderTopRightRadius={30}
-                borderWidth={0}
-                _dark={{
-                  borderColor: 'coolGray.600',
-                  backgroundColor: 'gray.700',
-                }}
-                _web={{
-                  shadow: 2,
-                  borderWidth: 1,
-                }}
-                _light={{
-                  backgroundColor: 'transparent',
-                  borderColor: 'transparent',
-                }}
-                style={{
-                  borderWidth: 0,
-                }}
-              >
+              <Box alignItems="center">
+                <Box
+                  overflow="hidden"
+                  width="100%"
+                  height="100%"
+                  p={0}
+                  m={0}
+                  borderTopLeftRadius={30}
+                  borderTopRightRadius={30}
+                  borderWidth={0}
+                  _dark={{
+                    borderColor: 'coolGray.600',
+                    backgroundColor: 'gray.700',
+                  }}
+                  _web={{
+                    shadow: 2,
+                    borderWidth: 1,
+                  }}
+                  _light={{
+                    backgroundColor: 'transparent',
+                    borderColor: 'transparent',
+                  }}
+                  style={{
+                    borderWidth: 0,
+                  }}
+                >
 
-                <View>
-                  <ProfileCompletionWidget />
+                  <View>
+                    <ProfileCompletionWidget />
 
-                </View>
-                {/* <View style={{ paddingHorizontal: 5 ,  
+                  </View>
+                  {/* <View style={{ paddingHorizontal: 5 ,  
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.1,
@@ -728,179 +728,10 @@ const Index = () => {
       </View>
     </View>
   </LinearGradient> */}
-                {/* </View> */}
+                  {/* </View> */}
 
 
-                {/*  New Connections Section */}
-                <Box
-                  overflow="hidden"
-                  backgroundColor="transparent"
-                  px={2}
-                  pt={2}
-                  borderRadius={20}
-                  mt={3}
-                >
-                  <VStack space={3}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        router.push({
-                          pathname: '/screens/listProfile',
-                          params: {
-                            type: 'newConnections',
-                            title: 'New Connections'
-                          }
-                        });
-                      }}
-                    >
-                      <HStack justifyContent="space-between" alignItems="center">
-                        <VStack>
-                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
-                            New Connections
-                          </Text>
-                          <HStack alignItems="center" space={1}>
-                            <Icon name="bullseye" size={13} color="#8B3A3A" />
-                            <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
-                              Explore Profiles, Spark New Connections
-                            </Text>
-                          </HStack>
-                        </VStack>
-                        <Icon name="chevron-right" size={22} color="#94a3b8" />
-                      </HStack>
-                    </TouchableOpacity>
-
-                    <Center ml={1} mb={2}>
-                      {hasStarted === null || isLoading ? (
-                        <Box flexDirection="row" px={4} py={2}>
-                          {[1, 2, 3].map((item) => (
-                            <ProfileCardSmallSkeleton key={item} />
-                          ))}
-                        </Box>
-                      ) : (
-                        <SwiperProfile users={newConnection} onUserPress={(userId: any) => {
-                          router.push({
-                            pathname: '/screens/ProfileDetail',
-                            params: { userId: userId }
-                          });
-                        }} />
-                      )}
-                    </Center>
-                  </VStack>
-                </Box>
-
-                {/* Daily Recommendations Section */}
-                <Box
-                  overflow="hidden"
-                  backgroundColor="transparent"
-                  px={2}
-                  pt={2}
-                  borderRadius={20}
-                  mt={3}
-                >
-                  <VStack space={3}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        router.push({
-                          pathname: '/screens/listProfile',
-                          params: {
-                            type: 'dailyRecommendations',
-                            title: 'Daily Recommendations'
-                          }
-                        });
-                      }}
-                    >
-                      <HStack justifyContent="space-between" alignItems="center">
-                        <VStack>
-                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
-                            Daily Recommendations
-                          </Text>
-                          <HStack alignItems="center" space={1}>
-                            <Icon name="clock-o" size={13} color="#8B3A3A" />
-                            <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
-                              {timeLeft || 'Calculating...'} left to view these profiles
-                            </Text>
-                          </HStack>
-                        </VStack>
-                        <Icon name="chevron-right" size={22} color="#94a3b8" />
-                      </HStack>
-                    </TouchableOpacity>
-
-                    <Center marginLeft={1} marginBottom={2}>
-                      {isLoading ? (
-                        <Box flexDirection="row" px={4} py={2}>
-                          {[1, 2, 3].map((item) => (
-                            <ProfileCardSmallSkeleton key={item} />
-                          ))}
-                        </Box>
-                      ) : (
-                        <SwiperProfile users={recommendations} onUserPress={(userId: any) => {
-                          router.push({
-                            pathname: '/screens/ProfileDetail',
-                            params: { userId: userId }
-                          });
-                        }} />
-                      )}
-                    </Center>
-                  </VStack>
-                </Box>
-
-                {/* Near You Section */}
-                <Box
-                  overflow="hidden"
-                  backgroundColor="transparent"
-                  px={2}
-                  pt={2}
-                  borderRadius={20}
-                  mt={3}
-                >
-                  <VStack space={3}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        router.push({
-                          pathname: '/screens/listProfile',
-                          params: {
-                            type: 'nearYou',
-                            title: 'Profiles Near You'
-                          }
-                        });
-                      }}
-                    >
-                      <HStack justifyContent="space-between" alignItems="center">
-                        <VStack>
-                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
-                            Near You
-                          </Text>
-                          <HStack alignItems="center" space={1}>
-                            <Icon name="map-marker" size={13} color="#8B3A3A" />
-                            <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
-                              Discover profiles in your area
-                            </Text>
-                          </HStack>
-                        </VStack>
-                        <Icon name="chevron-right" size={22} color="#94a3b8" />
-                      </HStack>
-                    </TouchableOpacity>
-
-                    <Center marginLeft={1} marginBottom={2}>
-                      {isLoading ? (
-                        <Box flexDirection="row" px={4} py={2}>
-                          {[1, 2, 3].map((item) => (
-                            <ProfileCardSmallSkeleton key={item} />
-                          ))}
-                        </Box>
-                      ) : (
-                        <SwiperProfile users={nearYouProfile} onUserPress={(userId: any) => {
-                          router.push({
-                            pathname: '/screens/ProfileDetail',
-                            params: { userId: userId }
-                          });
-                        }} />
-                      )}
-                    </Center>
-                  </VStack>
-                </Box>
-
-                {/* Interest-Based Matches shelf */}
-                {interestMatches.length > 0 ? (
+                  {/*  New Connections Section */}
                   <Box
                     overflow="hidden"
                     backgroundColor="transparent"
@@ -915,8 +746,8 @@ const Index = () => {
                           router.push({
                             pathname: '/screens/listProfile',
                             params: {
-                              type: 'interestMatches',
-                              title: 'Matches Based on Interests'
+                              type: 'newConnections',
+                              title: 'New Connections'
                             }
                           });
                         }}
@@ -924,12 +755,231 @@ const Index = () => {
                         <HStack justifyContent="space-between" alignItems="center">
                           <VStack>
                             <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
-                              Matches Based on Interests
+                              New Connections
                             </Text>
                             <HStack alignItems="center" space={1}>
-                              <Icon name="heart" size={13} color="#8B3A3A" />
+                              <Icon name="bullseye" size={13} color="#8B3A3A" />
                               <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
-                                Profiles who share your passions
+                                Explore Profiles, Spark New Connections
+                              </Text>
+                            </HStack>
+                          </VStack>
+                          <Icon name="chevron-right" size={22} color="#94a3b8" />
+                        </HStack>
+                      </TouchableOpacity>
+
+                      <Center ml={1} mb={2}>
+                        {hasStarted === null || isLoading ? (
+                          <Box flexDirection="row" px={4} py={2}>
+                            {[1, 2, 3].map((item) => (
+                              <ProfileCardSmallSkeleton key={item} />
+                            ))}
+                          </Box>
+                        ) : (
+                          <SwiperProfile users={newConnection} onUserPress={(userId: any) => {
+                            router.push({
+                              pathname: '/screens/ProfileDetail',
+                              params: { userId: userId }
+                            });
+                          }} />
+                        )}
+                      </Center>
+                    </VStack>
+                  </Box>
+
+                  {/* Daily Recommendations Section */}
+                  <Box
+                    overflow="hidden"
+                    backgroundColor="transparent"
+                    px={2}
+                    pt={2}
+                    borderRadius={20}
+                    mt={3}
+                  >
+                    <VStack space={3}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          router.push({
+                            pathname: '/screens/listProfile',
+                            params: {
+                              type: 'dailyRecommendations',
+                              title: 'Daily Recommendations'
+                            }
+                          });
+                        }}
+                      >
+                        <HStack justifyContent="space-between" alignItems="center">
+                          <VStack>
+                            <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
+                              Daily Recommendations
+                            </Text>
+                            <HStack alignItems="center" space={1}>
+                              <Icon name="clock-o" size={13} color="#8B3A3A" />
+                              <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
+                                {timeLeft || 'Calculating...'} left to view these profiles
+                              </Text>
+                            </HStack>
+                          </VStack>
+                          <Icon name="chevron-right" size={22} color="#94a3b8" />
+                        </HStack>
+                      </TouchableOpacity>
+
+                      <Center marginLeft={1} marginBottom={2}>
+                        {isLoading ? (
+                          <Box flexDirection="row" px={4} py={2}>
+                            {[1, 2, 3].map((item) => (
+                              <ProfileCardSmallSkeleton key={item} />
+                            ))}
+                          </Box>
+                        ) : (
+                          <SwiperProfile users={recommendations} onUserPress={(userId: any) => {
+                            router.push({
+                              pathname: '/screens/ProfileDetail',
+                              params: { userId: userId }
+                            });
+                          }} />
+                        )}
+                      </Center>
+                    </VStack>
+                  </Box>
+
+                  {/* Near You Section */}
+                  <Box
+                    overflow="hidden"
+                    backgroundColor="transparent"
+                    px={2}
+                    pt={2}
+                    borderRadius={20}
+                    mt={3}
+                  >
+                    <VStack space={3}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          router.push({
+                            pathname: '/screens/listProfile',
+                            params: {
+                              type: 'nearYou',
+                              title: 'Profiles Near You'
+                            }
+                          });
+                        }}
+                      >
+                        <HStack justifyContent="space-between" alignItems="center">
+                          <VStack>
+                            <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
+                              Near You
+                            </Text>
+                            <HStack alignItems="center" space={1}>
+                              <Icon name="map-marker" size={13} color="#8B3A3A" />
+                              <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
+                                Discover profiles in your area
+                              </Text>
+                            </HStack>
+                          </VStack>
+                          <Icon name="chevron-right" size={22} color="#94a3b8" />
+                        </HStack>
+                      </TouchableOpacity>
+
+                      <Center marginLeft={1} marginBottom={2}>
+                        {isLoading ? (
+                          <Box flexDirection="row" px={4} py={2}>
+                            {[1, 2, 3].map((item) => (
+                              <ProfileCardSmallSkeleton key={item} />
+                            ))}
+                          </Box>
+                        ) : (
+                          <SwiperProfile users={nearYouProfile} onUserPress={(userId: any) => {
+                            router.push({
+                              pathname: '/screens/ProfileDetail',
+                              params: { userId: userId }
+                            });
+                          }} />
+                        )}
+                      </Center>
+                    </VStack>
+                  </Box>
+
+                  {/* Interest-Based Matches shelf */}
+                  {interestMatches.length > 0 ? (
+                    <Box
+                      overflow="hidden"
+                      backgroundColor="transparent"
+                      px={2}
+                      pt={2}
+                      borderRadius={20}
+                      mt={3}
+                    >
+                      <VStack space={3}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            router.push({
+                              pathname: '/screens/listProfile',
+                              params: {
+                                type: 'interestMatches',
+                                title: 'Matches Based on Interests'
+                              }
+                            });
+                          }}
+                        >
+                          <HStack justifyContent="space-between" alignItems="center">
+                            <VStack>
+                              <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
+                                Matches Based on Interests
+                              </Text>
+                              <HStack alignItems="center" space={1}>
+                                <Icon name="heart" size={13} color="#8B3A3A" />
+                                <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
+                                  Profiles who share your passions
+                                </Text>
+                              </HStack>
+                            </VStack>
+                            <Icon name="chevron-right" size={22} color="#94a3b8" />
+                          </HStack>
+                        </TouchableOpacity>
+                        <Center marginLeft={1} marginBottom={2}>
+                          <SwiperProfile users={interestMatches} onUserPress={(userId: any) => {
+                            router.push({
+                              pathname: '/screens/ProfileDetail',
+                              params: { userId: userId }
+                            });
+                          }} />
+                        </Center>
+                      </VStack>
+                    </Box>
+                  ) : null}
+
+                  {/* All Matches shelf — was the "All Matches" sub-tab inside the Explore tab's
+                    Search/Explore switcher; moved here so all passive browsing lives on Home,
+                    letting the Explore tab collapse down to just the filter form. */}
+                  <Box
+                    overflow="hidden"
+                    backgroundColor="transparent"
+                    px={2}
+                    pt={2}
+                    borderRadius={20}
+                    mt={3}
+                  >
+                    <VStack space={3}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          router.push({
+                            pathname: '/screens/listProfile',
+                            params: {
+                              type: 'allMatches',
+                              title: 'All Matches'
+                            }
+                          });
+                        }}
+                      >
+                        <HStack justifyContent="space-between" alignItems="center">
+                          <VStack>
+                            <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
+                              All Matches
+                            </Text>
+                            <HStack alignItems="center" space={1}>
+                              <Icon name="th-large" size={13} color="#8B3A3A" />
+                              <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
+                                Every profile in your community
                               </Text>
                             </HStack>
                           </VStack>
@@ -937,76 +987,26 @@ const Index = () => {
                         </HStack>
                       </TouchableOpacity>
                       <Center marginLeft={1} marginBottom={2}>
-                        <SwiperProfile users={interestMatches} onUserPress={(userId: any) => {
-                          router.push({
-                            pathname: '/screens/ProfileDetail',
-                            params: { userId: userId }
-                          });
-                        }} />
+                        {isLoading ? (
+                          <Box flexDirection="row" px={4} py={2}>
+                            {[1, 2, 3].map((item) => (
+                              <ProfileCardSmallSkeleton key={item} />
+                            ))}
+                          </Box>
+                        ) : (
+                          <SwiperProfile users={allMatches} onUserPress={(userId: any) => {
+                            router.push({
+                              pathname: '/screens/ProfileDetail',
+                              params: { userId: userId }
+                            });
+                          }} />
+                        )}
                       </Center>
                     </VStack>
                   </Box>
-                ) : null}
 
-                {/* All Matches shelf — was the "All Matches" sub-tab inside the Explore tab's
-                    Search/Explore switcher; moved here so all passive browsing lives on Home,
-                    letting the Explore tab collapse down to just the filter form. */}
-                <Box
-                  overflow="hidden"
-                  backgroundColor="transparent"
-                  px={2}
-                  pt={2}
-                  borderRadius={20}
-                  mt={3}
-                >
-                  <VStack space={3}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        router.push({
-                          pathname: '/screens/listProfile',
-                          params: {
-                            type: 'allMatches',
-                            title: 'All Matches'
-                          }
-                        });
-                      }}
-                    >
-                      <HStack justifyContent="space-between" alignItems="center">
-                        <VStack>
-                          <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
-                            All Matches
-                          </Text>
-                          <HStack alignItems="center" space={1}>
-                            <Icon name="th-large" size={13} color="#8B3A3A" />
-                            <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
-                              Every profile in your community
-                            </Text>
-                          </HStack>
-                        </VStack>
-                        <Icon name="chevron-right" size={22} color="#94a3b8" />
-                      </HStack>
-                    </TouchableOpacity>
-                    <Center marginLeft={1} marginBottom={2}>
-                      {isLoading ? (
-                        <Box flexDirection="row" px={4} py={2}>
-                          {[1, 2, 3].map((item) => (
-                            <ProfileCardSmallSkeleton key={item} />
-                          ))}
-                        </Box>
-                      ) : (
-                        <SwiperProfile users={allMatches} onUserPress={(userId: any) => {
-                          router.push({
-                            pathname: '/screens/ProfileDetail',
-                            params: { userId: userId }
-                          });
-                        }} />
-                      )}
-                    </Center>
-                  </VStack>
-                </Box>
-
-                {/* last convo section  */}
-                {/* <Box
+                  {/* last convo section  */}
+                  {/* <Box
                   overflow="hidden"
                   backgroundColor="transparent"
                   borderColor="black"
@@ -1051,18 +1051,40 @@ const Index = () => {
                   </VStack>
                 </Box> */}
 
-                <View>
-                  <QuickAction />
-                </View>
+                  <View>
+                    <QuickAction />
+                  </View>
 
-                {bannerData.length > 0 ? (
-                  bannerData.map((banner: any) => (
-                    <TouchableOpacity
-                      key={banner.id}
-                      onPress={() => handleBannerPress(banner)}
-                      activeOpacity={0.8}
+                  {bannerData.length > 0 ? (
+                    bannerData.map((banner: any) => (
+                      <TouchableOpacity
+                        key={banner.id}
+                        onPress={() => handleBannerPress(banner)}
+                        activeOpacity={0.8}
+                        style={{
+                          width: '100%',
+                          height: 150,
+                          marginVertical: 10,
+                          marginTop: 10,
+                          padding: 5,
+                          marginBottom: 25,
+                        }}
+                      >
+                        <Image
+                          source={{ uri: banner.imageUrl }}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            resizeMode: 'cover',
+                            borderRadius: 10,
+                          }}
+                        />
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Box
+                      width="100%"
                       style={{
-                        width: '100%',
                         height: 150,
                         marginVertical: 10,
                         marginTop: 10,
@@ -1071,7 +1093,7 @@ const Index = () => {
                       }}
                     >
                       <Image
-                        source={{ uri: banner.imageUrl }}
+                        source={require('../../../assets/images/homebanner.webp')}
                         style={{
                           width: '100%',
                           height: '100%',
@@ -1079,33 +1101,11 @@ const Index = () => {
                           borderRadius: 10,
                         }}
                       />
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <Box
-                    width="100%"
-                    style={{
-                      height: 150,
-                      marginVertical: 10,
-                      marginTop: 10,
-                      padding: 5,
-                      marginBottom: 25,
-                    }}
-                  >
-                    <Image
-                      source={require('../../../assets/images/homebanner.webp')}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        resizeMode: 'cover',
-                        borderRadius: 10,
-                      }}
-                    />
-                  </Box>
-                )}
+                    </Box>
+                  )}
 
 
-                {/* <View style={styles.section}>
+                  {/* <View style={styles.section}>
                   <View style={{ paddingHorizontal: 7, marginBottom: 15 }}>
                     <HStack justifyContent="space-between" alignItems="center">
                       <VStack>
@@ -1160,13 +1160,13 @@ const Index = () => {
                   />
 
                 </View> */}
-                <View style={{ flex: 1, marginBottom: 70 }}>
-                  <FooterMessage />
-                </View>
+                  <View style={{ flex: 1, marginBottom: 70 }}>
+                    <FooterMessage />
+                  </View>
+                </Box>
               </Box>
-            </Box>
-          </View>
-        </ScrollView>
+            </View>
+          </ScrollView>
         </LinearGradient>
       </SafeAreaView>
 

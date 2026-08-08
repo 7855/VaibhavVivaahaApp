@@ -405,10 +405,10 @@ export default function ListUser() {
                         {type === 'viewed'
                             ? 'Upgrade to Silver or above to see who has viewed your profile.'
                             : type === 'whoLikedMe'
-                            ? 'Upgrade to Starter or above to see who has liked your profile.'
-                            : type === 'connection'
-                            ? 'Upgrade to access your matched connections and chat with them.'
-                            : 'Upgrade your plan to unlock this feature.'}
+                                ? 'Upgrade to Starter or above to see who has liked your profile.'
+                                : type === 'connection'
+                                    ? 'Upgrade to access your matched connections and chat with them.'
+                                    : 'Upgrade your plan to unlock this feature.'}
                     </Text>
                     <TouchableOpacity
                         onPress={buildUpgradeAction({

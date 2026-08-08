@@ -181,7 +181,7 @@ export default function TrustVerificationScreen() {
           next.income = toStatus(d?.incomeVerified === true, d?.latestSubmission);
         }
         setStatuses(next);
-      } catch (_) {}
+      } catch (_) { }
       finally {
         if (alive) setLoading(false);
       }

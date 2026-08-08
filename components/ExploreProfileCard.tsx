@@ -31,10 +31,10 @@ const ExploreProfileCard: React.FC<ExploreProfileCardProps> = ({
           imageUrl
             ? { uri: imageUrl }
             : gender === 'M'
-            ? require('../assets/images/avatarMen.png')
-            : gender === 'F'
-            ? require('../assets/images/avatarWomen.png')
-            : require('../assets/images/defaultAvatar.png')
+              ? require('../assets/images/avatarMen.png')
+              : gender === 'F'
+                ? require('../assets/images/avatarWomen.png')
+                : require('../assets/images/defaultAvatar.png')
         }
         style={styles.image}
         imageStyle={styles.imageRadius}

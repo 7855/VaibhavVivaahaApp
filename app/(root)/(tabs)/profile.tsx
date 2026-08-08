@@ -535,9 +535,9 @@ const ProfileScreen = () => {
   // ─── Render ────────────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#d0dfeb' }} edges={['top']}>
-        <LinearGradient
-          colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
-          locations={[0, 0.3, 0.6, 1.0]}
+      <LinearGradient
+        colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
+        locations={[0, 0.3, 0.6, 1.0]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={{ flex: 1 }}
@@ -545,421 +545,421 @@ const ProfileScreen = () => {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
           {/* Top bar removed — settings icon is next to name */}
 
-        {/* ─── HERO ─── */}
-        <View style={s.hero}>
-          <View style={s.heroRow}>
-            {/* Avatar */}
-            <TouchableOpacity onPress={handlePickImage} disabled={imageUploading} style={s.avatarBox}>
-              <RotatingRing />
-              <View style={s.avatarImg}>
-                {userDetails?.profileImage ? (
-                  <Image source={{ uri: userDetails.profileImage }} style={{ width: '100%', height: '100%' }} />
-                ) : (
-                  <Image
-                    source={
-                      userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
-                      userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
-                        require('../../../assets/images/defaultAvatar.png')
-                    }
-                    style={{ width: '100%', height: '100%' }}
-                    resizeMode="cover"
-                  />
-                )}
-              </View>
-              {imageUploading && (
-                <View style={{ ...StyleSheet.absoluteFillObject, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 5 }}>
-                  <ActivityIndicator size="small" color="#fff" />
+          {/* ─── HERO ─── */}
+          <View style={s.hero}>
+            <View style={s.heroRow}>
+              {/* Avatar */}
+              <TouchableOpacity onPress={handlePickImage} disabled={imageUploading} style={s.avatarBox}>
+                <RotatingRing />
+                <View style={s.avatarImg}>
+                  {userDetails?.profileImage ? (
+                    <Image source={{ uri: userDetails.profileImage }} style={{ width: '100%', height: '100%' }} />
+                  ) : (
+                    <Image
+                      source={
+                        userDetails?.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
+                          userDetails?.gender === 'F' ? require('../../../assets/images/avatarWomen.png') :
+                            require('../../../assets/images/defaultAvatar.png')
+                      }
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                  )}
                 </View>
-              )}
-              <View style={s.avatarEdit}>
-                <MaterialIcons name="edit" size={12} color={C.ink2} />
-              </View>
-              <View style={s.onlineDot} />
-            </TouchableOpacity>
-
-            {/* Info */}
-            <View style={s.heroInfo}>
-              <Text style={s.heroName}>
-                {userDetails?.firstName} {userDetails?.lastName} <Text style={s.heroAge}>({userDetails?.age || ''})</Text>
-              </Text>
-              <View style={s.heroLocation}>
-                <MaterialIcons name="place" size={14} color={C.brand} />
-                <Text style={s.heroLocationText}>{userDetails?.location || 'Location not set'}</Text>
-              </View>
-              <View style={s.heroTags}>
-                <LinearGradient colors={[C.amber, C.amberDeep]} style={s.tagPillAmber}>
-                  <Text style={{ fontSize: 10, marginRight: 3 }}>♛</Text>
-                  <Text style={s.tagPillAmberText}>{planTitle}</Text>
-                </LinearGradient>
-                {trustCount > 1 && (
-                  <LinearGradient colors={[C.brand, C.brandDeep]} style={s.tagPillBlue}>
-                    <MaterialIcons name="verified" size={11} color="#fff" />
-                    <Text style={s.tagPillBlueText}>Verified</Text>
-                  </LinearGradient>
-                )}
-
-                {planEnd && planTitle !== 'Free' && (
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100 }}>
-                    <Text style={{ fontSize: 9, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: -0.1 }}>
-                      Until {new Date(planEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
-                    </Text>
+                {imageUploading && (
+                  <View style={{ ...StyleSheet.absoluteFillObject, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 5 }}>
+                    <ActivityIndicator size="small" color="#fff" />
                   </View>
                 )}
-              </View>
-            </View>
-
-            {/* Settings */}
-            <TouchableOpacity onPress={() => router.push('/screens/settingsPage' as any)} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2, alignSelf: 'center', flexShrink: 0 }}>
-              <MaterialIcons name="settings" size={20} color={C.ink3} />
-            </TouchableOpacity>
-          </View>
-
-          {/* ─── STATS ROW ─── */}
-          <View style={s.statsRow}>
-            {/* Profile Score with Ring */}
-            <View style={s.statCell}>
-              <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
-                <ProgressRing size={48} strokeWidth={3.5} percentage={profileScore} color={C.brand} bgColor="rgba(31,127,229,0.12)" />
-                <Text style={{ position: 'absolute', fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{profileScore}%</Text>
-              </View>
-              <Text style={s.statLabel}>Profile</Text>
-            </View>
-
-            {/* Trust Score with Ring — tappable */}
-            <TouchableOpacity style={s.statCell} activeOpacity={0.7} onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}>
-              <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
-                <ProgressRing size={48} strokeWidth={3.5} percentage={Math.round((trustCount / 4) * 100)} color={C.green} bgColor="rgba(46,154,92,0.12)" />
-                <Text style={{ position: 'absolute', fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{trustCount}/4</Text>
-              </View>
-              <Text style={s.statLabel}>Trust</Text>
-            </TouchableOpacity>
-
-            {/* Requests */}
-            <View style={s.statCell}>
-              <View style={{ height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={s.statNum}>{requestQuota?.unlimited ? '∞' : (requestQuota?.remaining ?? '—')}</Text>
-              </View>
-              <Text style={s.statLabel}>Requests</Text>
-            </View>
-
-            {/* Saved You — Gold+ gated */}
-            <TouchableOpacity style={[s.statCell, { borderRightWidth: 0 }]} activeOpacity={0.7} onPress={() => {
-              if (isGoldPlus) {
-                router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any);
-              } else {
-                popup.premiumRequired('Upgrade to Gold to see who shortlisted your profile.', buildUpgradeAction({ planTitle, featureName: 'Who Shortlisted Me', minPlan: 'Gold' }));
-              }
-            }}>
-              <View style={{ height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={s.statNum}>{stats?.Shortlisted || 0}</Text>
-              </View>
-              <Text style={s.statLabel}>Saved</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ─── CONTENT ─── */}
-        <View style={s.content}>
-
-          {/* Boost Banner */}
-          {boostData?.isBoostActive ? (
-            <LinearGradient colors={['#2d1f3d', '#1e1030']} style={s.boostBanner}>
-              <View style={s.boostIcon}><Ionicons name="rocket" size={18} color="#4a2e06" /></View>
-              <View style={{ flex: 1, zIndex: 2 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={s.liveDot} />
-                  <Text style={s.boostTitle}>Boost is live</Text>
+                <View style={s.avatarEdit}>
+                  <MaterialIcons name="edit" size={12} color={C.ink2} />
                 </View>
-                <Text style={s.boostSub}>10× visibility · <Text style={{ color: '#fff', fontFamily: 'Rubik-Medium' }}>{countdown}</Text> left</Text>
+                <View style={s.onlineDot} />
+              </TouchableOpacity>
+
+              {/* Info */}
+              <View style={s.heroInfo}>
+                <Text style={s.heroName}>
+                  {userDetails?.firstName} {userDetails?.lastName} <Text style={s.heroAge}>({userDetails?.age || ''})</Text>
+                </Text>
+                <View style={s.heroLocation}>
+                  <MaterialIcons name="place" size={14} color={C.brand} />
+                  <Text style={s.heroLocationText}>{userDetails?.location || 'Location not set'}</Text>
+                </View>
+                <View style={s.heroTags}>
+                  <LinearGradient colors={[C.amber, C.amberDeep]} style={s.tagPillAmber}>
+                    <Text style={{ fontSize: 10, marginRight: 3 }}>♛</Text>
+                    <Text style={s.tagPillAmberText}>{planTitle}</Text>
+                  </LinearGradient>
+                  {trustCount > 1 && (
+                    <LinearGradient colors={[C.brand, C.brandDeep]} style={s.tagPillBlue}>
+                      <MaterialIcons name="verified" size={11} color="#fff" />
+                      <Text style={s.tagPillBlueText}>Verified</Text>
+                    </LinearGradient>
+                  )}
+
+                  {planEnd && planTitle !== 'Free' && (
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100 }}>
+                      <Text style={{ fontSize: 9, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: -0.1 }}>
+                        Until {new Date(planEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </LinearGradient>
-          ) : canBoost || (boostData?.creditsPerMonth > 0) ? (
-            <TouchableOpacity onPress={handleBoost} disabled={boostLoading} activeOpacity={0.85}>
+
+              {/* Settings */}
+              <TouchableOpacity onPress={() => router.push('/screens/settingsPage' as any)} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2, alignSelf: 'center', flexShrink: 0 }}>
+                <MaterialIcons name="settings" size={20} color={C.ink3} />
+              </TouchableOpacity>
+            </View>
+
+            {/* ─── STATS ROW ─── */}
+            <View style={s.statsRow}>
+              {/* Profile Score with Ring */}
+              <View style={s.statCell}>
+                <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
+                  <ProgressRing size={48} strokeWidth={3.5} percentage={profileScore} color={C.brand} bgColor="rgba(31,127,229,0.12)" />
+                  <Text style={{ position: 'absolute', fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{profileScore}%</Text>
+                </View>
+                <Text style={s.statLabel}>Profile</Text>
+              </View>
+
+              {/* Trust Score with Ring — tappable */}
+              <TouchableOpacity style={s.statCell} activeOpacity={0.7} onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}>
+                <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
+                  <ProgressRing size={48} strokeWidth={3.5} percentage={Math.round((trustCount / 4) * 100)} color={C.green} bgColor="rgba(46,154,92,0.12)" />
+                  <Text style={{ position: 'absolute', fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{trustCount}/4</Text>
+                </View>
+                <Text style={s.statLabel}>Trust</Text>
+              </TouchableOpacity>
+
+              {/* Requests */}
+              <View style={s.statCell}>
+                <View style={{ height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={s.statNum}>{requestQuota?.unlimited ? '∞' : (requestQuota?.remaining ?? '—')}</Text>
+                </View>
+                <Text style={s.statLabel}>Requests</Text>
+              </View>
+
+              {/* Saved You — Gold+ gated */}
+              <TouchableOpacity style={[s.statCell, { borderRightWidth: 0 }]} activeOpacity={0.7} onPress={() => {
+                if (isGoldPlus) {
+                  router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any);
+                } else {
+                  popup.premiumRequired('Upgrade to Gold to see who shortlisted your profile.', buildUpgradeAction({ planTitle, featureName: 'Who Shortlisted Me', minPlan: 'Gold' }));
+                }
+              }}>
+                <View style={{ height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={s.statNum}>{stats?.Shortlisted || 0}</Text>
+                </View>
+                <Text style={s.statLabel}>Saved</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ─── CONTENT ─── */}
+          <View style={s.content}>
+
+            {/* Boost Banner */}
+            {boostData?.isBoostActive ? (
               <LinearGradient colors={['#2d1f3d', '#1e1030']} style={s.boostBanner}>
                 <View style={s.boostIcon}><Ionicons name="rocket" size={18} color="#4a2e06" /></View>
                 <View style={{ flex: 1, zIndex: 2 }}>
-                  <Text style={s.boostTitle}>{boostLoading ? 'Boosting...' : 'Boost your profile'}</Text>
-                  <Text style={s.boostSub}>Get 10× visibility for 24 hours</Text>
-                </View>
-                <View style={s.boostCta}>
-                  <Text style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{boostData?.remainingCredits > 0 ? `${boostData.remainingCredits} left` : '₹149'}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={s.liveDot} />
+                    <Text style={s.boostTitle}>Boost is live</Text>
+                  </View>
+                  <Text style={s.boostSub}>10× visibility · <Text style={{ color: '#fff', fontFamily: 'Rubik-Medium' }}>{countdown}</Text> left</Text>
                 </View>
               </LinearGradient>
-            </TouchableOpacity>
-          ) : null}
+            ) : canBoost || (boostData?.creditsPerMonth > 0) ? (
+              <TouchableOpacity onPress={handleBoost} disabled={boostLoading} activeOpacity={0.85}>
+                <LinearGradient colors={['#2d1f3d', '#1e1030']} style={s.boostBanner}>
+                  <View style={s.boostIcon}><Ionicons name="rocket" size={18} color="#4a2e06" /></View>
+                  <View style={{ flex: 1, zIndex: 2 }}>
+                    <Text style={s.boostTitle}>{boostLoading ? 'Boosting...' : 'Boost your profile'}</Text>
+                    <Text style={s.boostSub}>Get 10× visibility for 24 hours</Text>
+                  </View>
+                  <View style={s.boostCta}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{boostData?.remainingCredits > 0 ? `${boostData.remainingCredits} left` : '₹149'}</Text>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : null}
 
-          {/* Quick Links */}
-          <Text style={s.sectionTitle}>Your Matrimony Profile</Text>
+            {/* Quick Links */}
+            <Text style={s.sectionTitle}>Your Matrimony Profile</Text>
 
-          <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'shortlisted', title: 'Saved Profiles' } } as any)}>
-            <View style={[s.listCardIcon, { backgroundColor: C.pinkSoft }]}><Text style={{ fontSize: 22 }}>💗</Text></View>
-            <View style={s.listCardBody}>
-              <Text style={s.listCardTitle}>Saved Profiles</Text>
-              <Text style={s.listCardSub}>Your shortlisted profiles</Text>
-            </View>
-            <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'viewed', title: 'Who Viewed You' } } as any)}>
-            <View style={[s.listCardIcon, { backgroundColor: C.lavenderSoft }]}><Text style={{ fontSize: 22 }}>👀</Text></View>
-            <View style={s.listCardBody}>
-              <Text style={s.listCardTitle}>Who Viewed You</Text>
-              <Text style={s.listCardSub}>{stats?.Admirers || 0} profiles this week</Text>
-            </View>
-            <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
-          </TouchableOpacity>
-
-          {isGoldPlus && (
-            <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any)}>
-              <View style={[s.listCardIcon, { backgroundColor: C.amberSoft }]}><Text style={{ fontSize: 22 }}>⭐</Text></View>
+            <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'shortlisted', title: 'Saved Profiles' } } as any)}>
+              <View style={[s.listCardIcon, { backgroundColor: C.pinkSoft }]}><Text style={{ fontSize: 22 }}>💗</Text></View>
               <View style={s.listCardBody}>
-                <Text style={s.listCardTitle}>Who Shortlisted You</Text>
-                <Text style={s.listCardSub}>{stats?.Shortlisted || 0} profiles saved you</Text>
+                <Text style={s.listCardTitle}>Saved Profiles</Text>
+                <Text style={s.listCardSub}>Your shortlisted profiles</Text>
               </View>
               <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
             </TouchableOpacity>
-          )}
 
-          {/* Contact Reveals — only plans with a numeric VIEW_PERSONAL_INFO quota (Classic) see
+            <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'viewed', title: 'Who Viewed You' } } as any)}>
+              <View style={[s.listCardIcon, { backgroundColor: C.lavenderSoft }]}><Text style={{ fontSize: 22 }}>👀</Text></View>
+              <View style={s.listCardBody}>
+                <Text style={s.listCardTitle}>Who Viewed You</Text>
+                <Text style={s.listCardSub}>{stats?.Admirers || 0} profiles this week</Text>
+              </View>
+              <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
+            </TouchableOpacity>
+
+            {isGoldPlus && (
+              <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any)}>
+                <View style={[s.listCardIcon, { backgroundColor: C.amberSoft }]}><Text style={{ fontSize: 22 }}>⭐</Text></View>
+                <View style={s.listCardBody}>
+                  <Text style={s.listCardTitle}>Who Shortlisted You</Text>
+                  <Text style={s.listCardSub}>{stats?.Shortlisted || 0} profiles saved you</Text>
+                </View>
+                <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
+              </TouchableOpacity>
+            )}
+
+            {/* Contact Reveals — only plans with a numeric VIEW_PERSONAL_INFO quota (Classic) see
               this; Free has no access at all, Silver+ is unlimited so there's nothing to track.
               Previously this count only ever surfaced after already spending a reveal on some
               profile's Contact card — no way to check it proactively. Tapping it now opens the
               actual list of who those reveals went to, not just an upgrade nudge. */}
-          {contactRevealStatus?.applicable && !contactRevealStatus?.unlimited && (() => {
-            const isExhausted = contactRevealStatus.remaining <= 0;
-            const isLow = !isExhausted && contactRevealStatus.remaining <= Math.max(1, Math.round(contactRevealStatus.total * 0.1));
-            const isUrgent = isExhausted || isLow;
-            return (
-              <TouchableOpacity
-                style={[s.listCard, isUrgent && { borderWidth: 1, borderColor: C.pinkSoft }]}
-                activeOpacity={0.85}
-                onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'revealedContacts' } } as any)}
-              >
-                <View style={[s.listCardIcon, { backgroundColor: isUrgent ? C.pinkSoft : C.brandSoft }]}><Text style={{ fontSize: 22 }}>📞</Text></View>
-                <View style={s.listCardBody}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={s.listCardTitle}>Contact Reveals</Text>
-                    {isUrgent && (
-                      <View style={{ backgroundColor: C.pink, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 100 }}>
-                        <Text style={{ fontSize: 9.5, fontFamily: 'Rubik-Bold', color: '#fff', letterSpacing: 0.2 }}>
-                          {isExhausted ? 'LIMIT REACHED' : 'RUNNING LOW'}
-                        </Text>
-                      </View>
-                    )}
+            {contactRevealStatus?.applicable && !contactRevealStatus?.unlimited && (() => {
+              const isExhausted = contactRevealStatus.remaining <= 0;
+              const isLow = !isExhausted && contactRevealStatus.remaining <= Math.max(1, Math.round(contactRevealStatus.total * 0.1));
+              const isUrgent = isExhausted || isLow;
+              return (
+                <TouchableOpacity
+                  style={[s.listCard, isUrgent && { borderWidth: 1, borderColor: C.pinkSoft }]}
+                  activeOpacity={0.85}
+                  onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'revealedContacts' } } as any)}
+                >
+                  <View style={[s.listCardIcon, { backgroundColor: isUrgent ? C.pinkSoft : C.brandSoft }]}><Text style={{ fontSize: 22 }}>📞</Text></View>
+                  <View style={s.listCardBody}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={s.listCardTitle}>Contact Reveals</Text>
+                      {isUrgent && (
+                        <View style={{ backgroundColor: C.pink, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 100 }}>
+                          <Text style={{ fontSize: 9.5, fontFamily: 'Rubik-Bold', color: '#fff', letterSpacing: 0.2 }}>
+                            {isExhausted ? 'LIMIT REACHED' : 'RUNNING LOW'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={s.listCardSub}>
+                      {isExhausted
+                        ? `All ${contactRevealStatus.total} used — upgrade for unlimited`
+                        : `${contactRevealStatus.remaining} of ${contactRevealStatus.total} remaining`}
+                    </Text>
+                    <View style={{ height: 5, borderRadius: 3, backgroundColor: C.bg, marginTop: 7, overflow: 'hidden' }}>
+                      <View
+                        style={{
+                          height: '100%',
+                          borderRadius: 3,
+                          width: `${Math.min(100, Math.round((contactRevealStatus.used / contactRevealStatus.total) * 100))}%`,
+                          backgroundColor: isUrgent ? C.pink : C.brand,
+                        }}
+                      />
+                    </View>
                   </View>
-                  <Text style={s.listCardSub}>
-                    {isExhausted
-                      ? `All ${contactRevealStatus.total} used — upgrade for unlimited`
-                      : `${contactRevealStatus.remaining} of ${contactRevealStatus.total} remaining`}
-                  </Text>
-                  <View style={{ height: 5, borderRadius: 3, backgroundColor: C.bg, marginTop: 7, overflow: 'hidden' }}>
-                    <View
-                      style={{
-                        height: '100%',
-                        borderRadius: 3,
-                        width: `${Math.min(100, Math.round((contactRevealStatus.used / contactRevealStatus.total) * 100))}%`,
-                        backgroundColor: isUrgent ? C.pink : C.brand,
-                      }}
-                    />
+                  <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
+                </TouchableOpacity>
+              );
+            })()}
+
+            {/* ─── YOUR DETAILS ─── */}
+            <Text style={s.sectionTitle}>Your Details</Text>
+
+
+
+            {/* Personal */}
+            <SectionCard emoji="👤" title="Personal" subtitle={`${Object.values(personalDetail?.[0]?.data || {}).filter(v => v && v !== '-').length} fields`} onEdit={() => handleEdit(personalDetail?.[0])}>
+              <View style={s.detailGrid}>
+                <DetailField label="Gender" value={userDetails?.gender === 'M' ? 'Male' : 'Female'} />
+                <DetailField label="DOB" value={userDetails?.dob} />
+                <DetailField label="Marital" value={basic.marital_status} />
+                <DetailField label="Height" value={detail.height} />
+                <DetailField label="Weight" value={detail.weight} />
+                <DetailField label="Mother tongue" value={basic.mother_language || detail.languages} />
+                <DetailField label="Physical status" value={basic.physical_status} full />
+                <DetailField label="Address" value={detail.presentAddress} full />
+                <DetailField label="Native place" value={detail.permanentAddress} full />
+              </View>
+            </SectionCard>
+
+            {/* Hobbies */}
+            <SectionCard emoji="🎨" title="Interests & Hobbies" subtitle={`${hobbies.length} selected`} onEdit={() => {
+              if (isParent) { popup.error('Not allowed', 'Family members cannot edit interests.'); return; }
+              setInterestsEditVisible(true);
+            }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
+                {hobbies.length > 0 ? hobbies.map((h: string, i: number) => (
+                  <View key={i} style={s.chip}>
+                    <Text style={{ fontSize: 13, marginRight: 4 }}>{HOBBY_EMOJI[h.toLowerCase()] || '🎯'}</Text>
+                    <Text style={s.chipText}>{h.charAt(0).toUpperCase() + h.slice(1)}</Text>
                   </View>
-                </View>
-                <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
-              </TouchableOpacity>
-            );
-          })()}
-
-          {/* ─── YOUR DETAILS ─── */}
-          <Text style={s.sectionTitle}>Your Details</Text>
-
-
-
-          {/* Personal */}
-          <SectionCard emoji="👤" title="Personal" subtitle={`${Object.values(personalDetail?.[0]?.data || {}).filter(v => v && v !== '-').length} fields`} onEdit={() => handleEdit(personalDetail?.[0])}>
-            <View style={s.detailGrid}>
-              <DetailField label="Gender" value={userDetails?.gender === 'M' ? 'Male' : 'Female'} />
-              <DetailField label="DOB" value={userDetails?.dob} />
-              <DetailField label="Marital" value={basic.marital_status} />
-              <DetailField label="Height" value={detail.height} />
-              <DetailField label="Weight" value={detail.weight} />
-              <DetailField label="Mother tongue" value={basic.mother_language || detail.languages} />
-              <DetailField label="Physical status" value={basic.physical_status} full />
-              <DetailField label="Address" value={detail.presentAddress} full />
-              <DetailField label="Native place" value={detail.permanentAddress} full />
-            </View>
-          </SectionCard>
-
-          {/* Hobbies */}
-          <SectionCard emoji="🎨" title="Interests & Hobbies" subtitle={`${hobbies.length} selected`} onEdit={() => {
-            if (isParent) { popup.error('Not allowed', 'Family members cannot edit interests.'); return; }
-            setInterestsEditVisible(true);
-          }}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
-              {hobbies.length > 0 ? hobbies.map((h: string, i: number) => (
-                <View key={i} style={s.chip}>
-                  <Text style={{ fontSize: 13, marginRight: 4 }}>{HOBBY_EMOJI[h.toLowerCase()] || '🎯'}</Text>
-                  <Text style={s.chipText}>{h.charAt(0).toUpperCase() + h.slice(1)}</Text>
-                </View>
-              )) : (
-                <Text style={{ fontSize: 12, color: C.ink4, fontStyle: 'italic' }}>No interests added yet</Text>
-              )}
-            </View>
-          </SectionCard>
-
-          {/* Contact */}
-          <LinearGradient colors={[C.brand, C.brandDeep]} style={s.contactCard}>
-            <View style={s.contactHead}>
-              <View style={s.contactBadge}><MaterialIcons name="verified" size={10} color="#fff" /><Text style={{ fontSize: 10, fontFamily: 'Rubik-Medium', color: '#fff', marginLeft: 4 }}>VERIFIED</Text></View>
-              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>Mobile · Primary</Text>
-            </View>
-            <View style={s.contactBody}>
-              <Text style={s.contactNum}>{userDetails?.mobile || '—'}</Text>
-              <TouchableOpacity style={s.contactBtn}>
-                <MaterialIcons name="phone" size={17} color={C.brand} />
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-
-          {/* Religious */}
-          <SectionCard emoji="🕉️" title="Religious" subtitle="5 fields" onEdit={() => handleEdit(personalDetail?.[1])}>
-            <View style={s.detailGrid}>
-              <DetailField label="Religion" value="Hindu" />
-              <DetailField label="Caste" value="SC" />
-              <DetailField label="Nakshatra" value={astro.star} />
-              <DetailField label="Moon sign" value={astro.moon_sign} />
-              <DetailField label="Dosham" value={astro.dosham} full />
-            </View>
-          </SectionCard>
-
-          {/* Horoscope */}
-          <SectionCard emoji="🔮" title="Birth Chart" subtitle={horoscopeImage ? 'Uploaded' : 'Not uploaded'}>
-            {horoscopeUploading ? (
-              <View style={{ alignItems: 'center', paddingVertical: 30 }}>
-                <ActivityIndicator size="large" color={C.brand} />
-                <Text style={{ color: C.ink4, fontSize: 12, marginTop: 8 }}>Uploading...</Text>
+                )) : (
+                  <Text style={{ fontSize: 12, color: C.ink4, fontStyle: 'italic' }}>No interests added yet</Text>
+                )}
               </View>
-            ) : horoscopeImage ? (
-              <View>
-                <Image source={{ uri: horoscopeImage }} style={{ width: '100%', height: 200, borderRadius: 14 }} resizeMode="contain" />
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                  <TouchableOpacity style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: '#f6f8fa', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 5 }} onPress={handleAddHoroscope}>
-                    <MaterialIcons name="upload" size={14} color={C.ink3} />
-                    <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: C.ink2 }}>Update</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: '#f6f8fa', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 5 }} onPress={handleDeleteHoroscope}>
-                    <MaterialIcons name="delete-outline" size={14} color="#dc2626" />
-                    <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: '#dc2626' }}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
+            </SectionCard>
+
+            {/* Contact */}
+            <LinearGradient colors={[C.brand, C.brandDeep]} style={s.contactCard}>
+              <View style={s.contactHead}>
+                <View style={s.contactBadge}><MaterialIcons name="verified" size={10} color="#fff" /><Text style={{ fontSize: 10, fontFamily: 'Rubik-Medium', color: '#fff', marginLeft: 4 }}>VERIFIED</Text></View>
+                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>Mobile · Primary</Text>
               </View>
-            ) : (
-              <TouchableOpacity onPress={handleAddHoroscope} style={{ alignItems: 'center', paddingVertical: 24, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.brand, borderRadius: 14, backgroundColor: C.brandSoft }}>
-                <MaterialIcons name="add-photo-alternate" size={28} color={C.brand} />
-                <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: C.brand, marginTop: 6 }}>Upload Horoscope</Text>
-                <Text style={{ fontSize: 10, color: C.ink4, marginTop: 2 }}>Rasi chart or Jathagam image</Text>
-              </TouchableOpacity>
-            )}
-          </SectionCard>
+              <View style={s.contactBody}>
+                <Text style={s.contactNum}>{userDetails?.mobile || '—'}</Text>
+                <TouchableOpacity style={s.contactBtn}>
+                  <MaterialIcons name="phone" size={17} color={C.brand} />
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
 
-          {/* Work & Education */}
-          <SectionCard emoji="💼" title="Work & Education" subtitle="6 fields" onEdit={() => handleEdit(personalDetail?.[2])}>
-            <View style={s.detailGrid}>
-              <DetailField label="Education" value={detail.degree} />
-              <DetailField label="Specialization" value={detail.educationInDetail} />
-              <DetailField label="Occupation" value={detail.occupation} />
-              <DetailField label="Sector" value={detail.employedAt === 'GOVT' ? 'Government' : detail.employedAt === 'PRIVATE' ? 'Private' : detail.employedAt === 'SELF' ? 'Self Employed' : detail.employedAt || '-'} />
-              <DetailField label="Income" value={formatAnnualIncome(detail.annualIncome)} />
-              <DetailField label="Job location" value={detail.jobPlace} />
-            </View>
-          </SectionCard>
+            {/* Religious */}
+            <SectionCard emoji="🕉️" title="Religious" subtitle="5 fields" onEdit={() => handleEdit(personalDetail?.[1])}>
+              <View style={s.detailGrid}>
+                <DetailField label="Religion" value="Hindu" />
+                <DetailField label="Caste" value="SC" />
+                <DetailField label="Nakshatra" value={astro.star} />
+                <DetailField label="Moon sign" value={astro.moon_sign} />
+                <DetailField label="Dosham" value={astro.dosham} full />
+              </View>
+            </SectionCard>
 
-          {/* Family */}
-          <SectionCard emoji="👨‍👩‍👧‍👦" title="Family Details" subtitle={`${Object.values(family).filter(v => v && v !== '-' && v).length} fields`} onEdit={() => handleEdit(personalDetail?.[3])}>
-            <View style={s.detailGrid}>
-              <DetailField label="Family type" value={family.family_type || family.familyType} />
-              <DetailField label="Family status" value={family.family_status} />
-              <DetailField label="Father's name" value={family.father} />
-              <DetailField label="Father's job" value={family.father_occupation} />
-              <DetailField label="Mother's name" value={family.mother} />
-              <DetailField label="Mother's job" value={family.mother_occupation} />
-              <DetailField label="Siblings" value={family.no_of_siblings} />
-              <DetailField label="Brothers" value={family.no_of_brother} />
-              <DetailField label="Brothers married" value={family.brother_married} />
-              <DetailField label="Sisters" value={family.no_of_sister} />
-              <DetailField label="Sisters married" value={family.sister_married} />
-            </View>
-          </SectionCard>
-
-          {/* Action tiles */}
-          <View style={s.actionRow}>
-            <TouchableOpacity style={s.actionTile} onPress={() => router.push('/screens/PrivacySettingsPage' as any)}>
-              <View style={[s.actionTileIcon, { backgroundColor: C.brandSoft }]}><MaterialIcons name="shield" size={16} color={C.brand} /></View>
-              <View><Text style={s.actionTileTitle}>Privacy</Text><Text style={s.actionTileSub}>Who sees what</Text></View>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.actionTile} onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}>
-              <View style={[s.actionTileIcon, { backgroundColor: C.amberSoft }]}><MaterialIcons name="star" size={16} color={C.amberDeep} /></View>
-              <View><Text style={s.actionTileTitle}>Trust score</Text><Text style={s.actionTileSub}>{trustCount} of 4 verified</Text></View>
-            </TouchableOpacity>
-          </View>
-
-          {/* ─── GALLERY ─── */}
-          <View style={s.galWrap}>
-            <View style={s.galHead}>
-              <View style={s.detailHeadLeft}>
-                <View style={[s.detailIconSm, { backgroundColor: C.brandSoft }]}><Text style={{ fontSize: 18 }}>📷</Text></View>
+            {/* Horoscope */}
+            <SectionCard emoji="🔮" title="Birth Chart" subtitle={horoscopeImage ? 'Uploaded' : 'Not uploaded'}>
+              {horoscopeUploading ? (
+                <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+                  <ActivityIndicator size="large" color={C.brand} />
+                  <Text style={{ color: C.ink4, fontSize: 12, marginTop: 8 }}>Uploading...</Text>
+                </View>
+              ) : horoscopeImage ? (
                 <View>
-                  <Text style={s.detailTitle}>Photos</Text>
-                  <Text style={s.detailSub}>High-quality boosts views by 3×</Text>
-                </View>
-              </View>
-              {galleryImages?.length > 0 && (
-                <View style={s.galProgress}>
-                  <Text style={s.galProgressText}>{galleryImages.filter((g: any) => g.isActive === 'Y').length}/{galleryImages.length}</Text>
-                  <View style={s.galProgressBar}>
-                    <View style={{ width: `${Math.min(100, (galleryImages.filter((g: any) => g.isActive === 'Y').length / Math.max(1, galleryImages.length)) * 100)}%`, height: '100%', backgroundColor: C.brand, borderRadius: 100 }} />
+                  <Image source={{ uri: horoscopeImage }} style={{ width: '100%', height: 200, borderRadius: 14 }} resizeMode="contain" />
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                    <TouchableOpacity style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: '#f6f8fa', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 5 }} onPress={handleAddHoroscope}>
+                      <MaterialIcons name="upload" size={14} color={C.ink3} />
+                      <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: C.ink2 }}>Update</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: '#f6f8fa', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 5 }} onPress={handleDeleteHoroscope}>
+                      <MaterialIcons name="delete-outline" size={14} color="#dc2626" />
+                      <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: '#dc2626' }}>Remove</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-              )}
-            </View>
-            <View style={s.galGrid}>
-              {/* Primary photo */}
-              {userDetails?.profileImage ? (
-                <TouchableOpacity style={s.galSlot} onPress={handlePickImage}>
-                  <Image source={{ uri: userDetails.profileImage }} style={{ width: '100%', height: '100%' }} />
-                  <View style={s.slotTag}><Text style={s.slotTagText}>Primary</Text></View>
-                </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={[s.galSlot, s.galSlotEmpty]} onPress={handlePickImage}>
-                  <MaterialIcons name="add" size={22} color={C.brand} />
-                  <Text style={s.galSlotEmptyText}>Profile</Text>
+                <TouchableOpacity onPress={handleAddHoroscope} style={{ alignItems: 'center', paddingVertical: 24, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.brand, borderRadius: 14, backgroundColor: C.brandSoft }}>
+                  <MaterialIcons name="add-photo-alternate" size={28} color={C.brand} />
+                  <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: C.brand, marginTop: 6 }}>Upload Horoscope</Text>
+                  <Text style={{ fontSize: 10, color: C.ink4, marginTop: 2 }}>Rasi chart or Jathagam image</Text>
                 </TouchableOpacity>
               )}
+            </SectionCard>
 
-              {/* Gallery images — long press to delete */}
-              {galleryImages?.filter((g: any) => g.isActive === 'Y')?.slice(0, 2).map((img: any, i: number) => (
-                <TouchableOpacity key={i} style={s.galSlot} onLongPress={() => handleGalleryDelete(img.id)} activeOpacity={0.9}>
-                  <Image source={{ uri: img.userImage }} style={{ width: '100%', height: '100%' }} />
-                  {i === 0 && <View style={s.slotTag}><Text style={s.slotTagText}>Gallery</Text></View>}
-                </TouchableOpacity>
-              ))}
+            {/* Work & Education */}
+            <SectionCard emoji="💼" title="Work & Education" subtitle="6 fields" onEdit={() => handleEdit(personalDetail?.[2])}>
+              <View style={s.detailGrid}>
+                <DetailField label="Education" value={detail.degree} />
+                <DetailField label="Specialization" value={detail.educationInDetail} />
+                <DetailField label="Occupation" value={detail.occupation} />
+                <DetailField label="Sector" value={detail.employedAt === 'GOVT' ? 'Government' : detail.employedAt === 'PRIVATE' ? 'Private' : detail.employedAt === 'SELF' ? 'Self Employed' : detail.employedAt || '-'} />
+                <DetailField label="Income" value={formatAnnualIncome(detail.annualIncome)} />
+                <DetailField label="Job location" value={detail.jobPlace} />
+              </View>
+            </SectionCard>
 
-              {/* Empty slots — tap to upload */}
-              {Array.from({ length: Math.max(0, 3 - 1 - (galleryImages?.filter((g: any) => g.isActive === 'Y')?.length || 0)) }).map((_, i) => (
-                <TouchableOpacity key={`empty-${i}`} style={[s.galSlot, s.galSlotEmpty]} onPress={handleGalleryUpload} activeOpacity={0.7}>
-                  <MaterialIcons name="add" size={22} color={C.brand} />
-                  <Text style={s.galSlotEmptyText}>Add photo</Text>
-                </TouchableOpacity>
-              ))}
+            {/* Family */}
+            <SectionCard emoji="👨‍👩‍👧‍👦" title="Family Details" subtitle={`${Object.values(family).filter(v => v && v !== '-' && v).length} fields`} onEdit={() => handleEdit(personalDetail?.[3])}>
+              <View style={s.detailGrid}>
+                <DetailField label="Family type" value={family.family_type || family.familyType} />
+                <DetailField label="Family status" value={family.family_status} />
+                <DetailField label="Father's name" value={family.father} />
+                <DetailField label="Father's job" value={family.father_occupation} />
+                <DetailField label="Mother's name" value={family.mother} />
+                <DetailField label="Mother's job" value={family.mother_occupation} />
+                <DetailField label="Siblings" value={family.no_of_siblings} />
+                <DetailField label="Brothers" value={family.no_of_brother} />
+                <DetailField label="Brothers married" value={family.brother_married} />
+                <DetailField label="Sisters" value={family.no_of_sister} />
+                <DetailField label="Sisters married" value={family.sister_married} />
+              </View>
+            </SectionCard>
+
+            {/* Action tiles */}
+            <View style={s.actionRow}>
+              <TouchableOpacity style={s.actionTile} onPress={() => router.push('/screens/PrivacySettingsPage' as any)}>
+                <View style={[s.actionTileIcon, { backgroundColor: C.brandSoft }]}><MaterialIcons name="shield" size={16} color={C.brand} /></View>
+                <View><Text style={s.actionTileTitle}>Privacy</Text><Text style={s.actionTileSub}>Who sees what</Text></View>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.actionTile} onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}>
+                <View style={[s.actionTileIcon, { backgroundColor: C.amberSoft }]}><MaterialIcons name="star" size={16} color={C.amberDeep} /></View>
+                <View><Text style={s.actionTileTitle}>Trust score</Text><Text style={s.actionTileSub}>{trustCount} of 4 verified</Text></View>
+              </TouchableOpacity>
+            </View>
+
+            {/* ─── GALLERY ─── */}
+            <View style={s.galWrap}>
+              <View style={s.galHead}>
+                <View style={s.detailHeadLeft}>
+                  <View style={[s.detailIconSm, { backgroundColor: C.brandSoft }]}><Text style={{ fontSize: 18 }}>📷</Text></View>
+                  <View>
+                    <Text style={s.detailTitle}>Photos</Text>
+                    <Text style={s.detailSub}>High-quality boosts views by 3×</Text>
+                  </View>
+                </View>
+                {galleryImages?.length > 0 && (
+                  <View style={s.galProgress}>
+                    <Text style={s.galProgressText}>{galleryImages.filter((g: any) => g.isActive === 'Y').length}/{galleryImages.length}</Text>
+                    <View style={s.galProgressBar}>
+                      <View style={{ width: `${Math.min(100, (galleryImages.filter((g: any) => g.isActive === 'Y').length / Math.max(1, galleryImages.length)) * 100)}%`, height: '100%', backgroundColor: C.brand, borderRadius: 100 }} />
+                    </View>
+                  </View>
+                )}
+              </View>
+              <View style={s.galGrid}>
+                {/* Primary photo */}
+                {userDetails?.profileImage ? (
+                  <TouchableOpacity style={s.galSlot} onPress={handlePickImage}>
+                    <Image source={{ uri: userDetails.profileImage }} style={{ width: '100%', height: '100%' }} />
+                    <View style={s.slotTag}><Text style={s.slotTagText}>Primary</Text></View>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={[s.galSlot, s.galSlotEmpty]} onPress={handlePickImage}>
+                    <MaterialIcons name="add" size={22} color={C.brand} />
+                    <Text style={s.galSlotEmptyText}>Profile</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Gallery images — long press to delete */}
+                {galleryImages?.filter((g: any) => g.isActive === 'Y')?.slice(0, 2).map((img: any, i: number) => (
+                  <TouchableOpacity key={i} style={s.galSlot} onLongPress={() => handleGalleryDelete(img.id)} activeOpacity={0.9}>
+                    <Image source={{ uri: img.userImage }} style={{ width: '100%', height: '100%' }} />
+                    {i === 0 && <View style={s.slotTag}><Text style={s.slotTagText}>Gallery</Text></View>}
+                  </TouchableOpacity>
+                ))}
+
+                {/* Empty slots — tap to upload */}
+                {Array.from({ length: Math.max(0, 3 - 1 - (galleryImages?.filter((g: any) => g.isActive === 'Y')?.length || 0)) }).map((_, i) => (
+                  <TouchableOpacity key={`empty-${i}`} style={[s.galSlot, s.galSlotEmpty]} onPress={handleGalleryUpload} activeOpacity={0.7}>
+                    <MaterialIcons name="add" size={22} color={C.brand} />
+                    <Text style={s.galSlotEmptyText}>Add photo</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Footer */}
+            <View style={s.footer}>
+              <View style={s.footerLine} />
+              <Text style={s.footerBrand}>Vaibhav <Text style={{ color: C.brand, fontStyle: 'italic' }}>Vivaha</Text></Text>
+              <Text style={s.footerVersion}>v2.1 · Sacred matches made simple</Text>
             </View>
           </View>
-
-          {/* Footer */}
-          <View style={s.footer}>
-            <View style={s.footerLine} />
-            <Text style={s.footerBrand}>Vaibhav <Text style={{ color: C.brand, fontStyle: 'italic' }}>Vivaha</Text></Text>
-            <Text style={s.footerVersion}>v2.1 · Sacred matches made simple</Text>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </LinearGradient>
 
       {/* Edit Profile Modal */}

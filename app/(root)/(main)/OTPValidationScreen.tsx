@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import { View, TextInput, TouchableOpacity, Dimensions, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { NativeBaseProvider } from 'native-base';
 import { usePopup } from '../contexts/PopupContext';
+import { useTranslation } from 'react-i18next';
+import AppText from '../../../components/AppText';
 
 interface OTPValidationScreenProps {
   onBack: () => void;
@@ -16,6 +18,7 @@ interface OTPValidationScreenProps {
 export default function OTPValidationScreen({ onBack, onVerified }: OTPValidationScreenProps) {
   const router = useRouter();
   const popup = usePopup();
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{
     phoneNumber?: string;
     email?: string;
@@ -23,7 +26,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
   }>();
   const phoneNumber = params.phoneNumber || '';
   const email = params.email || '';
-  const purpose = params.purpose || ''; // 'registration' | 'reset' | ''
+  const purpose = params.purpose || '';
   const isEmailFlow = !!email;
   const { width, height } = Dimensions.get('window');
   const [otp, setOtp] = useState(['', '', '', '']);
@@ -53,7 +56,6 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (value && index < 3) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -73,26 +75,23 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
     try {
       const otpCode = otp.join('');
 
-      // ===== Email-based flow (registration or reset) =====
       if (email && purpose) {
         const response = await userApi.verifyAuthOtp({
           email,
           otp: otpCode,
           purpose,
         });
-        console.log('Verify Auth OTP response:', response.data);
 
         if (response.data?.code === 200) {
           setIsLoading(false);
 
           if (purpose === 'registration') {
-            // Store verification token — signup screen will read this on return
             const token = response.data.data?.verificationToken;
             if (token) {
               await AsyncStorage.setItem('emailVerificationToken', token);
               await AsyncStorage.setItem('verifiedEmail', email);
             }
-            popup.success('Email Verified', 'Your email has been verified successfully.', () => router.back());
+            popup.success(t('auth.otp.emailVerifiedTitle'), t('auth.otp.emailVerifiedMessage'), () => router.back());
           } else if (purpose === 'reset') {
             const resetToken = response.data.data?.resetToken;
             router.replace({
@@ -102,21 +101,19 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
           }
         } else {
           setIsLoading(false);
-          popup.error('Invalid OTP', response.data?.message || 'Please enter a valid OTP');
+          popup.error(t('auth.otp.invalidOtpTitle'), response.data?.message || t('auth.otp.invalidOtpMessage'));
           setOtp(['', '', '', '']);
           inputRefs.current[0]?.focus();
         }
         return;
       }
 
-      // ===== Legacy mobile-based flow =====
       const requestBody = {
         mobileNumber: await AsyncStorage.getItem('resetPhoneNumber'),
         otp: otpCode,
       };
 
       const response = await userApi.verifyOtp(requestBody);
-      console.log('Verify OTP response:', response.data.code);
 
       if (response.data.code === 200) {
         setIsLoading(false);
@@ -126,19 +123,19 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
         });
       } else if (response.data.code === 400) {
         setIsLoading(false);
-        popup.error('Invalid OTP', 'Please enter a valid OTP');
+        popup.error(t('auth.otp.invalidOtpTitle'), t('auth.otp.invalidOtpMessage'));
         setOtp(['', '', '', '']);
         inputRefs.current[0]?.focus();
       } else {
         setIsLoading(false);
-        popup.error('Error', 'Something went wrong. Please try again.');
+        popup.error(t('common.error'), t('login.errors.genericMessage'));
         setOtp(['', '', '', '']);
         inputRefs.current[0]?.focus();
       }
     } catch (error) {
       console.error('Error verifying OTP:', error);
       setIsLoading(false);
-      popup.error('Error', 'Failed to verify OTP. Please try again.');
+      popup.error(t('common.error'), t('login.errors.genericMessage'));
       setOtp(['', '', '', '']);
       inputRefs.current[0]?.focus();
     }
@@ -153,27 +150,22 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
     try {
       if (email && purpose) {
         await userApi.sendAuthOtp({ email, purpose });
-        popup.success('OTP Resent', `A new code has been sent to ${email}.`);
+        popup.success(t('signup.otpSentTitle'), t('signup.otpSentMessage', { email }));
       } else {
         const mobile = await AsyncStorage.getItem('resetPhoneNumber');
         if (mobile) {
           await userApi.sendOtp(mobile);
-          popup.success('OTP Resent', 'A new code has been sent to your mobile.');
+          popup.success(t('signup.otpSentTitle'), t('signup.otpSentMessage', { email: mobile }));
         }
       }
     } catch (err) {
       console.error('Resend OTP failed:', err);
-      popup.error('Error', 'Failed to resend OTP. Please try again.');
+      popup.error(t('common.error'), t('signup.sendOtpFailedMessage'));
     }
   };
 
   const isFormValid = otp.every(digit => digit !== '');
 
-  // This screen previously always showed "Mobile number" + a masked phone regardless of which
-  // flow sent the user here — the mask was built from a `phoneNumberState` value that was never
-  // actually populated (it stayed a dead empty string). Every current caller (sign-up.tsx's
-  // email verify, ResetPasswordScreen.tsx) navigates here with an `email` param, not a phone
-  // number, so the copy needs to branch on which contact method was actually used.
   const maskEmail = (value: string) => {
     const [local, domain] = value.split('@');
     if (!domain) return value;
@@ -195,8 +187,6 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
       paddingHorizontal: 20,
       paddingVertical: 40,
     }}>
-      {/* Same soft blue theme gradient used app-wide (explore.tsx, sign-up.tsx, LoginScreen.tsx,
-          ResetPasswordScreen.tsx) instead of the flat '#F5F5F5' this screen had. */}
       <LinearGradient
         colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
         locations={[0, 0.3, 0.6, 1.0]}
@@ -218,7 +208,6 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                 alignItems: 'center',
               }}
             >
-              {/* Inner circles */}
               <View style={{
                 position: 'absolute',
                 top: 8,
@@ -240,10 +229,8 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                 borderColor: 'rgba(31, 127, 229, 0.25)',
               }} />
 
-              {/* Message icon */}
               <Icon name="message" size={36} color="#1F7FE5" />
 
-              {/* Floating elements */}
               <Icon
                 name="star"
                 size={12}
@@ -258,7 +245,6 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               />
             </LinearGradient>
 
-            {/* Aura rings */}
             <View style={{
               position: 'absolute',
               top: -8,
@@ -281,29 +267,26 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
             }} />
           </View>
 
-          <Text style={{
+          <AppText weight="bold" style={{
             fontSize: 20,
-            fontFamily: 'Rubik-Bold',
             color: '#0f1724',
             marginBottom: 8,
             textAlign: 'center',
           }}>
-            OTP Verification
-          </Text>
-          <Text style={{
+            {t('auth.otp.verificationCode')}
+          </AppText>
+          <AppText weight="regular" style={{
             fontSize: 13,
-            fontFamily: 'Rubik-Regular',
             color: '#64748b',
             textAlign: 'center',
             lineHeight: 22,
           }}>
-            4-Digit code sent to your {isEmailFlow ? 'email' : 'Mobile number'}{'\n'}
-            <Text style={{ fontFamily: 'Rubik-Bold', fontSize: 16, color: '#0f1724' }}>
+            {isEmailFlow ? t('auth.otp.sentEmail') : t('auth.otp.sentMobile')}{'\n'}
+            <AppText weight="bold" style={{ fontSize: 16, color: '#0f1724' }}>
               {isEmailFlow ? maskedContact : `+91 ${maskedContact}`}
-            </Text>
-          </Text>
+            </AppText>
+          </AppText>
           
-          {/* Sacred divider with stars */}
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -321,9 +304,8 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
           </View>
         </View>
 
-        {/* Sacred OTP Card */}
+        {/* Card */}
         <View style={{ position: 'relative' }}>
-          {/* Card Background */}
           <View style={{
             backgroundColor: 'white',
             borderRadius: 24,
@@ -333,7 +315,6 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
             shadowRadius: 24,
             elevation: 24,
           }}>
-            {/* Sacred corner ornaments */}
             <View style={{
               position: 'absolute',
               top: 12,
@@ -379,7 +360,6 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               borderBottomRightRadius: 16,
             }} />
             
-            {/* Decorative energy lines */}
             <View style={{
               position: 'absolute',
               top: 24,
@@ -411,16 +391,15 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                     justifyContent: 'center',
                   }}>
                     <Icon name="message" size={16} color="#1F7FE5" />
-                    <Text style={{
+                    <AppText weight="bold" style={{
                       fontSize: 12,
-                      fontFamily: 'Rubik-Bold',
                       color: '#0f1724',
                       letterSpacing: 0.3,
                       textTransform: 'uppercase',
                       marginLeft: 8,
                     }}>
-                      Enter 4 Digit Code
-                    </Text>
+                      {t('auth.otp.verificationCode')}
+                    </AppText>
                   </View>
                   <View style={{
                     flexDirection: 'row',
@@ -430,7 +409,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                     {otp.map((digit, index) => (
                       <View key={index} style={{ position: 'relative' }}>
                         <TextInput
-                          ref={(el) => (inputRefs.current[index] = el)}
+                          ref={(el) => { inputRefs.current[index] = el; }}
                           defaultValue={digit}
                           onChangeText={(text) => handleOtpChange(index, text.replace(/\D/g, ''))}
                           onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
@@ -485,29 +464,24 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                     }}
                   >
                     {isLoading ? (
-                      // No icon precedes this text (unlike the non-loading state below), so the
-                      // leftover `marginLeft: 12` it was copy-pasted with just indented it off
-                      // center for no reason — removed.
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={{
+                        <AppText weight="bold" style={{
                           color: '#fff',
                           fontSize: 18,
-                          fontFamily: 'Rubik-Bold',
                         }}>
-                          Verifying Code...
-                        </Text>
+                          {t('auth.otp.verifying')}
+                        </AppText>
                       </View>
                     ) : (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="auto-awesome" size={20} color="white" />
-                        <Text style={{
+                        <AppText weight="bold" style={{
                           color: '#fff',
                           fontSize: 18,
-                          fontFamily: 'Rubik-Bold',
                           marginLeft: 8,
                         }}>
-                          Verify & Continue
-                        </Text>
+                          {t('auth.otp.verify')}
+                        </AppText>
                       </View>
                     )}
                   </LinearGradient>
@@ -521,14 +495,13 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                       style={{ flexDirection: 'row', alignItems: 'center' }}
                     >
                       <Icon name="refresh" size={16} color="#1F7FE5" />
-                      <Text style={{
+                      <AppText weight="bold" style={{
                         color: '#1F7FE5',
                         fontSize: 12.5,
-                        fontFamily: 'Rubik-Bold',
                         marginLeft: 8,
                       }}>
-                        Resend Code
-                      </Text>
+                        {t('auth.otp.resendOtp')}
+                      </AppText>
                     </TouchableOpacity>
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -539,12 +512,11 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                         borderRadius: 4,
                         marginRight: 8,
                       }} />
-                      <Text style={{
+                      <AppText weight="regular" style={{
                         color: '#64748b',
-                        fontFamily: 'Rubik-Regular',
                       }}>
-                        Resend available in <Text style={{ fontFamily: 'Rubik-Bold', color: '#0f1724' }}>{resendTimer}s</Text>
-                      </Text>
+                        {t('auth.otp.resendSmsIn', { seconds: resendTimer })}
+                      </AppText>
                       <View style={{
                         width: 8,
                         height: 8,
@@ -572,26 +544,22 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                   }}
                 >
                   <Icon name="arrow-back" size={20} color="#475569" />
-                  <Text style={{
+                  <AppText weight="medium" style={{
                     color: '#475569',
                     fontSize: 14,
-                    fontFamily: 'Rubik-Medium',
                     marginLeft: 8,
                   }}>
-                    Return to Previous Step
-                  </Text>
+                    {t('auth.changePin.returnPrevious')}
+                  </AppText>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </View>
-
-        {/* Guidance note removed */}
       </View>
     </View>
     </TouchableWithoutFeedback>
     </NativeBaseProvider>
-       
   );
 };
 

@@ -1249,7 +1249,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                                             }))}
                                                         >
                                                             {selected && <Check size={13} color="#1F7FE5" strokeWidth={3} />}
-                                                                <Text style={[styles.wrapPillText, selected && styles.wrapPillTextSelected]}>{opt}</Text>
+                                                            <Text style={[styles.wrapPillText, selected && styles.wrapPillTextSelected]}>{opt}</Text>
                                                         </TouchableOpacity>
                                                     );
                                                 })}
@@ -1764,7 +1764,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 // (same getTop30NewUsers endpoint). All Matches moved to Home as its own carousel instead, so
 // this screen is now just the filter form directly — no switcher needed.
 const ExploreTabs = () => {
-    const noop = useCallback(() => {}, []);
+    const noop = useCallback(() => { }, []);
     return <Search setSwipeEnabled={noop} />;
 };
 

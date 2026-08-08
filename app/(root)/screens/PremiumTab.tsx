@@ -326,7 +326,7 @@ export default function PremiumTab() {
           router.replace('/(root)/(tabs)' as any);
           return;
         }
-      } catch (_) {}
+      } catch (_) { }
       fetchPaymentStatus();
       fetchData();
     })();

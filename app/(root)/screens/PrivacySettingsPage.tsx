@@ -86,10 +86,10 @@ const PrivacySettingsPage: React.FC = () => {
           const decodedUserId = atob(userId);
           const response = await userApi.getHiddenFieldsByUserId(decodedUserId);
           const hiddenFields = response.data.data || [];
-          
+
           // Extract field names from the response
           const fieldNames = hiddenFields.map((field: HiddenFieldData) => field.fieldName);
-          
+
           // Update privacy settings based on hidden fields
           const updatedSettings = {
             ...privacySettings,
@@ -97,7 +97,7 @@ const PrivacySettingsPage: React.FC = () => {
             profileImage: fieldNames.includes('profileImage'),
             horoscope: fieldNames.includes('horoscope')
           };
-          
+
           setPrivacySettings(updatedSettings);
         }
       } catch (error) {
@@ -190,20 +190,20 @@ const PrivacySettingsPage: React.FC = () => {
   return (
     <NativeBaseProvider>
 
-    <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: '#f3f7fa', marginBottom: 0, paddingBottom: 0, marginTop: 0 }}>
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        {/* <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+      <SafeAreaView edges={['right', 'left', 'top']} className="" style={{ backgroundColor: '#f3f7fa', marginBottom: 0, paddingBottom: 0, marginTop: 0 }}>
+        <ScrollView style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            {/* <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Feather name="arrow-left" size={24} color="black" />
         </TouchableOpacity> */}
-        <View>
-          <Text style={styles.headerTitle}>Privacy Settings</Text>
-          <Text style={styles.headerSubtitle}>Control what others can see</Text>
-        </View>
-      </View>
+            <View>
+              <Text style={styles.headerTitle}>Privacy Settings</Text>
+              <Text style={styles.headerSubtitle}>Control what others can see</Text>
+            </View>
+          </View>
 
-      {/* <View style={styles.infoBox}>
+          {/* <View style={styles.infoBox}>
         <View style={styles.shieldIcon}>
           <Feather name="shield" size={28} color="#1F7FE5" />
         </View>
@@ -219,30 +219,30 @@ const PrivacySettingsPage: React.FC = () => {
         </View>
       </View> */}
 
-      {/* Privacy Items */}
-      <Text style={styles.sectionTitle}>Profile Information</Text>
-      {renderPrivacyItem(
-        <Feather name="phone" size={20} color="#1F7FE5" />,
-        'Mobile Number',
-        'Hide your mobile number until you choose to share it',
-        privacySettings.mobileNumber,
-        'mobileNumber'
-      )}
-      {renderPrivacyItem(
-        <Feather name="image" size={20} color="#1F7FE5" />,
-        'Profile Image',
-        'Visible only to premium members or connections',
-        privacySettings.profileImage,
-        'profileImage'
-      )}
-      {renderPrivacyItem(
-        <Feather name="star" size={20} color="#1F7FE5" />,
-        'Horoscope Details',
-        'Keep your astrological information private',
-        privacySettings.horoscope,
-        'horoscope'
-      )}
-      {/* {renderPrivacyItem(
+          {/* Privacy Items */}
+          <Text style={styles.sectionTitle}>Profile Information</Text>
+          {renderPrivacyItem(
+            <Feather name="phone" size={20} color="#1F7FE5" />,
+            'Mobile Number',
+            'Hide your mobile number until you choose to share it',
+            privacySettings.mobileNumber,
+            'mobileNumber'
+          )}
+          {renderPrivacyItem(
+            <Feather name="image" size={20} color="#1F7FE5" />,
+            'Profile Image',
+            'Visible only to premium members or connections',
+            privacySettings.profileImage,
+            'profileImage'
+          )}
+          {renderPrivacyItem(
+            <Feather name="star" size={20} color="#1F7FE5" />,
+            'Horoscope Details',
+            'Keep your astrological information private',
+            privacySettings.horoscope,
+            'horoscope'
+          )}
+          {/* {renderPrivacyItem(
         <Feather name="calendar" size={20} color="#1F7FE5" />,
         'Age Information',
         'Show only age range instead of exact age',
@@ -257,7 +257,7 @@ const PrivacySettingsPage: React.FC = () => {
         'profession'
       )} */}
 
-      {/* <Text style={styles.sectionTitle}>Activity & Visibility</Text>
+          {/* <Text style={styles.sectionTitle}>Activity & Visibility</Text>
       {renderPrivacyItem(
         <Feather name="eye" size={20} color="#ec4899" />,
         'Profile Visibility',
@@ -287,36 +287,36 @@ const PrivacySettingsPage: React.FC = () => {
         'contactInfo'
       )} */}
 
-      {/* Confirmation Modal */}
-      <Modal visible={modalVisible} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalIcon}>
-              <Feather name="shield" size={24} color="#1F7FE5" />
+          {/* Confirmation Modal */}
+          <Modal visible={modalVisible} transparent animationType="fade">
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalIcon}>
+                  <Feather name="shield" size={24} color="#1F7FE5" />
+                </View>
+                <Text style={styles.modalTitle}>Confirm Privacy Change</Text>
+                <Text style={styles.modalText}>
+                  Are you sure you want to update this privacy setting?
+                </Text>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    onPress={cancelPrivacyChange}
+                    style={styles.cancelBtn}
+                  >
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={confirmPrivacyChange}
+                    style={styles.confirmBtn}
+                  >
+                    <Text style={styles.confirmText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-            <Text style={styles.modalTitle}>Confirm Privacy Change</Text>
-            <Text style={styles.modalText}>
-              Are you sure you want to update this privacy setting?
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                onPress={cancelPrivacyChange}
-                style={styles.cancelBtn}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={confirmPrivacyChange}
-                style={styles.confirmBtn}
-              >
-                <Text style={styles.confirmText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
-    </SafeAreaView>
+          </Modal>
+        </ScrollView>
+      </SafeAreaView>
     </NativeBaseProvider>
   );
 };

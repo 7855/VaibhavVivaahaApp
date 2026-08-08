@@ -82,69 +82,69 @@ const BlockedUsersScreen = () => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#d0dfeb' }} edges={['top']}>
-    <LinearGradient colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']} locations={[0, 0.3, 0.6, 1.0]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ flex: 1 }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-          <MaterialIcons name="chevron-left" size={22} color="#1e293b" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Blocked Users</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <Text style={styles.subtitle}>
-        People you've blocked can't view your profile, message you, or send you interest requests.
-      </Text>
-
-      {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color="#9c4040" /></View>
-      ) : data.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="ban" size={64} color="#d1d5db" />
-          <Text style={styles.emptyText}>You haven't blocked anyone</Text>
-          <Text style={styles.emptySub}>Blocked users will appear here.</Text>
+      <LinearGradient colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']} locations={[0, 0.3, 0.6, 1.0]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+            <MaterialIcons name="chevron-left" size={22} color="#1e293b" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Blocked Users</Text>
+          <View style={{ width: 40 }} />
         </View>
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={{ padding: 16 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); load(); }}
-            />
-          }
-          renderItem={({ item }) => {
-            const name = [item.firstName, item.lastName].filter(Boolean).join(' ') || `User ${item.blockedUserId}`;
-            return (
-              <View style={styles.card}>
-                <Image
-                  source={item.profileImage
-                    ? { uri: item.profileImage }
-                    : require('../../../assets/images/defaultAvatar.png')}
-                  style={styles.avatar}
-                />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.name}>{name}</Text>
-                  {item.blockedAt ? (
-                    <Text style={styles.meta}>Blocked on {new Date(item.blockedAt).toLocaleDateString()}</Text>
-                  ) : null}
+
+        <Text style={styles.subtitle}>
+          People you've blocked can't view your profile, message you, or send you interest requests.
+        </Text>
+
+        {loading ? (
+          <View style={styles.center}><ActivityIndicator size="large" color="#9c4040" /></View>
+        ) : data.length === 0 ? (
+          <View style={styles.center}>
+            <Ionicons name="ban" size={64} color="#d1d5db" />
+            <Text style={styles.emptyText}>You haven't blocked anyone</Text>
+            <Text style={styles.emptySub}>Blocked users will appear here.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={data}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={{ padding: 16 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => { setRefreshing(true); load(); }}
+              />
+            }
+            renderItem={({ item }) => {
+              const name = [item.firstName, item.lastName].filter(Boolean).join(' ') || `User ${item.blockedUserId}`;
+              return (
+                <View style={styles.card}>
+                  <Image
+                    source={item.profileImage
+                      ? { uri: item.profileImage }
+                      : require('../../../assets/images/defaultAvatar.png')}
+                    style={styles.avatar}
+                  />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.name}>{name}</Text>
+                    {item.blockedAt ? (
+                      <Text style={styles.meta}>Blocked on {new Date(item.blockedAt).toLocaleDateString()}</Text>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity
+                    disabled={unblockingId === item.id}
+                    onPress={() => handleUnblock(item)}
+                    style={[styles.unblockBtn, unblockingId === item.id && { opacity: 0.5 }]}
+                  >
+                    {unblockingId === item.id
+                      ? <ActivityIndicator size="small" color="#9c4040" />
+                      : <Text style={styles.unblockText}>Unblock</Text>}
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  disabled={unblockingId === item.id}
-                  onPress={() => handleUnblock(item)}
-                  style={[styles.unblockBtn, unblockingId === item.id && { opacity: 0.5 }]}
-                >
-                  {unblockingId === item.id
-                    ? <ActivityIndicator size="small" color="#9c4040" />
-                    : <Text style={styles.unblockText}>Unblock</Text>}
-                </TouchableOpacity>
-              </View>
-            );
-          }}
-        />
-      )}
-    </LinearGradient>
+              );
+            }}
+          />
+        )}
+      </LinearGradient>
     </SafeAreaView>
   );
 };

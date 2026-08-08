@@ -169,7 +169,7 @@ const SupportFAB: React.FC = () => {
           translateX.value = Math.max(minX, Math.min(x, maxX));
           translateY.value = Math.max(minY, Math.min(y, maxY));
           setFabOnRight(x + FAB_SIZE / 2 > SCREEN_W / 2);
-        } catch {}
+        } catch { }
       }
     });
   }, []);
@@ -182,7 +182,7 @@ const SupportFAB: React.FC = () => {
         .then((res: any) => {
           if (res.data?.code === 200) setUnreadCount(res.data.data || 0);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
     poll();
     pollRef.current = setInterval(poll, 60000);
@@ -258,7 +258,7 @@ const SupportFAB: React.FC = () => {
           setMessages(res.data.data.messages || []);
         }
       }
-    } catch {}
+    } catch { }
     setSending(false);
   }, [inputText, activeTicket, selectedCategory, userData?.userId, sending]);
 
@@ -282,7 +282,7 @@ const SupportFAB: React.FC = () => {
         setActiveTicket(ticket);
         setMessages(res.data.data || []);
       }
-    } catch {}
+    } catch { }
     setLoading(false);
   }, []);
 
@@ -293,7 +293,7 @@ const SupportFAB: React.FC = () => {
       try {
         const res = await userApi.getTicketMessages(activeTicket.id);
         if (res.data?.code === 200) setMessages(res.data.data || []);
-      } catch {}
+      } catch { }
     }, 15000);
     return () => clearInterval(iv);
   }, [chatOpen, activeTicket?.id]);

@@ -47,10 +47,10 @@ export default function UpgradePlanScreen() {
         if (res?.data?.data?.valueColumn) {
           try {
             setAdminContact(JSON.parse(res.data.data.valueColumn));
-          } catch {}
+          } catch { }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const currentPlanTitle = freeUser === '1' ? 'Free' : (subscriptionData?.planTitle || 'Free');
