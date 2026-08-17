@@ -17,12 +17,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
-  FadeInUp, FadeInDown, FadeOutUp, FadeOutDown,
+  FadeInUp, FadeInDown,
   useSharedValue, useAnimatedStyle, withSpring, runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
-  LayoutGrid, X, Crown, Star, Users, Heart, Lock, BookmarkCheck,
+  LayoutGrid, X, Crown, Star, Users, Heart, Lock, BookmarkCheck, Settings,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,7 +30,7 @@ import { useAuth } from '../app/(root)/contexts/AuthContext';
 import { useSubscription } from '../app/(root)/contexts/subscriptionContext';
 import { usePopup } from '../app/(root)/contexts/PopupContext';
 import userApi from '../app/(root)/api/userApi';
-import { buildUpgradeAction } from '../app/(root)/utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage, getActivePlansSync } from '../app/(root)/utils/upgradeNavigation';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -46,7 +46,10 @@ const LABEL_HEIGHT = 28;   // fixed height so the label can be vertically center
 const SNAP_CONFIG = { damping: 18, stiffness: 200, mass: 0.8 };
 const STORAGE_POSITION_KEY = 'quickAccessFabPosition';
 
-const CACHE_KEY = 'quickAccessMenuCache';
+// _v2: the menu's id set changed (FAVOURITES -> SETTINGS). Bumping the key makes every
+// install with this build ignore the old cached menu immediately instead of serving the
+// stale tile for up to 30 minutes.
+const CACHE_KEY = 'quickAccessMenuCache_v2';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes — quick access items change rarely
 
 // Plan hierarchy mirrors CLAUDE.md section 7 — used for minPlan gating
@@ -61,6 +64,7 @@ const ICON_MAP: Record<string, any> = {
   heart: Heart,
   lock: Lock,
   'bookmark-check': BookmarkCheck,
+  settings: Settings,
 };
 
 type QuickAccessItem = {
@@ -77,7 +81,7 @@ const DEFAULT_QUICK_ACCESS_ITEMS: QuickAccessItem[] = [
   { id: 'PREMIUM', label: 'Upgrade', icon: 'crown', color: '#B8860B', minPlan: null, order: 1 },
   { id: 'STAR_MATCH', label: 'Star Match', icon: 'star', color: '#1A0010', minPlan: null, order: 2 },
   { id: 'FAMILY_ACCESS', label: 'Family Access', icon: 'users', color: '#1A0010', minPlan: 'Gold', order: 3 },
-  { id: 'FAVOURITES', label: 'My Favourites', icon: 'heart', color: '#B8860B', minPlan: null, order: 4 },
+  { id: 'SETTINGS', label: 'Settings', icon: 'settings', color: '#B8860B', minPlan: null, order: 4 },
   { id: 'PERMISSION_REQUESTS', label: 'Permission Requests', icon: 'lock', color: '#1A0010', minPlan: null, order: 5 },
   { id: 'SHORTLISTED_YOU', label: 'Shortlisted You', icon: 'bookmark-check', color: '#B8860B', minPlan: 'Gold', order: 6 },
 ];
@@ -173,10 +177,30 @@ const QuickAccessFAB = () => {
     return () => { cancelled = true; };
   }, []);
 
-  const visibleItems = useMemo(
-    () => items.filter((item) => isPlanAtLeast(subscriptionData?.planTitle, item.minPlan)),
-    [items, subscriptionData?.planTitle]
-  );
+  // Items are no longer REMOVED when the plan is too low — they render with a lock badge and
+  // route to the upgrade prompt on tap. Hiding them meant a Silver member simply never learned
+  // that Family Access / Shortlisted You exist, which is both confusing ("why do I see fewer
+  // icons than my friend?") and a wasted upsell.
+  //
+  // The one real removal is the Upgrade tile itself once the member is already on the highest
+  // ACTIVE plan — there is nothing left to sell them. Highest-active is read from the DB-driven
+  // catalog rather than hardcoding 'Platinum', so retiring or adding a tier stays a pure
+  // subscription_plans flip (see the upgradeNavigation landmine in CLAUDE.md).
+  const visibleItems = useMemo(() => {
+    const activePlans = getActivePlansSync();
+    const maxActiveRank = activePlans.length
+      ? Math.max(...activePlans.map((p) => PLAN_RANK[p.title] ?? 0))
+      : PLAN_RANK.Platinum;
+    const currentRank = PLAN_RANK[subscriptionData?.planTitle || 'Free'] ?? 0;
+    const atTopPlan = currentRank >= maxActiveRank;
+
+    return items
+      .filter((item) => !(item.id === 'PREMIUM' && atTopPlan))
+      .map((item) => ({
+        item,
+        locked: !isPlanAtLeast(subscriptionData?.planTitle, item.minPlan),
+      }));
+  }, [items, subscriptionData?.planTitle]);
 
   // ─── Tap toggles the panel; capture the FAB's current spot so the
   //     panel can anchor to it and pick an open direction ───
@@ -224,43 +248,67 @@ const QuickAccessFAB = () => {
     ],
   }));
 
-  const handlePress = useCallback((item: QuickAccessItem) => {
+  const handlePress = useCallback((item: QuickAccessItem, locked: boolean = false) => {
     setOpen(false);
+    // Navigate on the NEXT frame rather than synchronously. Closing the panel unmounts these
+    // Animated.Views while their reanimated `exiting` layout animations are still running; doing
+    // a router.push in the same tick tears the screen down mid-animation, which crashes the app
+    // on Android release builds (layout animations are far less forgiving there than in dev).
+    // Deferring lets the exit animation own that frame, then navigation happens cleanly.
+    const go = (fn: () => void) => requestAnimationFrame(() => setTimeout(fn, 0));
+
+    // Plan-gated tiles are shown with a lock rather than hidden, so intercept here and sell the
+    // upgrade instead of navigating. minPlan is the real entitlement floor; the displayed plan
+    // name is resolved from the active catalog by upgradeMessage/buildUpgradeAction, so a
+    // retired tier never appears in the copy.
+    if (locked) {
+      go(() => popup.premiumRequired(
+        upgradeMessage(`use ${item.label}`, item.minPlan || undefined),
+        buildUpgradeAction({
+          planTitle: subscriptionData?.planTitle,
+          featureName: item.label,
+          minPlan: item.minPlan || undefined,
+        })
+      ));
+      return;
+    }
+
     switch (item.id) {
       case 'PREMIUM':
-        buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Premium Features' })();
+        go(() => buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Premium Features' })());
         break;
       case 'STAR_MATCH':
         if (!subscriptionData?.entitlements?.starMatch) {
-          popup.premiumRequired(
-            'Star Match is available from Classic plan onwards. Upgrade to discover your compatibility score!',
+          go(() => popup.premiumRequired(
+            upgradeMessage('check horoscope compatibility with Star Match', 'Classic'),
             buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Star Match', minPlan: 'Classic' })
-          );
+          ));
           return;
         }
-        router.push('/(root)/screens/StarMatch' as any);
+        go(() => router.push('/(root)/screens/StarMatch' as any));
         break;
       case 'FAMILY_ACCESS':
-        router.push('/(root)/screens/FamilyAccessScreen' as any);
+        go(() => router.push('/(root)/screens/FamilyAccessScreen' as any));
         break;
+      case 'SETTINGS':
       case 'FAVOURITES':
-        // myfavourite.tsx is a dead-end screen with hardcoded mock people/photos/locations —
-        // never wired to any real API. The actual working "favourites" feature is the
-        // Shortlisted list (same screen SHORTLISTED_YOU-style tiles already use).
-        router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'shortlisted' } } as any);
+        // FAVOURITES is a legacy alias: the tile was replaced with Settings (a Free user tapping
+        // "My Favourites" just saw "No shortlisted profiles" — a dead end), but the keyValue row
+        // and the 30-min cached menu may still carry the old id, so both route to Settings.
+        go(() => router.push('/(root)/screens/settingsPage' as any));
         break;
       case 'PERMISSION_REQUESTS':
-        router.push({ pathname: '/(root)/(tabs)/mailBox', params: { initialTab: 'request' } } as any);
+        go(() => router.push({ pathname: '/(root)/(tabs)/mailBox', params: { initialTab: 'request' } } as any));
         break;
       case 'SHORTLISTED_YOU':
         if (!isPlanAtLeast(subscriptionData?.planTitle, 'Gold')) {
-          popup.premiumRequired(
-            'Upgrade to Gold to see who shortlisted your profile.',
+          go(() => popup.premiumRequired(
+            upgradeMessage('see who shortlisted your profile', 'Gold'),
             buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Who Shortlisted You', minPlan: 'Gold' })
-          );
+          ));
           return;
         }
-        router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any);
+        go(() => router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any));
         break;
       default:
         break;
@@ -276,7 +324,10 @@ const QuickAccessFAB = () => {
   const fabCenterX = fabAnchor.x + FAB_SIZE / 2;
   const fabOnLeft = fabCenterX < SCREEN_W / 2;
   const EnterAnim = panelAbove ? FadeInUp : FadeInDown;
-  const ExitAnim = panelAbove ? FadeOutDown : FadeOutUp;
+  // NOTE: no `exiting` layout animation on the tiles. An exit animation runs while the component
+  // is being unmounted, and unmounting mid-animation while navigating away crashed the app on
+  // Android release builds. Entering animations are safe (the component is mounting, not going
+  // away). The panel is dismissed by navigation anyway, so nothing is lost visually.
 
   return (
     <>
@@ -294,7 +345,7 @@ const QuickAccessFAB = () => {
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOpen(false)} />
           </View>
 
-          {visibleItems.map((item, idx) => {
+          {visibleItems.map(({ item, locked }, idx) => {
             const IconComp = ICON_MAP[item.icon] || LayoutGrid;
             // Always position via `top`, anchored directly off fabAnchor.y — same coordinate
             // basis the FAB itself uses (transform: translateY). Using `bottom` here would
@@ -316,21 +367,28 @@ const QuickAccessFAB = () => {
               <React.Fragment key={item.id}>
                 <Animated.View
                   entering={EnterAnim.delay(idx * 80).duration(300).springify().damping(15)}
-                  exiting={ExitAnim.duration(150)}
                   style={[styles.itemCircleWrap, { top: itemTop, left: circleLeft }]}
                 >
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => handlePress(item)}
-                    style={[styles.itemCircle, { backgroundColor: item.color || '#420001' }]}
+                    onPress={() => handlePress(item, locked)}
+                    style={[
+                      styles.itemCircle,
+                      { backgroundColor: item.color || '#420001' },
+                      locked && styles.itemCircleLocked,
+                    ]}
                   >
                     <IconComp size={22} color="#fff" />
+                    {locked && (
+                      <View style={styles.lockBadge}>
+                        <Lock size={10} color="#fff" />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 </Animated.View>
 
                 <Animated.View
                   entering={EnterAnim.delay(idx * 80).duration(300).springify().damping(15)}
-                  exiting={ExitAnim.duration(150)}
                   style={[
                     styles.itemLabelWrap,
                     { top: labelTop },
@@ -339,7 +397,16 @@ const QuickAccessFAB = () => {
                       : { right: SCREEN_W - circleLeft + LABEL_GAP },
                   ]}
                 >
-                  <Text style={styles.itemLabelText} numberOfLines={1}>{item.label}</Text>
+                  {/* The label is tappable too — previously only the circle was, so tapping the
+                      text (the larger, more obvious target) did nothing. Same handler, so both
+                      halves of the tile behave identically. */}
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => handlePress(item, locked)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.itemLabelText} numberOfLines={1}>{item.label}</Text>
+                  </TouchableOpacity>
                 </Animated.View>
               </React.Fragment>
             );
@@ -391,6 +458,24 @@ const styles = StyleSheet.create({
   itemCircleWrap: {
     position: 'absolute',
     zIndex: 9981,
+  },
+  // Locked tiles stay visible (so the member knows the feature exists) but read as unavailable.
+  itemCircleLocked: {
+    opacity: 0.55,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  lockBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#6b7280',
+    borderWidth: 1.5,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   itemCircle: {
     width: ITEM_SIZE,

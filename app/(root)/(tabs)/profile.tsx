@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { prepareImageForUpload } from '@/utils/uploadFile';
 import {
   View, StyleSheet, Image, Text, TouchableOpacity,
   ActivityIndicator, ScrollView, Dimensions,
-  Animated, Easing
+  Animated, Easing, Modal
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,9 +17,10 @@ import EditProfileModal from '@/components/editProfileModal';
 import EditInterestsModal from '@/components/EditInterestsModal';
 import userApi from '@/app/(root)/api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
+import { useMasterData } from '../contexts/MasterDataContext';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 
 const { width: SW } = Dimensions.get('window');
 const CACHE_MS = 30000;
@@ -138,6 +140,7 @@ const RotatingRing = () => {
 const ProfileScreen = () => {
   // params + initialTabIndex removed — card layout doesn't use tab index
   const { userData, updateField } = useUserData();
+  const { getCasteName, getSubcastesForCaste } = useMasterData() || {};
   const popup = usePopup();
   const { subscriptionData } = useSubscription() || {};
 
@@ -151,6 +154,13 @@ const ProfileScreen = () => {
   const [image, setImage] = useState<string | null>(null);
   const [interestsEditVisible, setInterestsEditVisible] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  // What is currently uploading, or null. Drives the centred "Uploading…" overlay.
+  //
+  // imageUploading alone was not enough: it renders a spinner INSIDE the top avatar, but it was
+  // set by the gallery upload too — so adding a gallery photo put a spinner on the profile
+  // picture, which is both the wrong place and invisible when you're scrolled down to the
+  // gallery. That's why an upload looked like it did nothing.
+  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null);
   const lastFetchRef = useRef<number>(0);
 
   // Edit modal state
@@ -191,7 +201,10 @@ const ProfileScreen = () => {
     const fam = famArr[0] || {};
     return [
       { section: "PersonalDetail", data: { "First Name": data.firstName || "-", "Last Name": data.lastName || "-", Gender: data.gender === 'M' ? 'Male' : 'Female', "Date of Birth": data.dob || "-", Height: d.height || "-", Weight: d.weight || "-", "Physical Status": basic.physical_status || "-", "Marital Status": basic.marital_status || "-", "Mother Language": basic.mother_language || "Not specified", "Current Address": d.presentAddress || "-", "Native Place": d.permanentAddress || "-" } },
-      { section: "ReligiousDetail", data: { Religion: "Hindu", Caste: "SC", Star: astro.star || "-", "Moon Sign": astro.moon_sign || "-", Dosham: astro.dosham || "-" } },
+      // Caste was hardcoded to "SC" for every user — it now resolves the real caste name from
+      // the cached caste master list. Subcaste is optional (and the `subcastes` table is empty
+      // today), so it falls back to the same "-" placeholder every other empty field here uses.
+      { section: "ReligiousDetail", data: { Religion: "Hindu", Caste: getCasteName?.(data.casteId) || "-", Subcaste: data.subcasteName || "-", Star: astro.star || "-", "Moon Sign": astro.moon_sign || "-", Dosham: astro.dosham || "-" } },
       { section: "EducationalDetail", data: { Education: d.degree || "-", Occupation: d.occupation || "-", "Employing In": d.employedAt === 'GOVT' ? 'Government' : d.employedAt === 'PRIVATE' ? 'Private' : 'Self', "Annual Income": d.annualIncome ? d.annualIncome + "" : "-", "Job Place": d.jobPlace || "-", "Education in Detail": d.educationInDetail || "-" } },
       { section: "FamilyDetail", data: { "Family Type": fam.family_type?.trim() || "-", "Family Status": fam.family_status?.trim() || "-", "Fathers Name": fam.father?.trim() || "-", "Fathers Occupation": fam.father_occupation?.trim() || "-", "Mothers Name": fam.mother?.trim() || "-", "Mothers Occupation": fam.mother_occupation?.trim() || "-", "No of Siblings": fam.no_of_siblings?.toString() || "-", "No of Brothers": fam.no_of_brother?.toString() || "-", "No of Sisters": fam.no_of_sister?.toString() || "-", "Sister Married": fam.sister_married?.trim() || "-", "Brother Married": fam.brother_married?.trim() || "-" } },
       { section: "InterestsDetail", data: (() => { try { const h = d?.hobbies; return { _hobbies: Array.isArray(typeof h === 'string' ? JSON.parse(h) : h) ? (typeof h === 'string' ? JSON.parse(h) : h) : [] }; } catch { return { _hobbies: [] }; } })() }
@@ -274,16 +287,18 @@ const ProfileScreen = () => {
       // allowsEditing opens the OS's own crop screen, which on many Android OEM skins
       // (MIUI, One UI, etc.) renders without visible Done/Cancel buttons, blocking the
       // flow entirely. Skip it and upload the picked image as-is.
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
       if (!result.canceled && result.assets?.length) {
         const uri = result.assets[0].uri;
         setImage(uri);
         if (!userData.decodedUserId) return;
-        const ext = uri.split('.').pop() || 'jpg';
+        const filePart = await prepareImageForUpload(result.assets[0], 'profile');
+        if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
         const fd = new FormData();
-        fd.append('file', { uri, type: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`, name: `profile_${Date.now()}.${ext}` } as any);
+        fd.append('file', filePart as any);
         fd.append('userId', userData.decodedUserId);
         setImageUploading(true);
+        setUploadingLabel('Updating profile photo');
         try {
           const res = await userApi.updateProfileImage(fd);
           if (res?.data?.code === 200) {
@@ -292,7 +307,7 @@ const ProfileScreen = () => {
             await refreshProfile(false);
             popup.success('Updated', 'Profile image updated!');
           } else throw new Error(res?.data?.message || 'Failed');
-        } finally { setImageUploading(false); }
+        } finally { setImageUploading(false); setUploadingLabel(null); }
       }
     } catch (e: any) { setImageUploading(false); popup.error('Error', e.message || 'Failed to update.'); }
   };
@@ -302,7 +317,7 @@ const ProfileScreen = () => {
     const credits = boostData?.remainingCredits || 0;
     const cpm = boostData?.creditsPerMonth || 0;
     if (cpm === 0 && !boostData?.canBuyAddon) {
-      popup.premiumRequired('Upgrade to Classic or above to boost your profile.', buildUpgradeAction({ planTitle, featureName: 'Profile Boost', minPlan: 'Classic' }));
+      popup.premiumRequired(upgradeMessage('boost your profile', 'Classic'), buildUpgradeAction({ planTitle, featureName: 'Profile Boost', minPlan: 'Classic' }));
       return;
     }
     if (credits <= 0 && (cpm > 0 || boostData?.canBuyAddon)) {
@@ -330,23 +345,81 @@ const ProfileScreen = () => {
     if (isParent) { popup.error('Not allowed', 'Family members cannot upload gallery images.'); return; }
     try {
       // See handlePickImage above re: allowsEditing's unreliable Android crop-screen buttons.
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
       if (!result.canceled && result.assets?.length) {
         const uri = result.assets[0].uri;
-        const ext = uri.split('.').pop() || 'jpg';
+        const filePart = await prepareImageForUpload(result.assets[0], 'gallery');
+        if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
         const fd = new FormData();
-        fd.append('file', { uri, type: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`, name: `gallery_${Date.now()}.${ext}` } as any);
+        fd.append('file', filePart as any);
         fd.append('userId', userData.decodedUserId || atob(userData.userId));
-        setImageUploading(true);
+        setUploadingLabel('Uploading photo');
         try {
           const res = await userApi.uploadGalleryImage(fd);
           if (res?.data?.code === 200 || res?.data?.code === 201) {
             popup.success('Uploaded', 'Gallery image added!');
             await refreshProfile(false);
           } else popup.error('Upload failed', res?.data?.message || 'Try again.');
-        } finally { setImageUploading(false); }
+        } finally { setUploadingLabel(null); }
       }
-    } catch (e) { setImageUploading(false); popup.error('Error', 'Failed to upload.'); }
+    } catch (e: any) {
+      setImageUploading(false);
+      setUploadingLabel(null);
+      // axios rejects on 4xx, so a 413 (file too large) lands HERE, not in the code===200 branch
+      // above — a generic "Failed to upload" hid the one thing the member could act on.
+      popup.error('Upload failed', e?.response?.data?.message || 'Failed to upload. Please try again.');
+    }
+  };
+
+  // GalleryEntity's primary key is `galleryId`, NOT `id`, and /gallery/getAllImagesByUserId
+  // returns the raw entities with no remapping. Reading img.id yielded undefined, which is how
+  // requests like /gallery/setAsProfileImage/NzA0/undefined reached the server as a 400 — and
+  // the long-press delete had the same bug, silently calling changeImageActiveStatus/undefined.
+  // `id` is kept as a fallback in case another endpoint ever returns the mapped shape.
+  const galleryIdOf = (img: any) => img?.galleryId ?? img?.id;
+
+  // Tapping a gallery photo offers the actions the member expects from a photo grid, instead of
+  // the previous long-press-to-delete-only (which was undiscoverable). "Set as profile photo"
+  // reuses the stored URL server-side — no re-upload, no second copy in S3.
+  const handleGalleryImagePress = (img: any) => {
+    if (isParent) { popup.error('Not allowed', 'Family members cannot change photos.'); return; }
+    popup.show({
+      title: 'Photo options',
+      description: 'What would you like to do with this photo?',
+      variant: 'info',
+      stackedButtons: true,
+      dismissable: true,
+      buttons: [
+        {
+          text: 'Set as profile photo',
+          variant: 'primary',
+          onPress: async () => {
+            popup.hide();
+            try {
+              const res = await userApi.setGalleryImageAsProfile(userData.userId, galleryIdOf(img));
+              if (res?.data?.code === 200) {
+                if (typeof res.data.data === 'string') updateField('profileImage', res.data.data);
+                popup.success('Updated', 'This is now your profile photo.');
+                await refreshProfile(false);
+              } else {
+                popup.error('Failed', res?.data?.message || 'Could not update your profile photo.');
+              }
+            } catch (e) {
+              popup.error('Failed', 'Network error. Please try again.');
+            }
+          },
+        },
+        {
+          text: 'Replace with a new photo',
+          onPress: () => { popup.hide(); handleGalleryUpload(); },
+        },
+        {
+          text: 'Remove photo',
+          variant: 'destructive',
+          onPress: () => { popup.hide(); handleGalleryDelete(galleryIdOf(img)); },
+        },
+      ],
+    });
   };
 
   const handleGalleryDelete = (galleryId: number) => {
@@ -366,14 +439,16 @@ const ProfileScreen = () => {
     if (!userData.userId) return;
     try {
       // See handlePickImage above re: allowsEditing's unreliable Android crop-screen buttons.
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
       if (!result.canceled && result.assets?.length) {
         const uri = result.assets[0].uri;
-        const ext = uri.split('.').pop() || 'jpg';
+        const filePart = await prepareImageForUpload(result.assets[0], 'horoscope');
+        if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
         const fd = new FormData();
-        fd.append('file', { uri, type: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`, name: `horoscope_${Date.now()}.${ext}` } as any);
+        fd.append('file', filePart as any);
         fd.append('userId', atob(userData.userId));
         setHoroscopeUploading(true);
+        setUploadingLabel('Uploading horoscope');
         try {
           const res = await userApi.uploadHoroscopeImage(fd);
           if (res?.data?.code === 200 || res?.data?.code === 201) {
@@ -381,9 +456,13 @@ const ProfileScreen = () => {
           } else {
             popup.error('Upload failed', res?.data?.message || 'Try again.');
           }
-        } finally { setHoroscopeUploading(false); }
+        } finally { setHoroscopeUploading(false); setUploadingLabel(null); }
       }
-    } catch (e) { setHoroscopeUploading(false); popup.error('Error', 'Failed to upload horoscope.'); }
+    } catch (e: any) {
+      setHoroscopeUploading(false);
+      setUploadingLabel(null);
+      popup.error('Upload failed', e?.response?.data?.message || 'Failed to upload horoscope. Please try again.');
+    }
   };
 
   const handleDeleteHoroscope = () => {
@@ -467,6 +546,32 @@ const ProfileScreen = () => {
           popup.error('Could not update', res?.data?.message || 'Please try again.');
           return;
         }
+
+        // Subcaste is displayed inside the Religious section but is stored on the user row, not
+        // in the astrology JSON — so it saves through update-personal-info, not update-astro-info.
+        // That endpoint overwrites every field it receives, so the currently-loaded personal
+        // values are re-sent verbatim alongside the new subcasteId. `dateOfBirth` is deliberately
+        // blank: the backend skips it when blank, leaving the stored dob/age untouched (re-sending
+        // it risks a 400 if the stored format isn't yyyy-MM-dd). No-ops when the caste has no
+        // subcastes, when nothing was picked, or when the pick didn't change.
+        if (key === 'ReligiousDetail') {
+          const picked = updatedData['Subcaste'];
+          const match = (getSubcastesForCaste?.(userDetails?.casteId) || [])
+            .find((sc: any) => sc.subcasteName === picked);
+          if (match && String(match.id) !== String(userDetails?.subcasteId ?? '')) {
+            const scRes = await userApi.updateProfile({
+              ...sectionMap.PersonalDetail(personalDetail?.[0]?.data || {}),
+              dateOfBirth: '',
+              subcasteId: match.id,
+            });
+            if (scRes?.data?.code !== 200) {
+              popup.error('Could not update subcaste', scRes?.data?.message || 'Please try again.');
+              await refreshProfile(false);
+              return;
+            }
+          }
+        }
+
         const labels: Record<string, string> = {
           PersonalDetail: 'Personal details', ReligiousDetail: 'Religious details',
           EducationalDetail: 'Education details', FamilyDetail: 'Family details',
@@ -489,6 +594,11 @@ const ProfileScreen = () => {
   const basic = (() => { try { return JSON.parse(detail.basicInfo || '{}'); } catch { return {}; } })();
   const astro = (() => { try { return (JSON.parse(detail.astronomicInfo || '[]'))[0] || {}; } catch { return {}; } })();
   const family = (() => { try { const f = JSON.parse(detail.familyInfo || '[]'); return Array.isArray(f) ? f[0] || {} : f; } catch { return {}; } })();
+  // Resolved at render time (not baked into personalDetail at fetch time) so the real names show
+  // as soon as the cached caste/subcaste master lists are available. DetailField renders '-' for
+  // an empty value, matching every other unset field on this screen.
+  const casteName = getCasteName?.(userDetails?.casteId) || '';
+  const subcasteName = userDetails?.subcasteName || '';
   const isGoldPlus = planTitle === 'Gold' || planTitle === 'Platinum';
   const canBoost = boostData?.creditsPerMonth > 0 || boostData?.canBuyAddon;
 
@@ -599,8 +709,8 @@ const ProfileScreen = () => {
                   )}
 
                   {planEnd && planTitle !== 'Free' && (
-                    <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100 }}>
-                      <Text style={{ fontSize: 9, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: -0.1 }}>
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 9, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: -0.1, textAlign: 'center' }}>
                         Until {new Date(planEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
                       </Text>
                     </View>
@@ -647,13 +757,16 @@ const ProfileScreen = () => {
                 if (isGoldPlus) {
                   router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any);
                 } else {
-                  popup.premiumRequired('Upgrade to Gold to see who shortlisted your profile.', buildUpgradeAction({ planTitle, featureName: 'Who Shortlisted Me', minPlan: 'Gold' }));
+                  popup.premiumRequired(upgradeMessage('see who shortlisted your profile', 'Gold'), buildUpgradeAction({ planTitle, featureName: 'Who Shortlisted Me', minPlan: 'Gold' }));
                 }
               }}>
                 <View style={{ height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
                   <Text style={s.statNum}>{stats?.Shortlisted || 0}</Text>
                 </View>
-                <Text style={s.statLabel}>Saved</Text>
+                {/* "Saved You", not "Saved" — this stat is people who shortlisted YOU (Gold+),
+                    not the profiles you saved. The bare word read as the latter, which is a
+                    different, ungated feature (My Favourites / ListUser?type=shortlisted). */}
+                <Text style={s.statLabel}>Saved You</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -820,10 +933,11 @@ const ProfileScreen = () => {
             </LinearGradient>
 
             {/* Religious */}
-            <SectionCard emoji="🕉️" title="Religious" subtitle="5 fields" onEdit={() => handleEdit(personalDetail?.[1])}>
+            <SectionCard emoji="🕉️" title="Religious" subtitle="6 fields" onEdit={() => handleEdit(personalDetail?.[1])}>
               <View style={s.detailGrid}>
                 <DetailField label="Religion" value="Hindu" />
-                <DetailField label="Caste" value="SC" />
+                <DetailField label="Caste" value={casteName} />
+                <DetailField label="Subcaste" value={subcasteName} />
                 <DetailField label="Nakshatra" value={astro.star} />
                 <DetailField label="Moon sign" value={astro.moon_sign} />
                 <DetailField label="Dosham" value={astro.dosham} full />
@@ -928,15 +1042,15 @@ const ProfileScreen = () => {
                     <View style={s.slotTag}><Text style={s.slotTagText}>Primary</Text></View>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity style={[s.galSlot, s.galSlotEmpty]} onPress={handlePickImage}>
-                    <MaterialIcons name="add" size={22} color={C.brand} />
-                    <Text style={s.galSlotEmptyText}>Profile</Text>
+                  <TouchableOpacity style={[s.galSlot, s.galSlotEmpty, s.galSlotPrimary]} onPress={handlePickImage}>
+                    <MaterialIcons name="account-circle" size={22} color={C.amberDeep} />
+                    <Text style={[s.galSlotEmptyText, { color: C.amberDeep }]}>Profile photo</Text>
                   </TouchableOpacity>
                 )}
 
                 {/* Gallery images — long press to delete */}
                 {galleryImages?.filter((g: any) => g.isActive === 'Y')?.slice(0, 2).map((img: any, i: number) => (
-                  <TouchableOpacity key={i} style={s.galSlot} onLongPress={() => handleGalleryDelete(img.id)} activeOpacity={0.9}>
+                  <TouchableOpacity key={i} style={s.galSlot} onPress={() => handleGalleryImagePress(img)} onLongPress={() => handleGalleryDelete(galleryIdOf(img))} activeOpacity={0.9}>
                     <Image source={{ uri: img.userImage }} style={{ width: '100%', height: '100%' }} />
                     {i === 0 && <View style={s.slotTag}><Text style={s.slotTagText}>Gallery</Text></View>}
                   </TouchableOpacity>
@@ -979,6 +1093,52 @@ const ProfileScreen = () => {
         userId={userData.userId}
         refreshProfile={() => refreshProfile(false)}
       />
+
+      {/* Centred upload overlay. Sits at the root so it's visible wherever the member is
+          scrolled — the previous spinner lived inside the top avatar, so a gallery upload
+          showed no feedback at all once you'd scrolled down to the gallery. Non-dismissable:
+          the upload is already in flight and cancelling it isn't supported. */}
+      <Modal visible={!!uploadingLabel} transparent animationType="fade" statusBarTranslucent>
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(15,23,36,0.45)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 20,
+            paddingVertical: 26,
+            paddingHorizontal: 34,
+            alignItems: 'center',
+            minWidth: 190,
+            shadowColor: '#0f1724',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.18,
+            shadowRadius: 20,
+            elevation: 6,
+          }}>
+            <ActivityIndicator size="large" color="#1F7FE5" />
+            <Text style={{
+              marginTop: 14,
+              fontSize: 14,
+              fontFamily: 'Rubik-Medium',
+              color: '#0f1724',
+            }}>
+              {uploadingLabel}…
+            </Text>
+            <Text style={{
+              marginTop: 4,
+              fontSize: 11.5,
+              fontFamily: 'Rubik-Regular',
+              color: '#94a3b8',
+            }}>
+              Please wait
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -1007,7 +1167,11 @@ const s = StyleSheet.create({
   heroAge: { fontFamily: 'Rubik-Regular', color: C.ink3, fontSize: 15, letterSpacing: -0.2 },
   heroLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   heroLocationText: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.ink4, letterSpacing: -0.1 },
-  heroTags: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  // alignItems:'center' — without it this row defaults to 'stretch', so every chip grew to the
+  // tallest sibling's height. The amber/blue pills re-centre their own text (they set
+  // alignItems internally), but the plain expiry chip did not, leaving its label pinned to the
+  // top of a stretched box and visibly out of line with the pills beside it.
+  heroTags: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   tagPillAmber: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, shadowColor: C.amberGlow, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   tagPillAmberText: { fontSize: 10, fontFamily: 'Rubik-Bold', color: '#4a2e06', letterSpacing: 0.1 },
   tagPillBlue: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, shadowColor: C.brandGlow, shadowOpacity: 1, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
@@ -1083,6 +1247,10 @@ const s = StyleSheet.create({
   galSlot: { flex: 1, aspectRatio: 3 / 4, borderRadius: 14, overflow: 'hidden', position: 'relative', backgroundColor: '#e8ddd4' },
   galSlotEmpty: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.brand, backgroundColor: C.brandSoft, justifyContent: 'center', alignItems: 'center' },
   galSlotEmptyText: { fontSize: 10, fontFamily: 'Rubik-Medium', color: C.brand, marginTop: 5, letterSpacing: -0.1 },
+  // The primary/profile slot is deliberately styled differently from the gallery "+" tiles —
+  // an identical dashed square for a different action is how members ended up replacing their
+  // profile photo when they meant to add a gallery image.
+  galSlotPrimary: { borderColor: C.amberDeep, backgroundColor: C.amberSoft },
   slotTag: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 100 },
   slotTagText: { fontSize: 9, fontFamily: 'Rubik-Medium', color: C.white, letterSpacing: 0.2 },
 

@@ -85,6 +85,9 @@ export default function ResultsScreen() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const { searchResults } = useLocalSearchParams<{ searchResults?: string }>();
   const { searchCriteria } = useLocalSearchParams<{ searchCriteria?: string }>();
+  // Subcaste names for the saved-search round-trip — searchCriteria only carries numeric
+  // subcasteIds, and the filter UI restores by name.
+  const { subcasteNames } = useLocalSearchParams<{ subcasteNames?: string }>();
   const [isPremiumUser, setIsPremiumUser] = useState<boolean>(false);
   const { subscriptionData } = useSubscription() || {};
   const [profilesSearchCriteria, setProfilesSearchCriteria] = useState<SearchCriteria | null>(null);
@@ -219,6 +222,7 @@ export default function ResultsScreen() {
       jobSector: profilesSearchCriteria.employedAt,
       profilesWithHoroscope: profilesSearchCriteria.profilesWithHoroscope || 'N',
       profileImageStatus: profilesSearchCriteria.profileImageStatus || 'N',
+      subcaste: (() => { try { return subcasteNames ? JSON.parse(subcasteNames) : []; } catch { return []; } })(),
     };
   };
 
@@ -289,6 +293,13 @@ export default function ResultsScreen() {
         filters.push({
           filterKey: 'Education',
           filterValue: Array.isArray(searchData.degree) ? searchData.degree : [searchData.degree]
+        });
+      }
+
+      if (Array.isArray(searchData.subcaste) && searchData.subcaste.length > 0) {
+        filters.push({
+          filterKey: 'Subcaste',
+          filterValue: searchData.subcaste
         });
       }
 

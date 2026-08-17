@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -13,7 +14,7 @@ import userApi from '../api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
-import { ALL_UPGRADE_PLANS, PLAN_RANK, type UpgradePlanOption } from '../utils/upgradeNavigation';
+import { PLAN_RANK, useActivePlans, type UpgradePlanOption } from '../utils/upgradeNavigation';
 import RelationshipManagerView, { type AdminContact } from '../../../components/RelationshipManagerView';
 
 /**
@@ -57,12 +58,18 @@ export default function UpgradePlanScreen() {
   const currentRank = PLAN_RANK[currentPlanTitle] || 1;
   const minRank = minPlan ? (PLAN_RANK[minPlan] || 1) : 1;
 
+  // Only plans the backend still reports as active (subscription_plans.isActive='Y') are
+  // purchasable — a tier the client deactivates in the DB disappears from this picker on the next
+  // catalog refresh, with no code change. The rank filter below is unchanged; it just now runs
+  // over the live list instead of a hardcoded one.
+  const { plans: activePlans, loading: plansLoading } = useActivePlans();
+
   const eligiblePlans = useMemo(
-    () => ALL_UPGRADE_PLANS.filter((p) => {
+    () => activePlans.filter((p) => {
       const rank = PLAN_RANK[p.title] || 1;
       return rank > currentRank && rank >= minRank;
     }),
-    [currentRank, minRank]
+    [activePlans, currentRank, minRank]
   );
 
   const feature = featureName || 'this feature';
@@ -104,7 +111,14 @@ export default function UpgradePlanScreen() {
             : `${feature} is a premium feature. Pick a plan below and our team will contact you to complete the upgrade.`}
         </Text>
 
-        {eligiblePlans.length === 0 ? (
+        {eligiblePlans.length === 0 && plansLoading ? (
+          // Only reachable when the sync seed itself had nothing eligible and the live refresh is
+          // still in flight — showing "you're on our top plan" here would be wrong.
+          <View style={s.emptyState}>
+            <ActivityIndicator size="small" color="#1F7FE5" />
+            <Text style={s.emptyText}>Loading plans…</Text>
+          </View>
+        ) : eligiblePlans.length === 0 ? (
           <View style={s.emptyState}>
             <Crown size={28} color="#94a3b8" />
             <Text style={s.emptyText}>You're already on our top plan for this feature.</Text>

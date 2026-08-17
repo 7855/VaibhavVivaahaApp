@@ -37,7 +37,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import userApi from '../api/userApi';
 import SupportFAB from '../../../components/SupportFAB';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 
 interface PrivacySettings {
   allowMessages?: boolean;
@@ -53,7 +53,7 @@ const SettingsPage: React.FC = () => {
   const { logout } = useAuth();
   const { userData } = useUserData();
   const popup = usePopup();
-  const { subscriptionData } = useSubscription() || {};
+  const { subscriptionData, clearSubscription } = useSubscription() || {};
   const toast = useToast();
 
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
@@ -104,16 +104,36 @@ const SettingsPage: React.FC = () => {
 
   const performLogout = useCallback(async () => {
     try {
+      // Remove this device's push registration so a signed-out phone stops receiving pushes
+      // for the account. Three things were wrong here and it never actually ran:
+      //   1. It was gated on 'fcmToken', which was never written to AsyncStorage (saveDeviceInfo
+      //      checked `response.data.status == 200`, but `status` is the string enum — fixed in
+      //      utils/deviceInfo.ts).
+      //   2. It sent { userId, fcmToken }, but deleteUserDeviceInfo requires { userId, deviceId }
+      //      and 400s otherwise.
+      //   3. It sent the BASE64 userId, while the backend does Long.parseLong on it.
       const userIdRemove = await AsyncStorage.getItem('userId');
-      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      const deviceId = await AsyncStorage.getItem('deviceId');
 
-      if (userIdRemove != null && fcmToken != null) {
-        const requestBody = {
-          userId: userIdRemove,
-          fcmToken: fcmToken
+      if (userIdRemove != null && deviceId != null) {
+        try {
+          const res = await userApi.deleteDevice({
+            userId: atob(userIdRemove),
+            deviceId,
+          });
+          if (res?.data?.code !== 200) {
+            console.warn('Logout: device row not removed', res?.data?.code, res?.data?.message);
+          }
+        } catch (e) {
+          // Never block sign-out on this — worst case the row is cleaned up on next login.
+          console.warn('Logout: deleteDevice failed', e);
         }
-        await userApi.deleteDevice(requestBody);
       }
+      // Clear the cached plan too. subscriptionContext has always exposed clearSubscription()
+      // but nothing ever called it, so signing out left the previous account's plan (and its
+      // feature gating) in AsyncStorage — switching between two accounts on one device leaked
+      // the first account's entitlements into the second until something happened to refresh.
+      try { await clearSubscription?.(); } catch { /* never block sign-out */ }
       await logout();
 
       toast.show({
@@ -128,7 +148,7 @@ const SettingsPage: React.FC = () => {
         duration: 2000,
       });
     }
-  }, [logout, toast]);
+  }, [logout, toast, clearSubscription]);
 
   const handleLogout = useCallback(() => {
     setLogoutPopupVisible(true);
@@ -345,7 +365,7 @@ const SettingsPage: React.FC = () => {
                       onPress={() => {
                         if (!isGoldPlus) {
                           popup.premiumRequired(
-                            'Upgrade to Gold or Platinum to add family members who can help find your match.',
+                            upgradeMessage('add family members who can help find your match', 'Gold'),
                             buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Family Access', minPlan: 'Gold' })
                           );
                           return;
@@ -385,7 +405,7 @@ const SettingsPage: React.FC = () => {
             onPress={() => {
               if (!subscriptionData?.entitlements?.starMatch) {
                 popup.premiumRequired(
-                  'Star Match is available from Classic plan onwards. Upgrade to discover your compatibility score!',
+                  upgradeMessage('check horoscope compatibility with Star Match', 'Classic'),
                   buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Star Match', minPlan: 'Classic' })
                 );
                 return;
@@ -421,7 +441,7 @@ const SettingsPage: React.FC = () => {
               const isGoldPlus = subscriptionData?.planTitle === 'Gold' || subscriptionData?.planTitle === 'Platinum';
               if (!isGoldPlus) {
                 popup.premiumRequired(
-                  'Upgrade to Gold or Platinum to see who shortlisted you.',
+                  upgradeMessage('see who shortlisted you', 'Gold'),
                   buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Who Shortlisted You', minPlan: 'Gold' })
                 );
                 return;

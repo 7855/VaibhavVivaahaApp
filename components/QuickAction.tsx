@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSubscription } from '../app/(root)/contexts/subscriptionContext';
 import { usePopup } from '../app/(root)/contexts/PopupContext';
-import { buildUpgradeAction } from '../app/(root)/utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../app/(root)/utils/upgradeNavigation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 20) / 2 - 10; // 40 = 20 padding on each side, 10 = half the gap
@@ -22,7 +22,7 @@ const QuickAction = () => {
       case 'Star Match':
         if (!subscriptionData?.entitlements?.starMatch) {
           popup.premiumRequired(
-            'Star Match is available from Classic plan onwards. Upgrade to discover your compatibility score!',
+            upgradeMessage('check horoscope compatibility with Star Match', 'Classic'),
             buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Star Match', minPlan: 'Classic' })
           );
           return;
@@ -32,7 +32,7 @@ const QuickAction = () => {
       case 'Viewed You':
         if (!subscriptionData?.planTitle || subscriptionData.planTitle === 'Free') {
           popup.premiumRequired(
-            'Upgrade to Starter or above to see who viewed your profile.',
+            upgradeMessage('see who viewed your profile', 'Starter'),
             buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Who Viewed You', minPlan: 'Starter' })
           );
           return;

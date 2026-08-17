@@ -1,5 +1,4 @@
 import icons from "./icons";
-import images from "./images";
 
 export const cards = [
   {
@@ -8,7 +7,7 @@ export const cards = [
     price: "$100",
     rating: 4.8,
     category: "house",
-    image: images.newYork,
+    image: null,
   },
   {
     title: "Card 2",
@@ -16,7 +15,7 @@ export const cards = [
     price: "$200",
     rating: 3,
     category: "house",
-    image: images.japan,
+    image: null,
   },
   {
     title: "Card 3",
@@ -24,7 +23,7 @@ export const cards = [
     price: "$300",
     rating: 2,
     category: "flat",
-    image: images.newYork,
+    image: null,
   },
   {
     title: "Card 4",
@@ -32,7 +31,7 @@ export const cards = [
     price: "$400",
     rating: 5,
     category: "villa",
-    image: images.japan,
+    image: null,
   },
 ];
 
@@ -42,7 +41,7 @@ export const featuredCards = [
     location: "Location 1",
     price: "$100",
     rating: 4.8,
-    image: images.newYork,
+    image: null,
     category: "house",
   },
   {
@@ -50,7 +49,7 @@ export const featuredCards = [
     location: "Location 2",
     price: "$200",
     rating: 3,
-    image: images.japan,
+    image: null,
     category: "flat",
   },
 ];
@@ -102,65 +101,30 @@ export const settings = [
   },
 ];
 
-export const facilities = [
-  {
-    title: "Laundry",
-    icon: icons.laundry,
-  },
-  {
-    title: "Car Parking",
-    icon: icons.carPark,
-  },
-  {
-    title: "Sports Center",
-    icon: icons.run,
-  },
-  {
-    title: "Cutlery",
-    icon: icons.cutlery,
-  },
-  {
-    title: "Gym",
-    icon: icons.dumbell,
-  },
-  {
-    title: "Swimming pool",
-    icon: icons.swim,
-  },
-  {
-    title: "Wifi",
-    icon: icons.wifi,
-  },
-  {
-    title: "Pet Center",
-    icon: icons.dog,
-  },
-];
-
 export const gallery = [
   {
     id: 1,
-    image: images.newYork,
+    image: null,
   },
   {
     id: 2,
-    image: images.japan,
+    image: null,
   },
   {
     id: 3,
-    image: images.newYork,
+    image: null,
   },
   {
     id: 4,
-    image: images.japan,
+    image: null,
   },
   {
     id: 5,
-    image: images.newYork,
+    image: null,
   },
   {
     id: 6,
-    image: images.japan,
+    image: null,
   },
 ];
 
@@ -180,3 +144,33 @@ export const REPORT_REASONS = [
   'Harassment',
   'Others',
 ];
+
+// ── Public links / deep linking ───────────────────────────────────────────────
+// Single source of truth for anything we put in front of a user outside the app
+// (WhatsApp shares, invites). The share link used to point at
+// `https://vaibhavvivaaha.com` — a DIFFERENT domain from the live site
+// (`vaibhavvivaahamatrimony.com`, which is also what EXPO_PUBLIC_API_URL uses),
+// so every shared profile link was dead.
+export const APP_WEB_ORIGIN = 'https://vaibhavvivaahamatrimony.com';
+
+// Matches `scheme` in app.json. Deep links only resolve to a screen if the path
+// mirrors the expo-router route with the (group) segments dropped — so
+// app/(root)/screens/ProfileDetail.tsx is reachable at `/screens/ProfileDetail`.
+export const APP_SCHEME = 'vaibhavvivaaha';
+
+/** Web URL for a profile — safe to send to anyone, app installed or not. */
+export const profileWebUrl = (encodedUserId: string) =>
+  `${APP_WEB_ORIGIN}/profile/${encodedUserId}`;
+
+/**
+ * Direct in-app link. Only opens for users who already have the app installed.
+ *
+ * Takes the RAW numeric user id, NOT the base64 one used in the web URL above: ProfileDetail
+ * forwards its `userId` route param straight to /getProfileDetailWithIntractionStatus, whose
+ * controller declares `@PathVariable Long profileUserId`. Passing an encoded id here opens the
+ * screen and then fails the fetch.
+ */
+export const profileDeepLink = (rawUserId: string | number) =>
+  `${APP_SCHEME}://screens/ProfileDetail?userId=${encodeURIComponent(String(rawUserId))}`;
+
+export const APP_DOWNLOAD_URL = `${APP_WEB_ORIGIN}/download`;

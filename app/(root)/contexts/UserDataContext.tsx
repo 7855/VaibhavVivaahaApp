@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface UserData {
@@ -125,8 +125,15 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         loadUserData();
     }, [loadUserData]);
 
+    // Memoized — the three callbacks are already stable, so consumers only re-render when
+    // userData/isLoaded actually change rather than on every provider render.
+    const value = useMemo(
+        () => ({ userData, isLoaded, loadUserData, updateField, clearUserData }),
+        [userData, isLoaded, loadUserData, updateField, clearUserData]
+    );
+
     return (
-        <UserDataContext.Provider value={{ userData, isLoaded, loadUserData, updateField, clearUserData }}>
+        <UserDataContext.Provider value={value}>
             {children}
         </UserDataContext.Provider>
     );

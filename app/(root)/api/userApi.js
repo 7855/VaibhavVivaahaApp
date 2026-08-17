@@ -21,6 +21,11 @@ const userApi = {
   getUserGalleryImages: (userId) =>
     axiosClient.get(`/gallery/getAllImagesByUserId/${userId}`),
 
+  // Promote an existing gallery image to the profile photo — no re-upload, the backend just
+  // copies the stored URL onto users.profileImage (and verifies the caller owns the row).
+  setGalleryImageAsProfile: (encodedUserId, galleryId) =>
+    axiosClient.put(`/gallery/setAsProfileImage/${encodedUserId}/${galleryId}`),
+
   changeGalleryImageActiveStatusByImageId: (galleryId) =>
     axiosClient.put(`/gallery/changeImageActiveStatus/${galleryId}`),
 
@@ -72,6 +77,15 @@ const userApi = {
   getAllCaste: () =>
     axiosClient.get(`/caste/getAllActiveCaste`),
 
+  // Subcastes are mapped to a parent caste. `getAllActiveSubcastes` returns the whole
+  // list in one call so MasterDataContext can cache it and filter client-side by casteId
+  // (avoids a network round-trip every time the caste dropdown changes).
+  getSubcastesByCasteId: (casteId) =>
+    axiosClient.get(`/caste/getSubcastesByCasteId/${casteId}`),
+
+  getAllActiveSubcastes: () =>
+    axiosClient.get(`/caste/getAllActiveSubcastes`),
+
   createUser: (request) =>
     axiosClient.post(`/user/createUser`, request),
 
@@ -84,8 +98,13 @@ const userApi = {
   getSentMailbox: (userId) =>
     axiosClient.get(`/mailbox/sent/${userId}`),
 
-  getShortlistedMailbox: (userId) =>
-    axiosClient.get(`/mailbox/shortlisted/${userId}`),
+  // /mailbox/shortlisted is a PaginatedResultResponse on the backend and defaults to page=0,
+  // size=10 when no params are sent — callers that don't page were silently only ever seeing the
+  // first 10 rows. Defaults kept identical so existing call sites behave exactly as before.
+  getShortlistedMailbox: (userId, page = 0, size = 10) =>
+    axiosClient.get(`/mailbox/shortlisted/${userId}`, {
+      params: { page, size },
+    }),
 
   getWhoShortlistedMe: (encodedId, page = 0, size = 10) =>
     axiosClient.get(`/mailbox/whoShortlistedMe/${encodedId}`, {
@@ -189,11 +208,13 @@ const userApi = {
   getConversationByUsers: (userOneId, userTwoId) =>
     axiosClient.get(`/conversation/getByUsers/${userOneId}/${userTwoId}`),
 
-  // Note: isActive lives on the shared conversation row, not per-participant — this hides the
-  // conversation for BOTH people, not just the one who deleted it (unlike WhatsApp's per-user
-  // delete). A new message from either side revives it automatically (see ChatService.sendChatMessage).
-  deleteConversation: (conversationId) =>
-    axiosClient.get(`/conversation/inActiveConversationById/${conversationId}`),
+  // Per-participant delete: hides the conversation from THIS user's chat list only, via
+  // conversations.deleted_by_user_one/two. The other person keeps the thread, and the `chats`
+  // rows are never deleted, so history is retained for moderation. A new message from either
+  // side revives it for both (see ChatService.sendChatMessage).
+  // encodedUserId is REQUIRED — the backend verifies the caller is actually a participant.
+  deleteConversation: (conversationId, encodedUserId) =>
+    axiosClient.get(`/conversation/inActiveConversationById/${conversationId}/${encodedUserId}`),
 
   getAllHappyStoriesByIsActive: () =>
     axiosClient.get(`/happyStory/getAllHappyStoriesByIsActive/Y`),

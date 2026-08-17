@@ -15,7 +15,7 @@ import { ActionsheetBackdrop } from './ActionSheet';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePopup } from '../app/(root)/contexts/PopupContext';
 import { useSubscription } from '../app/(root)/contexts/subscriptionContext';
-import { buildUpgradeAction } from '../app/(root)/utils/upgradeNavigation';
+import { buildUpgradeAction, resolveMinPlanTitle, upgradeMessage } from '../app/(root)/utils/upgradeNavigation';
 
 
 const FirstRoute = ({
@@ -210,7 +210,7 @@ const FirstRoute = ({
                               </View>
                               <View style={{ flex: 1 }}>
                                 <Text style={{ color: '#9a3412', fontSize: 11, fontFamily: 'Rubik-Bold' }}>Premium Only</Text>
-                                <Text style={{ color: '#c2410c', fontSize: 10, fontFamily: 'Rubik-Medium' }}>Upgrade to Classic or above to view contact</Text>
+                                <Text style={{ color: '#c2410c', fontSize: 10, fontFamily: 'Rubik-Medium' }}>Upgrade to {resolveMinPlanTitle('Classic')} or above to view contact</Text>
                               </View>
                               <Ionicons name="chevron-forward" size={14} color="#ea580c" />
                             </TouchableOpacity>
@@ -230,12 +230,12 @@ const FirstRoute = ({
                                 } else if (res.data?.message === 'CONTACT_VIEW_LIMIT_EXCEEDED') {
                                   const limit = res.data?.data?.limit || 40;
                                   popup.premiumRequired(
-                                    `You've used all ${limit} contact reveals. Upgrade to Silver for unlimited access.`,
+                                    `You've used all ${limit} contact reveals. Upgrade to ${resolveMinPlanTitle('Silver')} for unlimited access.`,
                                     buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Contact Reveal', minPlan: 'Silver' })
                                   );
                                 } else {
                                   popup.premiumRequired(
-                                    'Upgrade to Classic or above to view contacts.',
+                                    upgradeMessage('view contacts', 'Classic'),
                                     buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Contact Reveal', minPlan: 'Classic' })
                                   );
                                 }

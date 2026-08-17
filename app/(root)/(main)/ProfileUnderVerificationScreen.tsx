@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
     View,
+    Image,
     StyleSheet,
     TouchableOpacity,
     ScrollView,
@@ -10,15 +11,14 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Clock, AlertTriangle, LogOut, MessageCircle, RefreshCw } from 'lucide-react-native';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
-import { useTranslation } from 'react-i18next';
 import AppText from '../../../components/AppText';
 
 export default function ProfileUnderVerificationScreen() {
     const popup = usePopup();
-    const { t } = useTranslation();
     const [userStatus, setUserStatus] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState<string | null>(null);
     const [firstName, setFirstName] = useState<string>('');
@@ -52,8 +52,8 @@ export default function ProfileUnderVerificationScreen() {
 
     const handleLogout = () => {
         popup.confirm(
-            t('settings.logoutConfirm.title'),
-            t('settings.logoutConfirm.description'),
+            'Log Out',
+            'Are you sure you want to log out?',
             async () => {
                 await AsyncStorage.multiRemove([
                     'authToken', 'refreshToken', 'userId', 'firstName', 'lastName', 'gender',
@@ -62,8 +62,8 @@ export default function ProfileUnderVerificationScreen() {
                 ]);
                 router.replace('/(root)/(main)');
             },
-            t('settings.logoutConfirm.confirm'),
-            t('common.cancel')
+            'Log Out',
+            'Cancel'
         );
     };
 
@@ -77,12 +77,12 @@ export default function ProfileUnderVerificationScreen() {
                 await AsyncStorage.removeItem('rejectionReason');
                 setUserStatus('PENDING');
                 setRejectionReason(null);
-                popup.success(t('auth.underVerification.resubmittedTitle'), t('auth.underVerification.resubmittedMessage'));
+                popup.success('Profile Resubmitted', "Your profile has been sent for review again. We'll let you know once it's approved.");
             } else {
-                popup.error(t('common.error'), res.data?.message || t('login.errors.genericMessage'));
+                popup.error('Error', res.data?.message || 'Something went wrong. Please try again.');
             }
         } catch (err) {
-            popup.error(t('common.error'), t('login.errors.genericMessage'));
+            popup.error('Error', 'Something went wrong. Please try again.');
         } finally {
             setResubmitting(false);
         }
@@ -91,19 +91,35 @@ export default function ProfileUnderVerificationScreen() {
     const isRejected = userStatus === 'REJECTED';
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <View style={{ flex: 1 }}>
+            <LinearGradient
+                colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
+                locations={[0, 0.3, 0.6, 1.0]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+            />
+            <SafeAreaView style={styles.safeArea}>
             <ScrollView contentContainerStyle={styles.container}>
                 {/* Header */}
                 <View style={styles.header}>
+                    {/* Brand mark — logo in a soft white halo */}
+                    <View style={styles.logoHalo}>
+                        <Image
+                            source={require('../../../assets/images/LotusLogo.png')}
+                            style={styles.logo}
+                            resizeMode="cover"
+                        />
+                    </View>
                     <View style={[styles.iconCircle, isRejected ? styles.iconCircleRed : styles.iconCircleMaroon]}>
                         {isRejected ? (
-                            <AlertTriangle size={44} color="#fff" strokeWidth={2.5} />
+                            <AlertTriangle size={30} color="#fff" strokeWidth={2.5} />
                         ) : (
-                            <Clock size={44} color="#fff" strokeWidth={2.5} />
+                            <Clock size={30} color="#fff" strokeWidth={2.5} />
                         )}
                     </View>
                     <AppText weight="bold" style={styles.title}>
-                        {isRejected ? t('auth.underVerification.titleRejected') : t('auth.underVerification.titlePending')}
+                        {isRejected ? 'Profile Not Approved' : 'Profile Under Review'}
                     </AppText>
                     {firstName ? <AppText weight="medium" style={styles.subtitle}>Hi {firstName},</AppText> : null}
                 </View>
@@ -111,20 +127,20 @@ export default function ProfileUnderVerificationScreen() {
                 {/* Message */}
                 {isRejected ? (
                     <View style={styles.rejectionCard}>
-                        <AppText weight="bold" style={styles.rejectionTitle}>{t('auth.underVerification.statusRejected')}</AppText>
+                        <AppText weight="bold" style={styles.rejectionTitle}>Reason For Rejection</AppText>
                         <AppText weight="regular" style={styles.rejectionText}>
-                            {rejectionReason || t('auth.underVerification.subtitleRejected')}
+                            {rejectionReason || 'Your profile could not be approved. Please review your details and submit it again.'}
                         </AppText>
                     </View>
                 ) : (
                     <View style={styles.messageCard}>
                         <AppText weight="regular" style={styles.messageText}>
-                            {t('auth.underVerification.subtitlePending')}
+                            Our team is reviewing your profile. This usually takes up to 24 hours, and we'll let you know as soon as it's approved.
                         </AppText>
                         <View style={styles.infoRow}>
                             <AppText weight="medium" style={styles.infoLabel}>Status:</AppText>
                             <View style={styles.statusBadge}>
-                                <AppText weight="bold" style={styles.statusBadgeText}>{t('auth.underVerification.statusPending')}</AppText>
+                                <AppText weight="bold" style={styles.statusBadgeText}>PENDING</AppText>
                             </View>
                         </View>
                     </View>
@@ -132,9 +148,9 @@ export default function ProfileUnderVerificationScreen() {
 
                 {/* Why review */}
                 <View style={styles.stepsCard}>
-                    <AppText weight="bold" style={styles.stepsTitle}>{t('auth.underVerification.whyReview')}</AppText>
+                    <AppText weight="bold" style={styles.stepsTitle}>Why do we review profiles?</AppText>
                     <AppText weight="regular" style={styles.stepText}>
-                        {t('auth.underVerification.reviewReason')}
+                        Every profile is checked by our team, so that you only ever see genuine members looking for a serious match.
                     </AppText>
                 </View>
 
@@ -151,7 +167,7 @@ export default function ProfileUnderVerificationScreen() {
                             ) : (
                                 <>
                                     <RefreshCw size={18} color="#fff" />
-                                    <AppText weight="bold" style={styles.primaryBtnText}>{t('auth.underVerification.resubmitProfile')}</AppText>
+                                    <AppText weight="bold" style={styles.primaryBtnText}>Resubmit Profile</AppText>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -159,23 +175,23 @@ export default function ProfileUnderVerificationScreen() {
 
                     <TouchableOpacity style={styles.secondaryBtn} onPress={handleContactSupport}>
                         <MessageCircle size={18} color="#1F7FE5" />
-                        <AppText weight="bold" style={styles.secondaryBtnText}>{t('auth.underVerification.contactSupport')}</AppText>
+                        <AppText weight="bold" style={styles.secondaryBtnText}>Contact Support</AppText>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.ghostBtn} onPress={handleLogout}>
                         <LogOut size={16} color="#666" />
-                        <AppText weight="medium" style={styles.ghostBtnText}>{t('settings.logout.title')}</AppText>
+                        <AppText weight="medium" style={styles.ghostBtnText}>Log Out</AppText>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-        </SafeAreaView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#FDFAFA',
     },
     container: {
         padding: 24,
@@ -186,13 +202,34 @@ const styles = StyleSheet.create({
         marginTop: 20,
         marginBottom: 24,
     },
-    iconCircle: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+    // App-icon tile (see SetNewPasswordScreen note — the logo PNG is a solid square, circles
+    // crop it badly).
+    logoHalo: {
+        width: 68,
+        height: 68,
+        borderRadius: 20,
+        backgroundColor: '#ffffff',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 20,
+        shadowColor: '#1F7FE5',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        elevation: 4,
+    },
+    logo: {
+        width: 68,
+        height: 68,
+        borderRadius: 20,
+    },
+    iconCircle: {
+        width: 62,
+        height: 62,
+        borderRadius: 31,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 20,
+        marginBottom: 16,
         elevation: 6,
         shadowColor: '#1F7FE5',
         shadowOffset: { width: 0, height: 4 },
@@ -207,22 +244,21 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 24,
-        fontFamily: 'Rubik-Bold',
-        color: '#130001',
+        color: '#0f1724',
+        letterSpacing: -0.3,
         marginBottom: 4,
     },
     subtitle: {
-        fontSize: 15,
-        color: '#6b7280',
-        fontFamily: 'Rubik-Medium',
+        fontSize: 13,
+        color: '#64748b',
     },
     messageCard: {
         backgroundColor: '#ffffff',
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 20,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#F2E8E9',
+        borderColor: '#e7edf5',
         elevation: 1,
         shadowColor: '#1F7FE5',
         shadowOffset: { width: 0, height: 2 },
@@ -241,7 +277,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 8,
         borderTopWidth: 1,
-        borderTopColor: '#F5EEEF',
+        borderTopColor: '#eef3f8',
     },
     infoLabel: {
         fontSize: 13,
@@ -267,7 +303,7 @@ const styles = StyleSheet.create({
     },
     rejectionCard: {
         backgroundColor: '#FEF2F2',
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 20,
         marginBottom: 16,
         borderWidth: 1,
@@ -290,11 +326,11 @@ const styles = StyleSheet.create({
     },
     stepsCard: {
         backgroundColor: '#ffffff',
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 20,
         marginBottom: 24,
         borderWidth: 1,
-        borderColor: '#F2E8E9',
+        borderColor: '#e7edf5',
     },
     stepsTitle: {
         fontSize: 15,
@@ -335,8 +371,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         backgroundColor: '#1F7FE5',
-        paddingVertical: 15,
-        borderRadius: 12,
+        paddingVertical: 16,
+        borderRadius: 28,
         elevation: 3,
         shadowColor: '#1F7FE5',
         shadowOffset: { width: 0, height: 3 },
@@ -354,8 +390,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         backgroundColor: '#fff',
-        paddingVertical: 15,
-        borderRadius: 12,
+        paddingVertical: 16,
+        borderRadius: 28,
         borderWidth: 1.5,
         borderColor: '#1F7FE5',
     },

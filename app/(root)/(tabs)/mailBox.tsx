@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useFooterClearance } from '@/components/VVMFooterNav';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
@@ -15,8 +16,7 @@ import {
   useWindowDimensions,
   Modal,
   Pressable,
-  TextInput,
-  Alert
+  TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +26,7 @@ import VerifiedBadges from '../../../components/VerifiedBadges';
 import Icon from 'react-native-vector-icons/Ionicons';
 import EvilIcons from 'react-native-vector-icons/EvilIcons';
 
-import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import { TabView, TabBar } from 'react-native-tab-view';
 import userApi from '../api/userApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Checkbox } from 'native-base';
@@ -40,13 +40,6 @@ import {
   Star,
   Clock,
 } from 'lucide-react-native';
-import {
-  Menu,
-  MenuOptions,
-  MenuOption,
-  MenuTrigger,
-  MenuProvider,
-} from 'react-native-popup-menu';
 
 // Skeleton loader matching matchCard layout (260h image card with overlay text)
 const MailboxCardSkeleton = () => (
@@ -163,8 +156,222 @@ interface ReceivedProfile {
   acceptStatus?: 'PENDING' | 'REJECTED' | 'APPROVED';
 }
 
+const DEFAULT_AVATAR = require('../../../assets/images/defaultAvatar.png');
 
-const ReceivedTab = () => {
+// Every FlatList on this screen used to build its rows from an inline `renderItem` closure, so a
+// single state change anywhere in the tab (a filter tap, a refocus refetch, a popup opening)
+// re-rendered every mounted row's whole subtree — ImageBackground, gradient overlay, badges and
+// all. Rows are now module-scope React.memo components taking plain props + stable callbacks, the
+// same recipe already used by components/listchats.js's ChatRow.
+const ReceivedRow = React.memo(function ReceivedRow({
+  item,
+  onOpen,
+  onAccept,
+  onDecline,
+}: {
+  item: ReceivedProfile;
+  onOpen: (userId: number) => void;
+  onAccept: (item: ReceivedProfile) => void;
+  onDecline: (item: ReceivedProfile) => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.matchCard} onPress={() => onOpen(item.userId)}>
+      <ImageBackground
+        source={item.profileImage ? { uri: item.profileImage } : DEFAULT_AVATAR}
+        style={styles.imageBackground}
+        imageStyle={styles.image}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+          <VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" color="gold" />
+        </View>
+        <View style={styles.matchInfo}>
+          <View style={styles.infoText}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text></View>
+            <Text style={styles.occupation}>
+              {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
+            </Text>
+          </View>
+          {item.status === 'pending' && (
+            <View style={styles.iconActions}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={(e: GestureResponderEvent) => {
+                  e.stopPropagation();
+                  onDecline(item);
+                }}
+              >
+                <Ionicons name="close" size={20} color="green" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={(e: GestureResponderEvent) => {
+                  e.stopPropagation();
+                  onAccept(item);
+                }}
+              >
+                <Ionicons name="heart" size={20} color="red" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </ImageBackground>
+    </TouchableOpacity>
+  );
+});
+
+const SentRow = React.memo(function SentRow({
+  item,
+  onOpen,
+  onDelete,
+}: {
+  item: ReceivedProfile;
+  onOpen: (userId: number) => void;
+  onDelete: (item: ReceivedProfile) => void;
+}) {
+  return (
+    <View style={styles.matchCard}>
+      <TouchableOpacity onPress={() => onOpen(item.userId)}>
+        <ImageBackground
+          source={item.profileImage ? { uri: item.profileImage } : DEFAULT_AVATAR}
+          style={styles.imageBackground}
+          imageStyle={styles.image}
+          resizeMode="cover"
+        >
+          <View style={styles.overlay} />
+          <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+            <VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" color="gold" />
+          </View>
+          <View style={styles.matchInfo}>
+            <View style={styles.infoText}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                <Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text>
+              </View>
+              <Text style={styles.occupation}>
+                {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
+              </Text>
+              <View style={{
+                alignSelf: 'flex-start',
+                marginTop: 4,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 10,
+                backgroundColor: item.acceptStatus === 'APPROVED' ? '#4CAF50'
+                  : item.acceptStatus === 'REJECTED' ? '#f44336'
+                    : '#9E9E9E',
+              }}>
+                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>
+                  {item.acceptStatus === 'APPROVED' ? 'Accepted'
+                    : item.acceptStatus === 'REJECTED' ? 'Declined'
+                      : 'Pending'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.iconActions}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={(e: GestureResponderEvent) => {
+                  e.stopPropagation();
+                  onDelete(item);
+                }}
+              >
+                <Ionicons name="close" size={20} color="green" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ImageBackground>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+const PermissionRow = React.memo(function PermissionRow({
+  item,
+  onOpen,
+  onAccept,
+  onDelete,
+}: {
+  item: any;
+  onOpen: (userId: number) => void;
+  onAccept: (item: any) => void;
+  onDelete: (item: any) => void;
+}) {
+  const status = String(item?.status || 'PENDING').toUpperCase();
+  const isPending = status === 'PENDING';
+  const statusMeta =
+    status === 'APPROVED'
+      ? { label: 'Approved', icon: 'checkmark-circle', bg: 'rgba(22,163,74,0.92)', fg: '#fff' }
+      : status === 'REJECTED'
+        ? { label: 'Declined', icon: 'close-circle', bg: 'rgba(220,38,38,0.92)', fg: '#fff' }
+        : { label: 'Pending', icon: 'time', bg: 'rgba(107,114,128,0.92)', fg: '#fff' };
+
+  return (
+    <View style={styles.matchCard}>
+      <TouchableOpacity onPress={() => onOpen(item.requestedBy)}>
+        <ImageBackground
+          source={item.profileImage ? { uri: item.profileImage } : DEFAULT_AVATAR}
+          style={styles.imageBackground}
+          imageStyle={styles.image}
+          resizeMode="cover"
+        >
+          <View style={styles.overlay} />
+          <View style={styles.profileImageLabel}>
+            <Text style={styles.profileImageLabelText}>{item.fieldType == 'PROFILE_IMAGE' ? 'Profile Photo' : item.fieldType == 'HOROSCOPE' ? 'Horoscope' : item.fieldType == 'MOBILE' ? 'Mobile Number' : ''}</Text>
+          </View>
+          <View style={styles.matchInfo}>
+            <View style={styles.infoText}>
+              <Text style={styles.name}>
+                {item.firstname} {item.lastname}, {item.age}
+              </Text>
+              <Text style={styles.occupation}>
+                {item.degree}, {item.AnnualIncome}/yr, {item.Occupation}, {item.location}
+              </Text>
+            </View>
+            {/* Accept/reject only while the request is still open. Decided rows keep their
+                place in the list but show the outcome instead of buttons that would re-submit
+                a decision already made. */}
+            {isPending ? (
+              <View style={styles.iconActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    { marginRight: 10 }
+                  ]}
+                  onPress={(e: GestureResponderEvent) => {
+                    e.stopPropagation();
+                    onAccept(item);
+                  }}
+                >
+                  <Ionicons name="checkmark" size={20} color="green" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={(e: GestureResponderEvent) => {
+                    e.stopPropagation();
+                    onDelete(item);
+                  }}
+                >
+                  <Ionicons name="close" size={20} color="red" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={[styles.statusChip, { backgroundColor: statusMeta.bg }]}>
+                <Ionicons name={statusMeta.icon as any} size={13} color={statusMeta.fg} />
+                <Text style={[styles.statusChipText, { color: statusMeta.fg }]}>
+                  {statusMeta.label}
+                </Text>
+              </View>
+            )}
+          </View>
+        </ImageBackground>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
+  const footerPad = useFooterClearance();
   const { userData } = useUserData();
   const popup = usePopup();
   const [error, setError] = useState<string | null>(null);
@@ -230,7 +437,7 @@ const ReceivedTab = () => {
     [data, selectedFilter]
   );
 
-  const handleAccept = async (item: ReceivedProfile) => {
+  const handleAccept = useCallback(async (item: ReceivedProfile) => {
     try {
       // Accept is free for all users — no plan gate
       // Chat after accept is gated to Silver+ (handled in chatscreen)
@@ -273,9 +480,9 @@ const ReceivedTab = () => {
       console.error('Error accepting profile:', error);
       popup.error('Failed', 'Could not accept the request. Please try again.');
     }
-  };
+  }, [userData.userId, popup]);
 
-  const handleDecline = async (item: ReceivedProfile) => {
+  const handleDecline = useCallback(async (item: ReceivedProfile) => {
     try {
       const res = await userApi.updateInterestRequestStatus(item.interestId, 'REJECTED');
       if (res.data?.code === 200) {
@@ -316,18 +523,33 @@ const ReceivedTab = () => {
       console.error('Error rejecting profile:', error);
       setError('Failed to reject profile');
     }
-  };
+  }, [userData.userId]);
 
   // Was useEffect(() => {...}, []) — fetched once on mount only. Since this tab (like the
   // others in mailBox.tsx) stays mounted when the user navigates away and back, a request
   // received (and pushed via notification) while elsewhere in the app never showed up here
   // until a full app restart — reopening the tab just re-focused the same stale state. Switched
   // to useFocusEffect, matching the same fix already applied to the Sent By You tab.
+  //
+  // Three further fixes on top of that:
+  //  1. `isActive` — useFocusEffect keys off the whole mailBox SCREEN's focus, not this sub-tab's,
+  //     so all three scenes used to fire their fetches (6 API calls) every single time the screen
+  //     was focused, even the two the user wasn't looking at. Only fetch when this really is the
+  //     selected sub-tab.
+  //  2. The spinner now only shows on the FIRST load (hasLoadedRef) — previously every refocus set
+  //     loading=true, so coming back from ProfileDetail replaced already-correct rows with a full
+  //     skeleton. Matches the pattern RequestsTab already used.
+  //  3. `isStillActive` cleanup flag so a slow response from a previous focus can't overwrite the
+  //     state of a newer one (same guard used in app/(root)/(tabs)/index.tsx).
+  const hasLoadedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
+      if (!isActive) return;
+      let isStillActive = true;
+
       const loadReceivedData = async () => {
         try {
-          setLoading(true);
+          if (!hasLoadedRef.current) setLoading(true);
           if (!userData.userId) {
             setError('User ID not found');
             return;
@@ -339,6 +561,8 @@ const ReceivedTab = () => {
             userApi.getAcceptedReceivedProfiles(userId),
             userApi.getRejectedReceivedProfiles(userId),
           ]);
+
+          if (!isStillActive) return;
 
           const pendingProfiles = (pendingResponse.data?.data || []).map((item: any) => ({
             ...item,
@@ -360,16 +584,27 @@ const ReceivedTab = () => {
           setData(combinedProfiles);
           setError(null);
         } catch (err: any) {
+          if (!isStillActive) return;
           console.error('Error loading received profiles:', err);
           setError('Failed to load profiles: ' + (err.message || 'Unknown error'));
         } finally {
-          setLoading(false);
+          hasLoadedRef.current = true;
+          if (isStillActive) setLoading(false);
         }
       };
 
       loadReceivedData();
-    }, [userData.userId])
+      return () => { isStillActive = false; };
+    }, [userData.userId, isActive])
   );
+
+  const handleOpenProfile = useCallback((userId: number) => {
+    router.push(`/screens/ProfileDetail?userId=${userId}`);
+  }, []);
+
+  const renderReceivedItem = useCallback(({ item }: { item: ReceivedProfile }) => (
+    <ReceivedRow item={item} onOpen={handleOpenProfile} onAccept={handleAccept} onDecline={handleDecline} />
+  ), [handleOpenProfile, handleAccept, handleDecline]);
 
   if (loading) {
     return <MailboxLoadingSkeleton count={3} />;
@@ -457,58 +692,12 @@ const ReceivedTab = () => {
       <FlatList
         data={filteredData}
         keyExtractor={(item) => item.userId.toString()}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: footerPad }]}
         windowSize={5}
         initialNumToRender={6}
         maxToRenderPerBatch={4}
         removeClippedSubviews={true}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.matchCard}
-            onPress={() => router.push(`/screens/ProfileDetail?userId=${item.userId}`)}
-          >
-            <ImageBackground
-              source={item.profileImage ? { uri: item.profileImage } : require('../../../assets/images/defaultAvatar.png')}
-              style={styles.imageBackground}
-              imageStyle={styles.image}
-            >
-              <View style={styles.overlay} />
-              <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
-                <VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" color="gold" />
-              </View>
-              <View style={styles.matchInfo}>
-                <View style={styles.infoText}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}><Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text></View>
-                  <Text style={styles.occupation}>
-                    {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
-                  </Text>
-                </View>
-                {item.status === 'pending' && (
-                  <View style={styles.iconActions}>
-                    <TouchableOpacity
-                      style={styles.iconButton}
-                      onPress={(e: GestureResponderEvent) => {
-                        e.stopPropagation();
-                        handleDecline(item);
-                      }}
-                    >
-                      <Ionicons name="close" size={20} color="green" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.iconButton}
-                      onPress={(e: GestureResponderEvent) => {
-                        e.stopPropagation();
-                        handleAccept(item);
-                      }}
-                    >
-                      <Ionicons name="heart" size={20} color="red" />
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            </ImageBackground>
-          </TouchableOpacity>
-        )}
+        renderItem={renderReceivedItem}
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No Interests Found</Text>
@@ -521,7 +710,8 @@ const ReceivedTab = () => {
   );
 };
 
-const SentTab = () => {
+const SentTab = ({ isActive }: { isActive: boolean }) => {
+  const footerPad = useFooterClearance();
   const { userData } = useUserData();
   const popup = usePopup();
   const [data, setData] = useState<ReceivedProfile[]>([]);
@@ -549,7 +739,7 @@ const SentTab = () => {
   // "unfriend/disconnect", not "withdraw an ask": it deletes the match record and, if neither side
   // ever actually chatted, wipes the conversation too. That's irreversible enough to warrant an
   // explicit confirmation instead of a silent one-tap delete.
-  const handleDelete = (item: ReceivedProfile) => {
+  const handleDelete = useCallback((item: ReceivedProfile) => {
     if (item.acceptStatus === 'APPROVED') {
       popup.confirm(
         'Remove this connection?',
@@ -561,13 +751,21 @@ const SentTab = () => {
       return;
     }
     removeInterest(item);
-  };
+    // removeInterest closes over nothing that changes between renders beyond userData/popup,
+    // which are stable enough for the memoised rows below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [popup]);
 
   // Refetch every time this screen regains focus (not just on first mount) — otherwise
   // sending a second interest elsewhere and coming back shows stale data, since the tab
-  // stays mounted across navigation.
+  // stays mounted across navigation. Guarded on `isActive` so this only fires when "Sent By You"
+  // is the selected sub-tab (the screen-level focus event fires for all three scenes at once),
+  // plus an isStillActive flag so a slow response can't overwrite newer state.
   useFocusEffect(
     useCallback(() => {
+      if (!isActive) return;
+      let isStillActive = true;
+
       const loadSentData = async () => {
         try {
           if (!userData.userId) {
@@ -576,6 +774,7 @@ const SentTab = () => {
           }
           const userId = userData.userId;
           const response = await userApi.getSentMailbox(userId);
+          if (!isStillActive) return;
           if (response.data.code === 200) {
             setData(response.data.data);
             setError(null);
@@ -583,15 +782,25 @@ const SentTab = () => {
             setError('No Interest Sent Record Found');
           }
         } catch (error) {
+          if (!isStillActive) return;
           setError('Error loading sent data');
         } finally {
-          setLoading(false);
+          if (isStillActive) setLoading(false);
         }
       };
 
       loadSentData();
-    }, [userData.userId])
+      return () => { isStillActive = false; };
+    }, [userData.userId, isActive])
   );
+
+  const handleOpenProfile = useCallback((userId: number) => {
+    router.push(`/screens/ProfileDetail?userId=${userId}`);
+  }, []);
+
+  const renderSentItem = useCallback(({ item }: { item: ReceivedProfile }) => (
+    <SentRow item={item} onOpen={handleOpenProfile} onDelete={handleDelete} />
+  ), [handleOpenProfile, handleDelete]);
 
   if (loading) {
     return <MailboxLoadingSkeleton count={3} />;
@@ -609,64 +818,12 @@ const SentTab = () => {
     <FlatList
       data={data}
       keyExtractor={(item) => item.userId.toString()}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[styles.listContent, { paddingBottom: footerPad }]}
       windowSize={5}
       initialNumToRender={6}
       maxToRenderPerBatch={4}
       removeClippedSubviews={true}
-      renderItem={({ item }) => (
-        <View style={styles.matchCard}>
-          <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${item.userId}`)}>
-            <ImageBackground
-              source={item.profileImage ? { uri: item.profileImage } : require('../../../assets/images/defaultAvatar.png')}
-              style={styles.imageBackground}
-              imageStyle={styles.image}
-            >
-              <View style={styles.overlay} />
-              <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
-                <VerifiedBadges idVerified={item.idVerified} educationVerified={item.educationVerified} incomeVerified={item.incomeVerified} mode="compact" size="sm" color="gold" />
-              </View>
-              <View style={styles.matchInfo}>
-                <View style={styles.infoText}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Text style={styles.name}>{item.firstName} {item.lastName}, {item.age}</Text>
-                  </View>
-                  <Text style={styles.occupation}>
-                    {item.degree}, {item.annualIncome}/yr, {item.occupation}, {item.location}
-                  </Text>
-                  <View style={{
-                    alignSelf: 'flex-start',
-                    marginTop: 4,
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    borderRadius: 10,
-                    backgroundColor: item.acceptStatus === 'APPROVED' ? '#4CAF50'
-                      : item.acceptStatus === 'REJECTED' ? '#f44336'
-                        : '#9E9E9E',
-                  }}>
-                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>
-                      {item.acceptStatus === 'APPROVED' ? 'Accepted'
-                        : item.acceptStatus === 'REJECTED' ? 'Declined'
-                          : 'Pending'}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.iconActions}>
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={(e: GestureResponderEvent) => {
-                      e.stopPropagation();
-                      handleDelete(item);
-                    }}
-                  >
-                    <Ionicons name="close" size={20} color="green" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </ImageBackground>
-          </TouchableOpacity>
-        </View>
-      )}
+      renderItem={renderSentItem}
       ListEmptyComponent={() => (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>No sent interests found</Text>
@@ -676,7 +833,183 @@ const SentTab = () => {
   );
 };
 
-const RequestsTab = () => {
+// Hoisted out of RequestsTab (where it was re-declared on every render, so React saw a brand
+// new component type each time and remounted every card in the "Request Sent" list — images,
+// badges and all — on any state change in the tab) and memoised.
+const RequestCard = React.memo(function RequestCard({ request }: { request: any }) {
+  // Keyed on the ENUM values ('HOROSCOPE'), not the display labels ('Horoscope'). This was
+  // matching against the labels while being called with request.fieldType, so EVERY badge fell
+  // through to the grey default — while getRequestIcon() right below it switched on the enum
+  // correctly, leaving a coloured icon sitting in a grey pill. That mismatch is most of why
+  // these cards read as unfinished.
+  const getRequestBadgeColor = (type: string) => {
+    switch (String(type || '').toUpperCase()) {
+      case 'HOROSCOPE':
+        return { backgroundColor: '#FEF3C7', color: '#D97706' };
+      case 'MOBILE':
+        return { backgroundColor: '#DBEAFE', color: '#2563EB' };
+      case 'PROFILE_IMAGE':
+        return { backgroundColor: '#F3E8FF', color: '#7C3AED' };
+      default:
+        return { backgroundColor: '#F3F4F6', color: '#6B7280' };
+    }
+  };
+
+  // 'APPROVED' -> 'Approved'. The previous charAt(0).toUpperCase() + slice(1) was a no-op on an
+  // already-uppercase enum, so members read "APPROVED" / "REJECTED" in SCREAMING_CASE.
+  const getStatusLabel = (status: string) => {
+    switch (String(status || 'PENDING').toUpperCase()) {
+      case 'APPROVED': return 'Approved';
+      case 'REJECTED': return 'Declined';
+      default: return 'Pending';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (String(status || '').toUpperCase()) {
+      case 'APPROVED':
+        return '#10B981';
+      case 'REJECTED':
+        return '#EF4444';
+      default:
+        return '#F59E0B';
+    }
+  };
+
+  const getRequestIcon = (type: string) => {
+    switch (type) {
+      case 'HOROSCOPE':
+        return <Star size={12} color="#D97706" />;
+      case 'MOBILE':
+        return <Phone size={12} color="#2563EB" />;
+      case 'PROFILE_IMAGE':
+        return <Eye size={12} color="#7C3AED" />;
+      default:
+        return null;
+    }
+  };
+
+  const getTimeAgo = (dateString: string): string => {
+    const requestedDate = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - requestedDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    return `${diffDays} days ago`;
+  };
+
+
+
+  return (
+    <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${request.requestedTo}`)} style={styles.requestCard}>
+      <View style={styles.cardHeader}>
+        <View style={{ position: 'relative' }}>
+          {/* 60x60 slot — resizeMethod="resize" keeps Android from decoding the full-resolution
+              profile photo into memory for every card in the list. */}
+          <ImageNative
+            source={request.profileImage ? { uri: request.profileImage } : DEFAULT_AVATAR}
+            style={styles.profileImageRequestCard}
+            resizeMode="cover"
+            resizeMethod="resize"
+          />
+          {/* Gold trust shield — top-right corner, matches home carousel styling */}
+          <View style={{ position: 'absolute', top: 4, right: 4 }}>
+            <VerifiedBadges
+              idVerified={request.idVerified}
+              educationVerified={request.educationVerified}
+              incomeVerified={request.incomeVerified}
+              mode="compact"
+              size="sm"
+              color="gold"
+            />
+          </View>
+        </View>
+        <View style={styles.headerInfo}>
+          <Text style={styles.nameRequestCard}>
+            {request.firstname} {request.lastname}
+          </Text>
+          <Text style={styles.age}>{request.age} years</Text>
+          <View style={styles.statusContainer}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: getStatusColor(request.status || 'pending') },
+              ]}
+            />
+            <Text style={[styles.status, { color: getStatusColor(request.status || 'pending') }]}>
+              {getStatusLabel(request.status)}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.timeContainer}>
+          <Clock size={14} color="#9CA3AF" />
+          <Text style={styles.requestTime}>{getTimeAgo(request.requestedAt)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.requestTypesContainer}>
+        <View style={styles.requestTypesRow}>
+          {/* Left column */}
+          <View style={styles.requestTypesLeft}>
+            <Text style={styles.requestLabel}>Requested Access:</Text>
+            <View style={styles.requestBadges}>
+              {request.fieldType && (
+                <View style={[styles.requestBadge, getRequestBadgeColor(request.fieldType)]}>
+                  {getRequestIcon(request.fieldType)}
+                  <Text
+                    style={[
+                      styles.requestBadgeText,
+                      { color: getRequestBadgeColor(request.fieldType).color },
+                    ]}
+                  >
+                    {request.fieldType === 'HOROSCOPE'
+                      ? 'Horoscope'
+                      : request.fieldType === 'MOBILE'
+                        ? 'Mobile Number'
+                        : 'Profile Photo'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Right column (button shown only if status is APPROVED) */}
+          {request.status === 'APPROVED' && (
+            <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${request.requestedTo}`)} style={styles.viewProfileButton}>
+              <Eye size={14} color="#1F7FE5" style={{ marginRight: 6 }} />
+              <Text style={styles.viewProfileText}>View Profile</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+
+      <View style={styles.profileDetails1}>
+        <View style={styles.detailRow}>
+          <Ionicons name="school-outline" size={16} color="#6B7280" />
+          <Text style={styles.detailText}>{request.degree}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Ionicons name="briefcase-outline" size={16} color="#6B7280" />
+          <Text style={styles.detailText}>{request.Occupation}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Ionicons name="location-outline" size={16} color="#6B7280" />
+          <Text style={styles.detailText}>{request.location}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Ionicons name="cash-outline" size={16} color="#6B7280" />
+          <Text style={styles.detailText}>{request.AnnualIncome}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const RequestsTab = ({ isActive }: { isActive: boolean }) => {
+  const footerPad = useFooterClearance();
   const { userData } = useUserData();
   const popup = usePopup();
   const [wholeReceivedData, setWholeReceivedData] = useState<any[]>([]);
@@ -688,18 +1021,25 @@ const RequestsTab = () => {
   const [profilePhotoChecked, setProfilePhotoChecked] = useState(false);
   const [horoscopeChecked, setHoroscopeChecked] = useState(false);
   const [mobileNumberChecked, setMobileNumberChecked] = useState(false);
-  const filterMenuRef = useRef<Menu>(null);
+  // Drives a plain RN <Modal> (see the Filter Options block near the end of this component).
+  //
+  // This filter used to be a react-native-popup-menu <Menu>, and it left the Permissions tab
+  // completely untappable: MenuProvider renders its backdrop INSIDE this TabView scene, the
+  // scene stays mounted when you switch sub-tabs or footer tabs, and the backdrop outlived the
+  // menu as an invisible full-screen layer swallowing every touch. Making the Menu `opened`-
+  // controlled was tried first and did NOT fix it — the stranded backdrop is the provider's,
+  // not the menu's. A Modal with visible={false} unmounts outright and cannot strand anything.
+  const [filterOpen, setFilterOpen] = useState(false);
 
-  // react-native-popup-menu's <Menu> tracks its own open/closed state internally, independent of
-  // this component's React state. Since this tab stays mounted when switching away to another
-  // bottom-nav tab (Expo Router Tabs don't unmount by default), leaving the Filter Options menu
-  // open and switching tabs away then back showed it still open. Force-close it whenever this
-  // screen loses focus so it never reappears open.
+  // Close when this sub-tab stops being the active one.
+  useEffect(() => {
+    if (!isActive) setFilterOpen(false);
+  }, [isActive]);
+
+  // ...and when the whole screen loses focus (bottom-nav tab change).
   useFocusEffect(
     useCallback(() => {
-      return () => {
-        filterMenuRef.current?.close();
-      };
+      return () => setFilterOpen(false);
     }, [])
   );
 
@@ -717,7 +1057,11 @@ const RequestsTab = () => {
   // another tab, and coming back showed stale data until a full app restart, same class of bug
   // already fixed for Received/Sent By You. showSpinner is false for refocus refreshes so
   // switching back in doesn't flash the loading skeleton over already-visible data.
-  const refreshRequestsData = useCallback(async (showSpinner: boolean = false) => {
+  //
+  // `stillWanted` lets the caller abort applying a response that arrived after the effect that
+  // started it was torn down (stale-response guard, same pattern as app/(root)/(tabs)/index.tsx).
+  const hasLoadedRef = useRef(false);
+  const refreshRequestsData = useCallback(async (showSpinner: boolean = false, stillWanted: () => boolean = () => true) => {
     if (!userData.userId) {
       setError('User ID not found');
       return;
@@ -730,32 +1074,47 @@ const RequestsTab = () => {
         userApi.getRestrictedRequestsToId(userId),
       ]);
       const sentProfiles = sentResponse.data?.data || [];
-      // getRestrictedRequestsToId returns every request regardless of status — it never filters
-      // out already-decided ones. Since this list is the "action needed" inbox (accept/reject
-      // buttons on every card), a request approving or rejecting successfully still came right
-      // back from the very next refetch, making it look like the tap did nothing. Keep only
-      // PENDING here; sentData (the "requests I sent" view) intentionally keeps every status
-      // since it shows outcomes, not actions.
-      const receivedProfiles = (receivedResponse.data?.data || []).filter((r: any) => r.status === 'PENDING');
+      // Every status is kept and PENDING is sorted to the top, so the inbox still reads as
+      // "action needed first" while decided requests remain visible with an outcome chip.
+      // Previously this filtered to PENDING only, so a request disappeared the instant it was
+      // approved or rejected and the member had no record of what they had already decided.
+      // The accept/reject buttons are hidden on decided rows (see PermissionRow), which is what
+      // stops a decided card from looking like it still needs action.
+      const STATUS_ORDER: Record<string, number> = { PENDING: 0, APPROVED: 1, REJECTED: 2 };
+      const receivedProfiles = [...(receivedResponse.data?.data || [])].sort(
+        (a: any, b: any) =>
+          (STATUS_ORDER[a?.status] ?? 3) - (STATUS_ORDER[b?.status] ?? 3)
+      );
+      if (!stillWanted()) return;
       setWholeReceivedData(receivedProfiles);
       setreceivedData(receivedProfiles);
       setsentData(sentProfiles);
       setError(null);
     } catch (err: any) {
+      if (!stillWanted()) return;
       console.error('Error loading requests:', err);
       setError('Failed to load requests: ' + (err.message || 'Unknown error'));
     } finally {
-      setLoading(false);
+      hasLoadedRef.current = true;
+      if (stillWanted()) setLoading(false);
     }
   }, [userData.userId]);
 
+  // `wholeReceivedData.length`/`sentData.length` were read from the focus callback's closure,
+  // which is memoised on [refreshRequestsData] and therefore never saw anything but the initial
+  // empty arrays — so showSpinner was in practice always true and the skeleton flashed on every
+  // refocus. A ref reads the real "have we loaded once" state. `isActive` keeps this from firing
+  // while the user is on one of the other two sub-tabs.
   useFocusEffect(
     useCallback(() => {
-      refreshRequestsData(!wholeReceivedData.length && !sentData.length);
-    }, [refreshRequestsData])
+      if (!isActive) return;
+      let isStillActive = true;
+      refreshRequestsData(!hasLoadedRef.current, () => isStillActive);
+      return () => { isStillActive = false; };
+    }, [refreshRequestsData, isActive])
   );
 
-  const handleAccept = async (item: any) => {
+  const handleAccept = useCallback(async (item: any) => {
     try {
       const res = await userApi.updateRestrictedFieldStatus(btoa(item.requestId.toString()), 'APPROVED');
       if (res.data?.code === 200) {
@@ -768,9 +1127,9 @@ const RequestsTab = () => {
       console.error('Error accepting request:', err);
       popup.error('Failed', 'Could not approve the request. Please try again.');
     }
-  };
+  }, [popup, refreshRequestsData]);
 
-  const handleDelete = (item: any) => {
+  const handleDelete = useCallback((item: any) => {
     popup.confirm(
       'Decline this request?',
       `${item.firstname} ${item.lastname} will not be able to view your ${item.fieldType === 'PROFILE_IMAGE' ? 'profile photo' : item.fieldType?.toLowerCase()}.`,
@@ -790,64 +1149,39 @@ const RequestsTab = () => {
       'Decline',
       'Cancel'
     );
-  };
+  }, [popup, refreshRequestsData]);
 
+  const handleOpenProfile = useCallback((userId: number) => {
+    router.push(`/screens/ProfileDetail?userId=${userId}`);
+  }, []);
 
+  const renderPermissionItem = useCallback(({ item }: { item: any }) => (
+    <PermissionRow item={item} onOpen={handleOpenProfile} onAccept={handleAccept} onDelete={handleDelete} />
+  ), [handleOpenProfile, handleAccept, handleDelete]);
 
-  const handlePrintSelected = (newState: {
-    profilePhoto?: boolean;
-    horoscope?: boolean;
-    mobileNumber?: boolean;
-  } = {}) => {
-    const {
-      profilePhoto = profilePhotoChecked,
-      horoscope = horoscopeChecked,
-      mobileNumber = mobileNumberChecked,
-    } = newState;
-
-    // console.log("profilePhoto===========================>", profilePhoto);
-    // console.log("horoscope===========================>", horoscope);
-    // console.log("mobileNumber===========================>", mobileNumber);
-
-
-    // console.log("wholeReceivedData===========================>", wholeReceivedData);
-
-    // Filter receivedData based on selected checkboxes
-    const filteredData = wholeReceivedData.filter(item => {
-      // If no filters are selected, show all items
-      if (!profilePhoto && !horoscope && !mobileNumber) return true;
-
-      // Check if the item matches any of the selected filters
-      const isProfileImage = item.fieldType?.toUpperCase() === 'PROFILE_IMAGE';
-      const isHoroscope = item.fieldType?.toUpperCase() === 'HOROSCOPE';
-      const isMobile = item.fieldType?.toUpperCase() === 'MOBILE';
-
-      return (
-        (profilePhoto && isProfileImage) ||
-        (horoscope && isHoroscope) ||
-        (mobileNumber && isMobile)
-      );
-    });
-
-    // console.log("filteredData===========================>", filteredData);
-
-
-    // Update the receivedData state with filtered data
-    setreceivedData(filteredData);
-
-    // Update checked states
-    // setProfilePhotoChecked(profilePhoto);
-    // setHoroscopeChecked(horoscope);
-    // setMobileNumberChecked(mobileNumber);
-
-    const selectedOptions = [];
-    if (profilePhoto) selectedOptions.push("Profile Photo");
-    if (horoscope) selectedOptions.push("Horoscope");
-    if (mobileNumber) selectedOptions.push("Mobile Number");
-
-    // console.log("Selected Filters:", selectedOptions);
-    Alert.alert("Selected Filters", selectedOptions.join(', ') || "None");
-  };
+  // Filtering is DERIVED from the three checkbox states, not pushed imperatively from each
+  // onChange. The previous handlePrintSelected({ mobileNumber: val }) form read the OTHER two
+  // values out of the render closure, so a toggle could compute against a stale value —
+  // unchecking every box still left the first-checked filter applied ("uncheck everything but
+  // only mobile shows"). An effect keyed on all three can't read a stale value, and it also
+  // re-applies the current filter when wholeReceivedData refreshes, which the old form dropped.
+  useEffect(() => {
+    const noneSelected = !profilePhotoChecked && !horoscopeChecked && !mobileNumberChecked;
+    if (noneSelected) {
+      setreceivedData(wholeReceivedData);
+      return;
+    }
+    setreceivedData(
+      wholeReceivedData.filter((item) => {
+        const type = item.fieldType?.toUpperCase();
+        return (
+          (profilePhotoChecked && type === 'PROFILE_IMAGE') ||
+          (horoscopeChecked && type === 'HOROSCOPE') ||
+          (mobileNumberChecked && type === 'MOBILE')
+        );
+      })
+    );
+  }, [profilePhotoChecked, horoscopeChecked, mobileNumberChecked, wholeReceivedData]);
 
 
   if (loading) {
@@ -862,159 +1196,10 @@ const RequestsTab = () => {
     );
   }
 
-  const RequestCard: React.FC<{ request: any }> = ({ request }) => {
-    const getRequestBadgeColor = (type: string) => {
-      switch (type) {
-        case 'Horoscope':
-          return { backgroundColor: '#FEF3C7', color: '#D97706' };
-        case 'Mobile':
-          return { backgroundColor: '#DBEAFE', color: '#2563EB' };
-        case 'Profile Photo':
-          return { backgroundColor: '#F3E8FF', color: '#7C3AED' };
-        default:
-          return { backgroundColor: '#F3F4F6', color: '#6B7280' };
-      }
-    };
-
-    const getStatusColor = (status: string) => {
-      switch (status) {
-        case 'APPROVED':
-          return '#10B981';
-        case 'REJECTED':
-          return '#EF4444';
-        default:
-          return '#F59E0B';
-      }
-    };
-
-    const getRequestIcon = (type: string) => {
-      switch (type) {
-        case 'HOROSCOPE':
-          return <Star size={12} color="#D97706" />;
-        case 'MOBILE':
-          return <Phone size={12} color="#2563EB" />;
-        case 'PROFILE_IMAGE':
-          return <Eye size={12} color="#7C3AED" />;
-        default:
-          return null;
-      }
-    };
-
-    const getTimeAgo = (dateString: string): string => {
-      const requestedDate = new Date(dateString);
-      const now = new Date();
-      const diffMs = now.getTime() - requestedDate.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) return 'Today';
-      if (diffDays === 1) return '1 day ago';
-      return `${diffDays} days ago`;
-    };
-
-
-
-    return (
-      <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${request.requestedTo}`)} style={styles.requestCard}>
-        <View style={styles.cardHeader}>
-          <View style={{ position: 'relative' }}>
-            <ImageNative source={request.profileImage ? { uri: request.profileImage } : require('../../../assets/images/defaultAvatar.png')} style={styles.profileImageRequestCard} />
-            {/* Gold trust shield — top-right corner, matches home carousel styling */}
-            <View style={{ position: 'absolute', top: 4, right: 4 }}>
-              <VerifiedBadges
-                idVerified={request.idVerified}
-                educationVerified={request.educationVerified}
-                incomeVerified={request.incomeVerified}
-                mode="compact"
-                size="sm"
-                color="gold"
-              />
-            </View>
-          </View>
-          <View style={styles.headerInfo}>
-            <Text style={styles.nameRequestCard}>
-              {request.firstname} {request.lastname}
-            </Text>
-            <Text style={styles.age}>{request.age} years</Text>
-            <View style={styles.statusContainer}>
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: getStatusColor(request.status || 'pending') },
-                ]}
-              />
-              <Text style={[styles.status, { color: getStatusColor(request.status || 'pending') }]}>
-                {(request.status || 'pending').charAt(0).toUpperCase() + (request.status || 'pending').slice(1)}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.timeContainer}>
-            <Clock size={14} color="#9CA3AF" />
-            <Text style={styles.requestTime}>{getTimeAgo(request.requestedAt)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.requestTypesContainer}>
-          <View style={styles.requestTypesRow}>
-            {/* Left column */}
-            <View style={styles.requestTypesLeft}>
-              <Text style={styles.requestLabel}>Requested Access:</Text>
-              <View style={styles.requestBadges}>
-                {request.fieldType && (
-                  <View style={[styles.requestBadge, getRequestBadgeColor(request.fieldType)]}>
-                    {getRequestIcon(request.fieldType)}
-                    <Text
-                      style={[
-                        styles.requestBadgeText,
-                        { color: getRequestBadgeColor(request.fieldType).color },
-                      ]}
-                    >
-                      {request.fieldType === 'HOROSCOPE'
-                        ? 'Horoscope'
-                        : request.fieldType === 'MOBILE'
-                          ? 'Mobile Number'
-                          : 'Profile Photo'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Right column (button shown only if status is APPROVED) */}
-            {request.status === 'APPROVED' && (
-              <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${request.requestedTo}`)} style={styles.viewProfileButton}>
-                <Eye size={14} color="#007AFF" style={{ marginRight: 6 }} />
-                <Text style={styles.viewProfileText}>View Profile</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-
-        <View style={styles.profileDetails1}>
-          <View style={styles.detailRow}>
-            <Ionicons name="school-outline" size={16} color="#6B7280" />
-            <Text style={styles.detailText}>{request.degree}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="briefcase-outline" size={16} color="#6B7280" />
-            <Text style={styles.detailText}>{request.Occupation}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="location-outline" size={16} color="#6B7280" />
-            <Text style={styles.detailText}>{request.location}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="cash-outline" size={16} color="#6B7280" />
-            <Text style={styles.detailText}>{request.AnnualIncome}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
 
   return (
-    <MenuProvider>
+    <>
 
       <View style={styles.container}>
         <View style={styles.filterContainerReq}>
@@ -1028,7 +1213,7 @@ const RequestsTab = () => {
               onPress={() => setSelectedFilter(filter as 'sent' | 'received')}
             >
               <Text style={[
-                styles.filterButtonText,
+                styles.filterButtonTextReq,
                 selectedFilter === filter && styles.filterButtonTextActiveReq,
               ]}>
                 {filter === 'sent' ? 'Request Received' : 'Request Sent'}
@@ -1058,153 +1243,25 @@ const RequestsTab = () => {
         <Ionicons name="options-outline" size={24} color="black" />
       </TouchableOpacity> */}
 
-              <Menu ref={filterMenuRef}>
-                <MenuTrigger style={styles.filterIcon}>
-                  <Ionicons name="options-outline" size={25} color="black" />
-                </MenuTrigger>
-
-                <MenuOptions customStyles={{
-                  optionsContainer: {
-                    backgroundColor: 'white',
-                    borderRadius: 12,
-                    padding: 6,
-                    shadowColor: '#000',
-                    shadowOffset: {
-                      width: 0,
-                      height: 2,
-                    },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 3.84,
-                    elevation: 5,
-                    marginTop: -50,  // Adjust this value to position the menu closer
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    alignSelf: 'center'
-                  },
-                }}>
-                  <View style={styles.menuContent}>
-                    <View style={{ flexDirection: 'row', alignItems: 'evenly', justifyContent: 'space-between' }}>
-                      <Text style={styles.menuTitle}>Filter Options</Text>
-
-                    </View>
-
-
-                    <Checkbox
-                      value="profilePhoto"
-                      isChecked={profilePhotoChecked}
-                      onChange={(val) => {
-                        setProfilePhotoChecked(val);
-                        handlePrintSelected({ profilePhoto: val });
-                      }}
-                      size="sm"
-                      marginBottom={3}
-                      colorScheme="amber"
-                      _checked={{
-                        bg: "amber.500",
-                        borderColor: "amber.500"
-                      }}>
-                      <Text>Profile Photo</Text>
-                    </Checkbox>
-
-                    <Checkbox
-                      value="horoscope"
-                      isChecked={horoscopeChecked}
-                      onChange={(val) => {
-                        setHoroscopeChecked(val);
-                        handlePrintSelected({ horoscope: val });
-                      }}
-                      size="sm"
-                      marginBottom={3}
-                      colorScheme="amber"
-                      _checked={{
-                        bg: "amber.500",
-                        borderColor: "amber.500"
-                      }}>
-                      <Text>Horoscope</Text>
-                    </Checkbox>
-
-                    <Checkbox
-                      value="mobileNumber"
-                      isChecked={mobileNumberChecked}
-                      onChange={(val) => {
-                        setMobileNumberChecked(val);
-                        handlePrintSelected({ mobileNumber: val });
-                      }}
-                      size="sm"
-                      colorScheme="amber"
-                      _checked={{
-                        bg: "amber.500",
-                        borderColor: "amber.500"
-                      }}>
-                      <Text>Mobile Number</Text>
-                    </Checkbox>
-
-                  </View>
-                </MenuOptions>
-              </Menu>
+              {/* Plain trigger + RN <Modal> below, deliberately NOT react-native-popup-menu.
+                  That library's MenuProvider renders its backdrop INSIDE this TabView scene,
+                  which stays mounted — so the backdrop outlived the menu and swallowed every
+                  tap on this tab. A Modal with visible={false} unmounts outright and cannot
+                  leave anything behind. */}
+              <TouchableOpacity style={styles.filterIcon} onPress={() => setFilterOpen(true)}>
+                <Ionicons name="options-outline" size={25} color="black" />
+              </TouchableOpacity>
             </View>
 
             <FlatList
               data={receivedData}
               keyExtractor={(item: any) => item.requestId.toString()}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, { paddingBottom: footerPad }]}
               windowSize={5}
               initialNumToRender={6}
               maxToRenderPerBatch={4}
               removeClippedSubviews={true}
-              renderItem={({ item }) => (
-                <View style={styles.matchCard}>
-                  <TouchableOpacity onPress={() => router.push(`/screens/ProfileDetail?userId=${item.requestedBy}`)}>
-                    <ImageBackground
-                      source={item.profileImage ? { uri: item.profileImage } : require('../../../assets/images/defaultAvatar.png')}
-                      style={styles.imageBackground}
-                      imageStyle={styles.image}
-                    >
-                      <View style={styles.overlay} />
-                      {selectedFilter === 'sent' && (
-                        <View style={styles.profileImageLabel}>
-                          <Text style={styles.profileImageLabelText}>{item.fieldType == 'PROFILE_IMAGE' ? 'Profile Photo' : item.fieldType == 'HOROSCOPE' ? 'Horoscope' : item.fieldType == 'MOBILE' ? 'Mobile Number' : ''}</Text>
-                        </View>
-                      )}
-                      <View style={styles.matchInfo}>
-                        <View style={styles.infoText}>
-                          <Text style={styles.name}>
-                            {item.firstname} {item.lastname}, {item.age}
-                          </Text>
-                          <Text style={styles.occupation}>
-                            {item.degree}, {item.AnnualIncome}/yr, {item.Occupation}, {item.location}
-                          </Text>
-                        </View>
-                        <View style={styles.iconActions}>
-                          <TouchableOpacity
-                            style={[
-                              styles.iconButton,
-                              { marginRight: 10 }
-                            ]}
-                            onPress={(e: GestureResponderEvent) => {
-                              e.stopPropagation();
-                              handleAccept(item);
-                            }}
-                          >
-                            <Ionicons name="checkmark" size={20} color="green" />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={(e: GestureResponderEvent) => {
-                              e.stopPropagation();
-                              handleDelete(item);
-                            }}
-                          >
-                            <Ionicons name="close" size={20} color="red" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </ImageBackground>
-                  </TouchableOpacity>
-                </View>
-              )}
+              renderItem={renderPermissionItem}
               ListEmptyComponent={() => (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>
@@ -1213,6 +1270,67 @@ const RequestsTab = () => {
                 </View>
               )}
             />
+
+      {/* Filter Options — plain Modal, so it can never strand a touch-blocking layer. */}
+      <Modal
+        visible={filterOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFilterOpen(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(15,23,36,0.35)' }}
+          activeOpacity={1}
+          onPress={() => setFilterOpen(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => { }}
+            style={{
+              position: 'absolute', top: 96, right: 16,
+              backgroundColor: '#fff', borderRadius: 16,
+              paddingVertical: 14, paddingHorizontal: 18, minWidth: 210,
+              shadowColor: '#0f1724', shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.16, shadowRadius: 20, elevation: 8,
+            }}
+          >
+            <Text style={styles.menuTitle}>Filter Options</Text>
+            <View style={{ marginTop: 12 }}>
+              <Checkbox
+                value="profilePhoto"
+                isChecked={profilePhotoChecked}
+                onChange={(val) => setProfilePhotoChecked(val)}
+                size="sm" marginBottom={3} colorScheme="amber"
+                _checked={{ bg: 'amber.500', borderColor: 'amber.500' }}
+              >
+                <Text>Profile Photo</Text>
+              </Checkbox>
+
+              <Checkbox
+                value="horoscope"
+                isChecked={horoscopeChecked}
+                onChange={(val) => setHoroscopeChecked(val)}
+                size="sm" marginBottom={3} colorScheme="amber"
+                _checked={{ bg: 'amber.500', borderColor: 'amber.500' }}
+              >
+                <Text>Horoscope</Text>
+              </Checkbox>
+
+              <Checkbox
+                value="mobileNumber"
+                isChecked={mobileNumberChecked}
+                onChange={(val) => setMobileNumberChecked(val)}
+                size="sm" colorScheme="amber"
+                _checked={{ bg: 'amber.500', borderColor: 'amber.500' }}
+              >
+                <Text>Mobile Number</Text>
+              </Checkbox>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
           </>
         )}
 
@@ -1229,7 +1347,7 @@ const RequestsTab = () => {
               <ScrollView
                 style={styles.scrollView}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: footerPad }]}
               >
                 {sentData.map((request) => (
                   <RequestCard key={request.requestId} request={request} />
@@ -1247,7 +1365,7 @@ const RequestsTab = () => {
         )}
 
       </View>
-    </MenuProvider>
+    </>
   );
 };
 
@@ -1411,11 +1529,24 @@ const MailBox = () => {
     if (targetIndex >= 0) setIndex(targetIndex);
   }, [initialTab, routes]);
 
-  const renderScene = useMemo(() => SceneMap({
-    received: ReceivedTab,
-    sent: SentTab,
-    request: RequestsTab,
-  }), []);
+  // SceneMap can't forward extra props, and the scenes need to know whether they are the SELECTED
+  // sub-tab (their useFocusEffect only sees this whole screen's focus, so all three used to fetch
+  // — 6 API calls — every time the Request tab was opened). Rendering the scenes by hand lets each
+  // one be told, and lets react-native-tab-view's `lazy` keep the other two from mounting at all
+  // until the user actually swipes to them.
+  const activeKey = routes[index]?.key;
+  const renderScene = useCallback(({ route }: { route: { key: string } }) => {
+    switch (route.key) {
+      case 'received':
+        return <ReceivedTab isActive={activeKey === 'received'} />;
+      case 'sent':
+        return <SentTab isActive={activeKey === 'sent'} />;
+      case 'request':
+        return <RequestsTab isActive={activeKey === 'request'} />;
+      default:
+        return null;
+    }
+  }, [activeKey]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#d0dfeb' }} edges={['top', 'left', 'right']}>
@@ -1425,6 +1556,10 @@ const MailBox = () => {
           renderScene={renderScene}
           onIndexChange={setIndex}
           initialLayout={{ width: layout.width }}
+          lazy
+          renderLazyPlaceholder={({ route }) =>
+            route.key === 'request' ? <RequestLoadingSkeleton count={4} /> : <MailboxLoadingSkeleton count={3} />
+          }
           renderTabBar={props => (
             <TabBar
               {...props}
@@ -1521,6 +1656,21 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 100,
   },
+  // Outcome chip shown in place of the accept/reject buttons once a permission request has
+  // been decided, so the row stays in the inbox as a record instead of vanishing.
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  statusChipText: {
+    fontSize: 11,
+    fontFamily: 'Rubik-Bold',
+    letterSpacing: 0.2,
+  },
   matchCard: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -1593,7 +1743,7 @@ const styles = StyleSheet.create({
   filterBadge: {
     fontSize: 12,
     color: '#fff',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1F7FE5',
     paddingHorizontal: 6,
     borderRadius: 12,
     marginLeft: 8,
@@ -1822,13 +1972,17 @@ const styles = StyleSheet.create({
   },
   requestCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#eef2f7',
+    // Blue-tinted shadow matching the rest of the app's cards, rather than a neutral black
+    // drop that reads as a generic slab against the light gradient background.
+    shadowColor: '#1F7FE5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
     elevation: 2,
   },
   cardHeader: {
@@ -1899,10 +2053,11 @@ const styles = StyleSheet.create({
   requestBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    gap: 5,
   },
   requestBadgeText: {
     fontSize: 12,
@@ -1966,15 +2121,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#007AFF',
-    paddingVertical: 6,
+    // #1F7FE5 is the iOS system blue; the app's accent is #1F7FE5 everywhere else.
+    borderColor: 'rgba(31,127,229,0.28)',
+    paddingVertical: 7,
     paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: '#F0F8FF',
+    borderRadius: 999,
+    backgroundColor: '#eef5fd',
   },
 
   viewProfileText: {
-    color: '#007AFF',
+    color: '#1F7FE5',
     fontSize: 13,
     fontFamily: 'Rubik-Medium',
   },

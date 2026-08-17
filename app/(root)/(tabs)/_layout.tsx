@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react';
-import { Tabs, useFocusEffect } from "expo-router";
+import React from 'react';
+import { Tabs } from "expo-router";
 import { View } from 'react-native';
-import { useUserData } from '../contexts/UserDataContext';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import VVMFooterNav from "../../../components/VVMFooterNav";
 
 type TabKey = 'home' | 'explore' | 'matches' | 'requests' | 'profile';
@@ -23,52 +23,49 @@ const ROUTE_TO_TAB_KEY: Record<string, TabKey> = {
   profile: 'profile',
 };
 
-const TabsLayout = () => {
-  const { userData } = useUserData();
-  const [hasStarted, setHasStarted] = useState<boolean | null>(null);
+const ROUTE_NAMES = ['index', 'explore', 'myChatList', 'mailBox', 'profile'];
 
-  useFocusEffect(
-    useCallback(() => {
-      setHasStarted(userData.hasStarted === 'true');
-    }, [userData.hasStarted])
+// Hoisted to module scope: as an inline closure this was a brand new component type on
+// every TabsLayout render, forcing React Navigation to unmount/remount the whole tab bar
+// (and its blur/gradient layers) mid-transition.
+const VVMTabBar = ({ state, navigation }: BottomTabBarProps) => {
+  const routeName = state.routes[state.index]?.name || 'index';
+  const activeTab = ROUTE_TO_TAB_KEY[routeName] || 'home';
+
+  return (
+    <VVMFooterNav
+      activeTab={activeTab}
+      onTabChange={(key) => {
+        const idx = TAB_KEY_TO_ROUTE[key];
+        if (idx !== undefined && ROUTE_NAMES[idx]) {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: state.routes[idx]?.key,
+            canPreventDefault: true,
+          });
+          if (!event.defaultPrevented) {
+            navigation.navigate(ROUTE_NAMES[idx]);
+          }
+        }
+      }}
+    />
   );
+};
 
-  if (hasStarted === null) {
-    return <View style={{ flex: 1 }} />;
-  }
+const renderTabBar = (props: BottomTabBarProps) => <VVMTabBar {...props} />;
 
+const TabsLayout = () => {
   return (
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <Tabs
+        backBehavior="initialRoute"
         screenOptions={{
           headerShown: false,
           tabBarStyle: { display: 'none' }, // Hide default tab bar — VVMFooterNav replaces it
+          lazy: true,
+          freezeOnBlur: true,
         }}
-        tabBar={hasStarted ? (props) => {
-          // Determine active tab from Expo Router state
-          const routeName = props.state.routes[props.state.index]?.name || 'index';
-          const activeTab = ROUTE_TO_TAB_KEY[routeName] || 'home';
-
-          return (
-            <VVMFooterNav
-              activeTab={activeTab}
-              onTabChange={(key) => {
-                const routes = ['index', 'explore', 'myChatList', 'mailBox', 'profile'];
-                const idx = TAB_KEY_TO_ROUTE[key];
-                if (idx !== undefined && routes[idx]) {
-                  const event = props.navigation.emit({
-                    type: 'tabPress',
-                    target: props.state.routes[idx]?.key,
-                    canPreventDefault: true,
-                  });
-                  if (!event.defaultPrevented) {
-                    props.navigation.navigate(routes[idx]);
-                  }
-                }
-              }}
-            />
-          );
-        } : undefined}
+        tabBar={renderTabBar}
       >
         <Tabs.Screen name="index" options={{ title: "Home" }} />
         <Tabs.Screen name="explore" options={{ title: "Explore" }} />

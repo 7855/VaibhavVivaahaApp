@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 
 type DocumentType = 'SALARY_SLIP' | 'ITR' | 'OFFER_LETTER' | 'OTHER';
 
@@ -133,7 +133,7 @@ export default function IncomeVerificationScreen() {
         await loadStatus(encodedUserId);
       } else if (res.data.code === 403) {
         popup.premiumRequired(
-          'Upgrade to Gold or Platinum to verify your income.',
+          upgradeMessage('verify your income', 'Gold'),
           buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Income Verification', minPlan: 'Gold' })
         );
       } else if (res.data.code === 409) {
@@ -147,7 +147,7 @@ export default function IncomeVerificationScreen() {
     } catch (e: any) {
       if (e?.response?.data?.code === 403) {
         popup.premiumRequired(
-          'Upgrade to Gold or Platinum to verify your income.',
+          upgradeMessage('verify your income', 'Gold'),
           buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Income Verification', minPlan: 'Gold' })
         );
       } else {

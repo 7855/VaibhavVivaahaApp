@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import userApi from '../app/(root)/api/userApi';
+import { useSubscription } from '../app/(root)/contexts/subscriptionContext';
 
 type ShowFrequency = 'every_open' | 'once_per_day' | 'once_ever';
 
@@ -31,9 +32,25 @@ interface PromoConfig {
   dismissText?: string;  // e.g. "No thanks, maybe later"
   showFrequency?: ShowFrequency; // default: "every_open"
   bannerId?: string;     // used as part of the storage key — change to reset once_ever/once_per_day state
+  /**
+   * Which plans this banner is aimed at, e.g. ["Free","Silver"]. Omit (or leave empty) to show
+   * it to everyone — that's the behaviour every existing banner had before this field existed,
+   * so old keyValue rows keep working untouched.
+   *
+   * Matching is case-insensitive on the plan title; a member with no subscription counts as
+   * "Free". Use this to stop selling Gold to someone who is already on Gold.
+   */
+  plans?: string[];
 }
 
 const STORAGE_KEY_PREFIX = 'promo_seen_';
+
+/** Returns true when this banner targets the member's current plan (or targets everyone). */
+function matchesAudience(config: PromoConfig, planTitle?: string | null): boolean {
+  if (!Array.isArray(config.plans) || config.plans.length === 0) return true;
+  const current = (planTitle || 'Free').trim().toLowerCase();
+  return config.plans.some((p) => String(p).trim().toLowerCase() === current);
+}
 
 /** Returns true if the popup should be shown based on frequency config */
 async function shouldShowPopup(config: PromoConfig): Promise<boolean> {
@@ -76,6 +93,8 @@ const { width } = Dimensions.get('window');
 const POPUP_WIDTH = Math.min(width - 48, 340);
 
 const PromotionalPopup: React.FC = () => {
+  const { subscriptionData } = useSubscription() || {};
+  const planTitle = subscriptionData?.planTitle;
   const [visible, setVisible] = useState(false);
   const [config, setConfig] = useState<PromoConfig | null>(null);
   const [imgLoading, setImgLoading] = useState(true);
@@ -98,6 +117,10 @@ const PromotionalPopup: React.FC = () => {
           return;
         }
         if (!parsed?.enabled || !parsed?.imageUrl) return;
+        // Audience check runs BEFORE shouldShowPopup/markShown on purpose: marking a banner as
+        // "seen" for a member who never saw it would permanently suppress it for them if they
+        // later upgrade into the target plan.
+        if (!matchesAudience(parsed, planTitle)) return;
         const show = await shouldShowPopup(parsed);
         if (mounted && show) {
           setConfig(parsed);
@@ -111,7 +134,10 @@ const PromotionalPopup: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+    // planTitle is included: subscriptionData resolves asynchronously from context, so on first
+    // render it can still be undefined ("Free"). Without this, a Gold member could be shown a
+    // Free-targeted banner in the split second before their plan loads.
+  }, [planTitle]);
 
   useEffect(() => {
     if (visible) {

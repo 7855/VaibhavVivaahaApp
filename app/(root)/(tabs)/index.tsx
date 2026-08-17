@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Text as TextNative, ScrollView, TouchableOpacity, FlatList, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Box, Text, HStack, Center, VStack, Skeleton } from 'native-base';
@@ -14,7 +14,7 @@ import { ArrowRight, Award, Bell, Crown, Eye, Heart, Send, User, UserCheck } fro
 import HappyStoryCard from '@/components/HappyStoryCard';
 import { usePushNotifications } from '@/usePushNotification';
 import { LinearGradient } from 'expo-linear-gradient';
-import { loadUserSubscription, loadMasterData } from '../services/masterService';
+import { loadMasterData } from '../services/masterService';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import FooterMessage from '@/components/FooterMessage';
@@ -204,6 +204,41 @@ const LoadingState = () => (
 );
 
 
+// Countdown to midnight for the "Daily Recommendations" subtitle. Owns its own state and
+// 1s interval so the tick re-renders this one line of text — previously the interval lived
+// on <Index/> itself and re-rendered the whole Home tree (5 carousels + gradients) every
+// second, forever, including while the user was on another tab.
+const MidnightCountdown = () => {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0); // Set to next midnight
+
+      const diff = midnight.getTime() - now.getTime();
+
+      // Calculate hours, minutes, seconds
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
+      {timeLeft || 'Calculating...'} left to view these profiles
+    </Text>
+  );
+};
+
 const Index = () => {
   const { userData } = useUserData();
   const popup = usePopup();
@@ -218,11 +253,8 @@ const Index = () => {
   const [allMatches, setAllMatches] = useState<any[]>([]);
   const [userConnectionCount, setUserConnectionCount] = useState<ConnectionCount>({});
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [happyStories, setHappyStories] = useState<any[]>([]);
-  const [percentage, setPercentage] = useState<number>(0);
   const [memberId, setMemberId] = useState<string>('');
 
-  const [timeLeft, setTimeLeft] = useState('');
   const { subscriptionData = {}, setSubscription } = useSubscription() || {};
   const [userTier, setUserTier] = useState<string | null>(null);
   const { state: masterData, setMasterData } = useMasterData();
@@ -246,19 +278,10 @@ const Index = () => {
         }
       };
 
-      // Re-fetch profile completion on every focus so updates (e.g. adding interests) reflect immediately
-      const refreshProfileCompletion = async () => {
-        if (!userData.userId) return;
-        try {
-          const response = await userApi.getProfileCompletion(userData.userId);
-          if (isActive && response.data?.data?.data) {
-            setPercentage(response.data.data.data.percentage);
-          }
-        } catch (_) { }
-      };
-
+      // Profile completion is NOT fetched here — <ProfileCompletionWidget/> below is the
+      // single owner of that call and already refetches it on every focus. This screen used
+      // to fetch it twice more (here and on mount) into a `percentage` state nothing rendered.
       fetchUnreadCount();
-      refreshProfileCompletion();
 
       return () => {
         isActive = false;
@@ -266,72 +289,27 @@ const Index = () => {
     }, [userData.userId])
   );
 
-
+  // Load master data and extract banner.
+  // Same guard bug as sign-up.tsx had: `!Object.keys(masterData).length` means "is ANYTHING
+  // cached", but MasterProvider seeds this same cache with just {castes, subcastes}, so on any
+  // launch where that landed first this fetch was skipped and the keyValue-backed lists
+  // (banners here) never loaded. Check for a key this screen actually consumes instead.
+  const masterFetchAttempted = useRef(false);
   useEffect(() => {
-    const fetchHappyStories = async () => {
-      try {
-        const response = await userApi.getAllHappyStoriesByIsActive();
-        setHappyStories(response.data.data);
-      } catch (error) {
-        console.error('Error fetching happy stories:', error);
-      }
-    };
-    fetchHappyStories();
-  }, []);
-
-  // Load master data and extract banner
-  useEffect(() => {
-    if (!Object.keys(masterData || {}).length) {
-      loadMasterData(setMasterData);
+    const hasKeyValueLists = Array.isArray(masterData?.HomepageBottomBanner);
+    if (!hasKeyValueLists && !masterFetchAttempted.current) {
+      masterFetchAttempted.current = true;
+      loadMasterData(setMasterData).catch((e: any) =>
+        console.warn('[Home] Failed to load master data:', e?.message || e)
+      );
     }
-  }, []);
+  }, [masterData]);
 
   useEffect(() => {
     if (masterData?.HomepageBottomBanner) {
       setBannerData(masterData.HomepageBottomBanner);
     }
   }, [masterData]);
-
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        const response = await userApi.getProfileCompletion(userData.userId);
-        if (response.data.data.data) {
-          setPercentage(response.data.data.data.percentage);
-        }
-      } catch (error) {
-        console.error('Error fetching profile completion:', error);
-      }
-    };
-
-    if (userData.userId) {
-      fetchProfileData();
-    }
-  }, [userData.userId]);
-
-
-
-  // Function to update the countdown timer (countdown to midnight)
-  const updateCountdown = useCallback(() => {
-    const now = new Date();
-    const midnight = new Date(now);
-    midnight.setHours(24, 0, 0, 0); // Set to next midnight
-
-    const diff = midnight.getTime() - now.getTime();
-
-    // Calculate hours, minutes, seconds
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-  }, []);
-
-  useEffect(() => {
-    // Update countdown every second
-    const timer = setInterval(updateCountdown, 1000);
-    return () => clearInterval(timer);
-  }, [updateCountdown]);
 
   useEffect(() => {
     // Skip if data already loaded or missing required context
@@ -348,26 +326,40 @@ const Index = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        setHasStarted(true);
+        const casteIdValue = parseInt(userData.casteId!);
+
+        // Single parallel round. Subscription used to be awaited on its own first, and the
+        // profile-details call ran in a third sequential batch that depended on nothing —
+        // three serial round-trips where one suffices (the screen paints a skeleton until
+        // all of this resolves, so nothing here is needed "before first paint").
+        const [subscription, rec, conn, near, count, intMatch, all, profileRes] = await Promise.all([
+          userData.decodedUserId
+            ? userApi.getActiveUserSubscriptionByUserId(userData.decodedUserId).catch((error: any) => {
+              console.error('Error fetching subscription:', error);
+              return null;
+            })
+            : Promise.resolve(null),
+          userApi.getDailyRecommendation(casteIdValue, userData.gender, userData.decodedUserId),
+          userApi.getNewConnections(casteIdValue, userData.gender, userData.decodedUserId),
+          userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location, userData.decodedUserId),
+          userApi.userConnectionCount(userData.userId),
+          userApi.getInterestMatchesByUser(
+            casteIdValue,
+            userData.gender === 'M' ? 'F' : 'M',
+            userData.userId
+          ).catch(() => ({ data: { data: [] } })),
+          userApi.getAllCasteProfilesByGender(casteIdValue, userData.gender).catch(() => ({ data: { data: [] } })),
+          userApi.getProfileDetails(userData.userId).catch(() => null),
+        ]);
+
         // Get user subscription status
         if (userData.decodedUserId) {
-          try {
-            const subscription = await userApi.getActiveUserSubscriptionByUserId(userData.decodedUserId);
-            if (subscription.data?.code === 200 && subscription.data?.data) {
-              setUserTier(subscription.data.data.planCode);
-              setSubscription(subscription.data.data);
-            } else {
-              // 404 / no active subscription → user is on Free plan
-              setUserTier('FREE');
-              setSubscription({
-                planTitle: 'Free',
-                subscriptionId: null,
-                startDate: null,
-                endDate: null,
-                entitlements: {},
-              });
-            }
-          } catch (error) {
-            console.error('Error fetching subscription:', error);
+          if (subscription?.data?.code === 200 && subscription.data?.data) {
+            setUserTier(subscription.data.data.planCode);
+            setSubscription(subscription.data.data);
+          } else {
+            // 404 / no active subscription / request failed → user is on Free plan
             setUserTier('FREE');
             setSubscription({
               planTitle: 'Free',
@@ -379,34 +371,12 @@ const Index = () => {
           }
         }
 
-        setHasStarted(true);
-        const casteIdValue = parseInt(userData.casteId!);
-
-        const [rec, conn, near, count, intMatch, all] = await Promise.all([
-          userApi.getDailyRecommendation(casteIdValue, userData.gender, userData.decodedUserId),
-          userApi.getNewConnections(casteIdValue, userData.gender, userData.decodedUserId),
-          userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location, userData.decodedUserId),
-          userApi.userConnectionCount(userData.userId),
-          userApi.getInterestMatchesByUser(
-            casteIdValue,
-            userData.gender === 'M' ? 'F' : 'M',
-            userData.userId
-          ).catch(() => ({ data: { data: [] } })),
-          userApi.getAllCasteProfilesByGender(casteIdValue, userData.gender).catch(() => ({ data: { data: [] } })),
-        ]);
-
         setRecommendations(rec.data?.data?.slice(0, 7) || []);
         setNewConnection(conn.data?.data?.slice(0, 7) || []);
         setNearYouProfile(near.data?.data?.slice(0, 7) || []);
         setUserConnectionCount(count.data?.data || {});
         setInterestMatches(intMatch.data?.data?.slice(0, 7) || []);
         setAllMatches(all.data?.data?.slice(0, 7) || []);
-
-        const [unreadRes, profileRes] = await Promise.all([
-          userApi.getUnreadNotificationCount(userData.userId),
-          userApi.getProfileDetails(userData.userId).catch(() => null),
-        ]);
-        setUnreadCount(unreadRes.data?.data);
         if (profileRes?.data?.data?.memberId) setMemberId(profileRes.data.data.memberId);
 
         dataLoadedRef.current = true;
@@ -420,11 +390,46 @@ const Index = () => {
     loadData();
   }, [userData.userId, userData.casteId, userData.gender, userData.location]);
 
+  // NOTE: the second subscription fetch that used to live here (loadUserSubscription) was
+  // removed — it hit the exact same endpoint as the one inside loadData() above, which also
+  // sets userTier, so it was a duplicate request on every mount.
+  //
+  // One coverage gap that de-duplication opened, closed here: loadData() is gated on casteId +
+  // gender + location all being present, but the removed effect was gated only on decodedUserId.
+  // A profile missing `location` in AsyncStorage would therefore never refresh its plan from the
+  // network and would silently run on whatever SubscriptionProvider restored from storage —
+  // which is how a user ends up gated as Free after paying. This fallback covers exactly that
+  // case and stays inert (no request) whenever loadData can run.
   useEffect(() => {
-    if (!userData.decodedUserId) return;
-    loadUserSubscription(userData.decodedUserId, setSubscription);
-  }, [userData.decodedUserId]);
+    const homeDataCanLoad = !!(userData.userId && userData.casteId && userData.gender && userData.location);
+    if (homeDataCanLoad || !userData.decodedUserId) return;
 
+    let isActive = true;
+    userApi
+      .getActiveUserSubscriptionByUserId(userData.decodedUserId)
+      .then((res: any) => {
+        if (!isActive) return;
+        if (res?.data?.code === 200 && res.data?.data) {
+          setUserTier(res.data.data.planCode);
+          setSubscription(res.data.data);
+        } else {
+          setUserTier('FREE');
+          setSubscription({
+            planTitle: 'Free',
+            subscriptionId: null,
+            startDate: null,
+            endDate: null,
+            entitlements: {},
+          });
+        }
+      })
+      .catch((error: any) => {
+        console.warn('[Home] subscription fallback fetch failed:', error?.message || error);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [userData.userId, userData.casteId, userData.gender, userData.location, userData.decodedUserId]);
 
   const { expoPushToken, notification } = usePushNotifications();
 
@@ -541,7 +546,11 @@ const Index = () => {
       {/* {!hasStarted || hasStarted == null ? ( */}
       {/* // <Getstart onStart={onStart} /> */}
       {/* ) : ( */}
-      <SafeAreaView edges={['right', 'left']} style={{ flex: 1, backgroundColor: '#d0dfeb' }}>
+      {/* 'top' included so the status-bar strip is a stable solid #d0dfeb, matching profile.tsx.
+          Without it the ScrollView content slid up underneath the status bar on scroll (this
+          build is edge-to-edge, so nothing reserves that space by default). VVMWelcomeHeader's
+          own `insets.top` padding was removed in the same change to avoid double-padding. */}
+      <SafeAreaView edges={['top', 'right', 'left']} style={{ flex: 1, backgroundColor: '#d0dfeb' }}>
         <LinearGradient
           colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
           locations={[0, 0.3, 0.6, 1.0]}
@@ -568,13 +577,14 @@ const Index = () => {
                 onStatRefresh={async () => {
                   try {
                     const casteIdValue = parseInt(userData.casteId!);
-                    const [count, rec, conn, near, intMatch, unreadRes, all] = await Promise.all([
+                    // Unread notification count deliberately not refetched here — the focus
+                    // effect above is its single owner.
+                    const [count, rec, conn, near, intMatch, all] = await Promise.all([
                       userApi.userConnectionCount(userData.userId),
                       userApi.getDailyRecommendation(casteIdValue, userData.gender, userData.decodedUserId),
                       userApi.getNewConnections(casteIdValue, userData.gender, userData.decodedUserId),
                       userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location, userData.decodedUserId),
                       userApi.getInterestMatchesByUser(casteIdValue, userData.gender === 'M' ? 'F' : 'M', userData.userId).catch(() => ({ data: { data: [] } })),
-                      userApi.getUnreadNotificationCount(userData.userId),
                       userApi.getAllCasteProfilesByGender(casteIdValue, userData.gender).catch(() => ({ data: { data: [] } })),
                     ]);
                     setUserConnectionCount(count.data?.data || {});
@@ -582,7 +592,6 @@ const Index = () => {
                     setNewConnection(conn.data?.data?.slice(0, 7) || []);
                     setNearYouProfile(near.data?.data?.slice(0, 7) || []);
                     setInterestMatches(intMatch.data?.data?.slice(0, 7) || []);
-                    setUnreadCount(unreadRes.data?.data);
                     setAllMatches(all.data?.data?.slice(0, 7) || []);
                     popup.success('Refreshed', 'All sections updated successfully.');
                   } catch (e) {
@@ -594,7 +603,10 @@ const Index = () => {
                   if (key === 'matches') {
                     router.push({ pathname: '/screens/ListUser', params: { type: 'connection' } });
                   } else if (key === 'proposals') {
-                    router.push('/(tabs)/mailBox');
+                    // "Proposals" counts interests the user SENT (backend: UserConnectionService
+                    // puts interestSentCount under this key) — so land on the "Sent By You"
+                    // sub-tab, not the default Received tab.
+                    router.push({ pathname: '/(tabs)/mailBox', params: { initialTab: 'sent' } } as any);
                   } else if (key === 'views') {
                     router.push({ pathname: '/screens/ListUser', params: { type: 'viewed' } });
                   } else if (key === 'likes') {
@@ -815,9 +827,7 @@ const Index = () => {
                             </Text>
                             <HStack alignItems="center" space={1}>
                               <Icon name="clock-o" size={13} color="#8B3A3A" />
-                              <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
-                                {timeLeft || 'Calculating...'} left to view these profiles
-                              </Text>
+                              <MidnightCountdown />
                             </HStack>
                           </VStack>
                           <Icon name="chevron-right" size={22} color="#94a3b8" />

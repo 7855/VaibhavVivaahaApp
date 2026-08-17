@@ -3,12 +3,10 @@ import { View, TextInput, TouchableOpacity, Image, StyleSheet, TouchableWithoutF
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
-import { useTranslation } from 'react-i18next';
 import AppText from '../../../components/AppText';
 
 const OtpVerification = () => {
   const navigation = useNavigation();
-  const { t } = useTranslation();
   const [otp, setOtp] = useState(['', '', '', '']);
   const [showResend, setShowResend] = useState(false);
   const [timer, setTimer] = useState(30);
@@ -79,18 +77,18 @@ const OtpVerification = () => {
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
 
-        <AppText weight="medium" style={styles.otpHeading}>{t('auth.otp.heading')}</AppText>
+        <AppText weight="medium" style={styles.otpHeading}>OTP Verification</AppText>
         </View>
       </View>
 
       <View style={styles.centeredView}>
-        <Image source={require('../../../assets/images/otp.png')} style={styles.image} resizeMode="contain" />
+        <Image source={require('../../../assets/images/LotusLogo.png')} style={styles.image} resizeMode="contain" />
       </View>
 
-      <AppText weight="bold" style={styles.verificationTitle}>{t('auth.otp.verificationCode')}</AppText>
+      <AppText weight="bold" style={styles.verificationTitle}>Verification Code</AppText>
 
       <View style={styles.verificationTextContainer}>
-        <AppText weight="medium" style={styles.notifyText}>{t('auth.otp.sentMobile')}</AppText>
+        <AppText weight="medium" style={styles.notifyText}>We sent a 4-digit code to your mobile number</AppText>
         <AppText weight="medium" style={styles.mobileNumber}>+91-6379829750</AppText>
       </View>
 
@@ -110,18 +108,18 @@ const OtpVerification = () => {
       </View>
 
       <View style={styles.resendSection}>
-        <AppText weight="medium">{t('auth.otp.didntGetOtp')}</AppText>
+        <AppText weight="medium">Didn't get the code?</AppText>
         {showResend ? (
           <TouchableOpacity onPress={resendOtp}>
-            <AppText weight="medium" style={styles.resendText}> {t('auth.otp.resendOtp')}</AppText>
+            <AppText weight="medium" style={styles.resendText}> Resend Code</AppText>
           </TouchableOpacity>
         ) : (
-          <AppText weight="medium" style={styles.resendText}> {t('auth.otp.resendSmsIn', { seconds: timer })}</AppText>
+          <AppText weight="medium" style={styles.resendText}> {`Resend code in ${timer}s`}</AppText>
         )}
       </View>
 
       <TouchableOpacity style={styles.continueButton} onPress={onSubmit}>
-        <AppText weight="bold" style={styles.continueText}>{t('login.continue')}</AppText>
+        <AppText weight="bold" style={styles.continueText}>Continue</AppText>
       </TouchableOpacity>
     </View>
     </SafeAreaView>

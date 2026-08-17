@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -23,10 +25,11 @@ import {
   Check,
   Shield,
   Clock,
-  Sparkles,
+  Sparkles, ChevronDown, ChevronUp,
 } from 'lucide-react-native';
 import userApi from '../app/(root)/api/userApi';
-import { ALL_UPGRADE_PLANS } from '../app/(root)/utils/upgradeNavigation';
+import { FALLBACK_UPGRADE_PLANS, getActivePlansSync } from '../app/(root)/utils/upgradeNavigation';
+import { buildChecklistByPlan, type ChecklistRow } from '../app/(root)/utils/planChecklist';
 
 const FALLBACK_PHONE = '+917904547565';
 const TIME_SLOTS = ['Morning', 'Afternoon', 'Evening', 'Anytime'];
@@ -52,6 +55,27 @@ interface Props {
   popupError: (title: string, msg: string) => void;
 }
 
+// Gently bobbing chevron for the collapsed feature list's expand affordance — a small,
+// continuous "there's more below" hint. Native-driver translateY loop, cheap to run.
+const BobbingChevron = () => {
+  const bob = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: 4, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [bob]);
+  return (
+    <Animated.View style={{ transform: [{ translateY: bob }] }}>
+      <ChevronDown size={16} color="#1F7FE5" strokeWidth={2.5} />
+    </Animated.View>
+  );
+};
+
 const RelationshipManagerView: React.FC<Props> = ({
   planTitle,
   planPrice,
@@ -71,7 +95,42 @@ const RelationshipManagerView: React.FC<Props> = ({
   // None of the 6 plan tier names are substrings of one another, so a plain `includes` safely
   // matches both a bare title ("Gold", from UpgradePlanScreen) and a duration-suffixed one
   // ("Classic (3 Months)", from PremiumTab.tsx) against the canonical feature list.
-  const planFeatures = ALL_UPGRADE_PLANS.find((p) => planTitle.includes(p.title))?.features || [];
+  //
+  // Searches the live active-plan catalog first, then falls back to the full hardcoded list: an
+  // existing Classic subscriber raising a callback about their CURRENT plan must still see its
+  // feature list even after the client deactivates Classic for new sales.
+  const fallbackFeatures =
+    getActivePlansSync().find((p) => planTitle.includes(p.title))?.features ||
+    FALLBACK_UPGRADE_PLANS.find((p) => planTitle.includes(p.title))?.features ||
+    [];
+
+  // The FULL feature list for this plan, from the real planFeatures matrix — the same source
+  // PremiumTab's checklist uses. The 4-bullet marketing copy above is only the fallback for
+  // when the matrix call fails; a member choosing a plan through this assisted flow should see
+  // everything the plan actually includes, not a sample.
+  const [matrixChecklist, setMatrixChecklist] = useState<ChecklistRow[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    userApi.getPlanFeaturesMatrix()
+      .then((res) => {
+        if (cancelled || res?.data?.code !== 200 || !res.data.data) return;
+        const byPlan = buildChecklistByPlan(res.data.data);
+        const key = Object.keys(byPlan).find((t) => planTitle.includes(t));
+        if (key) setMatrixChecklist(byPlan[key].filter((r) => r.included));
+      })
+      .catch(() => { /* fallback bullets already cover this */ });
+    return () => { cancelled = true; };
+  }, [planTitle]);
+
+  const planFeatures = matrixChecklist && matrixChecklist.length > 0
+    ? matrixChecklist.map((r) => r.label)
+    : fallbackFeatures;
+
+  // Collapsed by default: first 7 features + a fade-out gradient with an expand chevron.
+  const [featuresExpanded, setFeaturesExpanded] = useState(false);
+  const COLLAPSED_COUNT = 7;
+  const canExpand = planFeatures.length > COLLAPSED_COUNT;
+  const visibleFeatures = featuresExpanded ? planFeatures : planFeatures.slice(0, COLLAPSED_COUNT);
 
   const [name, setName] = useState(defaultName.trim());
   const [mobile, setMobile] = useState(defaultMobile);
@@ -236,15 +295,43 @@ const RelationshipManagerView: React.FC<Props> = ({
             <>
               <View style={s.planFeaturesDivider} />
               <Text style={s.planFeaturesLabel}>WHAT YOU'LL GET</Text>
-              <View style={s.planFeaturesList}>
-                {planFeatures.map((feature, i) => (
-                  <View key={i} style={s.planFeatureRow}>
-                    <View style={s.planFeatureCheck}>
-                      <Check size={11} color="#1F7FE5" strokeWidth={3} />
+              <View>
+                <View style={s.planFeaturesList}>
+                  {visibleFeatures.map((feature, i) => (
+                    <View key={i} style={s.planFeatureRow}>
+                      <View style={s.planFeatureCheck}>
+                        <Check size={11} color="#1F7FE5" strokeWidth={3} />
+                      </View>
+                      <Text style={s.planFeatureText}>{feature}</Text>
                     </View>
-                    <Text style={s.planFeatureText}>{feature}</Text>
-                  </View>
-                ))}
+                  ))}
+                </View>
+                {canExpand && !featuresExpanded && (
+                  // Fade-out over the last rows + bobbing chevron: "there's more below".
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => setFeaturesExpanded(true)}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)', '#ffffff']}
+                      style={s.featuresFade}
+                      pointerEvents="none"
+                    />
+                    <View style={s.featuresExpandBar}>
+                      <BobbingChevron />
+                      <Text style={s.featuresExpandTxt}>
+                        {planFeatures.length - COLLAPSED_COUNT} more features
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                {canExpand && featuresExpanded && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setFeaturesExpanded(false)}
+                    style={s.featuresExpandBar}
+                  >
+                    <ChevronUp size={16} color="#94a3b8" strokeWidth={2.5} />
+                    <Text style={[s.featuresExpandTxt, { color: '#94a3b8' }]}>Show less</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </>
           )}
@@ -427,6 +514,11 @@ const s = StyleSheet.create({
   planFeaturesDivider: { height: 1, backgroundColor: '#f1f5f9', marginTop: 14, marginBottom: 12 },
   planFeaturesLabel: { fontSize: 10, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: 1, marginBottom: 10 },
   planFeaturesList: { gap: 9 },
+  // Sits over the bottom ~36px of the collapsed list, fading rows into the card white so the
+  // truncation reads as "continues below" rather than an abrupt cut.
+  featuresFade: { position: 'absolute', top: -36, left: 0, right: 0, height: 36 },
+  featuresExpandBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 6, paddingBottom: 2 },
+  featuresExpandTxt: { fontSize: 11.5, fontFamily: 'Rubik-Medium', color: '#1F7FE5' },
   planFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   planFeatureCheck: {
     width: 18, height: 18, borderRadius: 9,

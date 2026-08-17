@@ -16,7 +16,7 @@ import Svg, { Circle } from 'react-native-svg';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 
 type BadgeStatus = 'VERIFIED' | 'PENDING' | 'REJECTED' | 'NOT_STARTED';
 
@@ -212,9 +212,7 @@ export default function TrustVerificationScreen() {
   const handleBadgePress = (badge: BadgeDef) => {
     if (!badge.route) return; // email has no upload flow
     if (isLocked(badge)) {
-      const msg = badge.lockPlan === 'Gold'
-        ? `Upgrade to Gold or Platinum to verify your ${badge.label.toLowerCase()}.`
-        : `Upgrade to Silver or above to verify your ${badge.label.toLowerCase()}.`;
+      const msg = upgradeMessage(`verify your ${badge.label.toLowerCase()}`, badge.lockPlan);
       popup.premiumRequired(msg, buildUpgradeAction({ planTitle, featureName: `${badge.label} Verification`, minPlan: badge.lockPlan }));
       return;
     }

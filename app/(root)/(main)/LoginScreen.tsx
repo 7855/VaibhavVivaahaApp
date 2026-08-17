@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, Image, TextInput, TouchableOpacity, Alert, Dimensions, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { webSocketService } from '../services/webSocketService';
-import { Avatar, NativeBaseProvider } from 'native-base';
+import { NativeBaseProvider } from 'native-base';
 import { saveDeviceInfo } from '../../../utils/deviceInfo';
 import { useUserData } from '../contexts/UserDataContext';
 import CommonPopup from '../../../components/CommonPopup';
@@ -31,6 +33,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // Presentation-only: tracks which field is focused so we can accent its border.
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleSignIn = async () => {
     if (phoneNumber.length !== 10 || pin.length !== 4) return;
@@ -123,7 +127,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
         }
 
         // Save device info in background — don't block login
-        saveDeviceInfo(response.data.data.userId).catch(() => { });
+        saveDeviceInfo(response.data.data.userId).catch((e) =>
+          console.warn('Push: saveDeviceInfo failed at login', e)
+        );
 
         // Refresh user data context with the freshly stored values
         await loadUserData();
@@ -188,298 +194,321 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
           end={{ x: 0, y: 1 }}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
         />
-        <KeyboardAvoidingView
+        {/* Was a KeyboardAvoidingView with behavior=undefined on Android — i.e. a no-op — and
+            there was no scrollable container, so a focused input could not be scrolled above the
+            keyboard. KeyboardAwareScrollView handles both platforms; enableOnAndroid +
+            enableAutomaticScroll are BOTH required on Android (enableOnAndroid alone only
+            resizes, it does not scroll to the focused field — same fix as sign-up.tsx). */}
+        <KeyboardAwareScrollView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          contentContainerStyle={{ flexGrow: 1 }}
+          enableOnAndroid={true}
+          enableAutomaticScroll={true}
+          extraScrollHeight={Platform.OS === 'ios' ? 30 : 20}
+          keyboardOpeningTime={0}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          enableResetScrollToCoords={false}
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1 }}>
               {/* Back button */}
-              <View style={{ position: 'absolute', top: 60, left: 16, zIndex: 199 }}>
+              <View style={{ position: 'absolute', top: 60, left: 22, zIndex: 199 }}>
                 <TouchableOpacity
                   onPress={() => router.back()}
-                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}
+                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', shadowColor: '#1F7FE5', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}
                 >
-                  <Icon name="arrow-back" size={20} color="#0f1724" />
+                  <Ionicons name="chevron-back" size={20} color="#0f1724" />
                 </TouchableOpacity>
               </View>
 
               <View style={{
-                flex: 1,
+                flexGrow: 1,
                 justifyContent: 'center',
-                alignItems: 'center',
-                paddingHorizontal: 20,
+                paddingHorizontal: 22,
                 paddingVertical: 40,
               }}>
-                <View style={{ width: '100%', maxWidth: 400 }}>
-                  {/* Header */}
-                  <View style={{ alignItems: 'center', marginBottom: 30 }}>
-                    <View style={{ position: 'relative', marginBottom: 24 }}>
-                      <LinearGradient
-                        colors={['#eaf2fc', '#d0dfeb', '#eaf2fc']}
-                        style={{
-                          width: 96, height: 96, borderRadius: 48,
-                          justifyContent: 'center', alignItems: 'center',
-                          shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 16,
-                        }}
-                      >
-                        <View style={{ position: 'relative', zIndex: 10 }}>
-                          <Avatar size={59} source={require('/assets/images/LotusLogo.png')} />
-                        </View>
-                      </LinearGradient>
+                <View style={{ width: '100%', maxWidth: 400, alignSelf: 'center' }}>
+                  {/* Brand mark — rounded-square "app icon" tile. The logo PNG has NO
+                      transparency (solid square with its own background), so circle-cropping it
+                      showed the square background's edges inside the disc. The tile shows the
+                      asset exactly as designed, like the app icon itself. Image carries its own
+                      borderRadius (works on both platforms); the wrapper only carries the shadow
+                      so Android elevation isn't clipped away. */}
+                  <View style={{ alignItems: 'center' }}>
+                    <View style={{
+                      width: 84, height: 84, borderRadius: 25, backgroundColor: '#ffffff',
+                      shadowColor: '#1F7FE5', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.14, shadowRadius: 14, elevation: 4,
+                    }}>
+                      <Image
+                        source={require('../../../assets/images/LotusLogo.png')}
+                        style={{ width: 84, height: 84, borderRadius: 25 }}
+                        resizeMode="cover"
+                      />
                     </View>
-
-                    {/* Rubik-Bold, not -Medium/-ExtraBold — matches the app's type scale
-                      (profile.tsx hero name, sign-up.tsx's page title): ExtraBold is reserved
-                      for the brand wordmark component only. */}
-                    <Text style={{
-                      fontSize: 20,
-                      fontFamily: 'Rubik-Bold',
-                      color: '#0f1724',
-                      marginBottom: 8,
-                      textAlign: 'center',
-                    }}>
-                      Vaibhav Vivaaha Matrimony
-                    </Text>
-                    <Text style={{
-                      fontSize: 12,
-                      fontFamily: 'Rubik-Regular',
-                      color: '#64748b',
-                      textAlign: 'center',
-                    }}>
-                      Turning Matches Into Lasting Marriages
-                    </Text>
                   </View>
 
-                  {/* Login Card — same as Forgot Password card */}
-                  <View style={{ position: 'relative' }}>
+                  {/* Heading block */}
+                  <Text style={{
+                    fontSize: 26,
+                    fontFamily: 'Rubik-Bold',
+                    color: '#0f1724',
+                    letterSpacing: -0.3,
+                    marginTop: 24,
+                    textAlign: 'center',
+                  }}>
+                    Welcome Back!
+                  </Text>
+                  <Text style={{
+                    fontSize: 13,
+                    fontFamily: 'Rubik-Regular',
+                    color: '#64748b',
+                    lineHeight: 19,
+                    marginTop: 6,
+                    textAlign: 'center',
+                  }}>
+                    Turning Matches Into Lasting Marriages
+                  </Text>
+
+                  {/* Dark step banner */}
+                  <View style={{
+                    backgroundColor: '#1c2b3f',
+                    borderRadius: 20,
+                    padding: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    marginTop: 20,
+                    marginBottom: 24,
+                    shadowColor: '#1c2b3f',
+                    shadowOpacity: 0.25,
+                    shadowRadius: 12,
+                    shadowOffset: { width: 0, height: 6 },
+                    elevation: 5,
+                  }}>
                     <View style={{
-                      backgroundColor: 'white',
-                      borderRadius: 24,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 16 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 24,
-                      elevation: 24,
+                      width: 38, height: 38, borderRadius: 12,
+                      backgroundColor: 'rgba(90,167,239,0.28)',
+                      justifyContent: 'center', alignItems: 'center',
                     }}>
-                      {/* Corner decorations */}
-                      <View style={{ position: 'absolute', top: 12, left: 12, width: 40, height: 40, borderLeftWidth: 3, borderTopWidth: 3, borderColor: '#1F7FE5', borderTopLeftRadius: 16 }} />
-                      <View style={{ position: 'absolute', top: 12, right: 12, width: 40, height: 40, borderRightWidth: 3, borderTopWidth: 3, borderColor: '#1F7FE5', borderTopRightRadius: 16 }} />
-                      <View style={{ position: 'absolute', bottom: 12, left: 12, width: 40, height: 40, borderLeftWidth: 3, borderBottomWidth: 3, borderColor: '#1F7FE5', borderBottomLeftRadius: 16 }} />
-                      <View style={{ position: 'absolute', bottom: 12, right: 12, width: 40, height: 40, borderRightWidth: 3, borderBottomWidth: 3, borderColor: '#1F7FE5', borderBottomRightRadius: 16 }} />
-
-                      <View style={{ padding: 36 }}>
-                        <View style={{ gap: 28 }}>
-                          {/* Phone Number Input */}
-                          <View style={{ gap: 12 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Icon name="phone" size={16} color="#1F7FE5" />
-                              <Text style={{
-                                fontSize: 12,
-                                fontFamily: 'Rubik-Bold',
-                                color: '#0f1724',
-                                letterSpacing: 0.3,
-                                textTransform: 'uppercase',
-                                marginLeft: 8,
-                              }}>
-                                Contact Number
-                              </Text>
-                            </View>
-                            <View style={{ position: 'relative' }}>
-                              <View style={{
-                                position: 'absolute',
-                                left: 16,
-                                top: 0,
-                                bottom: 0,
-                                justifyContent: 'center',
-                                zIndex: 1,
-                              }}>
-                                <Icon name="phone" size={20} color="#1F7FE5" />
-                              </View>
-                              <TextInput
-                                testID="input-mobile"
-                                accessibilityLabel="input-mobile"
-                                defaultValue={mobileNumber}
-                                onChangeText={(text) => setMobileNumber(text.replace(/\D/g, '').slice(0, 10))}
-                                style={{
-                                  paddingLeft: 48,
-                                  paddingRight: 16,
-                                  paddingVertical: 16,
-                                  backgroundColor: '#ffffff',
-                                  borderWidth: 1,
-                                  borderColor: '#e2e8f0',
-                                  borderRadius: 16,
-                                  fontSize: 14,
-                                  fontFamily: 'Rubik-Regular',
-                                  color: '#333',
-                                }}
-                                placeholder="Enter mobile number"
-                                placeholderTextColor="#999"
-                                keyboardType="numeric"
-                                maxLength={10}
-                              />
-                              {mobileNumber.length === 10 && (
-                                <View style={{
-                                  position: 'absolute',
-                                  right: 16,
-                                  top: 0,
-                                  bottom: 0,
-                                  justifyContent: 'center',
-                                }}>
-                                  <View style={{
-                                    width: 8,
-                                    height: 8,
-                                    backgroundColor: '#4CAF50',
-                                    borderRadius: 4,
-                                  }} />
-                                </View>
-                              )}
-                            </View>
-                            {mobileNumber.length > 0 && mobileNumber.length !== 10 && (
-                              <Text style={{
-                                fontSize: 14,
-                                color: '#f44336',
-                                fontFamily: 'Rubik-Medium',
-                              }}>
-                                Please enter a complete 10-digit number
-                              </Text>
-                            )}
-                          </View>
-
-                          {/* PIN Input */}
-                          <View style={{ gap: 12 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Icon name="lock" size={16} color="#1F7FE5" />
-                              <Text style={{
-                                fontSize: 12,
-                                fontFamily: 'Rubik-Bold',
-                                color: '#0f1724',
-                                letterSpacing: 0.3,
-                                textTransform: 'uppercase',
-                                marginLeft: 8,
-                              }}>
-                                PIN
-                              </Text>
-                            </View>
-                            <View style={{ position: 'relative' }}>
-                              <View style={{
-                                position: 'absolute',
-                                left: 16,
-                                top: 0,
-                                bottom: 0,
-                                justifyContent: 'center',
-                                zIndex: 1,
-                              }}>
-                                <Icon name="lock" size={20} color="#1F7FE5" />
-                              </View>
-                              <TextInput
-                                testID="input-pin"
-                                accessibilityLabel="input-pin"
-                                defaultValue={pin}
-                                onChangeText={(text) => setPin(text.replace(/\D/g, '').slice(0, 4))}
-                                style={{
-                                  paddingLeft: 48,
-                                  paddingRight: 56,
-                                  paddingVertical: 16,
-                                  backgroundColor: '#ffffff',
-                                  borderWidth: 1,
-                                  borderColor: '#e2e8f0',
-                                  borderRadius: 16,
-                                  fontSize: 14,
-                                  fontFamily: 'Rubik-Regular',
-                                  color: '#333',
-                                }}
-                                placeholder="Enter PIN"
-                                placeholderTextColor="#999"
-                                secureTextEntry={!showPin}
-                                keyboardType="numeric"
-                                maxLength={4}
-                              />
-                              <TouchableOpacity
-                                onPress={() => setShowPin(!showPin)}
-                                style={{
-                                  position: 'absolute',
-                                  right: 16,
-                                  top: 0,
-                                  bottom: 0,
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                <Icon
-                                  name={showPin ? 'visibility-off' : 'visibility'}
-                                  size={20}
-                                  color="#94a3b8"
-                                />
-                              </TouchableOpacity>
-                            </View>
-                            {pin.length > 0 && pin.length !== 4 && (
-                              <Text style={{
-                                fontSize: 14,
-                                color: '#f44336',
-                                fontFamily: 'Rubik-Medium',
-                              }}>
-                                PIN must be exactly 4 digits
-                              </Text>
-                            )}
-                          </View>
-
-                          {/* Sign In Button */}
-                          <TouchableOpacity
-                            testID="btn-sign-in"
-                            accessibilityLabel="btn-sign-in"
-                            onPress={handleLogin}
-                            disabled={!isFormValid || isLoading}
-
-                          >
-                            <LinearGradient
-                              colors={isFormValid && !isLoading ? ['#1F7FE5', '#1862b8'] : ['#cccccc', '#999999']}
-                              style={{
-                                paddingVertical: 16,
-                                paddingHorizontal: 24,
-                                borderRadius: 16,
-                                alignItems: 'center',
-                              }}
-                            >
-                              {isLoading ? (
-                                <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Rubik-Bold' }}>
-                                  Signing in...
-                                </Text>
-                              ) : (
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                  <Icon name="favorite" size={20} color="white" />
-                                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Rubik-Bold', marginLeft: 8 }}>
-                                    Sign In
-                                  </Text>
-                                </View>
-                              )}
-                            </LinearGradient>
-                          </TouchableOpacity>
-
-                          {/* Forget PIN */}
-                          <View style={{ alignItems: 'center', paddingTop: 16 }}>
-                            <TouchableOpacity
-                              onPress={() => router.push('/(root)/(main)/ResetPasswordScreen')}
-                              style={{ flexDirection: 'row', alignItems: 'center' }}
-                            >
-                              <Icon name="lock" size={16} color="#1F7FE5" />
-                              <Text style={{
-                                color: '#1F7FE5',
-                                fontSize: 12.5,
-                                fontFamily: 'Rubik-Bold',
-                                marginLeft: 8,
-                              }}>
-                                Forgot PIN?
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      </View>
+                      <Ionicons name="phone-portrait-outline" size={18} color="#ffffff" />
                     </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13.5, fontFamily: 'Rubik-Bold', color: '#ffffff' }}>
+                        Login with Mobile & PIN
+                      </Text>
+                      <Text style={{
+                        fontSize: 11,
+                        fontFamily: 'Rubik-Regular',
+                        color: 'rgba(255,255,255,0.72)',
+                        lineHeight: 15,
+                        marginTop: 2,
+                      }}>
+                        Use the mobile number you registered with
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Phone Number Input */}
+                  <View style={{ marginBottom: 14 }}>
+                    <Text style={{
+                      fontSize: 12,
+                      fontFamily: 'Rubik-Bold',
+                      color: '#0f1724',
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.3,
+                      marginLeft: 8,
+                      marginBottom: 5,
+                    }}>
+                      Contact Number
+                    </Text>
+                    <View style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: 28,
+                      height: 52,
+                      paddingHorizontal: 20,
+                      borderWidth: 1,
+                      borderColor: focusedField === 'mobile' ? '#1F7FE5' : '#e2e8f0',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      shadowColor: '#1F7FE5',
+                      shadowOpacity: focusedField === 'mobile' ? 0.16 : 0.05,
+                      shadowRadius: focusedField === 'mobile' ? 10 : 6,
+                      shadowOffset: { width: 0, height: focusedField === 'mobile' ? 4 : 2 },
+                      elevation: focusedField === 'mobile' ? 3 : 1,
+                    }}>
+                      <Icon name="phone" size={18} color={focusedField === 'mobile' ? '#1F7FE5' : '#94a3b8'} style={{ marginRight: 10 }} />
+                      <TextInput
+                        testID="input-mobile"
+                        accessibilityLabel="input-mobile"
+                        defaultValue={mobileNumber}
+                        onChangeText={(text) => setMobileNumber(text.replace(/\D/g, '').slice(0, 10))}
+                        onFocus={() => setFocusedField('mobile')}
+                        onBlur={() => setFocusedField(null)}
+                        style={{
+                          flex: 1,
+                          fontSize: 14,
+                          fontFamily: 'Rubik-Regular',
+                          color: '#333',
+                          paddingVertical: 0,
+                        }}
+                        placeholder="Enter mobile number"
+                        placeholderTextColor="#9aa7b8"
+                        keyboardType="numeric"
+                        maxLength={10}
+                      />
+                      {mobileNumber.length === 10 && (
+                        <View style={{
+                          width: 8,
+                          height: 8,
+                          backgroundColor: '#4CAF50',
+                          borderRadius: 4,
+                          marginLeft: 8,
+                        }} />
+                      )}
+                    </View>
+                    {mobileNumber.length > 0 && mobileNumber.length !== 10 && (
+                      <Text style={{
+                        fontSize: 11.5,
+                        fontFamily: 'Rubik-Regular',
+                        color: '#dc2626',
+                        marginLeft: 8,
+                        marginTop: 4,
+                      }}>
+                        Please enter a complete 10-digit number
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* PIN Input */}
+                  <View style={{ marginBottom: 14 }}>
+                    <Text style={{
+                      fontSize: 12,
+                      fontFamily: 'Rubik-Bold',
+                      color: '#0f1724',
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.3,
+                      marginLeft: 8,
+                      marginBottom: 5,
+                    }}>
+                      PIN
+                    </Text>
+                    <View style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: 28,
+                      height: 52,
+                      paddingHorizontal: 20,
+                      borderWidth: 1,
+                      borderColor: focusedField === 'pin' ? '#1F7FE5' : '#e2e8f0',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      shadowColor: '#1F7FE5',
+                      shadowOpacity: focusedField === 'pin' ? 0.16 : 0.05,
+                      shadowRadius: focusedField === 'pin' ? 10 : 6,
+                      shadowOffset: { width: 0, height: focusedField === 'pin' ? 4 : 2 },
+                      elevation: focusedField === 'pin' ? 3 : 1,
+                    }}>
+                      <Icon name="lock" size={18} color={focusedField === 'pin' ? '#1F7FE5' : '#94a3b8'} style={{ marginRight: 10 }} />
+                      <TextInput
+                        testID="input-pin"
+                        accessibilityLabel="input-pin"
+                        defaultValue={pin}
+                        onChangeText={(text) => setPin(text.replace(/\D/g, '').slice(0, 4))}
+                        onFocus={() => setFocusedField('pin')}
+                        onBlur={() => setFocusedField(null)}
+                        style={{
+                          flex: 1,
+                          fontSize: 14,
+                          fontFamily: 'Rubik-Regular',
+                          color: '#0f1724',
+                          paddingVertical: 0,
+                        }}
+                        placeholder="Enter PIN"
+                        placeholderTextColor="#9aa7b8"
+                        secureTextEntry={!showPin}
+                        keyboardType="numeric"
+                        maxLength={4}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPin(!showPin)}
+                        style={{ marginLeft: 8, paddingVertical: 6 }}
+                      >
+                        <Icon
+                          name={showPin ? 'visibility-off' : 'visibility'}
+                          size={20}
+                          color="#94a3b8"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {pin.length > 0 && pin.length !== 4 && (
+                      <Text style={{
+                        fontSize: 11.5,
+                        fontFamily: 'Rubik-Regular',
+                        color: '#dc2626',
+                        marginLeft: 8,
+                        marginTop: 4,
+                      }}>
+                        PIN must be exactly 4 digits
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* Sign In Button */}
+                  <TouchableOpacity
+                    testID="btn-sign-in"
+                    accessibilityLabel="btn-sign-in"
+                    onPress={handleLogin}
+                    disabled={!isFormValid || isLoading}
+
+                  >
+                    <LinearGradient
+                      colors={['#5AA7EF', '#1F7FE5']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{
+                        borderRadius: 28,
+                        height: 54,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginTop: 18,
+                        shadowColor: '#1F7FE5',
+                        shadowOpacity: 0.35,
+                        shadowRadius: 12,
+                        shadowOffset: { width: 0, height: 6 },
+                        elevation: 6,
+                        opacity: (!isFormValid || isLoading) ? 0.55 : 1,
+                      }}
+                    >
+                      {isLoading ? (
+                        <Text style={{ color: '#ffffff', fontSize: 15, fontFamily: 'Rubik-Bold' }}>
+                          Signing in...
+                        </Text>
+                      ) : (
+                        <Text style={{ color: '#ffffff', fontSize: 15, fontFamily: 'Rubik-Bold' }}>
+                          Sign In
+                        </Text>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  {/* Forget PIN */}
+                  <View style={{ alignItems: 'center', marginTop: 18 }}>
+                    <TouchableOpacity
+                      onPress={() => router.push('/(root)/(main)/ResetPasswordScreen')}
+                    >
+                      <Text style={{
+                        color: '#1F7FE5',
+                        fontSize: 13,
+                        fontFamily: 'Rubik-Medium',
+                      }}>
+                        Forgot PIN?
+                      </Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* Sign up link */}
-                  <View style={{ alignItems: 'center', marginTop: 24 }}>
-                    <Text style={{ fontSize: 12.5, fontFamily: 'Rubik-Regular', color: '#6b7280' }}>
+                  <View style={{ alignItems: 'center', marginTop: 14 }}>
+                    <Text style={{ fontSize: 13, fontFamily: 'Rubik-Medium', color: '#64748b' }}>
                       Don't have an account?{' '}
                       <Text style={{ color: '#1F7FE5', fontFamily: 'Rubik-Bold' }} onPress={() => router.push('/(root)/(main)/sign-up')}>
                         Sign Up
@@ -490,7 +519,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
               </View>
             </View>
           </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
       </View>
       <CommonPopup
         visible={welcomeVisible}

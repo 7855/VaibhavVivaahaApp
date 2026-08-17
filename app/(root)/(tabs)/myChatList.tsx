@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import ChatList from '@/components/listchats';
@@ -20,6 +20,7 @@ interface ChatItem {
   read: boolean;
   conversationId: string;
   otherUserId: string;
+  unreadCount?: number;
   gender?: string;
   idVerified?: boolean;
   educationVerified?: boolean;
@@ -74,6 +75,9 @@ const MyChatList = () => {
   const { userId: authUserId, addChatListener, removeChatListener } = useAuth();
   const popup = usePopup();
   const [chatList, setChatList] = useState<ChatItem[]>([]);
+  // Mirror of chatList readable from the WS handler, which needs to know synchronously
+  // whether an incoming conversationId is already on screen.
+  const chatListRef = useRef<ChatItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const dataLoadedRef = useRef(false);
   const [chatQuota, setChatQuota] = useState<any>(null);
@@ -96,6 +100,10 @@ const MyChatList = () => {
     if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
     return d.toLocaleDateString([], { day: '2-digit', month: 'short' });
   };
+
+  useEffect(() => {
+    chatListRef.current = chatList;
+  }, [chatList]);
 
   const handleChatPress = (item: ChatItem) => {
     router.push({
@@ -151,15 +159,21 @@ const MyChatList = () => {
     }
   }, [userData.userId]);
 
-  // WhatsApp-style multi-select delete (see listchats.js) — inActiveConversationById marks the
-  // shared conversation row inactive, which hides it for both participants (not just the one who
-  // deleted it, since isActive isn't per-user here) until either side messages again. Runs the
-  // deletes in parallel then refetches once, rather than refetching after every single one.
+  // WhatsApp-style multi-select delete (see listchats.js). This now hides the conversation from
+  // THIS user's list only — it used to flip a shared flag that wiped the thread from the other
+  // person's list too, which let someone send abusive messages and then erase them from the
+  // recipient's view. Messages themselves are never deleted, and a new message from either side
+  // revives the thread. Runs the deletes in parallel then refetches once.
   const handleDeleteConversations = useCallback(async (conversationIds: string[]) => {
     const results = await Promise.allSettled(
-      conversationIds.map((id) => userApi.deleteConversation(id))
+      conversationIds.map((id) => userApi.deleteConversation(id, userData.userId))
     );
-    const failedCount = results.filter((r) => r.status === 'rejected').length;
+    // A rejected promise only covers network/HTTP failures. This backend returns HTTP 200 with
+    // the real outcome in res.data.code, so the new 403 ("not a participant") would otherwise be
+    // counted as a successful delete and silently disappear.
+    const failedCount = results.filter(
+      (r) => r.status === 'rejected' || (r as PromiseFulfilledResult<any>).value?.data?.code !== 200
+    ).length;
     await fetchUserDetail();
     if (failedCount > 0) {
       popup.error(
@@ -167,7 +181,7 @@ const MyChatList = () => {
         `${failedCount} of ${conversationIds.length} couldn't be removed. Please try again.`
       );
     }
-  }, [fetchUserDetail, popup]);
+  }, [fetchUserDetail, popup, userData.userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -191,8 +205,35 @@ const MyChatList = () => {
   useFocusEffect(
     useCallback(() => {
       if (!authUserId) return;
-      const handleIncomingMessage = () => {
-        fetchUserDetail();
+      // Patch just the affected row from the socket payload instead of refetching the whole
+      // list on every inbound message (which re-rendered every card and re-hit two endpoints
+      // per message). Only an unknown conversationId — a brand new thread that isn't in the
+      // list yet — needs a full refetch to pick up the other user's name/photo/verification.
+      const handleIncomingMessage = (data: any) => {
+        const incomingId = data?.conversationId != null ? String(data.conversationId) : null;
+        const known = !!incomingId && chatListRef.current.some((c) => c.conversationId === incomingId);
+
+        if (!known) {
+          // Unknown/missing conversation id — fall back to the full refetch.
+          fetchUserDetail();
+          return;
+        }
+
+        setChatList((prev) =>
+          prev.map((c) =>
+            c.conversationId === incomingId
+              ? {
+                ...c,
+                lastMessage: data?.message ?? c.lastMessage,
+                lastMessageTime: data?.timestamp
+                  ? formatRelativeChatTime(data.timestamp)
+                  : c.lastMessageTime,
+                read: false,
+                unreadCount: (c.unreadCount || 0) + 1,
+              }
+              : c
+          )
+        );
       };
       addChatListener(handleIncomingMessage);
       return () => removeChatListener();

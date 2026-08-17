@@ -3,4 +3,7 @@
   <color name="iconBackground">#FFFFFF</color>
   <color name="colorPrimary">#023c69</color>
   <color name="colorPrimaryDark">#420001</color>
+  <!-- Tint applied to the white notification silhouette. Matches expo-notifications' `color`
+       in app.json; both must be kept in sync. -->
+  <color name="notification_icon_color">#420001</color>
 </resources>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFooterClearance } from '@/components/VVMFooterNav';
 import {
     Text,
     View,
@@ -23,10 +24,11 @@ import userApi from "@/app/(root)/api/userApi";
 import { router } from "expo-router";
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
+import { useMasterData } from '../contexts/MasterDataContext';
 import { Briefcase, ChevronDown, User, Sparkles, Search as SearchIcon, Check, SlidersHorizontal } from "lucide-react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 import AgeRangeSelector from "@/components/AgeRangeSelector";
 import RangeSelectorModal from "@/components/RangeSelectorModal";
 import { AnyRecord } from "react-native-reanimated/lib/typescript/css/types";
@@ -63,7 +65,7 @@ interface SavedSearch {
 type Filters = {
     ageRange: string;
     profileCreatedBy: string;
-    subcaste: string;
+    subcaste: string[];
     education: string[];
     city: string;
     star: string[];
@@ -78,10 +80,12 @@ type Filters = {
 const NAV_BAR_FOOTPRINT = 66 + 10;
 
 const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
+    const footerPad = useFooterClearance();
     const tabInsets = useSafeAreaInsets();
     const searchBarBottomPad = NAV_BAR_FOOTPRINT + tabInsets.bottom + 12;
     const { userData } = useUserData();
     const popup = usePopup();
+    const { getSubcastesForCaste } = useMasterData() || {};
     const [profiles, setProfiles] = useState<any>(null);
     const [expanded, setExpanded] = useState(false);
     const [minAgeText, setMinAgeText] = useState("18");
@@ -105,13 +109,14 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [showAgeModal, setShowAgeModal] = useState(false);
     // const [showHeightModal, setShowHeightModal] = useState(false);
     const [showProfileCreatedModal, setShowProfileCreatedModal] = useState(false);
-    // const [showSubcasteModal, setShowSubcasteModal] = useState(false);
     const [showEducationModal, setShowEducationModal] = useState(false);
     // const [showCityModal, setShowCityModal] = useState(false);
     const [showStarModal, setShowStarModal] = useState(false);
     const [showDoshamModal, setShowDoshamModal] = useState(false);
     const [showIncomeModal, setShowIncomeModal] = useState(false);
     const [isPremiumUser, setIsPremiumUser] = useState(false);
+    // Silver+ only — a stricter gate than isPremiumUser (Classic+). See the entitlement effect below.
+    const [canSearchBySubcaste, setCanSearchBySubcaste] = useState(false);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [showJobSectorModal, setShowJobSectorModal] = useState(false);
     const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
@@ -179,7 +184,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [filters, setFilters] = useState({
         ageRange: '',
         profileCreatedBy: 'Any',
-        subcaste: 'Any',
+        subcaste: [] as string[],
         education: [] as string[],
         city: '',
         star: [] as string[],
@@ -197,6 +202,14 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
     // Age options will be loaded from the API
     const profileCreatedOptions = ['Any', 'Parents', 'Self', 'Relatives', 'Guardian'];
+
+    // Subcaste filter — only ever offers subcastes of the searching user's OWN caste, since
+    // every search is already scoped to `userData.casteId`. The `subcastes` table is empty
+    // When a caste has no subcastes the whole chip row stays unrendered.
+    const subcasteList = useMemo(
+        () => (getSubcastesForCaste?.(userData.casteId) || []) as any[],
+        [getSubcastesForCaste, userData.casteId]
+    );
 
     const gatherSearchData = async () => {
         console.log("filters==>", filters);
@@ -248,8 +261,20 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             star: filters.star.length > 0 ? filters.star : null,
             dosham: filters.dosham.length > 0 ? filters.dosham : null,
             profileImageStatus: photoOnly ? 'Y' : 'N',
-            profilesWithHoroscope: 'N', // or based on your filter
+            // Was hardcoded to 'N' ("or based on your filter") — the "Profile with Horoscope only"
+            // switch below is real state, is restored by handleUseSearch, and is premium-gated,
+            // but its value never reached the payload. So the filter did nothing on search AND
+            // never persisted: SearchResult only saves this key when it equals 'Y'.
+            profilesWithHoroscope: horoscopeOnly ? 'Y' : 'N',
             casteId: userData.casteId,
+            // Multi-select: the picked names are resolved to the numeric ids the backend expects.
+            // An empty selection sends null (= no subcaste filter), matching how degree/star/dosham
+            // signal "unset" — the backend's COALESCE(:subcasteIds) IS NULL check relies on that.
+            subcasteIds: filters.subcaste.length > 0
+                ? subcasteList
+                    .filter((sc: any) => filters.subcaste.includes(sc.subcasteName))
+                    .map((sc: any) => sc.id)
+                : null,
             gender: userData.gender === 'M' ? 'F' : 'M',
             userId: atob(userData.userId),
         };
@@ -305,13 +330,16 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         setFilters({
             ageRange: '',
             profileCreatedBy: 'Any',
-            subcaste: 'Any',
-            education: '',
+            subcaste: [] as string[],
+            // These four are typed (and used) as string[] — resetting them to '' left the state
+            // lying about its own shape. Every read site had to defend with Array.isArray(...)
+            // to avoid a string's .includes() doing substring matching instead of membership.
+            education: [] as string[],
             city: '',
-            star: '',
-            dosham: '',
+            star: [] as string[],
+            dosham: [] as string[],
             annualIncomeFilter: '',
-            jobSector: '',
+            jobSector: [] as string[],
             degree: '',
         });
         // Reset toggle switches
@@ -337,6 +365,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 employedAt: searchData.employedAt || null, // Default value
                 profileImageStatus: searchData.profileImageStatus || 'N',
                 casteId: searchData.casteId || null, // Default value, you might want to get this from your filters
+                subcasteIds: searchData.subcasteIds || null, // Optional — null/empty means "any subcaste"
                 gender: searchData.gender || null, // Default value, you might want to get this from your filters
                 dosham: searchData.dosham == 'Any' ? null : searchData.dosham,
                 star: searchData.star == 'Any' ? null : searchData.star,
@@ -359,7 +388,13 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     pathname: '/(root)/screens/SearchResult',
                     params: {
                         searchResults: JSON.stringify(response.data.data),
-                        searchCriteria: JSON.stringify(requestBody)
+                        searchCriteria: JSON.stringify(requestBody),
+                        // Sent separately rather than inside requestBody, which is the exact body
+                        // POSTed to filterUsers — adding a field there risks the backend DTO
+                        // rejecting an unknown property. Saved searches store subcaste by NAME
+                        // (like Education/Star/Dosham) because names are what the filter UI
+                        // restores into; requestBody only carries the resolved numeric ids.
+                        subcasteNames: JSON.stringify(filters.subcaste || [])
                     }
                 });
             } else if (response.data.code == 404) {
@@ -388,9 +423,17 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
             // console.log("hasPremiumAccess ===>", hasPremiumAccess);
             setIsPremiumUser(hasPremiumAccess);
+
+            // Subcaste search is a SEPARATE, higher gate than the other advanced filters:
+            // ADV_SEARCH is Classic+, SUBCASTE_SEARCH is Silver+. Keyed off its own entitlement
+            // (backend feature code SUBCASTE_SEARCH -> camelCase) so moving it to another tier is
+            // a planFeatures data change, not an app release. The server enforces this too — the
+            // filter is ignored there for non-entitled users, so this gate is UX, not security.
+            setCanSearchBySubcaste(subscriptionData.entitlements.subcasteSearch === true);
         } else {
             // console.log("No subscription data or entitlements found");
             setIsPremiumUser(false);
+            setCanSearchBySubcaste(false);
         }
         // console.log("hasPremiumAccess ===>", isPremiumUser);
 
@@ -412,6 +455,19 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 (filter.filterKey === 'profilesWithHoroscope' && filter.filterValue === 'Y')
             );
 
+            // Subcaste is gated SEPARATELY: SUBCASTE_SEARCH is Silver+, a higher tier than the
+            // ADV_SEARCH (Classic+) that isPremiumUser represents. Folding it into the list above
+            // would let a Classic member load a saved search with subcaste chips selected that the
+            // backend then silently ignores for them.
+            const usesSubcaste = savedSearch.filters.some((filter: any) => filter.filterKey === 'Subcaste');
+            if (usesSubcaste && !canSearchBySubcaste) {
+                popup.premiumRequired(
+                    upgradeMessage('use saved searches that filter by subcaste', 'Silver'),
+                    buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Subcaste Search', minPlan: 'Silver' })
+                );
+                return;
+            }
+
             if (hasPremiumFeatures && !isPremiumUser) {
                 popup.premiumRequired(
                     'This search includes premium filters. Upgrade to Premium to use horoscope, education, and dosham filters.',
@@ -430,6 +486,9 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 annualIncomeFilter: '',
                 jobSector: [] as string[],
                 education: [] as string[],
+                // Reset to empty like the others, so loading a saved search without a subcaste
+                // filter clears any chips left selected from a previous search.
+                subcaste: [] as string[],
             };
 
             let newHoroscopeOnly = false;
@@ -450,6 +509,12 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         } else {
                             updatedFilters.ageRange = value;
                         }
+                        break;
+
+                    case 'subcaste':
+                        // Stored as names (see SearchResult's save path) so they map straight back
+                        // onto the chip selection, same as star/dosham/education.
+                        updatedFilters.subcaste = value.split(',').map((s: string) => s.trim());
                         break;
 
                     case 'star':
@@ -606,7 +671,15 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         const fetchKeyValues = async () => {
             const keys = ['education', 'city', 'height', 'age', 'star', 'dosham', 'annualIncome', 'employingIn'];
 
-            for (const key of keys) {
+            // Was a serial `for (const key of keys) { await userApi.getKeyValueByKey(key) }` loop —
+            // 8 sequential round-trips (~1.6s of pure waterfall) before any filter dropdown became
+            // usable. The keys are independent, so they now run concurrently. The per-key
+            // try/catch below is unchanged, so one missing/malformed key still can't break the
+            // other seven. (Kept as 8 parallel calls rather than one getAllKeyValues() call: that
+            // endpoint returns every keyValue row — banners, QUICK_ACCESS_MENU, ADMIN_CONTACT,
+            // promo configs — so it trades 8 small concurrent requests for one much larger
+            // payload, with the same single-round-trip wall-clock cost.)
+            const processKey = async (key: string) => {
                 try {
                     console.log(`Fetching ${key}...`);
                     const response = await userApi.getKeyValueByKey(key);
@@ -671,7 +744,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                             console.log(`${key} parsed value:`, value);
                         } catch (e) {
                             console.error('Error parsing JSON:', e);
-                            continue; // Skip to next key if parsing fails
+                            return; // Skip this key if parsing fails
                         }
                     }
 
@@ -768,7 +841,9 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 } catch (error) {
                     console.error(`Error processing ${key}:`, error);
                 }
-            }
+            };
+
+            await Promise.all(keys.map(processKey));
         };
 
         fetchKeyValues();
@@ -888,9 +963,12 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         <View style={styles.inputContainer}>
                             <View style={styles.inputField}>
                                 <SearchIcon size={16} color="#94a3b8" />
+                                {/* Placeholder shows the real shape of a member id (prefix +
+                                    number + gender letter, e.g. BLK101F / PLN56M) — the previous
+                                    "Enter Profile ID" gave no clue what to type. */}
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Enter Profile ID"
+                                    placeholder="e.g. BLK101F"
                                     placeholderTextColor="#94a3b8"
                                     value={profileId}
                                     onChangeText={setProfileId}
@@ -904,7 +982,9 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
 
         if (activeTab === 'saved') {
             return (
-                <ScrollView style={{ flex: 1, paddingHorizontal: 18, paddingTop: 12, backgroundColor: 'transparent' }} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ flex: 1, paddingHorizontal: 18, paddingTop: 12, backgroundColor: 'transparent' }}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: footerPad }}>
                     {loading ? (
                         <ActivityIndicator size="large" color="#1F7FE5" style={{ marginTop: 24 }} />
                     ) : savedSearches.length > 0 ? (
@@ -1036,6 +1116,59 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                         </View>
                                     </View>
                                 </View>
+
+                                {/* Subcaste — multi-select chips, same interaction as Education below.
+                                    Scoped to the searching user's own caste (every search is already
+                                    caste-scoped), and rendered only when that caste actually has
+                                    subcastes, so it never shows as an empty or unusable filter.
+                                    PREMIUM (Silver+): a stricter gate than the other advanced filters,
+                                    which are Classic+. Non-entitled users see the locked pill and an
+                                    upgrade prompt. The server enforces this independently. */}
+                                {subcasteList.length > 0 && (
+                                    <View style={styles.filterRow}>
+                                        <View style={styles.pillFieldSection}>
+                                            <Text style={styles.rangeSectionLabel}>
+                                                Subcaste  {!canSearchBySubcaste && (
+                                                    <Text style={{ color: '#F6B733', fontSize: 12 }}>🔒</Text>
+                                                )}
+                                            </Text>
+                                            {!canSearchBySubcaste ? (
+                                                <TouchableOpacity
+                                                    style={styles.dropdownDisabled}
+                                                    onPress={() => setShowUpgradeModal(true)}
+                                                    activeOpacity={0.8}
+                                                >
+                                                    <Text style={styles.disabledText}>Select</Text>
+                                                    <Text style={styles.lockIcon}>🔒</Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                            <View style={styles.pillWrapRow}>
+                                                {subcasteList.map((sc: any) => {
+                                                    const name = sc.subcasteName;
+                                                    const list = Array.isArray(filters.subcaste) ? filters.subcaste : [];
+                                                    const selected = list.includes(name);
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={String(sc.id)}
+                                                            style={[styles.wrapPill, selected && styles.wrapPillSelected]}
+                                                            activeOpacity={0.8}
+                                                            onPress={() => setFilters(prev => ({
+                                                                ...prev,
+                                                                subcaste: selected
+                                                                    ? list.filter(v => v !== name)
+                                                                    : [...list, name],
+                                                            }))}
+                                                        >
+                                                            {selected && <Check size={13} color="#1F7FE5" strokeWidth={3} />}
+                                                            <Text style={[styles.wrapPillText, selected && styles.wrapPillTextSelected]}>{name}</Text>
+                                                        </TouchableOpacity>
+                                                    );
+                                                })}
+                                            </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                )}
 
                                 {/* <View style={styles.filterRow}>
                                     <Text style={styles.filterLabel}>Height</Text>
@@ -1656,15 +1789,6 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 onSelect={(value) => setFilters(prev => ({ ...prev, profileCreatedBy: value }))}
                 title="Profile Created By"
             />
-
-            {/* <DropdownModal
-                visible={showSubcasteModal}
-                onClose={() => setShowSubcasteModal(false)}
-                options={subcasteOptions}
-                selectedValue={filters.subcaste}
-                onSelect={(value) => setFilters(prev => ({ ...prev, subcaste: value }))}
-                title="Select Subcaste"
-            /> */}
 
             <DropdownModal
                 visible={showEducationModal}

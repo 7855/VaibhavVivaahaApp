@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,25 +28,39 @@ const ProfileCompletionBar = () => {
   const [completion, setCompletion] = useState<CompletionData | null>(null);
   const [meta, setMeta] = useState<MetaData | null>(null);
   const [nextAction, setNextAction] = useState<NextAction | null>(null);
-  // Re-fetch on every screen focus so changes (horoscope add/delete, photo upload, etc.) reflect immediately
+  // This component is the SINGLE owner of the profile-completion fetch — the Home screen used to
+  // fetch the same endpoint twice more on its own (once on focus, once on mount) for the same data.
+  const lastFetchRef = useRef(0);
+  const CACHE_MS = 30000;
+  // Re-fetch on screen focus so changes (horoscope add/delete, photo upload, etc.) reflect
+  // immediately, but throttled — returning from a pushed screen shouldn't re-hit the network,
+  // and the `isActive` flag stops a slow response from setting state after we've blurred.
   useFocusEffect(
     useCallback(() => {
+      let isActive = true;
       const fetchProfileCompletion = async () => {
         try {
           const userId = await AsyncStorage.getItem('userId');
           if (!userId) return;
           const response = await userApi.getProfileCompletion(userId);
+          if (!isActive) return;
           if (response?.data?.data) {
             const { completion, meta, nextAction } = response.data.data.data;
             setCompletion(completion);
             setMeta(meta);
             setNextAction(nextAction);
+            lastFetchRef.current = Date.now();
           }
         } catch (error) {
           console.error('Error fetching profile completion:', error);
         }
       };
-      fetchProfileCompletion();
+      if (Date.now() - lastFetchRef.current >= CACHE_MS) {
+        fetchProfileCompletion();
+      }
+      return () => {
+        isActive = false;
+      };
     }, [])
   );
   if (!completion || !meta) {
@@ -65,8 +79,17 @@ const ProfileCompletionBar = () => {
     <View style={styles.container}>
       <View style={styles.widgetContainer}>
         <View style={styles.profileCompletionWidget}>
-          <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFillObject} />
-          <View style={styles.widgetTint} pointerEvents="none" />
+          {/* iOS-only: on Android expo-blur has no true backdrop blur — it falls back to a flat
+              translucent overlay that does NOT clip to the parent's borderRadius, painting a
+              hard-edged rectangle inside the rounded card. The opaque tint below covers the same
+              frosted surface without the artifact. Same treatment as VVMFooterNav.tsx. */}
+          {Platform.OS === 'ios' && (
+            <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFillObject} />
+          )}
+          <View
+            style={[styles.widgetTint, Platform.OS !== 'ios' && styles.widgetTintOpaque]}
+            pointerEvents="none"
+          />
           <View style={styles.progressSection}>
             <View style={styles.progressRingContainer}>
               <ProgressRing
@@ -153,6 +176,11 @@ const styles = StyleSheet.create({
   widgetTint: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  // Android has no BlurView underneath, so the tint carries the whole surface — nudged
+  // up to near-opaque so the widget reads the same frosted white as it does on iOS.
+  widgetTintOpaque: {
+    backgroundColor: 'rgba(255,255,255,0.94)',
   },
   progressSection: {
     flexDirection: 'row',

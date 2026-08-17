@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import CommonPopup, { PopupButton, PopupVariant } from '../../../components/CommonPopup';
 
 interface ShowPopupOptions {
@@ -134,8 +134,15 @@ export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [show, wrapButton]
   );
 
+  // All eight helpers are already stable, so this value never changes identity — without
+  // the memo, opening/closing any popup re-rendered every usePopup() consumer in the tree.
+  const value = useMemo(
+    () => ({ show, hide, success, error: errorFn, warning, info, confirm, premiumRequired }),
+    [show, hide, success, errorFn, warning, info, confirm, premiumRequired]
+  );
+
   return (
-    <PopupContext.Provider value={{ show, hide, success, error: errorFn, warning, info, confirm, premiumRequired }}>
+    <PopupContext.Provider value={value}>
       {children}
       {opts ? (
         <CommonPopup

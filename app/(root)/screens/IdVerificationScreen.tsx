@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 
 type DocumentType = 'AADHAAR_CARD' | 'PAN_CARD' | 'VOTER_ID' | 'DRIVING_LICENSE' | 'PASSPORT';
 
@@ -123,7 +123,7 @@ export default function IdVerificationScreen() {
         await loadStatus(encodedUserId);
       } else if (res.data.code === 403) {
         popup.premiumRequired(
-          'Upgrade to Silver or above to verify your ID.',
+          upgradeMessage('verify your ID', 'Silver'),
           buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'ID Verification', minPlan: 'Silver' })
         );
       } else if (res.data.code === 409) {
@@ -134,7 +134,7 @@ export default function IdVerificationScreen() {
     } catch (e: any) {
       if (e?.response?.data?.code === 403) {
         popup.premiumRequired(
-          'Upgrade to Silver or above to verify your ID.',
+          upgradeMessage('verify your ID', 'Silver'),
           buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'ID Verification', minPlan: 'Silver' })
         );
       } else {

@@ -9,8 +9,10 @@ import {
   Modal,
   StyleSheet,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { usePopup } from '../contexts/PopupContext';
 import {
   Feather,
   MaterialIcons,
@@ -65,6 +67,7 @@ interface HiddenFieldsResponse {
 }
 
 const PrivacySettingsPage: React.FC = () => {
+  const popup = usePopup();
   const navigation = useNavigation();
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>({
     mobileNumber: false,
@@ -108,6 +111,10 @@ const PrivacySettingsPage: React.FC = () => {
     loadHiddenFields();
   }, []);
   const [modalVisible, setModalVisible] = useState(false);
+  // The confirm step fires 2-3 sequential API calls (fetch current fields, then create or
+  // delete). Without this the modal sat frozen with no feedback and a second tap re-ran the
+  // whole chain.
+  const [savingPrivacy, setSavingPrivacy] = useState(false);
   const [pendingChange, setPendingChange] = useState<{
     key: keyof PrivacySettings;
     value: boolean;
@@ -121,6 +128,8 @@ const PrivacySettingsPage: React.FC = () => {
 
   const confirmPrivacyChange = async () => {
     if (pendingChange) {
+      if (savingPrivacy) return; // re-entrancy guard: the chain below is not idempotent
+      setSavingPrivacy(true);
       try {
         const userId = await AsyncStorage.getItem('userId');
         if (!userId) {
@@ -155,7 +164,12 @@ const PrivacySettingsPage: React.FC = () => {
         setPendingChange(null);
       } catch (error) {
         console.error('Error updating privacy settings:', error);
-        // You might want to show an error message to the user
+        popup.error(
+          'Could not update privacy',
+          'Your privacy setting was not changed. Please check your connection and try again.'
+        );
+      } finally {
+        setSavingPrivacy(false);
       }
     }
   };
@@ -301,15 +315,21 @@ const PrivacySettingsPage: React.FC = () => {
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     onPress={cancelPrivacyChange}
+                    disabled={savingPrivacy}
                     style={styles.cancelBtn}
                   >
                     <Text style={styles.cancelText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={confirmPrivacyChange}
-                    style={styles.confirmBtn}
+                    disabled={savingPrivacy}
+                    style={[styles.confirmBtn, savingPrivacy && { opacity: 0.7 }]}
                   >
-                    <Text style={styles.confirmText}>Confirm</Text>
+                    {savingPrivacy ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.confirmText}>Confirm</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>

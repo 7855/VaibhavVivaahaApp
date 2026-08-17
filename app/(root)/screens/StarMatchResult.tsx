@@ -8,10 +8,15 @@ import {
   ActivityIndicator,
   Dimensions,
   Share,
-  SafeAreaView,
   StatusBar,
   Alert
 } from 'react-native';
+// react-native's own SafeAreaView is a NO-OP on Android — it only insets on iOS. This screen is
+// registered HEADERLESS in screens/_layout.tsx and the app builds edge-to-edge (targetSdk 35),
+// so with the built-in version nothing reserved space for the status bar or the gesture/nav bar
+// and the page header + bottom button rendered underneath both. The context version insets on
+// both platforms.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -208,7 +213,7 @@ const StarMatchResult = () => {
   const progressColor = getProgressColor(result.percentage);
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={C.headerBg} />
 
       {/* Header */}
@@ -331,7 +336,10 @@ const SHADOW = {
 };
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+  // White (not C.bg) so the safe-area insets match the white header above and white footer
+  // below that they sit against — otherwise the cream page colour showed as a seam in the
+  // status-bar and nav-bar strips. The scroll body keeps C.bg explicitly, below.
+  safe: { flex: 1, backgroundColor: C.headerBg },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg, gap: 10 },
   loadingText: { fontSize: 16, fontFamily: 'Rubik-Medium', color: C.ink, marginTop: 6 },
   loadingHint: { fontSize: 13, color: C.inkSoft },
@@ -347,7 +355,7 @@ const s = StyleSheet.create({
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: C.ink },
   headerSub: { fontSize: 12, color: C.inkSoft, marginTop: 1 },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: C.bg },
   heroCard: { alignItems: 'center', paddingTop: 28, paddingBottom: 28, paddingHorizontal: 20 },
   circleWrap: { position: 'relative', marginBottom: 20 },
   circleOuter: { width: 160, height: 160, borderRadius: 80, justifyContent: 'center', alignItems: 'center', padding: 6 },

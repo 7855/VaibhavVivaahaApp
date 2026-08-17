@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import React, { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Modal, View, ScrollView, Text as RNText, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import InterestChipGrid from './InterestChipGrid';
@@ -37,6 +38,8 @@ const EditInterestsModal: React.FC<EditInterestsModalProps> = ({
     if (visible) setSelected(initialSelected);
   }, [visible, initialSelected]);
 
+  const insets = useSafeAreaInsets();
+
   const handleSave = async () => {
     if (!userId) return;
     setSaving(true);
@@ -64,7 +67,10 @@ const EditInterestsModal: React.FC<EditInterestsModalProps> = ({
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           paddingTop: 16,
-          paddingBottom: 40,
+          // Bottom sheet sits flush against the screen edge, and this build is edge-to-edge, so
+          // it draws behind the device nav bar. A fixed 40 was not enough on gesture-nav phones
+          // and clipped the Save button. Keep 40 as the visual minimum on devices with no inset.
+          paddingBottom: Math.max(40, insets.bottom + 24),
           paddingHorizontal: 20,
           maxHeight: '80%',
         }}>

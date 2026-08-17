@@ -100,7 +100,11 @@ const SwiperProfile = ({ users, onUserPress }) => {
     <TouchableOpacity onPress={() => handleCardPress(item.userId)}>
       <Card containerStyle={[styles.card, { borderRadius: 8 }]}>
         <View style={styles.user}>
-          <Image style={styles.nearyouImage} source={item.profileImage ? { uri: item.profileImage } :
+          {/* resizeMethod="resize" (Android) makes Fresco decode the bitmap down to roughly the
+              125x150 slot instead of holding the full-resolution profile photo in memory for
+              every card in the carousel — the URLs here are the same full-size images used on
+              ProfileDetail. resizeMode is stated explicitly rather than relying on the default. */}
+          <Image style={styles.nearyouImage} resizeMode="cover" resizeMethod="resize" source={item.profileImage ? { uri: item.profileImage } :
             item.gender === 'M' ? require('../assets/images/avatarMen.png') :
               item.gender === 'F' ? require('../assets/images/avatarWomen.png') :
                 require('../assets/images/defaultAvatar.png')} />

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import userApi from '../api/userApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState, AppStateStatus } from 'react-native';
@@ -158,24 +158,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userId, setUserId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(false);
 
+  // Mirror of `userId` readable from stable callbacks. The AppState handler below is
+  // registered once on mount, so closing over `userId` directly meant it captured the
+  // mount-time value (always null) — a user who logged in during this session never got
+  // a background lastSeen ping. Every stable callback here reads this ref instead.
+  const userIdRef = useRef<string | null>(null);
   useEffect(() => {
-    checkUserStatus();
-    
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+    userIdRef.current = userId;
+  }, [userId]);
 
-  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+  const handleAppStateChange = useCallback(async (nextAppState: AppStateStatus) => {
     if (nextAppState === 'background' || nextAppState === 'inactive') {
-      if (userId) {
-        try { await userApi.lastSeen(userId); } catch (_) {}
+      const currentUserId = userIdRef.current;
+      if (currentUserId) {
+        try { await userApi.lastSeen(currentUserId); } catch (_) {}
       }
     }
-  };
+  }, []);
 
-  const checkUserStatus = async () => {
+  const checkUserStatus = useCallback(async () => {
     try {
       const storedUserId = await AsyncStorage.getItem('userId');
       const storedAuthToken = await AsyncStorage.getItem('authToken');
@@ -200,11 +201,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error checking user status:', error);
     }
-  };
+  }, []);
 
-  const handleLogout = async () => {
-    if (userId) {
-      await userApi.lastSeen(userId);
+  useEffect(() => {
+    checkUserStatus();
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, [checkUserStatus, handleAppStateChange]);
+
+  // `targetUserId` lets logout() hand in the id it snapshotted before clearing state —
+  // by the time this runs the ref may already have been nulled by the re-render.
+  const handleLogout = useCallback(async (targetUserId?: string | null) => {
+    const id = targetUserId !== undefined ? targetUserId : userIdRef.current;
+    if (id) {
+      await userApi.lastSeen(id);
       setUserId(null);
       setIsOnline(false);
       try {
@@ -213,9 +226,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error removing userId from storage:', error);
       }
     }
-  };
+  }, []);
 
-  const login = async (userId: string) => {
+  const login = useCallback(async (userId: string) => {
     setUserId(userId);
     setIsOnline(true);
     try {
@@ -226,12 +239,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsOnline(false);
       throw error;
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       console.log('Logout called');
-      
+
+      const loggingOutUserId = userIdRef.current;
+
       // First, disconnect WebSocket
       console.log('WebSocketService: Starting logout process...');
       
@@ -250,10 +265,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await AsyncStorage.removeItem('authToken');
       
       // Update last seen status
-      await handleLogout();
-      
+      await handleLogout(loggingOutUserId);
+
       console.log('Logout completed successfully');
-      
+
       // Clear navigation stack and go to main
       // router.replace('/(root)/(main)');
       // router.replace('/(root)/(main)/LoginScreen');
@@ -262,34 +277,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error during logout:', error);
     }
-  };
+  }, [handleLogout]);
 
-  const sendMessage = (conversationId: string, message: string) => {
+  // These three intentionally read the `userId` STATE, not userIdRef — the ref is synced in
+  // an effect, and React flushes child effects before parent ones, so a consumer reacting to
+  // userId turning non-null (myChatList's chat-listener focus effect) would still see a stale
+  // null ref on that first pass. Their identity only churns when userId actually changes.
+  const sendMessage = useCallback((conversationId: string, message: string) => {
     if (!userId) {
       console.error('Cannot send message: User not logged in');
       return;
     }
     webSocketService.sendChatMessagePublic(conversationId, message);
-  };
+  }, [userId]);
 
-  const addChatListener = (callback: (data: WebSocketMessage['data']) => void) => {
+  const addChatListener = useCallback((callback: (data: WebSocketMessage['data']) => void) => {
     if (!userId) {
       console.error('Cannot add chat listener: User not logged in');
       return;
     }
     webSocketService.addChatListenerPublic(callback);
-  };
+  }, [userId]);
 
-  const removeChatListener = () => {
+  const removeChatListener = useCallback(() => {
     if (!userId) {
       console.error('Cannot remove chat listener: User not logged in');
       return;
     }
     webSocketService.removeChatListenerPublic();
-  };
+  }, [userId]);
+
+  // Memoized so the only thing that re-renders every consumer in the app is an actual
+  // userId/isOnline change — not simply the provider itself re-rendering.
+  const value = useMemo(
+    () => ({ userId, isOnline, login, logout, sendMessage, addChatListener, removeChatListener }),
+    [userId, isOnline, login, logout, sendMessage, addChatListener, removeChatListener]
+  );
 
   return (
-    <AuthContext.Provider value={{ userId, isOnline, login, logout, sendMessage, addChatListener, removeChatListener }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

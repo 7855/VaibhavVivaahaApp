@@ -4,7 +4,7 @@ import { Ionicons, Feather, Fontisto } from '@expo/vector-icons';
 import { router, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Box, NativeBaseProvider, Pressable, Toast } from 'native-base';
 import VerifiedBadges from '../../../components/VerifiedBadges';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import userApi from '../api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
@@ -21,7 +21,7 @@ import {
 } from 'react-native-popup-menu';
 import { SelectList } from 'react-native-dropdown-select-list';
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 import { REPORT_REASONS } from '@/constants/data';
 // Remove this import since we're not using Checkbox anymore
 interface Message {
@@ -40,6 +40,62 @@ interface ChatScreenParams {
   profileImage: string;
   conversationId: string;
 }
+
+// Extracted out of the FlatList's inline renderItem. That closure lived in a component whose
+// state includes `inputText`, so every single keystroke in the message box re-rendered every
+// mounted message bubble in the thread. Memoized with stable props, typing no longer touches
+// the list at all.
+const MessageBubble = React.memo(function MessageBubble({
+  item,
+  isMyMessage,
+  showDateSeparator,
+  otherAvatar,
+  myAvatar,
+  onReport,
+}: {
+  item: Message;
+  isMyMessage: boolean;
+  showDateSeparator: boolean;
+  otherAvatar: any;
+  myAvatar: any;
+  onReport: (item: { id: string | number; text: string }) => void;
+}) {
+  return (
+    <View>
+      {showDateSeparator && (
+        <View style={styles.dateSeparatorContainer}>
+          <Text style={styles.dateSeparatorText}>{item.displayDateGroup}</Text>
+        </View>
+      )}
+
+      <View style={isMyMessage ? styles.messageRightContainer : styles.messageLeftContainer}>
+        {!isMyMessage && <Image source={otherAvatar} style={styles.avatar} />}
+
+        <TouchableOpacity
+          activeOpacity={isMyMessage ? 1 : 0.7}
+          onLongPress={isMyMessage ? undefined : () => onReport({ id: item.id, text: item.text })}
+          style={isMyMessage ? styles.messageMetaRight : styles.messageMetaLeft}
+        >
+          <Text style={isMyMessage ? styles.messageRight : styles.messageLeft}>{item.text}</Text>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={isMyMessage ? styles.timestampRight : styles.timestampLeft}>
+              {item.timestamp}
+            </Text>
+            {isMyMessage &&
+              (item.isRead ? (
+                <Ionicons name="checkmark-done-sharp" size={16} color="#34B7F1" />
+              ) : (
+                <Ionicons name="checkmark-sharp" size={16} color="gray" />
+              ))}
+          </View>
+        </TouchableOpacity>
+
+        {isMyMessage && <Image source={myAvatar} style={styles.avatar} />}
+      </View>
+    </View>
+  );
+});
 
 function ChatScreen() {
   const { userData } = useUserData();
@@ -72,7 +128,6 @@ function ChatScreen() {
   const [myProfile, setMyProfile] = useState<string>('');
   const [otherProfile, setOtherProfile] = useState<string>(profileImage || '');
   const [otherUserGender, setOtherUserGender] = useState<string>((route.otherUserGender as string) || '');
-  const animatedKeyboardHeight = useRef(new Animated.Value(0)).current;
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [chatPadding, setChatPadding] = useState(10);
@@ -194,13 +249,60 @@ function ChatScreen() {
     setShowReportModal(true);
   };
 
-  const handleReportMessage = (item: { id: string | number; text: string }) => {
+  const handleReportMessage = useCallback((item: { id: string | number; text: string }) => {
     if (isParent) { blockedForParent('report messages'); return; }
     setReportedMessage(item);
     setSelectedReason('');
     setReportAlsoBlock(false);
     setShowReportModal(true);
-  };
+  }, [isParent]);
+
+  // Avatar sources resolved once per profile/gender change rather than per rendered bubble.
+  const otherAvatarSource = React.useMemo(
+    () =>
+      profileImage
+        ? { uri: profileImage }
+        : otherUserGender === 'M'
+          ? require('../../../assets/images/avatarMen.png')
+          : otherUserGender === 'F'
+            ? require('../../../assets/images/avatarWomen.png')
+            : require('../../../assets/images/defaultAvatar.png'),
+    [profileImage, otherUserGender]
+  );
+
+  const myAvatarSource = React.useMemo(
+    () =>
+      myProfile
+        ? { uri: myProfile }
+        : userData.gender === 'M'
+          ? require('../../../assets/images/avatarMen.png')
+          : userData.gender === 'F'
+            ? require('../../../assets/images/avatarWomen.png')
+            : require('../../../assets/images/defaultAvatar.png'),
+    [myProfile, userData.gender]
+  );
+
+  const renderMessage = useCallback(
+    ({ item, index }: { item: Message; index: number }) => {
+      const isMyMessage = item.senderId == decryptedUserId;
+      // The list is inverted, so the "next" item is the one below/older.
+      const showDateSeparator =
+        index === messages.length - 1 ||
+        item.displayDateGroup !== messages[index + 1]?.displayDateGroup;
+
+      return (
+        <MessageBubble
+          item={item}
+          isMyMessage={isMyMessage}
+          showDateSeparator={showDateSeparator}
+          otherAvatar={otherAvatarSource}
+          myAvatar={myAvatarSource}
+          onReport={handleReportMessage}
+        />
+      );
+    },
+    [decryptedUserId, messages, otherAvatarSource, myAvatarSource, handleReportMessage]
+  );
 
   const handleUnblockUser = async () => {
 
@@ -367,23 +469,59 @@ function ChatScreen() {
 
 
   const inputTranslateY = useRef(new Animated.Value(0)).current;
-  // KeyboardAvoidingView's own 'padding' behavior on iOS measures its own onLayout position to
-  // decide how much space to reserve, and in this screen that measurement was evidently landing
-  // short (input still ends up behind the keyboard). Rather than guess at another automatic
-  // behavior, track the REAL keyboard height reported by the OS event directly and apply it as
-  // explicit bottom padding ourselves — deterministic, no reliance on KeyboardAvoidingView's
-  // internal frame math. Android keeps relying on windowSoftInputMode="adjustResize" (already
-  // resizes the window natively), so this stays 0 there.
-  const [iosKeyboardHeight, setIosKeyboardHeight] = useState(0);
+  // KeyboardAvoidingView's own 'padding' behavior measures its own onLayout position to decide
+  // how much space to reserve, and on this screen that lands short, so we apply the real
+  // measured keyboard height as explicit padding instead.
+  //
+  // ANDROID IS MEASURED, NOT ASSUMED. windowSoftInputMode="adjustResize" is set, but whether
+  // Android honours it under edge-to-edge / targetSdk 35 turned out to be unreliable on device:
+  // assuming it worked left the input behind the keyboard, and assuming it didn't parked the
+  // input about two keyboard-heights up the screen. So instead of guessing, compare the window
+  // height now against its keyboard-closed baseline — if the window genuinely shrank, the OS
+  // already made room and adding padding would double-compensate; if it didn't, we compensate.
+  // Self-correcting, so it behaves on devices/OEMs that differ either way.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Measured height of the chat container itself, via onLayout. This is ground truth for
+  // "did the OS resize us": useWindowDimensions was tried and does NOT reflect the resize under
+  // edge-to-edge, and assuming either way was wrong on device (assume-resized → input behind the
+  // keyboard; assume-not-resized → input two keyboard-heights up).
+  //
+  // Safe from feedback: paddingBottom below is applied INSIDE this container, so it never
+  // changes the container's own frame height and can't re-trigger this measurement.
+  const insets = useSafeAreaInsets();
+  const [containerHeight, setContainerHeight] = useState(0);
+  const openContainerHeightRef = useRef(0);
+
+
+  // Baseline = container height while the keyboard is closed.
+  useEffect(() => {
+    if (keyboardHeight === 0 && containerHeight > openContainerHeightRef.current) {
+      openContainerHeightRef.current = containerHeight;
+    }
+  }, [containerHeight, keyboardHeight]);
+
+  // >100px so a status-/nav-bar shift is never mistaken for a keyboard resize.
+  const containerShrankForKeyboard =
+    openContainerHeightRef.current > 0 &&
+    openContainerHeightRef.current - containerHeight > 100;
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
         setChatPadding(70); // ✅ Increase padding when keyboard is shown
-        if (Platform.OS === 'ios') {
-          setIosKeyboardHeight(e?.endCoordinates?.height || 0);
-        }
+        setKeyboardHeight(e?.endCoordinates?.height || 0);
+        // Diagnostic for the keyboard-offset problem. console is NOT stripped in this project's
+        // release builds (no transform-remove-console in babel.config.js), so these numbers show
+        // up in `adb logcat` on a real APK — which is the only way to settle whether adjustResize
+        // actually applied on a given device. Cheap and invisible to members; leave it.
+        console.log('[chat-kb]', JSON.stringify({
+          keyboardHeight: e?.endCoordinates?.height,
+          containerHeight,
+          baseline: openContainerHeightRef.current,
+          shrank: openContainerHeightRef.current - containerHeight,
+          insetBottom: insets.bottom,
+        }));
       }
     );
 
@@ -391,9 +529,7 @@ function ChatScreen() {
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
         setChatPadding(10); // ✅ Increase padding when keyboard is shown
-        if (Platform.OS === 'ios') {
-          setIosKeyboardHeight(0);
-        }
+        setKeyboardHeight(0);
       }
     );
 
@@ -468,19 +604,26 @@ function ChatScreen() {
   useEffect(() => {
     const fetchConversation = async () => {
       try {
-        // Fetch other user's online status
-        const onlineStatusResponse = await userApi.getUserOnlineStatus(otherUserId);
-        // console.log('Other user online status:', onlineStatusResponse.data.data.isOnline);
-        // console.log('Other user online status:', onlineStatusResponse.data.data.lastSeen);
+        // These three are independent of each other. They used to run as a serial await chain,
+        // which meant the messages — the entire reason the user opened this screen — only started
+        // loading after two unrelated round-trips had finished. allSettled so a failure in the
+        // status/verification calls still lets the conversation render.
+        const [onlineSettled, profileSettled, conversationSettled] = await Promise.allSettled([
+          userApi.getUserOnlineStatus(otherUserId),
+          userApi.getProfileDetails(otherUserId),
+          userApi.getConversationData(conversationId),
+        ]);
 
-        setIsOtherUserOnline(onlineStatusResponse.data.data.isOnline);
-        const formattedTime = formatLastSeenTime(onlineStatusResponse.data.data.lastSeen);
-        setOtherUserLastseenTime(formattedTime);
+        if (onlineSettled.status === 'fulfilled') {
+          const onlineStatusResponse = onlineSettled.value;
+          setIsOtherUserOnline(onlineStatusResponse.data.data.isOnline);
+          const formattedTime = formatLastSeenTime(onlineStatusResponse.data.data.lastSeen);
+          setOtherUserLastseenTime(formattedTime);
+        }
 
-        // Fetch verification flags once for the header shield
-        try {
-          const profileRes = await userApi.getProfileDetails(otherUserId);
-          const d = profileRes?.data?.data;
+        // Verification flags for the header shield
+        if (profileSettled.status === 'fulfilled') {
+          const d = profileSettled.value?.data?.data;
           if (d) {
             setOtherUserVerifications({
               idVerified: d.idVerified === true,
@@ -489,8 +632,12 @@ function ChatScreen() {
             });
             if (d.gender) setOtherUserGender(d.gender);
           }
-        } catch (_) { }
-        const response = await userApi.getConversationData(conversationId);
+        } else {
+          console.warn('[chatscreen] verification flags fetch failed:', profileSettled.reason?.message);
+        }
+
+        if (conversationSettled.status === 'rejected') throw conversationSettled.reason;
+        const response = conversationSettled.value;
         if (response.data && response.data.data) {
           // Get conversation data
           // console.log("response.data.data=======================>", response.data.data);
@@ -638,7 +785,7 @@ function ChatScreen() {
   const handleSend = async () => {
     if (!isPremium) {
       popup.premiumRequired(
-        'Upgrade to Premium to send messages and unlock unlimited chats.',
+        upgradeMessage('send messages and unlock unlimited chats'),
         buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Send Message' })
       );
       return;
@@ -715,12 +862,12 @@ function ChatScreen() {
           if (resData?.message === 'CHAT_LIMIT_REACHED') {
             const limit = resData?.data?.limit || 5;
             popup.premiumRequired(
-              `You've used all ${limit} conversations in your plan. Upgrade to Classic or above for unlimited chats.`,
+              `You've used all ${limit} conversations in your plan. ${upgradeMessage('get unlimited chats', 'Classic')}`,
               buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Unlimited Chats', minPlan: 'Classic' })
             );
           } else {
             popup.premiumRequired(
-              'Upgrade your plan to send messages.',
+              upgradeMessage('send messages'),
               buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Send Message' })
             );
           }
@@ -768,38 +915,10 @@ function ChatScreen() {
 
 
 
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const keyboardShowListener = Platform.OS === 'ios'
-      ? Keyboard.addListener('keyboardWillShow', onKeyboardShow)
-      : Keyboard.addListener('keyboardDidShow', onKeyboardShow);
-
-    const keyboardHideListener = Platform.OS === 'ios'
-      ? Keyboard.addListener('keyboardWillHide', onKeyboardHide)
-      : Keyboard.addListener('keyboardDidHide', onKeyboardHide);
-
-    return () => {
-      keyboardShowListener.remove();
-      keyboardHideListener.remove();
-    };
-  }, []);
-
-  const onKeyboardShow = (e: any) => {
-    Animated.timing(animatedKeyboardHeight, {
-      toValue: e.endCoordinates.height,
-      duration: e.duration || 250,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const onKeyboardHide = (e: any) => {
-    Animated.timing(animatedKeyboardHeight, {
-      toValue: 0,
-      duration: e.duration || 250,
-      useNativeDriver: false,
-    }).start();
-  };
+  // NOTE: a second, duplicate keyboard listener pair used to live here, driving an
+  // `animatedKeyboardHeight` Animated.Value and a `keyboardHeight` state that NOTHING ever
+  // read — so it re-rendered this screen on every keyboard show/hide for no effect, and its
+  // state name collided with the real one declared above. Removed.
 
   const getDisplayDate = (rawDate: string) => {
     const msgDate = new Date(rawDate.replace(' ', 'T') + 'Z');
@@ -1020,22 +1139,50 @@ function ChatScreen() {
             </View>
 
             {/* Chat and Input */}
-            {/* Android's manifest already sets windowSoftInputMode="adjustResize", which resizes
-                the whole window when the keyboard opens — no manual compensation needed there.
-                iOS doesn't auto-resize, but KeyboardAvoidingView's own 'padding' behavior kept
-                leaving the input behind the keyboard on this screen, so behavior is left
-                undefined on BOTH platforms and iOS gets an explicit paddingBottom driven by the
-                real measured keyboard height (iosKeyboardHeight, set above from the
-                keyboardWillShow/Hide events) instead. */}
+            {/* behavior is left undefined on BOTH platforms; the lift is applied as an explicit
+                paddingBottom below instead. Note this only works because the FlatList is bounded
+                with flex:1 — an unbounded list overflows this container and pushes the input bar
+                off-screen no matter what padding is set here (that was the original bug). */}
             <KeyboardAvoidingView
               behavior={undefined}
-              style={{ flex: 1, paddingBottom: Platform.OS === 'ios' ? iosKeyboardHeight : 0 }}
+              onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
+              style={{
+                flex: 1,
+                // iOS never auto-resizes, so it always needs the measured keyboard height.
+                //
+                // Android is decided by MEASUREMENT (see containerShrankForKeyboard above): if
+                // this container actually got shorter, adjustResize already made room and adding
+                // padding would double-compensate; if it didn't, we compensate ourselves. This
+                // matters because the app is edge-to-edge (targetSdk 35), where adjustResize is
+                // unreliable — which is exactly why it works in Expo Go (different manifest and
+                // target SDK) but not in the release build.
+                paddingBottom:
+                  keyboardHeight === 0
+                    ? 0
+                    : Platform.OS === 'ios'
+                      ? keyboardHeight
+                      : containerShrankForKeyboard
+                        ? 0
+                        // Full keyboard height, NOT keyboardHeight - insets.bottom. Subtracting
+                        // the inset assumed the SafeAreaView was still reserving the nav-bar
+                        // strip, but with the keyboard up that strip is behind the keyboard and
+                        // reserves nothing — so the subtraction ate ~48px, almost exactly the
+                        // height of the input bar, leaving only a sliver of it visible.
+                        : keyboardHeight,
+              }}
             >
               <View style={{ flex: 1 }}>
                 {/* Messages */}
                 <FlatList
                   data={messages}
                   inverted
+                  // flex:1 is REQUIRED, not cosmetic. A FlatList/ScrollView in a flex column
+                  // without it is sized by its content rather than bounded by the parent — and
+                  // messagesContainer sets flexGrow:1, so the list expanded past the parent and
+                  // pushed its sibling (the input bar below) off-screen entirely, with or
+                  // without the keyboard open. Bounding the list keeps the input in view and
+                  // lets the keyboard paddingBottom above actually shrink the visible area.
+                  style={{ flex: 1 }}
                   keyExtractor={(item) => item.id.toString()}
                   contentContainerStyle={[styles.messagesContainer, { paddingTop: chatPadding }]}
                   keyboardShouldPersistTaps="handled"
@@ -1043,73 +1190,7 @@ function ChatScreen() {
                   initialNumToRender={15}
                   maxToRenderPerBatch={10}
                   removeClippedSubviews={true}
-                  renderItem={({ item, index }) => {
-                    const isMyMessage = item.senderId == decryptedUserId;
-                    const showDateSeparator =
-                      index === messages.length - 1 || item.displayDateGroup !== messages[index + 1]?.displayDateGroup;
-
-                    return (
-                      <View key={`message-${item.id}`}>
-                        {showDateSeparator && (
-                          <View style={styles.dateSeparatorContainer}>
-                            <Text style={styles.dateSeparatorText}>{item.displayDateGroup}</Text>
-                          </View>
-                        )}
-
-                        <View style={isMyMessage ? styles.messageRightContainer : styles.messageLeftContainer}>
-                          {!isMyMessage && (
-                            <Image
-                              source={
-                                profileImage
-                                  ? { uri: profileImage }
-                                  : otherUserGender === 'M'
-                                    ? require('../../../assets/images/avatarMen.png')
-                                    : otherUserGender === 'F'
-                                      ? require('../../../assets/images/avatarWomen.png')
-                                      : require('../../../assets/images/defaultAvatar.png')
-                              }
-                              style={styles.avatar}
-                            />
-                          )}
-
-                          <TouchableOpacity
-                            activeOpacity={isMyMessage ? 1 : 0.7}
-                            onLongPress={isMyMessage ? undefined : () => handleReportMessage({ id: item.id, text: item.text })}
-                            style={isMyMessage ? styles.messageMetaRight : styles.messageMetaLeft}
-                          >
-                            <Text style={isMyMessage ? styles.messageRight : styles.messageLeft}>{item.text}</Text>
-
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Text style={isMyMessage ? styles.timestampRight : styles.timestampLeft}>
-                                {item.timestamp}
-                              </Text>
-                              {isMyMessage &&
-                                (item.isRead ? (
-                                  <Ionicons name="checkmark-done-sharp" size={16} color="#34B7F1" />
-                                ) : (
-                                  <Ionicons name="checkmark-sharp" size={16} color="gray" />
-                                ))}
-                            </View>
-                          </TouchableOpacity>
-
-                          {isMyMessage && (
-                            <Image
-                              source={
-                                myProfile
-                                  ? { uri: myProfile }
-                                  : userData.gender === 'M'
-                                    ? require('../../../assets/images/avatarMen.png')
-                                    : userData.gender === 'F'
-                                      ? require('../../../assets/images/avatarWomen.png')
-                                      : require('../../../assets/images/defaultAvatar.png')
-                              }
-                              style={styles.avatar}
-                            />
-                          )}
-                        </View>
-                      </View>
-                    );
-                  }}
+                  renderItem={renderMessage}
                 />
 
                 {/* Input */}
@@ -1350,7 +1431,12 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flexGrow: 1,
-    justifyContent: 'flex-end',
+    // 'flex-start', NOT 'flex-end'. An inverted list lays its content out in a flipped
+    // coordinate space, so 'flex-end' resolves to the VISUAL TOP — which is why a short
+    // conversation sat up against the header with a large dead gap above the input, instead
+    // of resting just above it the way every chat app does. ('flex-end' is the right value
+    // for a NON-inverted chat list; this one is inverted.)
+    justifyContent: 'flex-start',
   },
   messageRightContainer: {
     flexDirection: 'row',

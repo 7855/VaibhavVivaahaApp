@@ -72,6 +72,10 @@ const ChatRow = React.memo(function ChatRow({ item, isSelected, selectionMode, o
               size="55px"
               borderWidth={2}
               borderColor="#fff"
+              // Forwarded to the underlying RN <Image>: on Android this makes Fresco decode the
+              // bitmap down to the 55px slot instead of keeping the full-resolution profile photo
+              // in memory for every row of the conversation list.
+              _image={{ resizeMode: 'cover', resizeMethod: 'resize' }}
               source={
                 item.profileImage
                   ? { uri: item.profileImage }

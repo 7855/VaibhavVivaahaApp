@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Modal,
   View,
@@ -37,9 +39,20 @@ const variantAccent: Record<PopupVariant, { title: string; btn: string; btnBg: s
   error: { title: '#dc2626', btn: '#fff', btnBg: '#ef4444' },
   warning: { title: '#b45309', btn: '#fff', btnBg: '#f59e0b' },
   info: { title: '#1d4ed8', btn: '#fff', btnBg: '#3b82f6' },
-  confirm: { title: '#420001', btn: '#fff', btnBg: '#420001' },
-  premium: { title: '#420001', btn: '#fff', btnBg: '#420001' },
-  locked: { title: '#dc2626', btn: '#fff', btnBg: '#ef4444' },
+  confirm: { title: '#0f1724', btn: '#fff', btnBg: '#1F7FE5' },
+  // Premium/locked upsells now use the GOLD tier language (matching the plan badges, the
+  // Upgrade FAB tile and PremiumTab) rather than the legacy maroon #420001, which predates the
+  // app's move to the blue/gold system and read as a different product.
+  premium: { title: '#5E4200', btn: '#fff', btnBg: '#C59A40' },
+  locked: { title: '#5E4200', btn: '#fff', btnBg: '#C59A40' },
+};
+
+// Primary-button gradient per variant; falls back to the flat btnBg above when absent.
+const variantGradient: Partial<Record<PopupVariant, readonly [string, string]>> = {
+  premium: ['#F6B733', '#C59A40'],
+  locked: ['#F6B733', '#C59A40'],
+  confirm: ['#5AA7EF', '#1F7FE5'],
+  info: ['#5AA7EF', '#1F7FE5'],
 };
 
 const { width } = Dimensions.get('window');
@@ -56,6 +69,7 @@ const CommonPopup: React.FC<CommonPopupProps> = ({
   stackedButtons = false,
 }) => {
   const colors = variantAccent[variant];
+  const gradient = variantGradient[variant];
 
   // Minimal entry animation — scale + fade only
   const scale = useRef(new Animated.Value(0.92)).current;
@@ -89,6 +103,33 @@ const CommonPopup: React.FC<CommonPopupProps> = ({
         <TouchableOpacity activeOpacity={1} onPress={() => { }} style={{ width: POPUP_WIDTH }}>
           <Animated.View style={{ opacity, transform: [{ scale }] }}>
             <View style={styles.card}>
+              {/* Premium/locked upsells get a gold crown medallion so the dialog reads as an
+                  upgrade offer rather than a generic alert. Other variants keep the plain
+                  title-first layout — an icon on an error or confirm dialog just adds noise. */}
+              {(variant === 'premium' || variant === 'locked') && (
+                <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                  <LinearGradient
+                    colors={['#F6B733', '#C59A40']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: 27,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#C59A40',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.35,
+                      shadowRadius: 12,
+                      elevation: 4,
+                    }}
+                  >
+                    <Ionicons name="star" size={26} color="#fff" />
+                  </LinearGradient>
+                </View>
+              )}
+
               {/* Title */}
               <Text style={[styles.title, { color: colors.title }]}>{title}</Text>
 
@@ -112,19 +153,26 @@ const CommonPopup: React.FC<CommonPopupProps> = ({
                         style={{
                           flex: stackedButtons ? undefined : 1,
                           width: stackedButtons ? '100%' : undefined,
-                          backgroundColor: colors.btnBg,
-                          paddingVertical: 14,
-                          paddingHorizontal: 16,
-                          borderRadius: 14,
-                          alignItems: 'center',
-                          justifyContent: 'center',
                         }}
                       >
-                        {btn.loading ? (
-                          <ActivityIndicator size="small" color="#ffffff" />
-                        ) : (
-                          <View><Text style={{ fontSize: 14, fontFamily: 'Rubik-Bold', color: '#ffffff' }}>{btn.text || 'OK'}</Text></View>
-                        )}
+                        <LinearGradient
+                          colors={gradient ?? [colors.btnBg, colors.btnBg]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={{
+                            paddingVertical: 14,
+                            paddingHorizontal: 16,
+                            borderRadius: 14,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {btn.loading ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <Text style={{ fontSize: 14, fontFamily: 'Rubik-Bold', color: '#ffffff' }}>{btn.text || 'OK'}</Text>
+                          )}
+                        </LinearGradient>
                       </TouchableOpacity>
                     );
                   }

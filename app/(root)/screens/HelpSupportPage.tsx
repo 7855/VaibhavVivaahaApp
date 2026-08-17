@@ -1,206 +1,598 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { CheckCircle, HelpCircle, AlertCircle, MessageCircle, Clock, Phone, Mail, Send, Headphones, ArrowLeft } from 'lucide-react-native';
-import { NativeBaseProvider } from 'native-base';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// ─────────────────────────────────────────────────────────────
+//  HelpSupportPage — contact channels + support hours + ticket form
+//  Copy is DB-editable through the `SUPPORT_CONTENT` keyValue row.
+// ─────────────────────────────────────────────────────────────
 
-const supportCategories = [
-  { id: 'technical', label: 'Technical Issues', icon: <AlertCircle size={20} /> },
-  { id: 'account', label: 'Account Problems', icon: <HelpCircle size={20} /> },
-  { id: 'matching', label: 'Matching Issues', icon: <MessageCircle size={20} /> },
-  { id: 'payment', label: 'Payment & Billing', icon: <CheckCircle size={20} /> },
-  { id: 'safety', label: 'Safety Concerns', icon: <AlertCircle size={20} /> },
-  { id: 'other', label: 'Other', icon: <HelpCircle size={20} /> },
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Linking,
+  ActivityIndicator,
+} from 'react-native';
+import { Stack } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  CheckCircle,
+  HelpCircle,
+  AlertCircle,
+  MessageCircle,
+  Clock,
+  Phone,
+  Mail,
+  Send,
+  Headphones,
+  ChevronRight,
+  Users,
+  CreditCard,
+  Shield,
+  Lightbulb,
+} from 'lucide-react-native';
+import { useRemoteContent } from '@/utils/useRemoteContent';
+import userApi from '../api/userApi';
+import { useUserData } from '../contexts/UserDataContext';
+import { usePopup } from '../contexts/PopupContext';
+
+// ─── Theme (app blue/ink system — see the auth screens & PremiumTab) ───
+const C = {
+  ink: '#0f1724',
+  slate: '#64748b',
+  muted: '#94a3b8',
+  accent: '#1F7FE5',
+  border: '#e7edf5',
+  card: '#ffffff',
+  green: '#16A34A',
+};
+const BG_GRADIENT = ['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa'] as const;
+const CTA_GRADIENT = ['#5AA7EF', '#1F7FE5'] as const;
+const NAVY_GRADIENT = ['#1c2b3f', '#25384f'] as const;
+
+/**
+ * Ticket categories. The `id` is what gets stored on the ticket row and shown in the admin
+ * panel, so these deliberately match `components/SupportFAB.tsx`'s ids — the two surfaces
+ * create tickets against the same backend and should not produce two vocabularies.
+ */
+const SUPPORT_CATEGORIES = [
+  { id: 'TECHNICAL', label: 'Technical', Icon: AlertCircle },
+  { id: 'ACCOUNT', label: 'Account', Icon: HelpCircle },
+  { id: 'MATCHING', label: 'Matching', Icon: Users },
+  { id: 'PAYMENT', label: 'Payment', Icon: CreditCard },
+  { id: 'SAFETY', label: 'Safety', Icon: Shield },
+  { id: 'OTHER', label: 'Other', Icon: MessageCircle },
 ];
 
+/**
+ * Support contact details. Overridden at runtime by the `SUPPORT_CONTENT` keyValue row so the
+ * client can change a number, an email or the quick-help copy without an app release; these
+ * bundled values are the fallback and are what renders if the row is missing.
+ */
+type QuickHelpItem = { title?: string; text: string };
+
+type SupportContent = {
+  email?: string;
+  emailNote?: string;
+  phone?: string;
+  phoneNote?: string;
+  whatsapp?: string;
+  whatsappNote?: string;
+  /** Legacy key from the first seeded row — still honoured as the WhatsApp note fallback. */
+  chatNote?: string;
+  hoursWeekday?: string;
+  hoursWeekend?: string;
+  hoursNote?: string;
+  quickHelp?: QuickHelpItem[];
+};
+
+const FALLBACK_SUPPORT: SupportContent = {
+  email: 'support@vaibhavvivaahamatrimony.com',
+  emailNote: 'Replies within 24 hours',
+  // The real support line (same number RelationshipManagerView falls back to). The previous
+  // placeholder here was an unreachable dummy number.
+  phone: '+91 79045 47565',
+  phoneNote: 'Mon - Fri, 9 AM - 6 PM',
+  whatsapp: '+91 79045 47565',
+  whatsappNote: 'Quickest way to reach us',
+  hoursWeekday: 'Mon - Fri  ·  9 AM - 6 PM',
+  hoursWeekend: 'Sat - Sun  ·  10 AM - 4 PM',
+  hoursNote: 'Messages sent outside these hours are answered the next working day.',
+  quickHelp: [
+    { title: 'Profile not showing in search?', text: 'Complete your profile and make sure it has been verified by our team.' },
+    { title: 'Trouble with a payment?', text: 'Check your payment method and try again, or request a callback from a relationship manager.' },
+    { title: "Can't access your account?", text: 'Reset your PIN from the login screen, or write to us with your registered mobile number.' },
+  ],
+};
+
+/** Strip formatting so a display number like "+91 79045 47565" still dials/opens WhatsApp. */
+const telHref = (v?: string) => `tel:${(v || '').replace(/[^\d+]/g, '')}`;
+const waHref = (v?: string) => `https://wa.me/${(v || '').replace(/\D/g, '')}`;
+
 const HelpSupportPage: React.FC = () => {
-  const navigation = useNavigation();
+  const { content: remote } = useRemoteContent<SupportContent>('SUPPORT_CONTENT', FALLBACK_SUPPORT);
+  const { userData } = useUserData();
+  const popup = usePopup();
+
   const [selectedCategory, setSelectedCategory] = useState('');
   const [message, setMessage] = useState('');
+  const [focused, setFocused] = useState(false);
+  const [sending, setSending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = () => {
-    if (selectedCategory && message.trim()) {
-      setSubmitted(true);
-      setTimeout(() => {
-        setSubmitted(false);
-        setSelectedCategory('');
-        setMessage('');
-      }, 3000);
+  // A partially-filled keyValue row must not blank out a field, so every value falls back
+  // individually rather than the object being swapped wholesale. `chatNote` is the key the
+  // first seeded row used for the (now removed) Live Chat card — it is mapped onto the
+  // WhatsApp note so that existing row keeps rendering something meaningful unedited.
+  const support: SupportContent = useMemo(() => {
+    const merged: SupportContent = { ...FALLBACK_SUPPORT, ...(remote || {}) };
+    if (remote?.chatNote && !remote?.whatsappNote) merged.whatsappNote = remote.chatNote;
+    return merged;
+  }, [remote]);
+
+  const channels = useMemo(
+    () =>
+      [
+        support.phone && {
+          key: 'phone',
+          Icon: Phone,
+          tint: '#16A34A',
+          label: 'Call us',
+          value: support.phone,
+          note: support.phoneNote,
+          href: telHref(support.phone),
+        },
+        support.whatsapp && {
+          key: 'whatsapp',
+          Icon: MessageCircle,
+          tint: '#1F7FE5',
+          label: 'WhatsApp',
+          value: support.whatsapp,
+          note: support.whatsappNote,
+          href: waHref(support.whatsapp),
+        },
+        support.email && {
+          key: 'email',
+          Icon: Mail,
+          tint: '#DC2626',
+          label: 'Email us',
+          value: support.email,
+          note: support.emailNote,
+          href: `mailto:${support.email}`,
+        },
+      ].filter(Boolean) as {
+        key: string;
+        Icon: any;
+        tint: string;
+        label: string;
+        value: string;
+        note?: string;
+        href: string;
+      }[],
+    [support]
+  );
+
+  const openChannel = async (href: string) => {
+    try {
+      await Linking.openURL(href);
+    } catch {
+      popup.error('Could not open', 'No app on this device can handle that action.');
     }
   };
 
+  const canSubmit = !!selectedCategory && !!message.trim() && !sending;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+
+    if (!userData?.userId) {
+      popup.error('Not signed in', 'Please sign in again before sending a message.');
+      return;
+    }
+
+    const category = SUPPORT_CATEGORIES.find((c) => c.id === selectedCategory);
+    setSending(true);
+    try {
+      // Same endpoint the support chat bubble uses, so the reply lands in the member's
+      // existing support conversation instead of disappearing.
+      const res = await userApi.createSupportTicket(userData.userId, {
+        subject: `${category?.label || 'Support'} — Help & Support`,
+        category: selectedCategory,
+        message: message.trim(),
+      });
+      // Business failures come back inside a 200 body (see CLAUDE.md §17) — check the code.
+      if (res?.data?.code === 200 && res?.data?.data) {
+        setSubmitted(true);
+        setSelectedCategory('');
+        setMessage('');
+      } else {
+        popup.error('Could not send', res?.data?.message || 'Please try again in a moment.');
+      }
+    } catch (e: any) {
+      popup.error('Could not send', e?.response?.data?.message || 'Please check your connection and try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // ─── Success state ───────────────────────────────────
   if (submitted) {
     return (
-      <View style={styles.container}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft size={20} color="#4B5563" />
-        </TouchableOpacity>
-        <View style={styles.successBox}>
-          <View style={styles.successIconWrapper}>
-            <CheckCircle size={40} color="#16A34A" />
+      <View style={styles.flex}>
+        <Stack.Screen options={{ title: 'Help & Support' }} />
+        <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+        <SafeAreaView style={styles.flex} edges={['left', 'right', 'bottom']}>
+          <View style={styles.successWrap}>
+            <View style={styles.successCard}>
+              <View style={styles.successMedallion}>
+                <CheckCircle size={34} color={C.green} />
+              </View>
+              <Text style={styles.successTitle}>Message sent</Text>
+              <Text style={styles.successText}>
+                Our support team has your message and will reply within 24 hours. You can follow the
+                conversation from the support chat bubble on the Settings page.
+              </Text>
+              <TouchableOpacity
+                style={styles.ghostButton}
+                activeOpacity={0.85}
+                onPress={() => setSubmitted(false)}
+              >
+                <Text style={styles.ghostButtonText}>Send another message</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={styles.title}>Message Sent Successfully!</Text>
-          <Text style={styles.subText}>Thank you for contacting us. Our support team will get back to you within 24 hours.</Text>
-          <TouchableOpacity style={styles.submitButton} onPress={() => setSubmitted(false)}>
-            <Text style={styles.submitButtonText}>Send Another Message</Text>
-          </TouchableOpacity>
-        </View>
+        </SafeAreaView>
       </View>
     );
   }
 
+  // ─── Main ────────────────────────────────────────────
   return (
-    <NativeBaseProvider>
-      <SafeAreaView style={{ flex: 1 }}>
+    <View style={styles.flex}>
+      <Stack.Screen options={{ title: 'Help & Support' }} />
+      <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
+      <SafeAreaView style={styles.flex} edges={['left', 'right']}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} // adjust if needed
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
         >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ padding: 16 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-        <ArrowLeft size={20} color="#4B5563" />
-      </TouchableOpacity> */}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Intro */}
+            <View style={styles.intro}>
+              <LinearGradient colors={CTA_GRADIENT} style={styles.introIcon}>
+                <Headphones size={20} color="#fff" />
+              </LinearGradient>
+              <View style={styles.flexShrink}>
+                <Text style={styles.introTitle}>We're here to help</Text>
+                <Text style={styles.introSubtitle}>
+                  Reach us directly, or send a message and we'll get back to you
+                </Text>
+              </View>
+            </View>
 
-              <Text style={styles.heading}>Help & Support</Text>
-              <Text style={styles.subHeading}>We're here to help you</Text>
+            {/* Contact channels */}
+            <Text style={styles.sectionLabel}>Contact us</Text>
+            <View style={styles.channelGroup}>
+              {channels.map((ch, i) => (
+                <TouchableOpacity
+                  key={ch.key}
+                  activeOpacity={0.8}
+                  style={[styles.channelRow, i < channels.length - 1 && styles.channelDivider]}
+                  onPress={() => openChannel(ch.href)}
+                >
+                  <View style={[styles.channelIcon, { backgroundColor: `${ch.tint}14` }]}>
+                    <ch.Icon size={19} color={ch.tint} />
+                  </View>
+                  <View style={styles.flexShrink}>
+                    <Text style={styles.channelLabel}>{ch.label}</Text>
+                    <Text style={styles.channelValue} numberOfLines={1}>
+                      {ch.value}
+                    </Text>
+                    {!!ch.note && <Text style={styles.channelNote}>{ch.note}</Text>}
+                  </View>
+                  <ChevronRight size={18} color={C.muted} />
+                </TouchableOpacity>
+              ))}
+            </View>
 
-              <View style={styles.cardRow}>
-                <View style={styles.card}>
-                  <MessageCircle size={24} color="#2563EB" />
-                  <Text style={styles.cardTitle}>Live Chat</Text>
-                  <Text style={styles.cardText}>Chat with our support team</Text>
-                  <Text style={styles.cardNote}>Available 24/7</Text>
-                </View>
-                <View style={styles.card}>
-                  <Mail size={24} color="#DC2626" />
-                  <Text style={styles.cardTitle}>Email Support</Text>
-                  <Text style={styles.cardText}>support@matrimony.com</Text>
-                  <Text style={styles.cardNote}>Response in 24hrs</Text>
-                </View>
-                <View style={styles.card}>
-                  <Phone size={24} color="#16A34A" />
-                  <Text style={styles.cardTitle}>Phone Support</Text>
-                  <Text style={styles.cardText}>+1 (555) 123-4567</Text>
-                  <Text style={styles.cardNote}>Mon-Fri 9AM-6PM</Text>
-                </View>
+            {/* Support hours */}
+            <LinearGradient colors={NAVY_GRADIENT} style={styles.hoursCard}>
+              <View style={styles.hoursIcon}>
+                <Clock size={19} color="#fff" />
+              </View>
+              <View style={styles.flexShrink}>
+                <Text style={styles.hoursTitle}>Support hours</Text>
+                {!!support.hoursWeekday && <Text style={styles.hoursRow}>{support.hoursWeekday}</Text>}
+                {!!support.hoursWeekend && <Text style={styles.hoursRow}>{support.hoursWeekend}</Text>}
+                {!!support.hoursNote && <Text style={styles.hoursNote}>{support.hoursNote}</Text>}
+              </View>
+            </LinearGradient>
+
+            {/* Message form */}
+            <Text style={styles.sectionLabel}>Send us a message</Text>
+            <View style={styles.formCard}>
+              <Text style={styles.fieldLabel}>What is it about?</Text>
+              <View style={styles.chipWrap}>
+                {SUPPORT_CATEGORIES.map((cat) => {
+                  const active = selectedCategory === cat.id;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      activeOpacity={0.85}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedCategory(active ? '' : cat.id)}
+                    >
+                      <cat.Icon size={14} color={active ? '#fff' : C.slate} />
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{cat.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
-              <View style={styles.supportHoursBox}>
-                <View style={{ position: 'absolute', right: 5, top: 5 }}>
-                  <Clock size={24} color="#FFF" />
-                </View>
-                <View>
-                  <Text style={styles.supportHoursTitle}>Support Hours</Text>
-                  <Text style={styles.supportHoursText}>Mon - Fri: 9 AM - 6 PM</Text>
-                  <Text style={styles.supportHoursText}>Sat - Sun: 10 AM - 4 PM</Text>
-                </View>
-              </View>
-
-              <Text style={styles.formTitle}>Send us a message</Text>
-              <View style={styles.categoryWrapper}>
-                {supportCategories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.categoryItem, selectedCategory === cat.id && styles.categoryItemSelected]}
-                    onPress={() => setSelectedCategory(cat.id)}
-                  >
-                    {cat.icon}
-                    <Text style={styles.categoryLabel}>{cat.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-
-              <View style={styles.textAreaContainer}>
+              <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>Your message</Text>
+              <View style={[styles.textArea, focused && styles.textAreaFocused]}>
                 <TextInput
                   multiline
-                  numberOfLines={6}
-                  placeholder="Describe your issue..."
+                  placeholder="Describe your issue in a few lines..."
+                  placeholderTextColor={C.muted}
                   style={styles.textAreaInput}
                   value={message}
                   onChangeText={setMessage}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
                 />
               </View>
 
               <TouchableOpacity
-                style={[styles.submitButton, (!selectedCategory || !message.trim()) && styles.disabledButton]}
-                disabled={!selectedCategory || !message.trim()}
+                activeOpacity={0.9}
+                disabled={!canSubmit}
                 onPress={handleSubmit}
+                style={styles.ctaWrap}
               >
-                <Send size={18} color="white" />
-                <Text style={styles.submitButtonText}>Send Message</Text>
+                <LinearGradient
+                  colors={CTA_GRADIENT}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.cta, !canSubmit && styles.ctaDisabled]}
+                >
+                  {sending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Send size={17} color="#fff" />
+                  )}
+                  <Text style={styles.ctaText}>{sending ? 'Sending...' : 'Send message'}</Text>
+                </LinearGradient>
               </TouchableOpacity>
+            </View>
 
-              <View style={styles.quickHelpBox}>
-                <Text style={styles.quickHelpTitle}>Quick Help</Text>
-                <Text style={styles.quickHelpItem}>• Profile not showing in search? Ensure your profile is complete and verified.</Text>
-                <Text style={styles.quickHelpItem}>• Trouble with payments? Check your payment method and try again.</Text>
-                <Text style={styles.quickHelpItem}>• Can't access your account? Reset your password or contact support.</Text>
-              </View>
-            </ScrollView>
-          </TouchableWithoutFeedback>
+            {/* Quick help */}
+            {!!support.quickHelp?.length && (
+              <>
+                <Text style={styles.sectionLabel}>Quick help</Text>
+                <View style={styles.channelGroup}>
+                  {support.quickHelp.map((item, i) => (
+                    <View
+                      key={i}
+                      style={[styles.quickRow, i < support.quickHelp!.length - 1 && styles.channelDivider]}
+                    >
+                      <View style={styles.quickIcon}>
+                        <Lightbulb size={16} color="#B8860B" />
+                      </View>
+                      <View style={styles.flexShrink}>
+                        {!!item.title && <Text style={styles.quickTitle}>{item.title}</Text>}
+                        <Text style={styles.quickText}>{item.text}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </NativeBaseProvider>
+    </View>
   );
 };
 
+const CARD_SHADOW = {
+  shadowColor: '#1F7FE5',
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 2,
+};
+
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
-  backButton: { marginBottom: 16, width: 40, height: 40, backgroundColor: '#F3F4F6', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  heading: { fontSize: 20, fontFamily: 'Rubik-Bold', color: '#130001' },
-  subHeading: { color: '#6B7280', marginBottom: 24, fontSize: 12, fontFamily: 'Rubik-Medium', marginTop: 5 },
-  cardRow: { marginBottom: 16 },
-  card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, marginBottom: 12 },
-  cardTitle: { fontFamily: 'Rubik-Medium', marginTop: 8, color: '#130001' },
-  cardText: { fontSize: 12, color: '#6B7280' },
-  cardNote: { fontSize: 10, fontFamily: 'Rubik-Medium', color: '#059669', marginTop: 4 },
-  supportHoursBox: { backgroundColor: '#F43F5E', borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', marginVertical: 20, paddingHorizontal: 15, position: 'relative' },
-  supportHoursTitle: { fontFamily: 'Rubik-Medium', color: '#DADADA', marginBottom: 8, fontSize: 15 },
-  supportHoursText: { color: '#FEE2E2', fontSize: 14 },
-  formTitle: { fontSize: 18, fontFamily: 'Rubik-Medium', marginBottom: 12 },
-  categoryWrapper: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  categoryItem: { flexDirection: 'row', alignItems: 'center', padding: 8, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, marginRight: 8, marginBottom: 8 },
-  categoryItemSelected: { backgroundColor: '#FEE2E2', borderColor: '#F43F5E' },
-  categoryLabel: { marginLeft: 4, fontSize: 12 },
-  keyboardAvoidingView: {
-    flex: 0,
+  flex: { flex: 1 },
+  flexShrink: { flex: 1, minWidth: 0 },
+  scrollContent: { padding: 16, paddingBottom: 48 },
+
+  // Intro
+  intro: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 },
+  introIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  introTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: C.ink },
+  introSubtitle: { fontSize: 12, fontFamily: 'Rubik-Regular', color: C.slate, marginTop: 2, lineHeight: 17 },
+
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: 'Rubik-Bold',
+    color: C.slate,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 10,
   },
-  textAreaContainer: {
-    borderColor: '#E5E7EB',
+
+  // Grouped list card (contact channels + quick help)
+  channelGroup: {
+    backgroundColor: C.card,
+    borderRadius: 20,
     borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 22,
+    overflow: 'hidden',
+    ...CARD_SHADOW,
+  },
+  channelRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 14 },
+  channelDivider: { borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  channelIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  channelLabel: { fontSize: 11, fontFamily: 'Rubik-Medium', color: C.muted, letterSpacing: 0.3 },
+  channelValue: { fontSize: 14, fontFamily: 'Rubik-Medium', color: C.ink, marginTop: 1 },
+  channelNote: { fontSize: 11, fontFamily: 'Rubik-Regular', color: C.slate, marginTop: 2 },
+
+  // Support hours
+  hoursCard: {
+    flexDirection: 'row',
+    gap: 12,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 22,
+  },
+  hoursIcon: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    backgroundColor: '#F9FAFB',
-    marginBottom: 16,
+    backgroundColor: 'rgba(90,167,239,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hoursTitle: { fontSize: 14, fontFamily: 'Rubik-Bold', color: '#fff', marginBottom: 6 },
+  hoursRow: { fontSize: 13, fontFamily: 'Rubik-Regular', color: 'rgba(255,255,255,0.86)', marginBottom: 2 },
+  hoursNote: { fontSize: 11, fontFamily: 'Rubik-Regular', color: 'rgba(255,255,255,0.6)', marginTop: 6, lineHeight: 16 },
+
+  // Form
+  formCard: {
+    backgroundColor: C.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 16,
+    marginBottom: 22,
+    ...CARD_SHADOW,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontFamily: 'Rubik-Bold',
+    color: C.ink,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  fieldLabelSpaced: { marginTop: 16 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    flex: 1,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#f8fafc',
+  },
+  chipActive: { backgroundColor: C.accent, borderColor: C.accent },
+  chipText: { fontSize: 12.5, fontFamily: 'Rubik-Medium', color: C.slate },
+  chipTextActive: { color: '#fff' },
+
+  textArea: {
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  textAreaFocused: {
+    borderColor: C.accent,
+    backgroundColor: '#fff',
+    shadowColor: C.accent,
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   textAreaInput: {
     textAlignVertical: 'top',
     fontSize: 14,
-    color: '#130001',
+    fontFamily: 'Rubik-Regular',
+    color: C.ink,
     height: 120,
-    paddingTop: 4,
+    padding: 0,
   },
-  submitButton: { flexDirection: 'row', backgroundColor: '#F43F5E', padding: 12, borderRadius: 8, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  submitButtonText: { color: '#DADADA', fontFamily: 'Rubik-Medium' },
-  disabledButton: { backgroundColor: '#D1D5DB' },
-  successBox: { backgroundColor: '#fff', padding: 20, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  successIconWrapper: { backgroundColor: '#DCFCE7', padding: 20, borderRadius: 50, marginBottom: 20 },
-  title: { fontSize: 20, fontFamily: 'Rubik-Bold', color: '#130001', marginBottom: 8 },
-  subText: { color: '#6B7280', textAlign: 'center', marginBottom: 16 },
-  quickHelpBox: { marginTop: 24, backgroundColor: '#F9FAFB', padding: 16, borderRadius: 12 },
-  quickHelpTitle: { fontFamily: 'Rubik-Medium', fontSize: 16, marginBottom: 8 },
-  quickHelpItem: { fontSize: 12, color: '#6B7280', marginBottom: 4 },
+
+  ctaWrap: { marginTop: 18 },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 52,
+    borderRadius: 26,
+  },
+  ctaDisabled: { opacity: 0.45 },
+  ctaText: { color: '#fff', fontSize: 15, fontFamily: 'Rubik-Medium' },
+
+  // Quick help
+  quickRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 14, paddingVertical: 14 },
+  quickIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(246,183,51,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickTitle: { fontSize: 13, fontFamily: 'Rubik-Medium', color: C.ink, marginBottom: 2 },
+  quickText: { fontSize: 12, fontFamily: 'Rubik-Regular', color: C.slate, lineHeight: 17 },
+
+  // Success
+  successWrap: { flex: 1, justifyContent: 'center', padding: 20 },
+  successCard: {
+    backgroundColor: C.card,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 24,
+    alignItems: 'center',
+    ...CARD_SHADOW,
+  },
+  successMedallion: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(22,163,74,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  successTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: C.ink, marginBottom: 8 },
+  successText: {
+    fontSize: 13,
+    fontFamily: 'Rubik-Regular',
+    color: C.slate,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 20,
+  },
+  ghostButton: {
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  ghostButtonText: { fontSize: 14, fontFamily: 'Rubik-Medium', color: C.accent },
 });
 
 export default HelpSupportPage;

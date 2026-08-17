@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, useContext, useEffect } from "react";
+import React, { createContext, useReducer, useContext, useEffect, useCallback, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SubscriptionContext = createContext<any>(null);
@@ -10,6 +10,23 @@ const initialState = {
   startDate: null,
   endDate: null
 };
+
+/**
+ * True when a cached subscription has passed its endDate.
+ *
+ * The backend already expires subscriptions nightly (SubscriptionSchedulerService), but the app
+ * restores this blob from AsyncStorage on every launch and used to trust it verbatim — so an
+ * expired member kept their old plan's entitlements in the UI indefinitely, until some other
+ * screen happened to refresh it. Compared on date only: a plan valid "until the 20th" should
+ * still work all day on the 20th, not stop at the moment it was purchased.
+ */
+function isSubscriptionExpired(data: any): boolean {
+  if (!data?.endDate) return false; // no endDate (e.g. Free/lifetime) never expires
+  const end = new Date(data.endDate);
+  if (isNaN(end.getTime())) return false; // unparseable — don't strip access on bad data
+  const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+  return endOfDay.getTime() < Date.now();
+}
 
 function subscriptionReducer(state: any, action: any) {
   switch (action.type) {
@@ -41,7 +58,15 @@ export const SubscriptionProvider = ({ children }: any) => {
       try {
         const stored = await AsyncStorage.getItem("subscriptionData");
         if (stored) {
-          dispatch({ type: "SET_SUBSCRIPTION", payload: JSON.parse(stored) });
+          const parsed = JSON.parse(stored);
+          if (isSubscriptionExpired(parsed)) {
+            // Drop the stale blob rather than restoring it, so gating falls back to Free until
+            // a fresh refreshSubscription() confirms the real state with the server.
+            await AsyncStorage.removeItem("subscriptionData");
+            dispatch({ type: "CLEAR_SUBSCRIPTION" });
+          } else {
+            dispatch({ type: "SET_SUBSCRIPTION", payload: parsed });
+          }
         }
       } catch (error) {
         console.error("Failed to load subscription data:", error);
@@ -52,7 +77,7 @@ export const SubscriptionProvider = ({ children }: any) => {
   }, []);
 
   // Save subscription data to storage when it changes
-  const setSubscription = async (payload: any) => {
+  const setSubscription = useCallback(async (payload: any) => {
     try {
       const data = JSON.stringify(payload);
       await AsyncStorage.setItem("subscriptionData", data);
@@ -60,16 +85,16 @@ export const SubscriptionProvider = ({ children }: any) => {
     } catch (error) {
       console.error("Failed to save subscription data:", error);
     }
-  };
+  }, []);
 
-  const clearSubscription = async () => {
+  const clearSubscription = useCallback(async () => {
     try {
       await AsyncStorage.removeItem("subscriptionData");
       dispatch({ type: "CLEAR_SUBSCRIPTION" });
     } catch (error) {
       console.error("Failed to clear subscription data:", error);
     }
-  };
+  }, []);
 
   const checkUserSubscription = async () => {
   try {
@@ -100,12 +125,19 @@ export const SubscriptionProvider = ({ children }: any) => {
   }
 };
 
+  // Memoized so every plan-gated screen in the app only re-renders when the subscription
+  // state itself changes, not on each provider render.
+  const value = useMemo(
+    () => ({
+      subscriptionData: state,
+      setSubscription,
+      clearSubscription,
+    }),
+    [state, setSubscription, clearSubscription]
+  );
+
   return (
-    <SubscriptionContext.Provider value={{ 
-      subscriptionData: state, 
-      setSubscription, 
-      clearSubscription 
-    }}>
+    <SubscriptionContext.Provider value={value}>
       {children}
     </SubscriptionContext.Provider>
   );

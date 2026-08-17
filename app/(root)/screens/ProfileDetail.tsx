@@ -1,6 +1,6 @@
 import {
   View, Text, Image, ScrollView, StyleSheet, TouchableOpacity,
-  Modal, FlatList, Dimensions, Linking, StatusBar, Platform
+  Modal, FlatList, Dimensions, Linking, StatusBar, Platform, ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react';
@@ -15,9 +15,10 @@ import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, resolveMinPlanTitle, upgradeMessage } from '../utils/upgradeNavigation';
 import { LinearGradient } from 'expo-linear-gradient';
-import { REPORT_REASONS } from '@/constants/data';
+import { REPORT_REASONS, profileWebUrl, profileDeepLink, APP_DOWNLOAD_URL } from '@/constants/data';
+import { useMasterData } from '../contexts/MasterDataContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_ASPECT = 5 / 4;
@@ -30,12 +31,17 @@ const HOBBY_EMOJI: Record<string, string> = {
   art: '🎨', dance: '💃', cooking: '🍳', gardening: '🌱', spirituality: '🙏',
 };
 
-const DetailField = ({ label, value }: { label: string; value: string }) => {
-  if (!value || value === '-' || value === 'null' || value === 'undefined') return null;
+// By default an empty field is omitted entirely (that's what keeps the two-column grid tight).
+// `showEmpty` opts a field into always rendering, with a '-' placeholder — used where the row's
+// absence would be ambiguous, e.g. Subcaste, where a missing row reads as "this app has no
+// subcaste concept" rather than "this member didn't fill it in".
+const DetailField = ({ label, value, showEmpty = false }: { label: string; value: string; showEmpty?: boolean }) => {
+  const isEmpty = !value || value === '-' || value === 'null' || value === 'undefined';
+  if (isEmpty && !showEmpty) return null;
   return (
     <View style={{ flex: 1, minWidth: '46%', marginBottom: 0, backgroundColor: '#f6f8fa', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 }}>
       <Text style={{ fontSize: 10, fontFamily: 'Rubik-Medium', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 2 }}>{label}</Text>
-      <Text style={{ fontSize: 13.5, fontFamily: 'Rubik-Medium', color: '#0f1724', letterSpacing: -0.2, lineHeight: 18 }}>{value}</Text>
+      <Text style={{ fontSize: 13.5, fontFamily: 'Rubik-Medium', color: isEmpty ? '#94a3b8' : '#0f1724', letterSpacing: -0.2, lineHeight: 18 }}>{isEmpty ? '-' : value}</Text>
     </View>
   );
 };
@@ -147,7 +153,7 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
         }
       } else if (res.data?.message === 'CONTACT_VIEW_LIMIT_EXCEEDED') {
         popup.premiumRequired(
-          "You've used all your contact reveals for this plan. Upgrade to Silver for unlimited access.",
+          `You've used all your contact reveals for this plan. Upgrade to ${resolveMinPlanTitle('Silver')} for unlimited access.`,
           buildUpgradeAction({ planTitle, featureName: 'Contact Reveal', minPlan: 'Silver' })
         );
       } else if (res.data?.code === 403) {
@@ -203,7 +209,7 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
             </Text>
           </TouchableOpacity>
         ) : planTitle === 'Starter' ? (
-          <PremiumLock message="Want to see their contact info? Upgrade to Classic" planTitle={planTitle} featureName="Contact Reveal" />
+          <PremiumLock message={`Want to see their contact info? Upgrade to ${resolveMinPlanTitle('Classic')}`} planTitle={planTitle} featureName="Contact Reveal" />
         ) : (
           <PremiumLock message="Upgrade to view contact details" planTitle={planTitle} featureName="Contact Reveal" />
         )}
@@ -230,6 +236,9 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           <DetailField label="Religion" value={religious.Religion} />
           <DetailField label="Caste" value={religious.Caste} />
+          {/* Always rendered, showing '-' when the member hasn't set a subcaste — the row going
+              missing would otherwise be indistinguishable from the field not existing at all. */}
+          <DetailField label="Subcaste" value={religious.Subcaste} showEmpty />
           <DetailField label="Star" value={religious.Star} />
           <DetailField label="Moon Sign" value={religious.Moonsign} />
           <DetailField label="Dosham" value={religious.Dosham} />
@@ -317,6 +326,7 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
 // ─── Main Component ────────────────────────────────
 const ProfileDetailRevamp = () => {
   const { userData } = useUserData();
+  const { getCasteName } = useMasterData() || {};
   const popup = usePopup();
   const { subscriptionData } = useSubscription();
   const { userId } = useLocalSearchParams();
@@ -336,6 +346,8 @@ const ProfileDetailRevamp = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [isShortlisted, setIsShortlisted] = useState(false);
   const [interestStatus, setInterestStatus] = useState('NONE');
+  // In-flight guard + loader for the Send Interest button (see handleSendInterest).
+  const [sendingInterest, setSendingInterest] = useState(false);
   const [isParent, setIsParent] = useState(false);
   const [permissionRequests, setPermissionRequests] = useState<{ [key: string]: boolean }>({ profileImage: false });
   // Fields the OWNER has approved specifically for the current viewer — separate from
@@ -406,7 +418,7 @@ const ProfileDetailRevamp = () => {
           } else if (msg === 'PROFILE_VIEW_LIMIT_EXCEEDED') {
             popup.premiumRequired('You\'ve reached your profile view limit. Upgrade for more views.', buildUpgradeAction({ planTitle, featureName: 'Profile Views' }));
           } else if (msg === 'PROFILE_VIEW_BLURRED') {
-            popup.premiumRequired('Upgrade to Starter or above to view full profiles.', buildUpgradeAction({ planTitle, featureName: 'Full Profile View', minPlan: 'Starter' }));
+            popup.premiumRequired(upgradeMessage('view full profiles', 'Starter'), buildUpgradeAction({ planTitle, featureName: 'Full Profile View', minPlan: 'Starter' }));
           } else {
             popup.premiumRequired('Upgrade your plan to view this profile.', buildUpgradeAction({ planTitle, featureName: 'View Profile' }));
           }
@@ -521,7 +533,11 @@ const ProfileDetailRevamp = () => {
         section: "ReligiousDetail",
         data: {
           Religion: "Hindu",
-          Caste: "SC",
+          // Was hardcoded to the placeholder "SC" for every member regardless of their actual
+          // caste. Resolved from the cached caste master list; Subcaste comes straight from the
+          // API's resolved name and stays blank (row hidden) when the member has none.
+          Caste: getCasteName?.(data.casteId) || "-",
+          Subcaste: data.subcasteName || "",
           Star: astro.star,
           Moonsign: astro.moon_sign,
           Dosham: astro.dosham,
@@ -591,7 +607,7 @@ const ProfileDetailRevamp = () => {
     if (!hasProfileImage) return;
     setCurrentImageIndex(0);
     if (!planTitle || planTitle === 'Free') {
-      popup.premiumRequired('Upgrade to Starter or above to view all profile photos.', buildUpgradeAction({ planTitle, featureName: 'Full Profile Photos', minPlan: 'Starter' }));
+      popup.premiumRequired(upgradeMessage('view all profile photos', 'Starter'), buildUpgradeAction({ planTitle, featureName: 'Full Profile Photos', minPlan: 'Starter' }));
       return;
     }
     try {
@@ -643,7 +659,7 @@ const ProfileDetailRevamp = () => {
     try { decodedUserId = atob(storedUserId); } catch { return; }
 
     if (!subscriptionData?.entitlements?.shortlist) {
-      popup.premiumRequired('Upgrade to Starter or above to shortlist profiles.', buildUpgradeAction({ planTitle, featureName: 'Shortlist Profiles', minPlan: 'Starter' }));
+      popup.premiumRequired(upgradeMessage('shortlist profiles', 'Starter'), buildUpgradeAction({ planTitle, featureName: 'Shortlist Profiles', minPlan: 'Starter' }));
       return;
     }
 
@@ -669,11 +685,17 @@ const ProfileDetailRevamp = () => {
   const handleSendInterest = async () => {
     if (isParent) { popup.error('Not allowed', 'Family logins cannot send interest requests.'); return; }
     if (!currentUserId || !userId) return;
+    // Re-entrancy guard: this flow makes 2–4 sequential network calls (quota check, subscription
+    // lookup, count update, send), so a second tap before the first resolves used to fire the
+    // whole chain again — duplicate requests, double-decremented quota. One tap = one flow.
+    if (sendingInterest) return;
+    setSendingInterest(true);
     const parsedUserId = Array.isArray(userId) ? userId[0] : userId;
     // REJECTED is sendable again — backend resets the existing row back to PENDING
     // rather than blocking, since a unique constraint forbids a second row for this pair.
     const canSend = interestStatus === 'NONE' || interestStatus === '' || interestStatus === null || interestStatus === 'REJECTED';
     if (!canSend) {
+      setSendingInterest(false);
       if (interestStatus === 'APPROVED') {
         // The conversation already exists (created automatically when the interest was sent —
         // see InterestRequestService on the backend), but this used to navigate with a
@@ -747,18 +769,24 @@ const ProfileDetailRevamp = () => {
       }
     } catch (e) {
       popup.error('Request Failed', 'Please try again.');
+    } finally {
+      setSendingInterest(false);
     }
   };
 
   const handleWhatsAppShare = () => {
     const isGoldPlus = planTitle === 'Gold' || planTitle === 'Platinum';
     if (!isGoldPlus) {
-      popup.premiumRequired('Upgrade to Gold or above to share profiles via WhatsApp.', buildUpgradeAction({ planTitle, featureName: 'WhatsApp Share', minPlan: 'Gold' }));
+      popup.premiumRequired(upgradeMessage('share profiles via WhatsApp', 'Gold'), buildUpgradeAction({ planTitle, featureName: 'WhatsApp Share', minPlan: 'Gold' }));
       return;
     }
     const name = `${userDetails?.firstName || ''} ${userDetails?.lastName || ''}`.trim();
-    const profileLink = `https://vaibhavvivaaha.com/profile/${btoa(String(userDetails?.userId || ''))}`;
-    const text = `I found a matching profile for you on Vaibhav Vivaaha! 💍\n\n👤 ${name}\n📍 ${userDetails?.location || ''} | 🎂 ${userDetails?.age || ''} years\n\nView full profile:\n${profileLink}\n\nDownload Vaibhav Vivaaha app to connect!\nhttps://vaibhavvivaaha.com/download`;
+    // Web link keeps the base64 id (as before, so the website's /profile route is unchanged);
+    // the deep link needs the raw numeric id — see profileDeepLink()'s note.
+    const rawId = String(userDetails?.userId || '');
+    const encodedId = btoa(rawId);
+    const profileLink = profileWebUrl(encodedId);
+    const text = `I found a matching profile for you on Vaibhav Vivaaha! 💍\n\n👤 ${name}\n📍 ${userDetails?.location || ''} | 🎂 ${userDetails?.age || ''} years\n\nView full profile:\n${profileLink}\n\nAlready have the app? Open it directly:\n${profileDeepLink(rawId)}\n\nDownload Vaibhav Vivaaha app to connect!\n${APP_DOWNLOAD_URL}`;
     Linking.openURL(`whatsapp://send?text=${encodeURIComponent(text)}`).catch(() => {
       popup.error('WhatsApp not installed', 'Install WhatsApp to share this profile.');
     });
@@ -769,7 +797,7 @@ const ProfileDetailRevamp = () => {
     if (callRequestSent) { popup.info('Already sent', 'You already have a pending request for this member.'); return; }
     const isPaid = planTitle && planTitle !== 'Free' && planTitle !== 'Starter';
     if (!isPaid) {
-      popup.premiumRequired('Upgrade to Classic or above to request a voice call.', buildUpgradeAction({ planTitle, featureName: 'Voice Call', minPlan: 'Classic' }));
+      popup.premiumRequired(upgradeMessage('request a voice call', 'Classic'), buildUpgradeAction({ planTitle, featureName: 'Voice Call', minPlan: 'Classic' }));
       return;
     }
     if (interestStatus !== 'APPROVED') {
@@ -793,7 +821,7 @@ const ProfileDetailRevamp = () => {
           popup.info('Already sent', 'You already have a pending request for this member.');
         }
         else if (res.data.code === 403 && res.data.message === 'INTEREST_NOT_APPROVED') popup.info('Not connected yet', 'You can request a call once this member accepts your interest.');
-        else if (res.data.code === 403) popup.premiumRequired('Upgrade to Silver or above.', buildUpgradeAction({ planTitle, featureName: 'Voice Call', minPlan: 'Silver' }));
+        else if (res.data.code === 403) popup.premiumRequired(upgradeMessage('request a voice call', 'Silver'), buildUpgradeAction({ planTitle, featureName: 'Voice Call', minPlan: 'Silver' }));
         else popup.error('Request failed', res.data.message || 'Please try again.');
       } catch (e: any) {
         const code = e?.response?.data?.code;
@@ -1150,13 +1178,17 @@ const ProfileDetailRevamp = () => {
             <View style={{ marginTop: 14, gap: 8 }}>
               {/* Send Interest / Pending / Chat Now — full width */}
               <TouchableOpacity
-                style={[s.primaryBtn, { backgroundColor: interestButtonConfig.bg }]}
+                style={[s.primaryBtn, { backgroundColor: interestButtonConfig.bg }, sendingInterest && { opacity: 0.7 }]}
                 onPress={handleSendInterest}
-                disabled={interestButtonConfig.disabled}
+                disabled={interestButtonConfig.disabled || sendingInterest}
                 activeOpacity={0.85}
               >
-                <MaterialIcons name={interestButtonConfig.icon} size={20} color="#fff" />
-                <Text style={s.primaryBtnText}>{interestButtonConfig.label}</Text>
+                {sendingInterest ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <MaterialIcons name={interestButtonConfig.icon} size={20} color="#fff" />
+                )}
+                <Text style={s.primaryBtnText}>{sendingInterest ? 'Sending…' : interestButtonConfig.label}</Text>
               </TouchableOpacity>
 
               {/* Call + Match side by side */}
@@ -1309,7 +1341,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
     ...Platform.select({
       ios: { backgroundColor: 'rgba(66,0,1,0.45)', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-      android: { backgroundColor: 'rgba(66,0,1,0.72)', elevation: 4 },
+      android: { backgroundColor: 'rgba(66,0,1,0.72)' },
     }),
   },
   backBtn: {
@@ -1317,7 +1349,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
     ...Platform.select({
       ios: { backgroundColor: 'rgba(66,0,1,0.45)', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-      android: { backgroundColor: 'rgba(66,0,1,0.72)', elevation: 4 },
+      android: { backgroundColor: 'rgba(66,0,1,0.72)' },
     }),
   },
 

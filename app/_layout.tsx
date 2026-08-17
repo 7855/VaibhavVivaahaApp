@@ -41,6 +41,8 @@ import { PopupProvider } from './(root)/contexts/PopupContext';
 import { NativeBaseProvider } from 'native-base';
 import NoInternetOverlay from '../components/NoInternetOverlay';
 import QuickAccessFAB from '../components/QuickAccessFAB';
+import ForceUpdateGate from '../components/ForceUpdateGate';
+import { initPlanCatalog } from './(root)/utils/upgradeNavigation';
 // ... other imports
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -60,6 +62,14 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  // Seeds the purchasable-plan catalog (memory + AsyncStorage) and refreshes it from
+  // /subscriptionPlans/getAllActivePlans in the background, so deactivating a plan in the DB
+  // (subscription_plans.isActive='N') propagates to every upgrade screen and upsell message
+  // without an app release. Fire-and-forget — it never blocks render and never throws.
+  useEffect(() => {
+    initPlanCatalog().catch(() => { });
+  }, []);
 
   // App-wide screenshot/screen-recording guard. Android: FLAG_SECURE blocks both
   // outright (screenshot capture fails silently, and the screen shows blank in the
@@ -104,6 +114,9 @@ export default function RootLayout() {
                       <Stack screenOptions={{ headerShown: false }} />
                       <QuickAccessFAB />
                       <NoInternetOverlay />
+                      {/* Last child so its Modal sits above everything, including the FAB and
+                          the offline overlay — a mandatory update must not be tappable around. */}
+                      <ForceUpdateGate />
                     </AlertNotificationRoot>
                   </PopupProvider>
                 </NativeBaseProvider>

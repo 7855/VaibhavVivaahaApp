@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Dimensions, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import { View, Image, TextInput, TouchableOpacity, Dimensions, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { NativeBaseProvider } from 'native-base';
 import { usePopup } from '../contexts/PopupContext';
-import { useTranslation } from 'react-i18next';
 import AppText from '../../../components/AppText';
 
 interface OTPValidationScreenProps {
@@ -18,7 +20,6 @@ interface OTPValidationScreenProps {
 export default function OTPValidationScreen({ onBack, onVerified }: OTPValidationScreenProps) {
   const router = useRouter();
   const popup = usePopup();
-  const { t } = useTranslation();
   const params = useLocalSearchParams<{
     phoneNumber?: string;
     email?: string;
@@ -34,6 +35,8 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
   const [resendTimer, setResendTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  // Presentation-only: index of the focused OTP box, used to accent its border.
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -51,7 +54,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
-    
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -91,7 +94,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               await AsyncStorage.setItem('emailVerificationToken', token);
               await AsyncStorage.setItem('verifiedEmail', email);
             }
-            popup.success(t('auth.otp.emailVerifiedTitle'), t('auth.otp.emailVerifiedMessage'), () => router.back());
+            popup.success('Email Verified', 'Your email address has been verified successfully.', () => router.back());
           } else if (purpose === 'reset') {
             const resetToken = response.data.data?.resetToken;
             router.replace({
@@ -101,7 +104,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
           }
         } else {
           setIsLoading(false);
-          popup.error(t('auth.otp.invalidOtpTitle'), response.data?.message || t('auth.otp.invalidOtpMessage'));
+          popup.error('Invalid Code', response.data?.message || 'The code you entered is incorrect. Please try again.');
           setOtp(['', '', '', '']);
           inputRefs.current[0]?.focus();
         }
@@ -123,19 +126,19 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
         });
       } else if (response.data.code === 400) {
         setIsLoading(false);
-        popup.error(t('auth.otp.invalidOtpTitle'), t('auth.otp.invalidOtpMessage'));
+        popup.error('Invalid Code', 'The code you entered is incorrect. Please try again.');
         setOtp(['', '', '', '']);
         inputRefs.current[0]?.focus();
       } else {
         setIsLoading(false);
-        popup.error(t('common.error'), t('login.errors.genericMessage'));
+        popup.error('Error', 'Something went wrong. Please try again.');
         setOtp(['', '', '', '']);
         inputRefs.current[0]?.focus();
       }
     } catch (error) {
       console.error('Error verifying OTP:', error);
       setIsLoading(false);
-      popup.error(t('common.error'), t('login.errors.genericMessage'));
+      popup.error('Error', 'Something went wrong. Please try again.');
       setOtp(['', '', '', '']);
       inputRefs.current[0]?.focus();
     }
@@ -150,17 +153,17 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
     try {
       if (email && purpose) {
         await userApi.sendAuthOtp({ email, purpose });
-        popup.success(t('signup.otpSentTitle'), t('signup.otpSentMessage', { email }));
+        popup.success('Code Sent', `We've sent a new verification code to ${email}.`);
       } else {
         const mobile = await AsyncStorage.getItem('resetPhoneNumber');
         if (mobile) {
           await userApi.sendOtp(mobile);
-          popup.success(t('signup.otpSentTitle'), t('signup.otpSentMessage', { email: mobile }));
+          popup.success('Code Sent', `We've sent a new verification code to ${mobile}.`);
         }
       }
     } catch (err) {
       console.error('Resend OTP failed:', err);
-      popup.error(t('common.error'), t('signup.sendOtpFailedMessage'));
+      popup.error('Error', 'We could not send the code. Please try again.');
     }
   };
 
@@ -178,389 +181,260 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
 
   return (
     <NativeBaseProvider>
-       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-
-    <View style={{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 40,
-    }}>
-      <LinearGradient
-        colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
-        locations={[0, 0.3, 0.6, 1.0]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-      />
-      <View style={{ width: '100%', maxWidth: 400 }}>
-        {/* Header */}
-        <View style={{ alignItems: 'center', marginBottom: 40 }}>
-          <View style={{ position: 'relative', marginBottom: 24 }}>
-            <LinearGradient
-              colors={['#eaf2fc', '#d0dfeb', '#eaf2fc']}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={{ flex: 1 }}>
+          <LinearGradient
+            colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
+            locations={[0, 0.3, 0.6, 1.0]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          {/* KeyboardAvoidingView was imported but never rendered here either — the OTP boxes
+              and Verify button sat under the keyboard on both platforms. */}
+          <KeyboardAwareScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1 }}
+            enableOnAndroid={true}
+            enableAutomaticScroll={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 30 : 20}
+            keyboardOpeningTime={0}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            enableResetScrollToCoords={false}
+          >
+          <SafeAreaView style={{ flex: 1, paddingHorizontal: 22 }}>
+            {/* Back Button */}
+            <TouchableOpacity
+              onPress={() => router.back()}
               style={{
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                justifyContent: 'center',
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#ffffff',
                 alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 8,
+                shadowColor: '#1F7FE5',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 8,
+                elevation: 2,
               }}
             >
+              <Ionicons name="chevron-back" size={22} color="#0f1724" />
+            </TouchableOpacity>
+
+            {/* Brand mark — app-icon tile (the logo PNG is a solid square with no alpha;
+                circle-cropping showed its background edges, a tile shows it as designed). */}
+            <View style={{ alignItems: 'center', marginTop: 12 }}>
               <View style={{
-                position: 'absolute',
-                top: 8,
-                left: 8,
-                right: 8,
-                bottom: 8,
-                borderRadius: 32,
-                borderWidth: 2,
-                borderColor: 'rgba(31, 127, 229, 0.35)',
-              }} />
-              <View style={{
-                position: 'absolute',
-                top: 12,
-                left: 12,
-                right: 12,
-                bottom: 12,
-                borderRadius: 28,
-                borderWidth: 1,
-                borderColor: 'rgba(31, 127, 229, 0.25)',
-              }} />
-
-              <Icon name="message" size={36} color="#1F7FE5" />
-
-              <Icon
-                name="star"
-                size={12}
-                color="rgba(31, 127, 229, 0.6)"
-                style={{ position: 'absolute', top: 4, right: 8 }}
-              />
-              <Icon
-                name="auto-awesome"
-                size={8}
-                color="rgba(31, 127, 229, 0.6)"
-                style={{ position: 'absolute', bottom: 8, left: 4 }}
-              />
-            </LinearGradient>
-
-            <View style={{
-              position: 'absolute',
-              top: -8,
-              left: -8,
-              right: -8,
-              bottom: -8,
-              borderRadius: 48,
-              borderWidth: 1,
-              borderColor: 'rgba(31, 127, 229, 0.15)',
-            }} />
-            <View style={{
-              position: 'absolute',
-              top: -16,
-              left: -16,
-              right: -16,
-              bottom: -16,
-              borderRadius: 56,
-              borderWidth: 1,
-              borderColor: 'rgba(31, 127, 229, 0.1)',
-            }} />
-          </View>
-
-          <AppText weight="bold" style={{
-            fontSize: 20,
-            color: '#0f1724',
-            marginBottom: 8,
-            textAlign: 'center',
-          }}>
-            {t('auth.otp.verificationCode')}
-          </AppText>
-          <AppText weight="regular" style={{
-            fontSize: 13,
-            color: '#64748b',
-            textAlign: 'center',
-            lineHeight: 22,
-          }}>
-            {isEmailFlow ? t('auth.otp.sentEmail') : t('auth.otp.sentMobile')}{'\n'}
-            <AppText weight="bold" style={{ fontSize: 16, color: '#0f1724' }}>
-              {isEmailFlow ? maskedContact : `+91 ${maskedContact}`}
-            </AppText>
-          </AppText>
-          
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginTop: 16,
-          }}>
-            <Icon name="star" size={12} color="#1F7FE5" />
-            <View style={{
-              width: 64,
-              height: 2,
-              backgroundColor: '#1F7FE5',
-              marginHorizontal: 8,
-            }} />
-            <Icon name="star" size={12} color="#1F7FE5" />
-          </View>
-        </View>
-
-        {/* Card */}
-        <View style={{ position: 'relative' }}>
-          <View style={{
-            backgroundColor: 'white',
-            borderRadius: 24,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 16 },
-            shadowOpacity: 0.2,
-            shadowRadius: 24,
-            elevation: 24,
-          }}>
-            <View style={{
-              position: 'absolute',
-              top: 12,
-              left: 12,
-              width: 40,
-              height: 40,
-              borderLeftWidth: 3,
-              borderTopWidth: 3,
-              borderColor: '#1F7FE5',
-              borderTopLeftRadius: 16,
-            }} />
-            <View style={{
-              position: 'absolute',
-              top: 12,
-              right: 12,
-              width: 40,
-              height: 40,
-              borderRightWidth: 3,
-              borderTopWidth: 3,
-              borderColor: '#1F7FE5',
-              borderTopRightRadius: 16,
-            }} />
-            <View style={{
-              position: 'absolute',
-              bottom: 12,
-              left: 12,
-              width: 40,
-              height: 40,
-              borderLeftWidth: 3,
-              borderBottomWidth: 3,
-              borderColor: '#1F7FE5',
-              borderBottomLeftRadius: 16,
-            }} />
-            <View style={{
-              position: 'absolute',
-              bottom: 12,
-              right: 12,
-              width: 40,
-              height: 40,
-              borderRightWidth: 3,
-              borderBottomWidth: 3,
-              borderColor: '#1F7FE5',
-              borderBottomRightRadius: 16,
-            }} />
-            
-            <View style={{
-              position: 'absolute',
-              top: 24,
-              left: '50%',
-              marginLeft: -40,
-              width: 80,
-              height: 4,
-              backgroundColor: 'rgba(15, 23, 42, 0.06)',
-              borderRadius: 2,
-            }} />
-            <View style={{
-              position: 'absolute',
-              bottom: 24,
-              left: '50%',
-              marginLeft: -32,
-              width: 64,
-              height: 2,
-              backgroundColor: 'rgba(15, 23, 42, 0.06)',
-              borderRadius: 1,
-            }} />
-
-            <View style={{ padding: 32 }}>
-              <View style={{ gap: 28 }}>
-                {/* OTP Input */}
-                <View style={{ gap: 16 }}>
-                  <View style={{
-                    alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                  }}>
-                    <Icon name="message" size={16} color="#1F7FE5" />
-                    <AppText weight="bold" style={{
-                      fontSize: 12,
-                      color: '#0f1724',
-                      letterSpacing: 0.3,
-                      textTransform: 'uppercase',
-                      marginLeft: 8,
-                    }}>
-                      {t('auth.otp.verificationCode')}
-                    </AppText>
-                  </View>
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}>
-                    {otp.map((digit, index) => (
-                      <View key={index} style={{ position: 'relative' }}>
-                        <TextInput
-                          ref={(el) => { inputRefs.current[index] = el; }}
-                          defaultValue={digit}
-                          onChangeText={(text) => handleOtpChange(index, text.replace(/\D/g, ''))}
-                          onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
-                          style={{
-                            width: 48,
-                            height: 56,
-                            textAlign: 'center',
-                            fontSize: 20,
-                            fontFamily: 'Rubik-Bold',
-                            backgroundColor: '#ffffff',
-                            borderWidth: 1.5,
-                            borderColor: '#e2e8f0',
-                            borderRadius: 12,
-                            color: '#0f1724',
-                          }}
-                          keyboardType="numeric"
-                          maxLength={1}
-                        />
-                        {digit && (
-                          <View style={{
-                            position: 'absolute',
-                            top: -4,
-                            right: -4,
-                            width: 12,
-                            height: 12,
-                            backgroundColor: '#1F7FE5',
-                            borderRadius: 6,
-                          }} />
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Verify Button */}
-                <TouchableOpacity
-                  onPress={handleVerify}
-                  disabled={!isFormValid || isLoading}
-                >
-                  <LinearGradient
-                    colors={isFormValid && !isLoading ? ['#1F7FE5', '#1862b8'] : ['#cccccc', '#999999']}
-                    style={{
-                      paddingVertical: 16,
-                      paddingHorizontal: 24,
-                      borderRadius: 16,
-                      alignItems: 'center',
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 8 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 16,
-                      elevation: 8,
-                    }}
-                  >
-                    {isLoading ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <AppText weight="bold" style={{
-                          color: '#fff',
-                          fontSize: 18,
-                        }}>
-                          {t('auth.otp.verifying')}
-                        </AppText>
-                      </View>
-                    ) : (
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Icon name="auto-awesome" size={20} color="white" />
-                        <AppText weight="bold" style={{
-                          color: '#fff',
-                          fontSize: 18,
-                          marginLeft: 8,
-                        }}>
-                          {t('auth.otp.verify')}
-                        </AppText>
-                      </View>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* Resend Section */}
-                <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-                  {canResend ? (
-                    <TouchableOpacity
-                      onPress={handleResend}
-                      style={{ flexDirection: 'row', alignItems: 'center' }}
-                    >
-                      <Icon name="refresh" size={16} color="#1F7FE5" />
-                      <AppText weight="bold" style={{
-                        color: '#1F7FE5',
-                        fontSize: 12.5,
-                        marginLeft: 8,
-                      }}>
-                        {t('auth.otp.resendOtp')}
-                      </AppText>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={{
-                        width: 8,
-                        height: 8,
-                        backgroundColor: '#94a3b8',
-                        borderRadius: 4,
-                        marginRight: 8,
-                      }} />
-                      <AppText weight="regular" style={{
-                        color: '#64748b',
-                      }}>
-                        {t('auth.otp.resendSmsIn', { seconds: resendTimer })}
-                      </AppText>
-                      <View style={{
-                        width: 8,
-                        height: 8,
-                        backgroundColor: '#94a3b8',
-                        borderRadius: 4,
-                        marginLeft: 8,
-                      }} />
-                    </View>
-                  )}
-                </View>
-
-                {/* Back Button */}
-                <TouchableOpacity
-                  onPress={() => router.back()}
-                  style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 16,
-                    borderRadius: 16,
-                    backgroundColor: 'transparent',
-                    borderWidth: 1.5,
-                    borderColor: '#e2e8f0',
-                    alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Icon name="arrow-back" size={20} color="#475569" />
-                  <AppText weight="medium" style={{
-                    color: '#475569',
-                    fontSize: 14,
-                    marginLeft: 8,
-                  }}>
-                    {t('auth.changePin.returnPrevious')}
-                  </AppText>
-                </TouchableOpacity>
+                width: 68,
+                height: 68,
+                borderRadius: 20,
+                backgroundColor: '#ffffff',
+                shadowColor: '#1F7FE5',
+                shadowOpacity: 0.14,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 6 },
+                elevation: 4,
+              }}>
+                <Image
+                  source={require('../../../assets/images/LotusLogo.png')}
+                  style={{ width: 68, height: 68, borderRadius: 20 }}
+                  resizeMode="cover"
+                />
               </View>
             </View>
-          </View>
+
+            {/* Heading */}
+            <AppText weight="bold" style={{
+              fontSize: 26,
+              color: '#0f1724',
+              letterSpacing: -0.3,
+              marginTop: 24,
+              textAlign: 'center',
+            }}>
+              Verification Code
+            </AppText>
+            <AppText weight="regular" style={{
+              fontSize: 13,
+              color: '#64748b',
+              lineHeight: 19,
+              marginTop: 6,
+              textAlign: 'center',
+            }}>
+              {isEmailFlow
+                ? 'We sent a 4-digit code to your email address. Enter it below to continue.'
+                : 'We sent a 4-digit code to your mobile number. Enter it below to continue.'}
+            </AppText>
+
+            {/* Dark step banner */}
+            <View style={{
+              backgroundColor: '#1c2b3f',
+              borderRadius: 20,
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              marginTop: 20,
+              marginBottom: 24,
+              shadowColor: '#1c2b3f',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.25,
+              shadowRadius: 12,
+              elevation: 5,
+            }}>
+              <View style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                backgroundColor: 'rgba(90,167,239,0.28)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Ionicons name="shield-checkmark-outline" size={18} color="#ffffff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText weight="bold" style={{
+                  fontSize: 13.5,
+                  color: '#ffffff',
+                }}>
+                  Verify Code
+                </AppText>
+                <AppText weight="regular" style={{
+                  fontSize: 11,
+                  color: 'rgba(255,255,255,0.72)',
+                  lineHeight: 15,
+                  marginTop: 2,
+                }}>
+                  4-digit code sent to {isEmailFlow ? maskedContact : `+91 ${maskedContact}`}
+                </AppText>
+              </View>
+            </View>
+
+            {/* OTP Input */}
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              gap: 12,
+            }}>
+              {otp.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(el) => { inputRefs.current[index] = el; }}
+                  defaultValue={digit}
+                  onChangeText={(text) => handleOtpChange(index, text.replace(/\D/g, ''))}
+                  onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
+                  onFocus={() => setFocusedIndex(index)}
+                  onBlur={() => setFocusedIndex(null)}
+                  style={{
+                    flex: 1,
+                    maxWidth: 64,
+                    height: 62,
+                    borderRadius: 18,
+                    backgroundColor: '#ffffff',
+                    borderWidth: 1.5,
+                    borderColor: (digit || focusedIndex === index) ? '#1F7FE5' : '#e2e8f0',
+                    textAlign: 'center',
+                    fontSize: 22,
+                    fontFamily: 'Rubik-Bold',
+                    color: '#0f1724',
+                    shadowColor: '#1F7FE5',
+                    shadowOffset: { width: 0, height: focusedIndex === index ? 4 : 2 },
+                    shadowOpacity: focusedIndex === index ? 0.18 : 0.06,
+                    shadowRadius: focusedIndex === index ? 10 : 6,
+                    elevation: focusedIndex === index ? 3 : 1,
+                  }}
+                  keyboardType="numeric"
+                  maxLength={1}
+                />
+              ))}
+            </View>
+
+            {/* Resend Section */}
+            <View style={{ alignItems: 'center', marginTop: 22 }}>
+              {canResend ? (
+                <TouchableOpacity onPress={handleResend}>
+                  <AppText weight="medium" style={{
+                    fontSize: 13,
+                    color: '#1F7FE5',
+                    textAlign: 'center',
+                  }}>
+                    Resend Code
+                  </AppText>
+                </TouchableOpacity>
+              ) : (
+                <AppText weight="regular" style={{
+                  fontSize: 13,
+                  color: '#64748b',
+                  textAlign: 'center',
+                }}>
+                  {`Resend code in ${resendTimer}s`}
+                </AppText>
+              )}
+            </View>
+
+            {/* Verify Button */}
+            <TouchableOpacity
+              onPress={handleVerify}
+              disabled={!isFormValid || isLoading}
+              style={{
+                marginTop: 18,
+                opacity: isFormValid && !isLoading ? 1 : 0.55,
+              }}
+            >
+              <LinearGradient
+                colors={['#5AA7EF', '#1F7FE5']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  height: 54,
+                  borderRadius: 28,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: '#1F7FE5',
+                  shadowOpacity: 0.35,
+                  shadowRadius: 12,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 6,
+                }}
+              >
+                {isLoading ? (
+                  <AppText weight="bold" style={{
+                    color: '#ffffff',
+                    fontSize: 15,
+                  }}>
+                    Verifying...
+                  </AppText>
+                ) : (
+                  <AppText weight="bold" style={{
+                    color: '#ffffff',
+                    fontSize: 15,
+                  }}>
+                    Verify
+                  </AppText>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Back Link */}
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ marginTop: 18, alignItems: 'center' }}
+            >
+              <AppText weight="medium" style={{
+                fontSize: 13,
+                color: '#1F7FE5',
+                textAlign: 'center',
+              }}>
+                Return to Previous Screen
+              </AppText>
+            </TouchableOpacity>
+          </SafeAreaView>
+          </KeyboardAwareScrollView>
         </View>
-      </View>
-    </View>
-    </TouchableWithoutFeedback>
+      </TouchableWithoutFeedback>
     </NativeBaseProvider>
   );
 };
-
-

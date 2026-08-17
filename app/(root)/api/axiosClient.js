@@ -24,28 +24,50 @@ axiosClient.interceptors.request.use(async (config) => {
   // if (token) {
   //   config.headers.Authorization = `Bearer ${token}`;
   // }
-  console.log('🟢 API Request:', {
-    method: config.method,
-    url: config.url,
-    fullUrl: config.baseURL + config.url,
-  });
+  // Dev-only: serializing every request/response body on the JS thread costs real frames
+  // during screen loads, and full response bodies (profiles, chats, OTPs) are PII that must
+  // never reach logcat in a release build.
+  if (__DEV__) {
+    console.log('🟢 API Request:', {
+      method: config.method,
+      url: config.url,
+      fullUrl: config.baseURL + config.url,
+    });
+  }
   return config;
 });
 
 axiosClient.interceptors.response.use(
   (response) => {
-    console.log('🔵 API Response:', { status: response.status, data: response.data });
+    if (__DEV__) {
+      console.log('🔵 API Response:', { status: response.status, data: response.data });
+    }
     return response;
   },
   async (error) => {
     const status = error.response?.status;
-    // Log non-auth errors
-    if (status !== 401 && status !== 403) {
-      console.error('🔴 API Error:', {
-        message: error.message,
-        status,
-        data: error.response?.data,
-      });
+    // Log non-auth errors. 413 is logged compactly on purpose: it comes back from nginx as a
+    // full HTML error page, and dumping that into the console buries the one useful fact.
+    if (__DEV__ && status !== 401 && status !== 403) {
+      if (status === 413) {
+        console.error('🔴 API Error: 413 Request Entity Too Large —', error.config?.url,
+          '(nginx client_max_body_size; images should be compressed before upload)');
+      } else {
+        console.error('🔴 API Error:', {
+          message: error.message,
+          status,
+          data: error.response?.data,
+        });
+      }
+    }
+    // Give callers something readable to show. Without this every `res.data.message` lookup on a
+    // 413 yields a chunk of nginx HTML, which is what the user would end up seeing in a popup.
+    if (status === 413 && error.response) {
+      error.response.data = {
+        code: 413,
+        status: 'FAILURE',
+        message: 'That file is too large to upload. Please choose a smaller image.',
+      };
     }
     return Promise.reject(error);
   }

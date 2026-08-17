@@ -21,7 +21,7 @@ import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
 import userApi from '../api/userApi';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, resolveMinPlanTitle } from '../utils/upgradeNavigation';
 
 type FamilyLogin = {
   id: number;
@@ -130,7 +130,7 @@ const FamilyAccessScreen = () => {
       } else if (res.data.code === 403) {
         setShowAdd(false);
         popup.premiumRequired(
-          'Family Access is available on Gold and Platinum plans. Upgrade to invite a parent or family member.',
+          `Family Access is available on ${resolveMinPlanTitle('Gold')} and above. Upgrade to invite a parent or family member.`,
           buildUpgradeAction({ planTitle, featureName: 'Family Access', minPlan: 'Gold' })
         );
       } else {

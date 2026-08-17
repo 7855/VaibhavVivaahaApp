@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "857276209004",
+    "project_id": "vaibhav-82b7a",
+    "storage_bucket": "vaibhav-82b7a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:857276209004:android:f3b9124a96383081dd8549",
+        "android_client_info": {
+          "package_name": "com.vaibhavvivaaha.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaMXN1as7kJ-2r_AmWe2i4kD-cB7MFmG4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

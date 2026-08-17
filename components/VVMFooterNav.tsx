@@ -124,8 +124,13 @@ const VVMFooterNav: React.FC<VVMFooterNavProps> = ({
     <View style={[s.navWrap, { paddingBottom: Math.max(insets.bottom, 14) + 4 }]}>
       <View style={s.navBarShadowWrap}>
         <View style={s.navBarGlass} pointerEvents="none">
-          <BlurView intensity={55} tint="light" style={StyleSheet.absoluteFillObject} />
-          <View style={s.navBarTint} />
+          {/* iOS-only: on Android expo-blur is a live render-node blur that re-composites
+              every frame of every screen transition (the footer is mounted app-wide), for a
+              visual delta the opaque tint below already covers. */}
+          {Platform.OS === 'ios' && (
+            <BlurView intensity={55} tint="light" style={StyleSheet.absoluteFillObject} />
+          )}
+          <View style={[s.navBarTint, Platform.OS !== 'ios' && s.navBarTintOpaque]} />
         </View>
         <View style={s.navBar}>
           {leftTabs.map((tab) => (
@@ -175,6 +180,11 @@ const s = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255,255,255,0.55)',
   },
+  // Android has no BlurView underneath, so the tint carries the whole surface — nudged
+  // up to near-opaque so the bar reads the same frosted white as it does on iOS.
+  navBarTintOpaque: {
+    backgroundColor: 'rgba(255,255,255,0.94)',
+  },
   navBar: {
     height: 68,
     flexDirection: 'row',
@@ -204,3 +214,25 @@ const s = StyleSheet.create({
 });
 
 export default VVMFooterNav;
+
+/**
+ * Bar height only — must stay in sync with `s.navBar.height` above.
+ */
+export const FOOTER_NAV_BAR_HEIGHT = 68;
+
+/**
+ * Bottom padding a scrollable screen needs so its last item clears the footer nav.
+ *
+ * The footer is absolutely positioned at bottom: 0 and is as tall as
+ * FOOTER_NAV_BAR_HEIGHT + Math.max(insets.bottom, 14) + 4 — it is NOT a fixed number, because
+ * the safe-area inset differs between a gesture-nav device (~48) and a button-nav one (0).
+ * Screens that hardcoded a guess (100) came up short on gesture-nav phones and clipped the last
+ * few pixels of the last card. Use this instead of a literal, so the two can't drift apart.
+ *
+ *   const footerPad = useFooterClearance();
+ *   <FlatList contentContainerStyle={{ paddingBottom: footerPad }} />
+ */
+export function useFooterClearance(extra: number = 16) {
+  const insets = useSafeAreaInsets();
+  return FOOTER_NAV_BAR_HEIGHT + Math.max(insets.bottom, 14) + 4 + extra;
+}

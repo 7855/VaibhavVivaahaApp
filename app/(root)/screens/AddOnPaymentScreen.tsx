@@ -20,6 +20,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
+import RelationshipManagerView, { type AdminContact } from '../../../components/RelationshipManagerView';
+import { resolvePaymentMode } from '../utils/upgradeNavigation';
 import { useUserData } from '../contexts/UserDataContext';
 
 const UPI_ID = 'vaibhavvivaaha@upi';
@@ -51,9 +53,35 @@ export default function AddOnPaymentScreen() {
   const [copied, setCopied] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [checkingPending, setCheckingPending] = useState(true);
+  // Play Store gating. PaymentScreen has honoured PAYMENT_MODE since 2026-05-06, but this
+  // add-on screen (the Profile Boost purchase) never did — it showed the QR/UPI flow
+  // unconditionally, which is exactly the off-platform-payment surface the flag exists to hide.
+  const [paymentMode, setPaymentMode] = useState<'LOADING' | 'QR' | 'CONTACT'>('LOADING');
+  const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
   const [hasPending, setHasPending] = useState(false);
 
   // Check if there's already a pending payment for this feature
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      // Always resolves fresh from the backend (cache is fallback-only) so an admin flipping
+      // PAYMENT_MODE takes effect immediately — same contract PaymentScreen relies on.
+      const mode = await resolvePaymentMode();
+      if (!mounted) return;
+      setPaymentMode(mode);
+      if (mode === 'CONTACT') {
+        try {
+          const res = await userApi.getAdminContact();
+          const raw = res?.data?.data?.valueColumn;
+          if (mounted && raw) setAdminContact(typeof raw === 'string' ? JSON.parse(raw) : raw);
+        } catch {
+          // RelationshipManagerView renders its own sensible defaults without this.
+        }
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   useEffect(() => {
     (async () => {
       if (!userData.userId) { setCheckingPending(false); return; }
@@ -131,6 +159,41 @@ export default function AddOnPaymentScreen() {
       setUploading(false);
     }
   };
+
+  if (paymentMode === 'LOADING') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f7fa' }}>
+        {/* Header hidden while resolving too: CONTACT is the shipped default, so showing the
+            stack header here would flash it in and straight back out on the common path. */}
+        <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator size="large" color="#1F7FE5" />
+      </View>
+    );
+  }
+
+  if (paymentMode === 'CONTACT') {
+    const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
+    return (
+      <>
+        {/* RelationshipManagerView draws its own "Premium Assistance" header, so the stack
+            header must be hidden or the screen shows two stacked headers. PaymentScreen avoids
+            this by being registered HEADERLESS in screens/_layout.tsx; this screen is not, since
+            its QR path still wants a titled header. */}
+        <Stack.Screen options={{ headerShown: false }} />
+        <RelationshipManagerView
+          planTitle={featureTitle}
+          planPrice={price}
+          planPeriod="one-time"
+          encodedUserId={userData?.userId || null}
+          defaultName={fullName}
+          defaultMobile={(userData as any)?.mobileNumber || ''}
+          defaultEmail={(userData as any)?.email}
+          adminContact={adminContact}
+          popupError={(title, msg) => popup.error(title, msg)}
+        />
+      </>
+    );
+  }
 
   if (checkingPending) {
     return (

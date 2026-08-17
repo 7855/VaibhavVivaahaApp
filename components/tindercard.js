@@ -93,36 +93,6 @@ const styles = {
 };
 
 const db = [
-  {
-    name: 'Madhu',
-    img: require('../assets/images/bride2.jpeg'),
-    age: 22,
-    job: 'Software Engineer',
-  },
-  {
-    name: 'Gowri Shankar',
-    img: require('../assets/images/groom1.jpg'),
-    age: 25,
-    job: 'Software Engineer',
-  },
-  {
-    name: 'Jenova',
-    img: require('../assets/images/bride3.jpeg'),
-    age: 24,
-    job: 'Software Engineer',
-  },
-  {
-    name: 'Mugesh Ramesh',
-    img: require('../assets/images/groom2.jpg'),
-    age: 23,
-    job: 'Software Engineer',
-  },
-  {
-    name: 'Yokesh Raj',
-    img: require('../assets/images/groom3.jpg'),
-    age: 26,
-    job: 'Software Engineer',
-  },
 ];
 
 let charactersState = db;
@@ -280,31 +250,31 @@ export default Advanced;
 // const db = [
 //   {
 //     name: 'Madhu',
-//     img: require('../assets/images/bride2.jpeg'),
+//     img: null,
 //     age: 22,
 //     job: 'Software Engineer',
 //   },
 //   {
 //     name: 'Gowri Shankar',
-//     img: require('../assets/images/groom1.jpg'),
+//     img: null,
 //     age: 25,
 //     job: 'Software Engineer',
 //   },
 //   {
 //     name: 'Jenova',
-//     img: require('../assets/images/bride3.jpeg'),
+//     img: null,
 //     age: 24,
 //     job: 'Software Engineer',
 //   },
 //   {
 //     name: 'Mugesh Ramesh',
-//     img: require('../assets/images/groom2.jpg'),
+//     img: null,
 //     age: 23,
 //     job: 'Software Engineer',
 //   },
 //   {
 //     name: 'Yokesh Raj',
-//     img: require('../assets/images/groom3.jpg'),
+//     img: null,
 //     age: 26,
 //     job: 'Software Engineer',
 //   },

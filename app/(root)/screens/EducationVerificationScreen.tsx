@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 
 type DocumentType = 'DEGREE_CERTIFICATE' | 'DIPLOMA' | 'PROFESSIONAL_CERT' | 'MARK_SHEET' | 'OTHER';
 
@@ -127,7 +127,7 @@ export default function EducationVerificationScreen() {
         await loadStatus(encodedUserId);
       } else if (res.data.code === 403) {
         popup.premiumRequired(
-          'Upgrade to Silver or above to verify your education.',
+          upgradeMessage('verify your education', 'Silver'),
           buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Education Verification', minPlan: 'Silver' })
         );
       } else if (res.data.code === 409) {
@@ -138,7 +138,7 @@ export default function EducationVerificationScreen() {
     } catch (e: any) {
       if (e?.response?.data?.code === 403) {
         popup.premiumRequired(
-          'Upgrade to Silver or above to verify your education.',
+          upgradeMessage('verify your education', 'Silver'),
           buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Education Verification', minPlan: 'Silver' })
         );
       } else {

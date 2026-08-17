@@ -1,4 +1,5 @@
 import React from 'react';
+import { useRemoteContent } from '@/utils/useRemoteContent';
 import {
   ScrollView,
   View,
@@ -15,8 +16,19 @@ import {
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
+/** A DB-authored section. `iconBg` is optional; the icon itself is fixed for remote content
+  * because a keyValue row can't carry a React component. */
+type RemoteTermsSection = { title: string; content: string[]; iconBg?: string };
+
 const TermsPage: React.FC = () => {
   const navigation = useNavigation();
+
+  // Remote copy is OPTIONAL. When the `TERMS_CONTENT` keyValue row is absent or empty the
+  // bundled JSX below renders exactly as before — legal text is not something to risk
+  // mangling in a mechanical data conversion, and a blank terms page would be worse than
+  // slightly stale wording.
+  const { content: remoteSections } = useRemoteContent<RemoteTermsSection[]>('TERMS_CONTENT', []);
+  const hasRemote = Array.isArray(remoteSections) && remoteSections.length > 0;
 
   return (
     <ScrollView style={styles.container}>
@@ -33,6 +45,18 @@ const TermsPage: React.FC = () => {
 
       {/* Sections */}
       <View style={styles.card}>
+        {hasRemote ? (
+          remoteSections.map((sec, idx) => (
+            <Section
+              key={idx}
+              title={sec.title}
+              icon={<FileText size={16} color="#dc2626" />}
+              iconBg={sec.iconBg || '#fee2e2'}
+              content={Array.isArray(sec.content) ? sec.content : [String(sec.content)]}
+            />
+          ))
+        ) : (
+        <>
         {/* Example section */}
         <Section
           title="1. Introduction"
@@ -150,6 +174,8 @@ const TermsPage: React.FC = () => {
             `Address: [Your Company Address]`,
           ]}
         />
+        </>
+        )}
       </View>
 
       {/* Footer */}

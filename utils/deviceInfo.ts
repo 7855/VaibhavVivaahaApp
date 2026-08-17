@@ -111,8 +111,16 @@ export const saveDeviceInfo = async (userId: string) => {
    console.log("fcm response ------------------->", response);
    
 
-   if(response.data.status == 200){
-    AsyncStorage.setItem('fcmToken', response.data.data.fcmToken);
+   // `status` on ResultResponse is the STRING enum ("SUCCESS"/"FAILURE") — the numeric result is
+   // in `code`. The old `response.data.status == 200` was therefore ALWAYS false, so 'fcmToken'
+   // was never written to AsyncStorage. That silently broke logout cleanup: performLogout in
+   // settingsPage.tsx only calls deleteDevice when both userId and fcmToken are present, so the
+   // device row was never removed and kept receiving pushes after sign-out.
+   // Falls back to the token we just sent, since the response body may not echo the entity.
+   if (response?.data?.code === 200 || response?.data?.status === 'SUCCESS') {
+     await AsyncStorage.setItem('fcmToken', response?.data?.data?.fcmToken || expoPushToken);
+   } else {
+     console.warn('Push: saveDeviceInfo did not succeed', response?.data?.code, response?.data?.message);
    }
     // Store deviceId for token refresh
     await AsyncStorage.setItem('deviceId', deviceId);
@@ -128,6 +136,14 @@ export const saveDeviceInfo = async (userId: string) => {
  */
 export const updatePushToken = async (newToken: string) => {
   try {
+    // Guard: the backend only delivers via the Expo push API. A raw FCM/APNs token here
+    // routes to the dead FirebaseMessaging branch and is silently dropped, so refuse to
+    // persist one rather than overwrite a working token with an undeliverable one.
+    if (!newToken || !newToken.startsWith('ExponentPushToken')) {
+      console.warn('Push: refusing to store non-Expo token', newToken?.slice(0, 24));
+      return;
+    }
+
     const userId = await AsyncStorage.getItem('userId');
     const deviceId = await AsyncStorage.getItem('deviceId');
 

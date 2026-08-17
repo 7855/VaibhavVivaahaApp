@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Modal,
   View,
@@ -15,16 +16,18 @@ import {
   VStack,
   HStack,
   Text,
-  Button,
   Box,
   Divider
 } from 'native-base';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SelectList } from 'react-native-dropdown-select-list';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import EIcon from '@expo/vector-icons/Entypo';
 import { Ionicons } from '@expo/vector-icons';
 import moment from 'moment';
 import { usePopup } from '../app/(root)/contexts/PopupContext';
+import { useUserData } from '../app/(root)/contexts/UserDataContext';
+import { useMasterData } from '../app/(root)/contexts/MasterDataContext';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -216,6 +219,18 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   refreshProfile,
 }) => {
   const popup = usePopup();
+  // This sheet sits flush against the bottom of the screen and the app is built edge-to-edge, so
+  // without the inset the "Save Changes" button renders behind the device nav bar.
+  const insets = useSafeAreaInsets();
+  const { userData } = useUserData();
+  const { getSubcastesForCaste } = useMasterData() || {};
+  // Subcastes for the logged-in user's own caste. Empty today (the subcastes table is unseeded),
+  // which is exactly why the 'Subcaste' case below hides the field rather than rendering an
+  // empty picker the user can't do anything with.
+  const subcasteOptions = React.useMemo(
+    () => getSubcastesForCaste?.(userData?.casteId) || [],
+    [getSubcastesForCaste, userData?.casteId]
+  );
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -268,7 +283,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Gender':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -304,7 +319,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
 
@@ -376,7 +391,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Marital Status':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -397,7 +412,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Weight':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -415,7 +430,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Height':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label} "f.t"
             </Text>
             <SelectList
@@ -436,7 +451,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Mother Language':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -457,7 +472,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Physical Status':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -478,7 +493,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Religion':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -492,7 +507,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Caste':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -503,10 +518,38 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </Box>
         );
 
+      // Subcaste must be a picker, never free text — a typo'd subcaste would be unfilterable in
+      // search. When the user's caste has no subcastes configured the field is hidden entirely
+      // rather than showing an empty dropdown that leads nowhere.
+      case 'Subcaste': {
+        if (!subcasteOptions.length) return null;
+        return (
+          <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
+              {label}
+            </Text>
+            <SelectList
+              data={subcasteOptions.map((sc: any) => ({
+                key: String(sc.id),
+                value: sc.subcasteName,
+              }))}
+              setSelected={(val: string) => handleChange(key, val)}
+              save="value"
+              defaultOption={value ? { key: value, value } : undefined}
+              placeholder="Select subcaste"
+              boxStyles={styles.input}
+              inputStyles={styles.inputText}
+              dropdownStyles={styles.dropdownBox}
+              dropdownTextStyles={styles.dropdownText}
+            />
+          </Box>
+        );
+      }
+
       case 'Star':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -525,7 +568,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Moon Sign':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -544,7 +587,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Dosham':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -563,7 +606,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Education':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -582,7 +625,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Occupation':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -607,7 +650,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -626,7 +669,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Annual Income':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -645,7 +688,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Family Type':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -664,7 +707,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Family Status':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -683,7 +726,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Fathers Occupation':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -702,7 +745,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Mothers Occupation':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -721,7 +764,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'No of Siblings':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <SelectList
@@ -741,7 +784,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Last Name':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -759,7 +802,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Current Address':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -776,7 +819,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Education in Detail':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg" mb="3">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -795,7 +838,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Job Place':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -815,7 +858,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'Sister Married':
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -835,7 +878,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       default:
         return (
           <Box key={key} bg="white" p="1" rounded="lg" shadow="lg">
-            <Text fontSize="sm" fontWeight="semibold" fontFamily="Rubik-Medium" mb="1">
+            <Text mb="1" style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: '#0f1724', textTransform: 'uppercase', letterSpacing: 0.3 }}>
               {label}
             </Text>
             <TextInput
@@ -862,9 +905,11 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <Box style={styles.modalContainer}>
-            <Box style={styles.modalContent}>
+            <Box style={[styles.modalContent, { paddingBottom: Math.max(16, insets.bottom + 16) }]}>
               <HStack justifyContent="space-between" alignItems="center" mb={2}>
-                <Text fontSize="md" fontWeight="bold" fontFamily="Rubik-Bold" color="coolGray.800">
+                {/* Font via style, not the bare fontFamily/fontWeight props — see the NativeBase
+                    landmine in CLAUDE.md section 17 (Android drops the custom font otherwise). */}
+                <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#0f1724' }}>
                   {section.title}
                 </Text>
                 <EIcon name="cross" size={28} color="#6b7280" onPress={onClose} />
@@ -880,17 +925,38 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 keyboardShouldPersistTaps="handled"
               />
 
-              <VStack space={2} mt={2} justifyContent="center" alignItems="center">
-                <Button
-                  width="50%"
+              {/* Gradient pill CTA, matching the register/login primary button. Was a NativeBase
+                  <Button> whose label went through the `_text` prop — NativeBase injects a default
+                  fontWeight there, which is the same combination that silently drops the custom
+                  Rubik font on Android (CLAUDE.md section 17). A plain Text inside a
+                  TouchableOpacity avoids that path entirely. */}
+              <VStack space={2} mt={3} justifyContent="center" alignItems="center">
+                <TouchableOpacity
                   onPress={handleSubmit}
-                  bg="#1F7FE5"
-                  borderRadius="lg"
-                  _text={{ color: "#fff", fontFamily: 'Rubik-Bold' }}
-                  _pressed={{ bg: "#1862B8" }}
+                  activeOpacity={0.85}
+                  style={{ width: '100%' }}
                 >
-                  Save Changes
-                </Button>
+                  <LinearGradient
+                    colors={['#5AA7EF', '#1F7FE5']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{
+                      height: 52,
+                      borderRadius: 28,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#1F7FE5',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.22,
+                      shadowRadius: 10,
+                      elevation: 3,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Rubik-Bold', letterSpacing: 0.2 }}>
+                      Save Changes
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               </VStack>
             </Box>
           </Box>
@@ -928,28 +994,41 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  // Matches the register form's field spec exactly (sign-up.tsx `input`): same border, radius,
+  // typography and blue-tinted lift. These fields previously used a heavier #D1D5DB border and
+  // no font family, so the profile edit sheet read as a different form system from signup.
   input: {
+    height: 44,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    width: '100%',
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    height: 48,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
     fontSize: 14,
-    color: '#130001',
-    backgroundColor: '#fff',
+    fontFamily: 'Rubik-Regular',
+    color: '#333',
+    shadowColor: '#1F7FE5',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   inputText: {
     fontSize: 14,
-    color: '#130001',
+    fontFamily: 'Rubik-Regular',
+    color: '#333',
   },
   dropdownBox: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#e2e8f0',
     borderRadius: 12,
+    backgroundColor: '#ffffff',
   },
   dropdownText: {
     fontSize: 14,
-    color: '#130001',
+    fontFamily: 'Rubik-Regular',
+    color: '#333',
   },
 });

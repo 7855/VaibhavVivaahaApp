@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Vaibhav Vivaaha Matrimony",
+    "name": "Vaibhav VM",
     "scheme": "vaibhavvivaaha",
     "slug": "MatrimonyApp",
     "version": "1.0.0",
@@ -16,16 +16,37 @@
       "bundleIdentifier": "com.vaibhavvivaaha.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:vaibhavvivaahamatrimony.com"
+      ]
     },
     "android": {
+      "googleServicesFile": "./android/app/google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/vaibhavsplash.png",
-        "backgroundColor": "#FFFFFF"
+        "foregroundImage": "./assets/images/icon-adaptive-fg.png",
+        "backgroundColor": "#410101"
       },
       "package": "com.vaibhavvivaaha.app",
       "permissions": [
         "android.permission.RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "vaibhavvivaahamatrimony.com",
+              "pathPrefix": "/profile"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
@@ -38,7 +59,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notificationIcon.png",
+          "icon": "./assets/images/notification-icon.png",
           "color": "#420001"
         }
       ],

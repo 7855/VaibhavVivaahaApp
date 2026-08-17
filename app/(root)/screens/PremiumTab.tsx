@@ -19,6 +19,8 @@ import userApi from '../api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
+import { getActivePlansSync } from '../utils/upgradeNavigation';
+import { buildChecklistByPlan } from '../utils/planChecklist';
 
 // Same soft blue backdrop used app-wide (explore.tsx / profile.tsx) instead of a standalone
 // pink/rose theme, so this screen reads as part of the same app rather than a bolted-on paywall.
@@ -56,77 +58,6 @@ function computePricePerDay(price: number, durationDays: number): string {
   if (!durationDays || durationDays <= 0 || durationDays > 365 || price <= 0) return '';
   const perDay = price / durationDays;
   return `≈ ₹${perDay < 10 ? perDay.toFixed(1) : Math.round(perDay)}/day`;
-}
-
-// A curated, ordered subset of the real `features`/`planFeatures` tables (backend
-// PlanFeaturesController — same data the admin "Plan Features" matrix page edits). Expanded from
-// an earlier, shorter 11-row list — the actual gap between tiers is much bigger than that list
-// showed, and a member deciding whether a plan is worth buying needs to see the real breadth of
-// what changes, not just a token sample. `VIEW_PROFILE_DETAILS` and `PROFILE_BOOST` are
-// special-cased in `buildChecklistByPlan()` below (see its comment) since a raw non-null cell
-// value isn't the same as "meaningfully included" for those two.
-const CHECKLIST_ITEMS: { code: string; label: string }[] = [
-  { code: 'BASIC_SEARCH', label: 'Basic search filters' },
-  { code: 'ADV_SEARCH', label: 'Advanced search filters' },
-  { code: 'VIEW_PROFILE_DETAILS', label: 'Full profile details' },
-  { code: 'REQ_UNLIMITED', label: 'Unlimited interest requests' },
-  { code: 'MESSAGE', label: 'Direct messaging' },
-  { code: 'VIEW_PERSONAL_INFO', label: 'Reveal contact details' },
-  { code: 'WHO_VIEWED', label: 'See who viewed you' },
-  { code: 'WHO_LIKED', label: 'See who liked you' },
-  { code: 'WHO_SHORTLISTED_YOU', label: 'See who shortlisted you' },
-  { code: 'VERIFY_BADGE', label: 'Verified profile badge' },
-  { code: 'HIGH_VISIBILITY', label: 'Higher visibility in search' },
-  { code: 'PRIORITY_SEARCH', label: 'Priority placement in search' },
-  { code: 'HOROSCOPE_VIEW', label: 'Horoscope view' },
-  { code: 'STAR_MATCH', label: 'Star match compatibility' },
-  { code: 'SECURE_CONNECT', label: 'SecureConnect masked calling' },
-  { code: 'VOICE_CALL', label: 'In-app voice call' },
-  { code: 'VIDEO_PROFILE', label: 'Video profile' },
-  { code: 'WHATSAPP_SHARE', label: 'WhatsApp profile share' },
-  { code: 'FAMILY_LOGIN', label: 'Family / parent login' },
-  { code: 'SPEAK_FAMILY', label: 'Speak directly with families' },
-  { code: 'INCOME_VERIFIED_BADGE', label: 'Income verified badge' },
-  { code: 'PROFILE_BOOST', label: 'Monthly profile boost' },
-  { code: 'DEDICATED_RM', label: 'Dedicated relationship manager' },
-  { code: 'FAMILY_ASSISTED_MATCH', label: 'Family-assisted matchmaking' },
-];
-
-// Builds { planTitle: ChecklistRow[] } from the raw `/planFeatures/matrix` response
-// ({ plans, features, cells }) — cells only carry numeric ids, so this resolves them back to
-// plan titles / feature codes first.
-function buildChecklistByPlan(matrix: { plans?: any[]; features?: any[]; cells?: any[] }): Record<string, ChecklistRow[]> {
-  const featureIdToCode: Record<number, string> = {};
-  (matrix.features || []).forEach((f: any) => { featureIdToCode[f.id] = f.code; });
-
-  const planIdToTitle: Record<number, string> = {};
-  (matrix.plans || []).forEach((p: any) => { planIdToTitle[p.id] = p.title; });
-
-  const valuesByPlan: Record<string, Record<string, string>> = {};
-  (matrix.cells || []).forEach((cell: any) => {
-    const title = planIdToTitle[cell.subscriptionPlanId];
-    const code = featureIdToCode[cell.featureId];
-    if (!title || !code) return;
-    if (!valuesByPlan[title]) valuesByPlan[title] = {};
-    valuesByPlan[title][code] = cell.limitValue;
-  });
-
-  const result: Record<string, ChecklistRow[]> = {};
-  Object.keys(valuesByPlan).forEach((title) => {
-    result[title] = CHECKLIST_ITEMS.map(({ code, label }) => {
-      const value = valuesByPlan[title][code];
-      let included: boolean;
-      if (code === 'VIEW_PROFILE_DETAILS') {
-        included = value === 'FULL'; // Free's LIMITED shouldn't render as a checkmark
-      } else if (code === 'PROFILE_BOOST') {
-        included = Number(value) > 0; // Classic/Silver have a "0 per month" row — that's really "no boost"
-      } else {
-        included = value != null;
-      }
-      return { label, included };
-    });
-  });
-  return result;
 }
 
 // Same tier-color language used for plan badges on SearchResult.tsx / ProfileDetail.tsx, so a
@@ -402,11 +333,12 @@ export default function PremiumTab() {
     }
   };
 
-  // Fallback only if the live API call fails — mirrors the actual 6 subscription_plans rows
-  // (see CLAUDE.md section 7), not fabricated duration variants. No checklist data available
-  // offline (that comes from the live /planFeatures/matrix call), so it's left empty per plan —
-  // the card just omits the "What's included" section in that rare failure case.
-  const defaultPlans: Plan[] = [
+  // Last-resort fallback if the live API call fails AND the shared plan catalog is empty (see
+  // `defaultPlans` below) — mirrors the actual 6 subscription_plans rows (see CLAUDE.md section 7),
+  // not fabricated duration variants. No checklist data available offline (that comes from the
+  // live /planFeatures/matrix call), so it's left empty per plan — the card just omits the
+  // "What's included" section in that rare failure case.
+  const hardcodedDefaultPlans: Plan[] = [
     {
       id: 1, title: 'Free', price: '₹0', originalPrice: '', period: '/lifetime', discount: '', savings: '', isActive: true, isPopular: false,
       tagline: 'உங்கள் பயணம் தொடங்குகிறது',
@@ -444,6 +376,31 @@ export default function PremiumTab() {
       checklist: [],
     },
   ];
+
+  // Offline fallback, in preference order:
+  //  1. the shared active-plan catalog (utils/upgradeNavigation.ts) — its own AsyncStorage cache
+  //     was last written from /subscriptionPlans/getAllActivePlans, so it already reflects the
+  //     client's isActive flags and won't resurrect a deactivated tier here;
+  //  2. the hardcoded 6-row list above, only if that catalog has nothing at all.
+  const catalogPlans = getActivePlansSync();
+  const defaultPlans: Plan[] = catalogPlans.length > 0
+    ? catalogPlans.map((p, i) => ({
+      id: i + 1,
+      title: p.title,
+      price: p.price,
+      originalPrice: '',
+      period: p.period ? (p.period.startsWith('/') ? p.period : `/${p.period}`) : '',
+      discount: '',
+      savings: '',
+      isActive: true,
+      isPopular: false,
+      // Checklist + description come from the live /planFeatures/matrix call, which is exactly
+      // what failed if we're here — the card omits those sections rather than showing stale data.
+      checklist: [],
+      tagline: p.tagline,
+      planDescription: '',
+    }))
+    : hardcodedDefaultPlans;
 
   if (loading) {
     return (
@@ -610,7 +567,7 @@ export default function PremiumTab() {
           },
         });
       },
-      'Continue to Payment',
+      'Continue',
       'Cancel'
     );
   };

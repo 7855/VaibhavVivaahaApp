@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Swiper from "react-native-swiper";
 import { Box, Input, NativeBaseProvider, Text as TextNB, Button as ButtonNB, HStack, FlatList } from "native-base";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import moment from 'moment'; // Import the moment library for date formatting
 import { SelectList } from 'react-native-dropdown-select-list'
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,112 @@ import { useMasterData } from "../contexts/MasterDataContext";
 import { usePopup } from "../contexts/PopupContext";
 type GetstartProps = {
   onStart: () => void;
+};
+
+interface CustomModalPickerProps {
+  label: string;
+  placeholder: string;
+  data: { id: string | number; value: string }[];
+  selected: string;
+  onSelect: (val: string) => void;
+  /** Renders the field greyed out and non-tappable. Used for dependent fields (e.g. Subcaste
+   *  before a Caste is chosen) so the control stays visible instead of vanishing. */
+  disabled?: boolean;
+  /** Shown in place of the placeholder while disabled, to say WHY it can't be used yet. */
+  disabledHint?: string;
+}
+
+const CustomModalPicker: React.FC<CustomModalPickerProps> = ({
+  label,
+  placeholder,
+  data,
+  selected,
+  onSelect,
+  disabled = false,
+  disabledHint,
+}) => {
+  const [visible, setVisible] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredData = data.filter((item) =>
+    item.value.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <View style={{ marginBottom: 8 }}>
+      {/* Label */}
+      <TextNB style={styles.fieldLabel}>{label}</TextNB>
+
+      {/* Selected Value Box */}
+      <TouchableOpacity
+        style={[styles.inputBox, disabled && styles.inputBoxDisabled]}
+        onPress={() => setVisible(true)}
+        disabled={disabled}
+        activeOpacity={disabled ? 1 : 0.7}
+      >
+        <TextNB style={{ color: disabled ? "#b0b7c3" : selected ? "#000" : "#999", fontSize: 14, fontFamily: 'Rubik-Regular' }}>
+          {disabled ? (disabledHint || placeholder) : (selected || placeholder)}
+        </TextNB>
+        <Ionicons name="chevron-down" size={16} color={disabled ? "#b0b7c3" : "#0f1724"} />
+      </TouchableOpacity>
+
+      {/* Modal */}
+      <Modal visible={visible} transparent animationType="slide">
+        <View style={styles.overlay}>
+          <View style={styles.modalContent}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TextNB style={styles.modalTitle}>{label}</TextNB>
+              <TouchableOpacity onPress={() => setVisible(false)}>
+                <Ionicons name="close" size={22} color="#0f1724" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Input */}
+            <View style={styles.searchBox}>
+              <Ionicons
+                name="search"
+                size={18}
+                color="#1F7FE5"
+                style={{ marginRight: 5 }}
+              />
+              <TextInput
+                placeholder="Search"
+                placeholderTextColor="#999"
+                value={search}
+                onChangeText={setSearch}
+                style={{
+                  flex: 1, height: 40,
+                  fontSize: 14,
+                  fontFamily: 'Rubik-Regular',
+                  padding: 5,
+                }}
+              />
+            </View>
+
+            {/* List */}
+            <FlatList
+              data={filteredData}
+              keyExtractor={(item, index) => item.value || index.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.option}
+                  onPress={() => {
+                    onSelect(item.value);
+                    setVisible(false);
+                    setSearch("");
+                  }}
+                >
+                  <TextNB>{item.value}</TextNB>
+                </TouchableOpacity>
+              )}
+            />
+
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 };
 
 type CasteOption = {
@@ -54,6 +160,11 @@ const STEP_LABELS = ['Basic Info', 'Account Setup'];
 
 export default function SignUp({ onStart }: GetstartProps) {
   const popup = usePopup();
+  // The SafeAreaView below deliberately omits the 'bottom' edge (the Swiper needs the full
+  // height), so the page-nav buttons sat under Android's gesture bar / nav buttons on devices
+  // with a bottom inset. Pad by the real inset instead of a fixed 28.
+  const insets = useSafeAreaInsets();
+  const navBottomPad = Math.max(28, insets.bottom + 16);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(new Date());
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -66,7 +177,8 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [education, setEducation] = useState('');
   const [occupation, setOccupation] = useState('');
   const [caste, setCaste] = useState('');
-  const { state: masterData, setMasterData } = useMasterData();
+  const [subcaste, setSubcaste] = useState('');
+  const { state: masterData, setMasterData, getSubcastesForCaste } = useMasterData();
   const [educationOptions, setEducationOptions] = useState<Array<{ id: string, value: string }>>([]);
   const [incomeOptions, setIncomeOptions] = useState<Array<{ id: string, value: string, label: string, numericValue: string }>>([]);
   const [employmentOptions, setEmploymentOptions] = useState<Array<{ id: string, value: string, label: string }>>([]);
@@ -104,6 +216,21 @@ export default function SignUp({ onStart }: GetstartProps) {
   };
   const [errors, setErrors] = useState<FormErrors>({});
 
+  // Subcaste is optional and strictly dependent on the selected caste. The `subcastes` table is
+  // empty today, so this resolves to [] for every caste and the field below never renders —
+  // signup looks and behaves exactly as it did before.
+  const selectedCasteId = React.useMemo(
+    () => allCaste.find((c: any) => c.casteName === caste || c.casteCode === caste)?.id ?? null,
+    [allCaste, caste]
+  );
+  const subcasteOptions = React.useMemo(
+    () => (getSubcastesForCaste?.(selectedCasteId) || []).map((sc: any) => ({
+      id: String(sc.id),
+      value: sc.subcasteName,
+    })),
+    [getSubcastesForCaste, selectedCasteId]
+  );
+
   const validateFormData = () => {
     const fieldLabels: Record<string, string> = {
       firstName: 'First Name',
@@ -111,6 +238,7 @@ export default function SignUp({ onStart }: GetstartProps) {
       dob: 'Date of Birth',
       gender: 'Gender',
       caste: 'Caste',
+      subcaste: 'Subcaste',
       mobile: 'Mobile Number',
       age: 'Age',
       email: 'Email',
@@ -132,6 +260,7 @@ export default function SignUp({ onStart }: GetstartProps) {
       dob,
       gender: selectedGender,
       caste,
+      subcaste,
       mobile,
       age,
       email,
@@ -143,7 +272,13 @@ export default function SignUp({ onStart }: GetstartProps) {
       confirmPin,
     };
 
-    const requiredFields = Object.keys(formData);
+    // Subcaste is required only for castes that actually have one. Castes with a real list all
+    // include an "Others" option, so nobody is forced to guess — but a caste-level choice like
+    // FREE CASTE BAR ("any caste is fine") has no subcastes at all, and demanding one there would
+    // make the form impossible to submit. Mirrors the same rule on the backend's createUser.
+    const requiredFields = Object.keys(formData).filter(
+      (field) => field !== 'subcaste' || subcasteOptions.length > 0
+    );
 
     const missingFields = requiredFields
       .filter(
@@ -175,11 +310,25 @@ export default function SignUp({ onStart }: GetstartProps) {
     return true;
   };
 
+  // The dropdown lists this screen actually needs out of the keyValue bag.
+  // The old guard was `if (!Object.keys(masterData).length)` — "is there ANYTHING cached" — which
+  // silently broke Education / City / Employing In: MasterProvider seeds the same `masterData`
+  // cache with just `{castes, subcastes}` (from /caste/*, not keyValue), so on any launch where
+  // that landed first the object was non-empty and this fetch was skipped entirely, leaving those
+  // three lists undefined forever. Check for the specific keys instead.
+  const REQUIRED_MASTER_KEYS = ['education', 'districts', 'employingIn', 'annualIncomeRegister'];
+  const masterFetchAttempted = useRef(false);
+
   useEffect(() => {
-    if (!Object.keys(masterData || {}).length) {
-      loadMasterData(setMasterData);
+    const missing = REQUIRED_MASTER_KEYS.some((k) => !Array.isArray(masterData?.[k]));
+    // The ref stops a failed/partial response from re-triggering this on every masterData change.
+    if (missing && !masterFetchAttempted.current) {
+      masterFetchAttempted.current = true;
+      loadMasterData(setMasterData).catch((e: any) =>
+        console.warn('[sign-up] Failed to load master data:', e?.message || e)
+      );
     }
-  }, []);
+  }, [masterData]);
 
   // Update dropdown options when masterData changes
   useEffect(() => {
@@ -344,6 +493,11 @@ export default function SignUp({ onStart }: GetstartProps) {
       employingIn: employmentStatus,
       gender: selectedGender.toUpperCase() == "MALE" ? "M" : "F",
       casteId: parseInt(selectedCasteData.id),
+      // Optional — null whenever the caste has no subcastes (today: always) or the user
+      // skipped the field. Never sent as a name; the backend expects the numeric id.
+      subcasteId: subcaste
+        ? (Number(subcasteOptions.find((opt: { id: string; value: string }) => opt.value === subcaste)?.id) || null)
+        : null,
       pin,
       location: selectedCity,
       age,
@@ -458,102 +612,6 @@ export default function SignUp({ onStart }: GetstartProps) {
     setDobDisplay(moment(candidate).format("DD MMM YYYY"));
   };
 
-  interface CustomModalPickerProps {
-    label: string;
-    placeholder: string;
-    data: { id: string | number; value: string }[];
-    selected: string;
-    onSelect: (val: string) => void;
-  }
-
-  const CustomModalPicker: React.FC<CustomModalPickerProps> = ({
-    label,
-    placeholder,
-    data,
-    selected,
-    onSelect,
-  }) => {
-    const [visible, setVisible] = useState(false);
-    const [search, setSearch] = useState("");
-
-    const filteredData = data.filter((item) =>
-      item.value.toLowerCase().includes(search.toLowerCase())
-    );
-
-    return (
-      <View style={{ marginBottom: 8 }}>
-        {/* Label */}
-        <TextNB style={styles.fieldLabel}>{label}</TextNB>
-
-        {/* Selected Value Box */}
-        <TouchableOpacity
-          style={styles.inputBox}
-          onPress={() => setVisible(true)}
-        >
-          <TextNB style={{ color: selected ? "#000" : "#999", fontSize: 14, fontFamily: 'Rubik-Regular' }}>
-            {selected || placeholder}
-          </TextNB>
-          <Ionicons name="chevron-down" size={16} color="#0f1724" />
-        </TouchableOpacity>
-
-        {/* Modal */}
-        <Modal visible={visible} transparent animationType="slide">
-          <View style={styles.overlay}>
-            <View style={styles.modalContent}>
-              {/* Header */}
-              <View style={styles.header}>
-                <TextNB style={styles.modalTitle}>{label}</TextNB>
-                <TouchableOpacity onPress={() => setVisible(false)}>
-                  <Ionicons name="close" size={22} color="#0f1724" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Search Input */}
-              <View style={styles.searchBox}>
-                <Ionicons
-                  name="search"
-                  size={18}
-                  color="#1F7FE5"
-                  style={{ marginRight: 5 }}
-                />
-                <TextInput
-                  placeholder="Search"
-                  placeholderTextColor="#999"
-                  value={search}
-                  onChangeText={setSearch}
-                  style={{
-                    flex: 1, height: 40,
-                    fontSize: 14,
-                    fontFamily: 'Rubik-Regular',
-                    padding: 5,
-                  }}
-                />
-              </View>
-
-              {/* List */}
-              <FlatList
-                data={filteredData}
-                keyExtractor={(item, index) => item.value || index.toString()}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.option}
-                    onPress={() => {
-                      onSelect(item.value);
-                      setVisible(false);
-                      setSearch("");
-                    }}
-                  >
-                    <TextNB>{item.value}</TextNB>
-                  </TouchableOpacity>
-                )}
-              />
-
-            </View>
-          </View>
-        </Modal>
-      </View>
-    );
-  };
 
   return (
     <NativeBaseProvider>
@@ -625,7 +683,7 @@ export default function SignUp({ onStart }: GetstartProps) {
             removeClippedSubviews={false}
             onIndexChanged={(index) => setActiveStep(index)}
           >
-            {/* Page 1 — Basic Info: identity + contact, up through Education */}
+            {/* Page 1 — Basic Info: identity + contact, ending at Caste/Subcaste */}
             <View style={{ flex: 1 }}>
               <KeyboardAwareScrollView
                 style={{ flex: 1 }}
@@ -864,7 +922,30 @@ export default function SignUp({ onStart }: GetstartProps) {
                     placeholder="Select Caste"
                     data={casteList}
                     selected={caste}
-                    onSelect={(val) => setCaste(val)}
+                    onSelect={(val) => {
+                      setCaste(val);
+                      // A subcaste belongs to exactly one caste — a leftover selection from the
+                      // previous caste would be invalid (and the backend rejects it).
+                      setSubcaste('');
+                    }}
+                  />
+
+                  {/* Subcaste — dependent on Caste and REQUIRED. Always visible so the form's
+                      shape doesn't shift as the user fills it in; disabled (greyed, non-tappable)
+                      until a caste is chosen. Requiring it is only safe because every caste has an
+                      "Others" option for members who don't know theirs — see the seed data. */}
+                  <CustomModalPicker
+                    label="Subcaste"
+                    placeholder="Select Subcaste"
+                    data={subcasteOptions}
+                    selected={subcaste}
+                    onSelect={(val) => setSubcaste(val)}
+                    disabled={subcasteOptions.length === 0}
+                    disabledHint={
+                      !caste
+                        ? 'Select a caste first'
+                        : 'No subcastes for this caste'
+                    }
                   />
 
                   {/* Mobile Number - 10 digits only */}
@@ -993,19 +1074,11 @@ export default function SignUp({ onStart }: GetstartProps) {
                     </Box>
                   </HStack>
 
-                  {/* Education */}
-                  <CustomModalPicker
-                    label="Education"
-                    placeholder="Select Your Education"
-                    data={educationOptions}
-                    selected={education}
-                    onSelect={(val) => setEducation(val)}
-                  />
                 </View>
               </KeyboardAwareScrollView>
 
               {/* Single Next button — this is the first page, nothing to go Back to. */}
-              <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 }}>
+              <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 12, paddingBottom: navBottomPad }}>
                 <ButtonNB style={styles.navPrimaryButton} onPress={() => swiperRef.current?.scrollBy(1)}>
                   <HStack space={2} alignItems="center">
                     <TextNB style={{ color: '#fff', fontSize: 14, fontFamily: 'Rubik-Bold' }}>Next</TextNB>
@@ -1015,7 +1088,7 @@ export default function SignUp({ onStart }: GetstartProps) {
               </View>
             </View>
 
-            {/* Page 2 — Account Setup: Occupation through PIN. "What are you passionate about"
+            {/* Page 2 — Account Setup: Education + Occupation through PIN. "What are you passionate about"
                 (interests) was removed from signup entirely — it already has a full working
                 edit path post-signup (Profile tab → Interests & Hobbies), so nothing new needed
                 there; requiring it before account creation was unnecessary friction. */}
@@ -1035,6 +1108,16 @@ export default function SignUp({ onStart }: GetstartProps) {
                 enableResetScrollToCoords={false}
               >
                 <View>
+                  {/* Education — moved here from Page 1 so Page 1 ends at Caste/Subcaste
+                      (identity + contact) and Page 2 carries the "what you do" fields. */}
+                  <CustomModalPicker
+                    label="Education"
+                    placeholder="Select Your Education"
+                    data={educationOptions}
+                    selected={education}
+                    onSelect={(val) => setEducation(val)}
+                  />
+
                   {/* Occupation Field */}
                   <Box style={styles.inputContainer}>
                     <TextNB style={styles.fieldLabel}>Occupation</TextNB>
@@ -1180,7 +1263,7 @@ export default function SignUp({ onStart }: GetstartProps) {
               {/* Fresh footer design for the final step — a compact circular Back button beside
                   a full-width gradient "Create Account" CTA, distinct from page 1's simple
                   right-aligned Next pill (both pages used to share the same two-30%-pill row). */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, paddingBottom: navBottomPad }}>
                 <TouchableOpacity
                   onPress={() => swiperRef.current?.scrollBy(-1)}
                   activeOpacity={0.8}
@@ -1425,6 +1508,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
+  },
+
+  // Dependent fields (Subcaste before a Caste is picked) stay visible but read as inert —
+  // flat grey fill, no shadow, muted border.
+  inputBoxDisabled: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#e2e8f0",
+    shadowOpacity: 0,
+    elevation: 0,
   },
   overlay: {
     flex: 1,
