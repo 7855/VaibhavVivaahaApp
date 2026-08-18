@@ -56,7 +56,10 @@ export default function AddOnPaymentScreen() {
   // Play Store gating. PaymentScreen has honoured PAYMENT_MODE since 2026-05-06, but this
   // add-on screen (the Profile Boost purchase) never did — it showed the QR/UPI flow
   // unconditionally, which is exactly the off-platform-payment surface the flag exists to hide.
-  const [paymentMode, setPaymentMode] = useState<'LOADING' | 'QR' | 'CONTACT'>('LOADING');
+  // INFO is the review-safe mode: no price and no purchase path anywhere, including for add-ons
+  // like Profile Boost. An add-on is digital content just like a membership, so leaving a ₹ amount
+  // and a UPI flow here would reintroduce exactly the funnel INFO exists to remove.
+  const [paymentMode, setPaymentMode] = useState<'LOADING' | 'QR' | 'CONTACT' | 'INFO'>('LOADING');
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
   const [hasPending, setHasPending] = useState(false);
 
@@ -69,7 +72,7 @@ export default function AddOnPaymentScreen() {
       const mode = await resolvePaymentMode();
       if (!mounted) return;
       setPaymentMode(mode);
-      if (mode === 'CONTACT') {
+      if (mode === 'CONTACT' || mode === 'INFO') {
         try {
           const res = await userApi.getAdminContact();
           const raw = res?.data?.data?.valueColumn;
@@ -171,7 +174,7 @@ export default function AddOnPaymentScreen() {
     );
   }
 
-  if (paymentMode === 'CONTACT') {
+  if (paymentMode === 'CONTACT' || paymentMode === 'INFO') {
     const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
     return (
       <>
@@ -184,6 +187,7 @@ export default function AddOnPaymentScreen() {
           planTitle={featureTitle}
           planPrice={price}
           planPeriod="one-time"
+          infoOnly={paymentMode === 'INFO'}
           encodedUserId={userData?.userId || null}
           defaultName={fullName}
           defaultMobile={(userData as any)?.mobileNumber || ''}

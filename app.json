@@ -28,9 +28,7 @@
         "backgroundColor": "#410101"
       },
       "package": "com.vaibhavvivaaha.app",
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ],
+      "permissions": [],
       "intentFilters": [
         {
           "action": "VIEW",

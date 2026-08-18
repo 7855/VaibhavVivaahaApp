@@ -29,6 +29,12 @@ import { usePathname } from 'expo-router';
 import userApi from '../app/(root)/api/userApi';
 import dayjs from 'dayjs';
 
+// Served from R2 instead of the bundle — the support avatar is decorative and rarely seen, so
+// the ~size win outweighs the harmless failure mode (an empty circle on a dead network). Core
+// chrome (login logo, default avatars, chat background) deliberately stays bundled.
+const SUPPORT_ROBOT = { uri: 'https://pub-3aaa1581c6fd471380626751b052388e.r2.dev/appImages/supportrobot.png' };
+
+
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const FAB_SIZE = 72;
 const DRAG_THRESHOLD = 6;
@@ -398,7 +404,7 @@ const SupportFAB: React.FC = () => {
             {/* Robot image */}
             <View style={S.fabGrad}>
               <Image
-                source={require('../assets/images/supportrobot.png')}
+                source={SUPPORT_ROBOT}
                 style={S.fabGif}
               />
             </View>
@@ -436,7 +442,7 @@ const SupportFAB: React.FC = () => {
             <View style={S.ttHeader}>
               <View style={S.ttHeaderLeft}>
                 <View style={S.ttAvatarWrap}>
-                  <Image source={require('../assets/images/supportrobot.png')} style={S.ttAvatar} />
+                  <Image source={SUPPORT_ROBOT} style={S.ttAvatar} />
                   <View style={S.ttOnlineDot} />
                 </View>
                 <View style={S.ttHeaderText}>
@@ -559,7 +565,7 @@ const SupportFAB: React.FC = () => {
                   showsVerticalScrollIndicator={false}
                   ListEmptyComponent={
                     <View style={S.emptyWrap}>
-                      <Image source={require('../assets/images/supportrobot.png')} style={S.emptyBot} />
+                      <Image source={SUPPORT_ROBOT} style={S.emptyBot} />
                       <Text style={S.emptyTitle}>
                         {activeTicket ? 'Continue the conversation' : 'Hi there! 👋'}
                       </Text>

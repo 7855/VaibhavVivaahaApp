@@ -48,7 +48,9 @@ import { NativeBaseProvider } from 'native-base';
 import RelationshipManagerView, { type AdminContact } from '../../../components/RelationshipManagerView';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type PaymentMode = 'QR' | 'CONTACT' | 'LOADING';
+// 'INFO' is the review-safe mode: no QR, no amount. It renders the same assisted view as
+// CONTACT, minus the price — see PaymentMode in utils/upgradeNavigation.ts.
+type PaymentMode = 'QR' | 'CONTACT' | 'INFO' | 'LOADING';
 const PAYMENT_MODE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const TIMER_DURATION = 30 * 60; // 30 minutes in seconds
@@ -190,6 +192,11 @@ const PaymentScreen = () => {
 
     // Payment mode toggle (Play Store-safe gating) — see virtual-crunching-swan plan
     const [paymentMode, setPaymentMode] = useState<PaymentMode>('LOADING');
+    // Remote QR image URL from the PAYMENT_QR keyValue row — lets admin swap the UPI QR without
+    // an app release. null = keep the bundled image; a remote load error also falls back to it,
+    // because the payment screen is the one place an image must never silently fail.
+    const [qrUrl, setQrUrl] = useState<string | null>(null);
+    const [qrLoadFailed, setQrLoadFailed] = useState(false);
     const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
 
     useEffect(() => {
@@ -215,12 +222,19 @@ const PaymentScreen = () => {
                 const [modeRes, contactRes] = await Promise.all([
                     userApi.getPaymentMode().catch((e) => { console.warn('[PaymentScreen] getPaymentMode failed:', e?.message || e); return null; }),
                     userApi.getAdminContact().catch((e) => { console.warn('[PaymentScreen] getAdminContact failed:', e?.message || e); return null; }),
+                    // QR url is self-contained (sets state in its own .then) — appended LAST so
+                    // the [modeRes, contactRes] destructure above keeps its positions.
+                    userApi.getKeyValueByKey('PAYMENT_QR').then((r: any) => {
+                        const raw = r?.data?.data?.valueColumn;
+                        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                        if (parsed?.imageUrl) setQrUrl(parsed.imageUrl);
+                    }).catch(() => null),
                 ]);
                 let mode: PaymentMode = 'CONTACT'; // Play Store-safe fallback
                 if (modeRes?.data?.data?.valueColumn) {
                     try {
                         const parsed = JSON.parse(modeRes.data.data.valueColumn);
-                        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT') mode = parsed.mode;
+                        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT' || parsed?.mode === 'INFO') mode = parsed.mode;
                         else console.warn('[PaymentScreen] PAYMENT_MODE value has an unexpected shape:', modeRes.data.data.valueColumn);
                     } catch (e) {
                         console.warn('[PaymentScreen] Failed to parse PAYMENT_MODE valueColumn:', modeRes.data.data.valueColumn, e);
@@ -444,13 +458,14 @@ const PaymentScreen = () => {
     }
 
     // CONTACT mode: show "Talk to a Relationship Manager" view (Play Store-safe)
-    if (paymentMode === 'CONTACT') {
+    if (paymentMode === 'CONTACT' || paymentMode === 'INFO') {
         const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
         return (
             <RelationshipManagerView
                 planTitle={planTitle}
                 planPrice={planPrice}
                 planPeriod={planPeriod}
+                infoOnly={paymentMode === 'INFO'}
                 encodedUserId={userData?.userId || null}
                 defaultName={fullName}
                 defaultMobile={(userData as any)?.mobileNumber || ''}
@@ -731,7 +746,10 @@ const PaymentScreen = () => {
                             <View style={styles.qrSection}>
                                 <View style={styles.qrWrapper}>
                                     <Image
-                                        source={require('../../../assets/images/payment_qr.png')}
+                                        source={qrUrl && !qrLoadFailed
+                                            ? { uri: qrUrl }
+                                            : require('../../../assets/images/payment_qr.png')}
+                                        onError={() => setQrLoadFailed(true)}
                                         style={styles.qrImage}
                                         resizeMode="contain"
                                         defaultSource={require('../../../assets/images/payment_qr.png')}
@@ -1334,7 +1352,6 @@ const styles = StyleSheet.create({
     },
     upiIdText: {
         fontSize: 15,
-        fontFamily: 'Rubik-Bold',
         color: '#130001',
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },

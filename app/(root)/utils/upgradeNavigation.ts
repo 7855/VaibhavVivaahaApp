@@ -254,6 +254,22 @@ export function useActivePlans(): { plans: UpgradePlanOption[]; loading: boolean
   return { plans, loading };
 }
 
+/**
+ * How membership is presented and paid for. Backed by the PAYMENT_MODE keyValue row.
+ *
+ * - 'QR'      self-serve UPI/QR checkout inside the app.
+ * - 'CONTACT' no checkout; prices are shown and the member is routed to a relationship-manager
+ *             callback form. Payment happens off-app and an admin activates the plan.
+ * - 'INFO'    informational only — the plan FEATURES are shown but no prices and no purchase
+ *             call-to-action anywhere. Google Play forbids leading users toward a payment method
+ *             other than Play Billing for digital content, and a visible price tag next to a
+ *             "call us to buy" button is exactly that funnel. INFO removes the funnel while
+ *             keeping the feature comparison, which is not itself a purchase flow.
+ *             ⚠️ Nothing about the admin-activates-the-plan workflow changes in this mode; it
+ *             only changes what the app displays.
+ */
+export type PaymentMode = 'QR' | 'CONTACT' | 'INFO';
+
 const PAYMENT_MODE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — same key/TTL as PaymentScreen.tsx
 
 // This decides which SCREEN a user lands on (self-serve QR checkout vs. the assisted "contact us"
@@ -263,14 +279,14 @@ const PAYMENT_MODE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — same key/TTL as P
 // to the stale destination for up to 5 minutes after the change. Always fetch fresh now; the
 // cache is only a fallback if the network call itself fails, and still gets written so
 // PaymentScreen.tsx's own optimistic first-paint has something recent to show.
-export async function resolvePaymentMode(): Promise<'QR' | 'CONTACT'> {
+export async function resolvePaymentMode(): Promise<PaymentMode> {
   try {
     const modeRes = await userApi.getPaymentMode();
-    let mode: 'QR' | 'CONTACT' = 'CONTACT'; // Play Store-safe fallback
+    let mode: PaymentMode = 'CONTACT'; // Play Store-safe fallback
     if (modeRes?.data?.data?.valueColumn) {
       try {
         const parsed = JSON.parse(modeRes.data.data.valueColumn);
-        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT') mode = parsed.mode;
+        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT' || parsed?.mode === 'INFO') mode = parsed.mode;
         else console.warn('[upgradeNavigation] PAYMENT_MODE value has an unexpected shape:', modeRes.data.data.valueColumn);
       } catch (e) {
         console.warn('[upgradeNavigation] Failed to parse PAYMENT_MODE valueColumn:', modeRes.data.data.valueColumn, e);
@@ -307,8 +323,8 @@ export async function resolvePaymentMode(): Promise<'QR' | 'CONTACT'> {
  *   regardless of PAYMENT_MODE.
  * - Free users go to the real plan list (self-serve) when PAYMENT_MODE is QR, since PremiumTab →
  *   PaymentScreen already renders the QR/UPI checkout in that mode. When PAYMENT_MODE is CONTACT
- *   (Play Store-safe default), even a first-time Free purchase has no self-serve checkout, so they
- *   land on the same assisted picker instead of a plan list that dead-ends at a form anyway.
+ *   (Play Store-safe default) or INFO, even a first-time Free purchase has no self-serve checkout,
+ *   so they land on the same assisted picker instead of a plan list that dead-ends at a form.
  */
 export function buildUpgradeAction(opts: {
   planTitle?: string | null;
@@ -326,7 +342,9 @@ export function buildUpgradeAction(opts: {
       return;
     }
     const mode = await resolvePaymentMode();
-    if (mode === 'CONTACT') {
+    // INFO behaves like CONTACT for routing — the difference is what those screens render,
+    // not where the member lands. Only QR has a self-serve checkout to send them to.
+    if (mode === 'CONTACT' || mode === 'INFO') {
       router.push({
         pathname: '/(root)/screens/UpgradePlanScreen',
         params: { featureName, minPlan: minPlan || '', freeUser: '1' },

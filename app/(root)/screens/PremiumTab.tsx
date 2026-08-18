@@ -19,7 +19,7 @@ import userApi from '../api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
-import { getActivePlansSync } from '../utils/upgradeNavigation';
+import { getActivePlansSync, resolvePaymentMode } from '../utils/upgradeNavigation';
 import { buildChecklistByPlan } from '../utils/planChecklist';
 
 // Same soft blue backdrop used app-wide (explore.tsx / profile.tsx) instead of a standalone
@@ -113,11 +113,13 @@ interface PlanCardProps {
   scrollX: SharedValue<number>;
   isCurrentPlan: boolean;
   onUpgrade: () => void;
+  /** PAYMENT_MODE === 'INFO' — show the feature comparison but no price and no purchase CTA. */
+  infoOnly: boolean;
 }
 
 // Extracted so each card can drive its own scroll-linked scale/opacity + popular-badge pulse via
 // Reanimated hooks (which must live inside a real component, not an inline renderItem closure).
-function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade }: PlanCardProps) {
+function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade, infoOnly }: PlanCardProps) {
   const tier = getTierKey(plan.title);
   const tierBadge = getTierBadge(tier);
   const TierIcon = getTierIcon(tier);
@@ -171,15 +173,25 @@ function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade }: PlanCardPr
           </View>
         </View>
 
-        {/* Money block */}
-        <View style={styles.priceBlock}>
-          <View style={styles.priceRow}>
-            {plan.originalPrice ? <Text style={styles.originalPrice}>{plan.originalPrice}</Text> : null}
-            <Text style={styles.price}>{plan.price}</Text>
-            {plan.period ? <Text style={styles.periodInline}>{plan.period}</Text> : null}
+        {/* Money block — suppressed entirely in INFO mode. Google Play treats a visible price
+            beside an off-platform "buy" path as steering users away from Play Billing, so INFO
+            shows the plan's duration only and never an amount. */}
+        {infoOnly ? (
+          plan.period ? (
+            <View style={styles.priceBlock}>
+              <Text style={styles.infoPeriod}>{plan.period.replace(/^\//, '')}</Text>
+            </View>
+          ) : null
+        ) : (
+          <View style={styles.priceBlock}>
+            <View style={styles.priceRow}>
+              {plan.originalPrice ? <Text style={styles.originalPrice}>{plan.originalPrice}</Text> : null}
+              <Text style={styles.price}>{plan.price}</Text>
+              {plan.period ? <Text style={styles.periodInline}>{plan.period}</Text> : null}
+            </View>
+            {plan.pricePerDay ? <Text style={styles.pricePerDay}>{plan.pricePerDay}</Text> : null}
           </View>
-          {plan.pricePerDay ? <Text style={styles.pricePerDay}>{plan.pricePerDay}</Text> : null}
-        </View>
+        )}
 
         {plan.planDescription ? <Text style={styles.planDescription}>{plan.planDescription}</Text> : null}
 
@@ -208,6 +220,12 @@ function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade }: PlanCardPr
           <View style={styles.ghostButton}>
             <Text style={styles.ghostButtonText}>Your Current Plan</Text>
           </View>
+        ) : infoOnly ? (
+          // No purchase call-to-action in INFO mode — this is a feature comparison, not a
+          // checkout funnel. Members who want a membership contact the team out of band.
+          <View style={styles.ghostButton}>
+            <Text style={styles.ghostButtonText}>Contact us to learn about membership</Text>
+          </View>
         ) : (
           <TouchableOpacity style={styles.upgradeButton} onPress={onUpgrade} activeOpacity={0.9}>
             <LinearGradient colors={['#1F7FE5', '#1862b8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.upgradeGradient}>
@@ -218,7 +236,9 @@ function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade }: PlanCardPr
 
         <View style={styles.trustLine}>
           <Shield size={12} color="#94a3b8" strokeWidth={2} />
-          <Text style={styles.trustLineText}>Secure payment · Cancel anytime</Text>
+          <Text style={styles.trustLineText}>
+            {infoOnly ? 'Verified profiles · Manual verification' : 'Secure payment · Cancel anytime'}
+          </Text>
         </View>
       </Animated.View>
     </View>
@@ -226,6 +246,10 @@ function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade }: PlanCardPr
 }
 
 export default function PremiumTab() {
+  // Declared here with the other top-level hooks on purpose: this component has four early
+  // `return`s below (loading / error / PENDING payment / already-subscribed) and a hook added
+  // after any of them breaks hook order the moment a branch flips. See CLAUDE.md section 17.
+  const [infoOnly, setInfoOnly] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<number | null>(1);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,6 +259,14 @@ export default function PremiumTab() {
   const { userData } = useUserData();
   const { subscriptionData } = useSubscription() || {};
   const popup = usePopup();
+  useEffect(() => {
+    let alive = true;
+    resolvePaymentMode()
+      .then((m) => { if (alive) setInfoOnly(m === 'INFO'); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<any>(null);
 
@@ -614,6 +646,7 @@ export default function PremiumTab() {
             scrollX={scrollX}
             isCurrentPlan={item.title === currentPlanTitle}
             onUpgrade={() => handleUpgradePress(item)}
+            infoOnly={infoOnly}
           />
         )}
       />
@@ -803,6 +836,12 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontFamily: 'Rubik-ExtraBold',
     color: '#0f1724',
+  },
+  infoPeriod: {
+    fontSize: 15,
+    fontFamily: 'Rubik-Medium',
+    color: '#0f1724',
+    textTransform: 'capitalize',
   },
   pricePerDay: {
     fontSize: 11,

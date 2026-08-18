@@ -47,6 +47,9 @@ interface Props {
   planTitle: string;
   planPrice: string;
   planPeriod: string;
+  /** PAYMENT_MODE === 'INFO' — suppress the amount. The plan name and period still show; it is
+   *  the price beside a contact-to-buy form that reads as an off-platform purchase funnel. */
+  infoOnly?: boolean;
   encodedUserId: string | null;
   defaultName: string;
   defaultMobile: string;
@@ -80,6 +83,7 @@ const RelationshipManagerView: React.FC<Props> = ({
   planTitle,
   planPrice,
   planPeriod,
+  infoOnly = false,
   encodedUserId,
   defaultName,
   defaultMobile,
@@ -288,7 +292,7 @@ const RelationshipManagerView: React.FC<Props> = ({
               <Text style={s.planTitle}>{planTitle}</Text>
               <Text style={s.planPeriod}>{planPeriod}</Text>
             </View>
-            <Text style={s.planPrice}>{planPrice}</Text>
+            {!infoOnly && <Text style={s.planPrice}>{planPrice}</Text>}
           </View>
 
           {planFeatures.length > 0 && (

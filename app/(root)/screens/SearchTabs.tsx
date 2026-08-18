@@ -218,12 +218,13 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             throw new Error('User data not found');
         }
 
-        // Parse age range (format: "18 Yrs - 57 Yrs")
+        // Parse age range (format: "18 Yrs - 57 Yrs"). An untouched slider must mean
+        // "no age preference" — the full 18–60 span — not a hidden 28–32 filter.
         const [minAge, maxAge] = filters.ageRange
             ? filters.ageRange
                 .split(' - ')
                 .map(s => s.split(' ')[0])
-            : ['28', '32'];
+            : ['18', '60'];
 
         // Parse income range (format: "2 Lakhs - 9 Lakhs")
         let minAnnualIncome: string | null = null;

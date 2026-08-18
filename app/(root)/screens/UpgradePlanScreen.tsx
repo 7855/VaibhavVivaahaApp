@@ -16,6 +16,7 @@ import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
 import { PLAN_RANK, useActivePlans, type UpgradePlanOption } from '../utils/upgradeNavigation';
 import RelationshipManagerView, { type AdminContact } from '../../../components/RelationshipManagerView';
+import { resolvePaymentMode } from '../utils/upgradeNavigation';
 
 /**
  * Generalized "pick a plan, raise an admin request" screen — reached from any
@@ -41,6 +42,16 @@ export default function UpgradePlanScreen() {
   const popup = usePopup();
   const [selectedPlan, setSelectedPlan] = useState<UpgradePlanOption | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
+  // PAYMENT_MODE === 'INFO': show which plans exist and what they include, but never an
+  // amount and never a purchase path. See PaymentMode in utils/upgradeNavigation.ts.
+  const [infoOnly, setInfoOnly] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    resolvePaymentMode()
+      .then((m) => { if (alive) setInfoOnly(m === 'INFO'); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     userApi.getAdminContact()
@@ -80,6 +91,7 @@ export default function UpgradePlanScreen() {
       <RelationshipManagerView
         planTitle={selectedPlan.title}
         planPrice={selectedPlan.price}
+        infoOnly={infoOnly}
         planPeriod={selectedPlan.period}
         encodedUserId={userData?.userId || null}
         defaultName={fullName}
@@ -144,7 +156,7 @@ export default function UpgradePlanScreen() {
               <Text style={s.planPeriod}>{plan.period}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={s.planPrice}>{plan.price}</Text>
+              {!infoOnly && <Text style={s.planPrice}>{plan.price}</Text>}
               <View style={s.selectPill}>
                 <Text style={s.selectPillText}>Select</Text>
                 <Check size={12} color="#1F7FE5" strokeWidth={3} />

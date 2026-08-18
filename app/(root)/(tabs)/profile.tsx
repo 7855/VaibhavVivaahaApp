@@ -20,7 +20,7 @@ import { useUserData } from '../contexts/UserDataContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription } from '../contexts/subscriptionContext';
-import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage, resolvePaymentMode } from '../utils/upgradeNavigation';
 
 const { width: SW } = Dimensions.get('window');
 const CACHE_MS = 30000;
@@ -174,6 +174,17 @@ const ProfileScreen = () => {
   // Stats
   const [stats, setStats] = useState<any>(null);
   const [boostData, setBoostData] = useState<any>(null);
+  // PAYMENT_MODE === 'INFO': the Boost add-on is digital content, so its price and one-tap
+  // buy path are suppressed here too — this banner sits on the profile page, outside
+  // AddOnPaymentScreen, and was the last place a ₹ amount reached a purchase CTA.
+  const [infoOnly, setInfoOnly] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    resolvePaymentMode()
+      .then((m) => { if (alive) setInfoOnly(m === 'INFO'); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const [profileScore, setProfileScore] = useState<number>(0);
   const [requestQuota, setRequestQuota] = useState<any>(null);
   const [contactRevealStatus, setContactRevealStatus] = useState<any>(null);
@@ -321,6 +332,10 @@ const ProfileScreen = () => {
       return;
     }
     if (credits <= 0 && (cpm > 0 || boostData?.canBuyAddon)) {
+      if (infoOnly) {
+        popup.info('No boosts remaining', 'You have used all your boosts for this period. Contact our team to know more about extra boosts.');
+        return;
+      }
       popup.confirm('No boosts remaining', 'Buy an extra boost for ₹149?', () => {
         router.push({ pathname: '/(root)/screens/AddOnPaymentScreen', params: { featureTitle: 'Profile Boost', featureNote: 'BOOST_PURCHASE', price: '149', planId: '0', description: 'Top of search for 24h.' } } as any);
       }, 'Buy ₹149', 'Later');
@@ -795,7 +810,7 @@ const ProfileScreen = () => {
                     <Text style={s.boostSub}>Get 10× visibility for 24 hours</Text>
                   </View>
                   <View style={s.boostCta}>
-                    <Text style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{boostData?.remainingCredits > 0 ? `${boostData.remainingCredits} left` : '₹149'}</Text>
+                    <Text style={{ fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{boostData?.remainingCredits > 0 ? `${boostData.remainingCredits} left` : (infoOnly ? 'Info' : '₹149')}</Text>
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
