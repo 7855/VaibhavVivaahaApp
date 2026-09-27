@@ -72,6 +72,7 @@
     "react-native-appwrite": "^0.13.0",
     "react-native-axios": "^0.17.1",
     "react-native-base64": "^0.2.1",
+    "react-native-cashfree-pg-sdk": "^2.4.0",
     "react-native-deck-swiper": "^2.0.17",
     "react-native-dropdown-picker": "^5.4.6",
     "react-native-dropdown-select-list": "^2.0.5",
@@ -85,7 +86,6 @@
     "react-native-pager-view": "6.9.1",
     "react-native-paper": "^5.14.5",
     "react-native-popup-menu": "^0.18.0",
-    "react-native-razorpay": "^2.3.0",
     "react-native-reanimated": "~4.1.0",
     "react-native-reanimated-animated-accordion": "^0.3.0",
     "react-native-safe-area-context": "^5.4.0",
@@ -121,7 +121,6 @@
     "@types/jest": "^29.5.12",
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
-    "@types/react-native-razorpay": "^2.2.6",
     "@types/webpack": "^5.28.0",
     "@typescript-eslint/eslint-plugin": "^6.1.0",
     "@typescript-eslint/parser": "^6.1.0",
@@ -140,11 +139,6 @@
   },
   "private": true,
   "expo": {
-    "install": {
-      "exclude": [
-        "react-native-razorpay"
-      ]
-    },
     "doctor": {
       "reactNativeDirectoryCheck": {
         "listUnknownPackages": false,
@@ -174,7 +168,6 @@
           "react-native-base64",
           "react-native-dropdown-select-list",
           "react-native-elements",
-          "react-native-razorpay",
           "react-native-reanimated-animated-accordion",
           "react-native-stack",
           "react-native-vector-icons",

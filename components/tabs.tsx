@@ -9,6 +9,7 @@ import { ScrollView, Image as RNImage, Text as RNText } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import userApi from '../app/(root)/api/userApi';
+import { prepareImageForUpload } from '@/utils/uploadFile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePopup } from '../app/(root)/contexts/PopupContext';
 import { ALERT_TYPE, Dialog } from 'react-native-alert-notification';
@@ -334,28 +335,18 @@ const SecondRoute = ({
       });
 
       if (!result.canceled && result.assets?.length > 0) {
-        const imageUri = result.assets[0].uri;
-
-        // Get file details
-        const fileExtension = imageUri.split('.').pop() || 'jpg';
-        const mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`;
-        const fileName = `gallery_${Date.now()}.${fileExtension}`;
+        // Compress + correctly type the picked asset — same pipeline profile.tsx
+        // got in August. These handlers still uploaded the RAW 5-12MB camera
+        // original with a URI-sniffed MIME type: multi-minute uploads that died
+        // on the 10s axios timeout or nginx cap ("sometimes fails").
+        const filePart = await prepareImageForUpload(result.assets[0], 'gallery');
+        if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
 
         // Build FormData
         const formData = new FormData();
-        formData.append('file', {
-          uri: imageUri,
-          type: mimeType,
-          name: fileName,
-        } as any);
+        formData.append('file', filePart as any);
         const userIdConvert = atob(userId)
         formData.append('userId', userIdConvert);
-        console.log('Uploading gallery image:', {
-          uri: imageUri,
-          type: mimeType,
-          name: fileName,
-          userIdConvert,
-        });
 
         // Upload the image
         const response = await userApi.uploadGalleryImage(formData);
@@ -374,15 +365,17 @@ const SecondRoute = ({
       }
     } catch (error: any) {
       console.error('Error adding photo:', error);
-      // Check if axios error has response data with a user-friendly message
-      const errorMessage = error?.response?.data?.message || error?.message || 'Something went wrong while adding photo.';
+      // Keep the one meaningful business message (3-photo limit); everything
+      // else is raw backend/exception text and must not reach the member.
+      const errorMessage = error?.response?.data?.message || error?.message || '';
       if (errorMessage.toLowerCase().includes('maximum')) {
         Alert.alert('Maximum Limit Reached', errorMessage);
       } else {
+        console.warn('[upload] add photo raw error:', errorMessage);
         Toast.show({
           type: 'error',
-          text1: 'Error',
-          text2: errorMessage,
+          text1: 'Upload failed',
+          text2: 'Something went wrong. Please try again later.',
         });
       }
     }
@@ -400,7 +393,8 @@ const SecondRoute = ({
             popup.success('Deleted', 'Photo removed from your gallery.');
             refreshProfile?.();
           } else {
-            popup.error('Delete failed', res?.data?.message || 'Could not delete photo. Please try again.');
+            console.warn('[upload] delete photo:', res?.data?.message);
+            popup.error('Delete failed', 'Something went wrong. Please try again later.');
           }
         } catch (e) {
           popup.error('Delete failed', 'Network error. Please try again.');
@@ -606,7 +600,8 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
             setHoroscopeImage(null);
             refreshProfile?.();
           } else {
-            popup.error('Delete failed', res?.data?.message || 'Could not delete horoscope. Please try again.');
+            console.warn('[upload] delete horoscope:', res?.data?.message);
+            popup.error('Delete failed', 'Something went wrong. Please try again later.');
           }
         } catch (e) {
           popup.error('Delete failed', 'Network error. Please try again.');
@@ -634,29 +629,18 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
       });
 
       if (!result.canceled && result.assets?.length > 0) {
-        const imageUri = result.assets[0].uri;
-
-        // Get file details
-        const fileExtension = imageUri.split('.').pop() || 'jpg';
-        const mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`;
-        const fileName = `horoscope_${Date.now()}.${fileExtension}`;
+        // Compress + correctly type the picked asset — same pipeline profile.tsx
+        // got in August. These handlers still uploaded the RAW 5-12MB camera
+        // original with a URI-sniffed MIME type: multi-minute uploads that died
+        // on the 10s axios timeout or nginx cap ("sometimes fails").
+        const filePart = await prepareImageForUpload(result.assets[0], 'horoscope');
+        if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
 
         // Build FormData
         const formData = new FormData();
-        formData.append('file', {
-          uri: imageUri,
-          type: mimeType,
-          name: fileName,
-        } as any);
+        formData.append('file', filePart as any);
         const userIdConvert = atob(userId);
         formData.append('userId', userIdConvert);
-
-        console.log('Uploading horoscope image:', {
-          uri: imageUri,
-          type: mimeType,
-          name: fileName,
-          userId: userIdConvert,
-        });
 
         // Upload the image with loading
         setHoroscopeUploading(true);
@@ -697,20 +681,16 @@ const ThirdRoute = ({ data = [], refreshProfile, userId }: { data: any[]; refres
       });
 
       if (!result.canceled && result.assets?.length > 0) {
-        const imageUri = result.assets[0].uri;
-
-        // Get file details
-        const fileExtension = imageUri.split('.').pop() || 'jpg';
-        const mimeType = fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`;
-        const fileName = `horoscope_${Date.now()}.${fileExtension}`;
+        // Compress + correctly type the picked asset — same pipeline profile.tsx
+        // got in August. These handlers still uploaded the RAW 5-12MB camera
+        // original with a URI-sniffed MIME type: multi-minute uploads that died
+        // on the 10s axios timeout or nginx cap ("sometimes fails").
+        const filePart = await prepareImageForUpload(result.assets[0], 'horoscope');
+        if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
 
         // Build FormData
         const formData = new FormData();
-        formData.append('file', {
-          uri: imageUri,
-          type: mimeType,
-          name: fileName,
-        } as any);
+        formData.append('file', filePart as any);
         const userIdConvert = atob(userId);
         formData.append('userId', userIdConvert);
 

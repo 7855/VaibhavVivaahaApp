@@ -78,6 +78,16 @@ export default function RootLayout() {
   // so addScreenshotListener is the only mitigation there (screen recording on iOS
   // can't be detected or blocked by a managed Expo app at all).
   useEffect(() => {
+    // Escape hatch for producing Play Store screenshots. FLAG_SECURE makes the OS
+    // refuse every capture path — adb screencap, the hardware buttons, scrcpy and
+    // screen recording all come back blank — so store listings cannot be captured
+    // while the guard is on. Build once with EXPO_PUBLIC_ALLOW_SCREENSHOTS=true,
+    // take the shots, then discard that build. It defaults to OFF, so a normal
+    // release is protected exactly as before.
+    if (process.env.EXPO_PUBLIC_ALLOW_SCREENSHOTS === 'true') {
+      console.warn('[screen-capture] guard DISABLED — screenshot build. Do NOT ship this build.');
+      return;
+    }
     ScreenCapture.preventScreenCaptureAsync().catch(() => {});
     const subscription = ScreenCapture.addScreenshotListener(() => {
       Toast.show({

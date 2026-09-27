@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, Alert, Dimensions, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, Image, TextInput, TouchableOpacity, Alert, Dimensions, Platform, Keyboard, TouchableWithoutFeedback, BackHandler } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { webSocketService } from '../services/webSocketService';
@@ -32,6 +32,24 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
   const [mobileNumber, setMobileNumber] = useState('')
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
+
+  // Same reason as the removed back chevron: the signed-out user must never be
+  // able to reach the authenticated stack that is still sitting in history.
+  // Swallow Android's hardware back on this screen; returning true stops the
+  // default pop. (Exiting the app is handled by the OS from the true root.)
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        // Login is the root of the app: back should leave the app, which is what
+        // Android users expect here — NOT re-enter the signed-out session's
+        // leftover stack. Returning true (swallowing it) would leave back feeling
+        // broken, so exit explicitly instead.
+        BackHandler.exitApp();
+        return true;
+      });
+      return () => sub.remove();
+    }, [])
+  );
   const [isLoading, setIsLoading] = useState(false);
   // Presentation-only: tracks which field is focused so we can accent its border.
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -50,11 +68,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
 
   const handleLogin = async () => {
     try {
-      if (mobileNumber.length !== 10 || pin.length !== 4) return;
+      if (!identifierValid || pin.length !== 4) return;
       setIsLoading(true);
 
+      // The backend's login reads the identifier from `mobile` and routes by
+      // shape itself (contains '@' → email lookup, else mobile lookup).
       const request = {
-        mobile: mobileNumber,
+        mobile: mobileNumber.trim(),
         pin: pin
       }
       const response = await userApi.login(request)
@@ -69,7 +89,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
         }
         // Store only non-null values
         await AsyncStorage.setItem('userId', response.data.data.userId)
-        await AsyncStorage.setItem('mobileNumber', mobileNumber)
+        // The typed identifier may be an EMAIL now — persist the account's real
+        // mobile from the response (Change PIN and the self profile read this key).
+        await AsyncStorage.setItem('mobileNumber', String(response.data.data.mobile ?? ''))
 
         // Sync AuthContext's in-memory userId/isOnline state. AuthContext only ever reads
         // AsyncStorage once, at app boot (checkUserStatus) — without this call, useAuth()-gated
@@ -134,7 +156,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
         // Refresh user data context with the freshly stored values
         await loadUserData();
 
-        const name = response.data.data.firstName || 'there';
+        // Full name, not just the first — the header greeting already shows both,
+        // so a first-name-only welcome read as a different, truncated identity.
+        const name = [response.data.data.firstName, response.data.data.lastName]
+          .filter(Boolean).join(' ').trim() || 'there';
         setWelcomeName(name);
         setPendingNavigation(() => () => {
           // Only hold on the verification screen when explicitly pending/rejected
@@ -145,10 +170,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
           }
         });
         setWelcomeVisible(true);
-      } else if (response.data.code === 404) {
-        popup.error('Not Registered', 'This mobile number is not registered. Please sign up first.')
-      } else if (response.data.code === 401) {
-        popup.error('Invalid PIN', 'The PIN you entered is incorrect. Please try again.')
+      } else if (response.data.code === 404 || response.data.code === 401) {
+        // ONE message for both "no such account" (404) and "wrong PIN" (401), by client ask
+        // and standard practice: a distinct "Not Registered" reply confirms which mobiles and
+        // emails have accounts here, letting anyone enumerate members one guess at a time.
+        // Never name which half was wrong.
+        popup.error('Invalid Credentials', 'The mobile number / email or PIN you entered is incorrect. Please try again.')
       } else if (response.data.code === 403) {
         // Backend now blocks PENDING/REJECTED at login too (previously only BANNED/SUSPENDED
         // returned 403 here) — those two carry real userStatus/rejectionReason data so we can
@@ -159,6 +186,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
         if (pendingStatus === 'PENDING' || pendingStatus === 'REJECTED') {
           if (pendingData.userId) await AsyncStorage.setItem('userId', pendingData.userId);
           await AsyncStorage.setItem('firstName', pendingData.firstName || '');
+          await AsyncStorage.setItem('lastName', pendingData.lastName || '');
           await AsyncStorage.setItem('userStatus', pendingStatus);
           if (pendingData.rejectionReason) {
             await AsyncStorage.setItem('rejectionReason', pendingData.rejectionReason);
@@ -180,7 +208,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
     }
   }
 
-  const isFormValid = mobileNumber.length === 10 && pin.length === 4;
+  // Email-or-mobile login (2026-09-05): one field carries either identifier.
+  const isEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mobileNumber);
+  const isMobileFormat = /^\d{10}$/.test(mobileNumber);
+  const identifierValid = isEmailFormat || isMobileFormat;
+  const isFormValid = identifierValid && pin.length === 4;
 
   return (
     <NativeBaseProvider>
@@ -208,19 +240,31 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
           keyboardOpeningTime={0}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          enableResetScrollToCoords={false}
+          // The login form fits the screen with the keyboard closed, but a
+          // ScrollView still lets you drag/rubber-band it, which made the page
+          // feel loose. These stop any movement when the content fits, while
+          // still allowing a real scroll if it genuinely overflows (small screens,
+          // large font sizes) — so nothing can get trapped off-screen.
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          // Return to the top once the keyboard closes. With this false the form
+          // stayed wherever the keyboard had pushed it, which is the other half
+          // of the "unstable" feel. Between the two fields the keyboard stays
+          // open, so this does not fire mid-form.
+          enableResetScrollToCoords={true}
+          resetScrollToCoords={{ x: 0, y: 0 }}
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1 }}>
-              {/* Back button */}
-              <View style={{ position: 'absolute', top: 60, left: 22, zIndex: 199 }}>
-                <TouchableOpacity
-                  onPress={() => router.back()}
-                  style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', shadowColor: '#1F7FE5', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}
-                >
-                  <Ionicons name="chevron-back" size={20} color="#0f1724" />
-                </TouchableOpacity>
-              </View>
+              {/* No back button here by design. Login is the ROOT of the app's
+                  unauthenticated flow and EVERY route to it is a router.replace()
+                  — onboarding, logout, sign-up, PIN reset — so there is never a
+                  legitimate screen behind it. A `canGoBack()` check is NOT
+                  sufficient: after logout the authenticated (tabs) stack is still
+                  in history across the group boundary, so canGoBack() returns true
+                  and tapping back walked the signed-out user straight back into
+                  the profile page. */}
 
               <View style={{
                 flexGrow: 1,
@@ -295,7 +339,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13.5, fontFamily: 'Rubik-Bold', color: '#ffffff' }}>
-                        Login with Mobile & PIN
+                        Login with Mobile/Email & PIN
                       </Text>
                       <Text style={{
                         fontSize: 11,
@@ -304,7 +348,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                         lineHeight: 15,
                         marginTop: 2,
                       }}>
-                        Use the mobile number you registered with
+                        Use the email or mobile number you registered with
                       </Text>
                     </View>
                   </View>
@@ -320,7 +364,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                       marginLeft: 8,
                       marginBottom: 5,
                     }}>
-                      Contact Number
+                      Email or Mobile Number
                     </Text>
                     <View style={{
                       backgroundColor: '#ffffff',
@@ -342,7 +386,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                         testID="input-mobile"
                         accessibilityLabel="input-mobile"
                         defaultValue={mobileNumber}
-                        onChangeText={(text) => setMobileNumber(text.replace(/\D/g, '').slice(0, 10))}
+                        onChangeText={(text) => {
+                          const t = text.replace(/\s/g, '');
+                          // Pure digits keep the old 10-digit mobile behaviour;
+                          // anything else is treated as an email being typed.
+                          setMobileNumber(/^\d*$/.test(t) ? t.slice(0, 10) : t.slice(0, 100));
+                        }}
                         onFocus={() => setFocusedField('mobile')}
                         onBlur={() => setFocusedField(null)}
                         style={{
@@ -351,13 +400,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                           fontFamily: 'Rubik-Regular',
                           color: '#333',
                           paddingVertical: 0,
+                          letterSpacing: 0,
                         }}
-                        placeholder="Enter mobile number"
+                        placeholder="Email/Mobile Number"
                         placeholderTextColor="#9aa7b8"
-                        keyboardType="numeric"
-                        maxLength={10}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        maxLength={100}
                       />
-                      {mobileNumber.length === 10 && (
+                      {identifierValid && (
                         <View style={{
                           width: 8,
                           height: 8,
@@ -367,7 +419,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                         }} />
                       )}
                     </View>
-                    {mobileNumber.length > 0 && mobileNumber.length !== 10 && (
+                    {mobileNumber.length > 0 && !identifierValid && (
                       <Text style={{
                         fontSize: 11.5,
                         fontFamily: 'Rubik-Regular',
@@ -375,7 +427,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                         marginLeft: 8,
                         marginTop: 4,
                       }}>
-                        Please enter a complete 10-digit number
+                        Enter a valid email or 10-digit mobile number
                       </Text>
                     )}
                   </View>
@@ -434,7 +486,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                         style={{ marginLeft: 8, paddingVertical: 6 }}
                       >
                         <Icon
-                          name={showPin ? 'visibility-off' : 'visibility'}
+                          name={showPin ? 'visibility' : 'visibility-off'}
                           size={20}
                           color="#94a3b8"
                         />

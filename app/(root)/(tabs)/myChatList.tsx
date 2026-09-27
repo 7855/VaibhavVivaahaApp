@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { usePlanChangeEffect, useSubscription } from '../contexts/subscriptionContext';
+import { View, Text, TouchableOpacity, AppState } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import ChatList from '@/components/listchats';
 import { router, useFocusEffect } from 'expo-router';
@@ -10,6 +11,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { usePopup } from '../contexts/PopupContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { webSocketService } from '../services/webSocketService';
+
+// Must stay byte-identical to ConversationService.LOCKED_PREVIEW on the server, so a row
+// patched live from the socket and the same row after a refetch read exactly the same.
+const LOCKED_PREVIEW = '\uD83D\uDD12 New message \u2014 upgrade to read';
 
 interface ChatItem {
   id: string;
@@ -22,6 +28,7 @@ interface ChatItem {
   otherUserId: string;
   unreadCount?: number;
   gender?: string;
+  status?: string;
   idVerified?: boolean;
   educationVerified?: boolean;
   incomeVerified?: boolean;
@@ -72,7 +79,13 @@ const ChatListSkeleton = () => (
 
 const MyChatList = () => {
   const { userData } = useUserData();
-  const { userId: authUserId, addChatListener, removeChatListener } = useAuth();
+  const { subscriptionData } = useSubscription() || {};
+  // Same shape check chatscreen.tsx uses for the MESSAGE entitlement:
+  // true / 'unlimited' / {limit} = can read, false or absent = cannot.
+  const m = subscriptionData?.entitlements?.message;
+  const canReadMessages =
+    m === true || m === 'unlimited' || (typeof m === 'object' && m !== null);
+  const { userId: authUserId, addChatListener } = useAuth();
   const popup = usePopup();
   const [chatList, setChatList] = useState<ChatItem[]>([]);
   // Mirror of chatList readable from the WS handler, which needs to know synchronously
@@ -87,7 +100,12 @@ const MyChatList = () => {
   // weekday, anything older shows a short date. Reads as more premium and is instantly scannable.
   const formatRelativeChatTime = (raw: string): string => {
     if (!raw) return '';
-    const d = new Date(raw);
+    // 🔴 The server sends UTC with NO timezone marker ('2026-09-19T16:33:14.687'), which JS
+    // parses as LOCAL time — so a 10:03 PM IST message read as 4:33 PM, exactly 5h30m out.
+    // The chat screen always appended 'Z'; this list never did. Live socket events already
+    // carry 'Z' (or an offset), so only add one when there is none.
+    const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw.trim());
+    const d = new Date(hasZone ? raw : raw.trim().replace(' ', 'T') + 'Z');
     if (isNaN(d.getTime())) return '';
     const now = new Date();
     if (d.toDateString() === now.toDateString()) {
@@ -105,7 +123,22 @@ const MyChatList = () => {
     chatListRef.current = chatList;
   }, [chatList]);
 
-  const handleChatPress = (item: ChatItem) => {
+  // useCallback: this is passed to every memoised ChatRow. As a plain function it got a new
+  // identity on each render, so ONE incoming message re-rendered all 100 rows.
+  const handleChatPress = useCallback((item: ChatItem) => {
+    // A removed connection keeps its history in the list but cannot be opened — the
+    // conversation is DISCONNECTED until an interest is accepted again.
+    if (item.status === 'DISCONNECTED') {
+      popup.confirm(
+        'Not connected',
+        `Send an interest first to start a conversation with ${item.otherUserName}. Your earlier messages are kept here.`,
+        // ProfileDetail takes the RAW numeric id (§17) — otherUserId already is one.
+        () => router.push({ pathname: '/(root)/screens/ProfileDetail', params: { userId: item.otherUserId } }),
+        'View',
+        'Close'
+      );
+      return;
+    }
     router.push({
       pathname: '/screens/chatscreen',
       params: {
@@ -116,7 +149,7 @@ const MyChatList = () => {
         otherUserGender: item.gender || ''
       }
     });
-  };
+  }, [popup]);
 
   const fetchUserDetail = useCallback(async () => {
     try {
@@ -137,6 +170,7 @@ const MyChatList = () => {
         otherUserId: chat.otherUserId.toString(),
         unreadCount: chat.unreadMessageCount,
         gender: chat.gender,
+        status: chat.status,
         idVerified: chat.idVerified,
         educationVerified: chat.educationVerified,
         incomeVerified: chat.incomeVerified,
@@ -159,29 +193,14 @@ const MyChatList = () => {
     }
   }, [userData.userId]);
 
-  // WhatsApp-style multi-select delete (see listchats.js). This now hides the conversation from
-  // THIS user's list only — it used to flip a shared flag that wiped the thread from the other
-  // person's list too, which let someone send abusive messages and then erase them from the
-  // recipient's view. Messages themselves are never deleted, and a new message from either side
-  // revives the thread. Runs the deletes in parallel then refetches once.
-  const handleDeleteConversations = useCallback(async (conversationIds: string[]) => {
-    const results = await Promise.allSettled(
-      conversationIds.map((id) => userApi.deleteConversation(id, userData.userId))
-    );
-    // A rejected promise only covers network/HTTP failures. This backend returns HTTP 200 with
-    // the real outcome in res.data.code, so the new 403 ("not a participant") would otherwise be
-    // counted as a successful delete and silently disappear.
-    const failedCount = results.filter(
-      (r) => r.status === 'rejected' || (r as PromiseFulfilledResult<any>).value?.data?.code !== 200
-    ).length;
-    await fetchUserDetail();
-    if (failedCount > 0) {
-      popup.error(
-        'Some conversations weren\'t deleted',
-        `${failedCount} of ${conversationIds.length} couldn't be removed. Please try again.`
-      );
-    }
-  }, [fetchUserDetail, popup, userData.userId]);
+  // The server masks each row's last-message preview for a member without the MESSAGE
+  // entitlement ("🔒 New message — upgrade to read"). This tab never unmounts, so after an
+  // upgrade those masked previews would sit here until some new message happened to patch
+  // a row. Refetch when the plan changes.
+  usePlanChangeEffect(() => { fetchUserDetail(); });
+
+  // Deleting conversations from this list was removed at the client's request (2026-09-19).
+  // userApi.deleteConversation and its endpoint are left in place, simply unused.
 
   useFocusEffect(
     useCallback(() => {
@@ -219,12 +238,22 @@ const MyChatList = () => {
           return;
         }
 
-        setChatList((prev) =>
-          prev.map((c) =>
+        // 🔴 The server masks this preview for a member without the MESSAGE entitlement
+        // (ConversationService.LOCKED_PREVIEW) — but that only applies to the REST response.
+        // Patching the row from the socket wrote the RAW text, so a member sitting on this
+        // list read paid content live, and the mask only appeared once they left the tab and
+        // came back (which refetches). Mirror the server's rule here: mask unless they can
+        // read, and never mask their own outgoing message.
+        const fromMe = data?.senderId != null
+          && String(data.senderId) === String(userData.decodedUserId ?? '');
+        const preview = (!canReadMessages && !fromMe) ? LOCKED_PREVIEW : data?.message;
+
+        setChatList((prev) => {
+          const updated = prev.map((c) =>
             c.conversationId === incomingId
               ? {
                 ...c,
-                lastMessage: data?.message ?? c.lastMessage,
+                lastMessage: preview ?? c.lastMessage,
                 lastMessageTime: data?.timestamp
                   ? formatRelativeChatTime(data.timestamp)
                   : c.lastMessageTime,
@@ -232,11 +261,27 @@ const MyChatList = () => {
                 unreadCount: (c.unreadCount || 0) + 1,
               }
               : c
-          )
-        );
+          );
+          // The server returns this list newest-first, but patching a row in place left it
+          // wherever it was — a new message on an old thread updated the preview while the row
+          // stayed buried down the list until the next refetch. Move it to the top instead.
+          const hit = updated.find((c) => c.conversationId === incomingId);
+          return hit ? [hit, ...updated.filter((c) => c.conversationId !== incomingId)] : updated;
+        });
       };
-      addChatListener(handleIncomingMessage);
-      return () => removeChatListener();
+      // Unsubscribes THIS callback only. The old no-argument removeChatListener() deleted
+      // whatever was registered for 'chat_message' — and since this blur cleanup can run AFTER
+      // the chat screen has already registered its own, it was deleting the open chat's
+      // listener: messages stopped appearing inside the very chat you were looking at.
+      const offMessage = addChatListener(handleIncomingMessage);
+      // Whatever arrived while the socket was down never reached us — refetch once it is back.
+      const offReconnect = webSocketService.addListener('connected', () => fetchUserDetail());
+      // Focus alone is not enough: this tab keeps focus while the app is in the BACKGROUND, so
+      // returning to a phone that slept never re-ran the focus fetch and the list stayed stale.
+      const appState = AppState.addEventListener('change', (next) => {
+        if (next === 'active') { webSocketService.ensureConnected(); fetchUserDetail(); }
+      });
+      return () => { offMessage(); offReconnect(); appState.remove(); };
     }, [fetchUserDetail, authUserId])
   );
 
@@ -288,7 +333,6 @@ const MyChatList = () => {
           allChats={chatList}
           onPress={handleChatPress}
           chatQuota={chatQuota}
-          onDeleteConversations={handleDeleteConversations}
         />
       )}
     </SafeAreaView>

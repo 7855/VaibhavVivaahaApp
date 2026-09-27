@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useFooterClearance } from '@/components/VVMFooterNav';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useUserData } from '../contexts/UserDataContext';
-import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
 import {
   View,
@@ -15,7 +14,6 @@ import {
   GestureResponderEvent,
   useWindowDimensions,
   Modal,
-  Pressable,
   TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -136,6 +134,51 @@ const RequestLoadingSkeleton = ({ count = 4 }: { count?: number }) => (
   </ScrollView>
 );
 
+// Every list on this screen used to fall back to a bare left-aligned "No Interests Found" line —
+// the same wrong copy on the Permissions tab, which is about info-access requests, not interests.
+// It also never centred: styles.emptyState sets flex:1, but a FlatList's ListEmptyComponent only
+// gets the height to honour that when the contentContainerStyle sets flexGrow:1 (see listContent).
+const MailboxEmptyState = ({
+  icon,
+  title,
+  subtitle,
+  ctaLabel = 'Explore Matches',
+  showCta = true,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  ctaLabel?: string;
+  showCta?: boolean;
+}) => (
+  <View style={styles.emptyState}>
+    <View style={styles.emptyIconRing}>
+      <View style={styles.emptyIconCircle}>
+        <Ionicons name={icon} size={38} color="#1F7FE5" />
+      </View>
+    </View>
+    <Text style={styles.emptyTitle}>{title}</Text>
+    <Text style={styles.emptySubtitle}>{subtitle}</Text>
+    {showCta && (
+      <TouchableOpacity
+        onPress={() => router.push('/(root)/(tabs)/explore' as any)}
+        activeOpacity={0.88}
+        style={styles.emptyCta}
+      >
+        <LinearGradient
+          colors={['#1F7FE5', '#1862b8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.emptyCtaInner}
+        >
+          <Ionicons name="search" size={15} color="#fff" />
+          <Text style={styles.emptyCtaText}>{ctaLabel}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
 interface ReceivedProfile {
   userId: number;
   firstName: string;
@@ -168,11 +211,13 @@ const ReceivedRow = React.memo(function ReceivedRow({
   onOpen,
   onAccept,
   onDecline,
+  onRemove,
 }: {
   item: ReceivedProfile;
   onOpen: (userId: number) => void;
   onAccept: (item: ReceivedProfile) => void;
   onDecline: (item: ReceivedProfile) => void;
+  onRemove: (item: ReceivedProfile) => void;
 }) {
   return (
     <TouchableOpacity style={styles.matchCard} onPress={() => onOpen(item.userId)}>
@@ -212,6 +257,21 @@ const ReceivedRow = React.memo(function ReceivedRow({
                 }}
               >
                 <Ionicons name="heart" size={20} color="red" />
+              </TouchableOpacity>
+            </View>
+          )}
+          {/* The receiver of an accepted interest had no way to undo it — only the sender's
+              "Sent By You" tab carried a remove action. Same confirm + copy as that tab. */}
+          {item.status === 'accepted' && (
+            <View style={styles.iconActions}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={(e: GestureResponderEvent) => {
+                  e.stopPropagation();
+                  onRemove(item);
+                }}
+              >
+                <Ionicons name="person-remove-outline" size={18} color="#dc2626" />
               </TouchableOpacity>
             </View>
           )}
@@ -375,51 +435,11 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
   const { userData } = useUserData();
   const popup = usePopup();
   const [error, setError] = useState<string | null>(null);
-  const { subscriptionData } = useSubscription();
-  const [isPremium, setIsPremium] = useState(false);
-
-  useEffect(() => {
-    if (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free') {
-      // Bronze, Silver, Gold, Platinum are premium plans
-      setIsPremium(true);
-    } else {
-      setIsPremium(false);
-    }
-  }, [subscriptionData]);
-
-  const LoadingScreen = () => (
-    <View style={styles.loadingContainer}>
-      <Text style={styles.loadingText}>Checking your premium status...</Text>
-      {error && (
-        <Text style={styles.errorText}>{error}</Text>
-      )}
-    </View>
-  );
-
-  const PremiumRequiredScreen = () => (
-    <TouchableOpacity
-      style={styles.premiumContainer}
-      onPress={() => router.replace('/(root)/screens/PremiumTab')}
-    >
-      <View style={styles.premiumContent}>
-        <Ionicons name="lock-closed" size={40} color="#ec4899" />
-        <Text style={styles.premiumTitle}>Premium Required</Text>
-        <Text style={styles.premiumText}>
-          Upgrade to Premium to send messages and enjoy full features
-        </Text>
-        <Pressable
-          style={styles.upgradeButton}
-          onPress={() => router.replace('/(root)/screens/PremiumTab')}
-        >
-          <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
-        </Pressable>
-      </View>
-    </TouchableOpacity>
-  );
-
-
-
-
+  // Removed here: an `isPremium` state (computed by an effect, never read), plus dead
+  // `LoadingScreen` and `PremiumRequiredScreen` components that were never rendered — a
+  // pink "Premium Required" wall for a tab that is not plan-gated at all. It was scaffolding
+  // that never got wired up, and it made this tab LOOK gated to anyone reading the file.
+  // This tab (the Home "Proposals" destination) is genuinely open to every member.
 
   const [data, setData] = useState<ReceivedProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -448,7 +468,7 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
 
       // Refresh data by fetching latest profiles
       if (!userData.userId) {
-        setError('User ID not found');
+        setError('Could not identify your account. Please sign in again.');
         return;
       }
       const userId = userData.userId;
@@ -482,6 +502,30 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
     }
   }, [userData.userId, popup]);
 
+  const handleRemove = useCallback((item: ReceivedProfile) => {
+    popup.confirm(
+      `Unfriend ${item.firstName}?`,
+      `This ends the connection and closes the chat until an interest is accepted again. Your earlier messages are kept.`,
+      async () => {
+        try {
+          if (!userData.userId) return;
+          const res = await userApi.removeConnection(userData.userId, item.userId);
+          if (res?.data?.code === 200) {
+            setData(prev => prev.filter(p => p.interestId !== item.interestId));
+          } else {
+            popup.error('Something went wrong', res?.data?.message || 'Could not remove this connection. Please try again.');
+          }
+        } catch (e) {
+          console.error('removeConnection failed:', e);
+          popup.error('Something went wrong', 'Could not remove this connection. Please try again.');
+        }
+      },
+      'Unfriend',
+      'Cancel'
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [popup, userData.userId]);
+
   const handleDecline = useCallback(async (item: ReceivedProfile) => {
     try {
       const res = await userApi.updateInterestRequestStatus(item.interestId, 'REJECTED');
@@ -491,7 +535,7 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
 
       // Refresh data by fetching latest profiles
       if (!userData.userId) {
-        setError('User ID not found');
+        setError('Could not identify your account. Please sign in again.');
         return;
       }
       const userId = userData.userId;
@@ -551,7 +595,7 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
         try {
           if (!hasLoadedRef.current) setLoading(true);
           if (!userData.userId) {
-            setError('User ID not found');
+            setError('Could not identify your account. Please sign in again.');
             return;
           }
           const userId = userData.userId;
@@ -586,7 +630,7 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
         } catch (err: any) {
           if (!isStillActive) return;
           console.error('Error loading received profiles:', err);
-          setError('Failed to load profiles: ' + (err.message || 'Unknown error'));
+          setError('Please check your connection and try again in a moment.');
         } finally {
           hasLoadedRef.current = true;
           if (isStillActive) setLoading(false);
@@ -603,7 +647,7 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
   }, []);
 
   const renderReceivedItem = useCallback(({ item }: { item: ReceivedProfile }) => (
-    <ReceivedRow item={item} onOpen={handleOpenProfile} onAccept={handleAccept} onDecline={handleDecline} />
+    <ReceivedRow item={item} onOpen={handleOpenProfile} onAccept={handleAccept} onDecline={handleDecline} onRemove={handleRemove} />
   ), [handleOpenProfile, handleAccept, handleDecline]);
 
   if (loading) {
@@ -612,9 +656,12 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
 
   if (error) {
     return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>{error}</Text>
-      </View>
+      <MailboxEmptyState
+        icon="cloud-offline-outline"
+        title="Something went wrong"
+        subtitle={error}
+        showCta={false}
+      />
     );
   }
 
@@ -691,6 +738,7 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
 
       <FlatList
         data={filteredData}
+        style={styles.flexList}
         keyExtractor={(item) => item.userId.toString()}
         contentContainerStyle={[styles.listContent, { paddingBottom: footerPad }]}
         windowSize={5}
@@ -698,14 +746,41 @@ const ReceivedTab = ({ isActive }: { isActive: boolean }) => {
         maxToRenderPerBatch={4}
         removeClippedSubviews={true}
         renderItem={renderReceivedItem}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No Interests Found</Text>
-          </View>
-        )}
-      />
+        ListEmptyComponent={() => {
+          // Copy follows the selected filter — "No interests found" under the Declined chip
+          // reads as though the whole inbox is empty, which is a different (and alarming) claim.
+          const empty = {
+            pending: {
+              icon: 'mail-open-outline' as const,
+              title: 'No pending interests',
+              subtitle: 'When someone likes your profile and sends you an interest, it will appear here for you to accept or decline.',
+            },
+            accepted: {
+              icon: 'heart-outline' as const,
+              title: 'No accepted interests yet',
+              subtitle: 'Interests you accept will be collected here, so you can revisit the members you have connected with.',
+            },
+            rejected: {
+              icon: 'close-circle-outline' as const,
+              title: 'No declined interests',
+              subtitle: 'Interests you decline stay here as a record. Nothing to show right now.',
+            },
+          }[selectedFilter];
 
-      <View style={{ marginBottom: 90 }}></View>
+          return (
+            <MailboxEmptyState
+              icon={empty.icon}
+              title={empty.title}
+              subtitle={empty.subtitle}
+            />
+          );
+        }}
+      />
+      {/* The 90px spacer that used to sit here was compensating for the floating footer back
+          when this list had no flex:1 and simply overflowed the screen (so the spacer was
+          pushed out of view and never actually seen). Now that the list is bounded it would
+          render as a visible dead band above the footer, and contentContainerStyle's
+          footerPad already provides the real clearance. */}
     </View>
   );
 };
@@ -742,10 +817,10 @@ const SentTab = ({ isActive }: { isActive: boolean }) => {
   const handleDelete = useCallback((item: ReceivedProfile) => {
     if (item.acceptStatus === 'APPROVED') {
       popup.confirm(
-        'Remove this connection?',
-        `You're already connected with ${item.firstName}. Removing this will end the connection${'\n'}— if you haven't exchanged any messages yet, the conversation will be deleted too. This can't be undone.`,
+        `Unfriend ${item.firstName}?`,
+        `This ends the connection and closes the chat until an interest is accepted again. Your earlier messages are kept${'\n'}— a chat where nothing was ever said is removed.`,
         () => removeInterest(item),
-        'Remove',
+        'Unfriend',
         'Cancel'
       );
       return;
@@ -769,21 +844,27 @@ const SentTab = ({ isActive }: { isActive: boolean }) => {
       const loadSentData = async () => {
         try {
           if (!userData.userId) {
-            setError('User ID not found');
+            setError('Could not identify your account. Please sign in again.');
             return;
           }
           const userId = userData.userId;
           const response = await userApi.getSentMailbox(userId);
           if (!isStillActive) return;
-          if (response.data.code === 200) {
-            setData(response.data.data);
+          const code = response?.data?.code;
+          // "Nothing sent yet" is NOT an error. This endpoint answers a member with no sent
+          // interests as code 404 / data:null (the usual HTTP-200-with-a-code-in-the-body
+          // pattern), and treating that as a failure short-circuited the whole tab into a raw
+          // "No Interest Sent Record Found" line — the list's empty state could never render.
+          // Only a genuine server failure or a thrown request sets `error` now.
+          if (code === 200 || code === 404) {
+            setData(Array.isArray(response?.data?.data) ? response.data.data : []);
             setError(null);
           } else {
-            setError('No Interest Sent Record Found');
+            setError('Please check your connection and try again in a moment.');
           }
         } catch (error) {
           if (!isStillActive) return;
-          setError('Error loading sent data');
+          setError('Please check your connection and try again in a moment.');
         } finally {
           if (isStillActive) setLoading(false);
         }
@@ -808,15 +889,19 @@ const SentTab = ({ isActive }: { isActive: boolean }) => {
 
   if (error) {
     return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>{error}</Text>
-      </View>
+      <MailboxEmptyState
+        icon="cloud-offline-outline"
+        title="Something went wrong"
+        subtitle={error}
+        showCta={false}
+      />
     );
   }
 
   return (
     <FlatList
       data={data}
+      style={styles.flexList}
       keyExtractor={(item) => item.userId.toString()}
       contentContainerStyle={[styles.listContent, { paddingBottom: footerPad }]}
       windowSize={5}
@@ -825,9 +910,11 @@ const SentTab = ({ isActive }: { isActive: boolean }) => {
       removeClippedSubviews={true}
       renderItem={renderSentItem}
       ListEmptyComponent={() => (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No sent interests found</Text>
-        </View>
+        <MailboxEmptyState
+          icon="paper-plane-outline"
+          title="You haven't sent any interests"
+          subtitle="Found someone you like? Send them an interest — once they accept, you can start a conversation."
+        />
       )}
     />
   );
@@ -1063,7 +1150,7 @@ const RequestsTab = ({ isActive }: { isActive: boolean }) => {
   const hasLoadedRef = useRef(false);
   const refreshRequestsData = useCallback(async (showSpinner: boolean = false, stillWanted: () => boolean = () => true) => {
     if (!userData.userId) {
-      setError('User ID not found');
+      setError('Could not identify your account. Please sign in again.');
       return;
     }
     try {
@@ -1093,7 +1180,7 @@ const RequestsTab = ({ isActive }: { isActive: boolean }) => {
     } catch (err: any) {
       if (!stillWanted()) return;
       console.error('Error loading requests:', err);
-      setError('Failed to load requests: ' + (err.message || 'Unknown error'));
+      setError('Please check your connection and try again in a moment.');
     } finally {
       hasLoadedRef.current = true;
       if (stillWanted()) setLoading(false);
@@ -1190,9 +1277,12 @@ const RequestsTab = ({ isActive }: { isActive: boolean }) => {
 
   if (error) {
     return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>{error}</Text>
-      </View>
+      <MailboxEmptyState
+        icon="cloud-offline-outline"
+        title="Something went wrong"
+        subtitle={error}
+        showCta={false}
+      />
     );
   }
 
@@ -1255,6 +1345,7 @@ const RequestsTab = ({ isActive }: { isActive: boolean }) => {
 
             <FlatList
               data={receivedData}
+              style={styles.flexList}
               keyExtractor={(item: any) => item.requestId.toString()}
               contentContainerStyle={[styles.listContent, { paddingBottom: footerPad }]}
               windowSize={5}
@@ -1263,11 +1354,11 @@ const RequestsTab = ({ isActive }: { isActive: boolean }) => {
               removeClippedSubviews={true}
               renderItem={renderPermissionItem}
               ListEmptyComponent={() => (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>
-                    No Interests Found
-                  </Text>
-                </View>
+                <MailboxEmptyState
+                  icon="lock-open-outline"
+                  title="No access requests"
+                  subtitle="When a member asks to view your horoscope, photo or mobile number, their request will show up here for you to approve or decline."
+                />
               )}
             />
 
@@ -1355,11 +1446,11 @@ const RequestsTab = ({ isActive }: { isActive: boolean }) => {
 
               </ScrollView>
             ) : (
-              <View style={{ padding: 20 }}>
-                <Text style={{ textAlign: 'center', color: '#6B7280', fontSize: 16 }}>
-                  No Interests Found
-                </Text>
-              </View>
+              <MailboxEmptyState
+                icon="key-outline"
+                title="You haven't requested access"
+                subtitle="Ask a member for permission to view their horoscope, photo or mobile number, and you'll be able to track those requests here."
+              />
             )}
           </View>
         )}
@@ -1380,7 +1471,7 @@ const ShortlistedTab = () => {
       await userApi.deleteShortlistedProfile(shortlistedId);
       // Refresh data after successful removal
       if (!userData.userId) {
-        setError('User ID not found');
+        setError('Could not identify your account. Please sign in again.');
         return;
       }
       const response = await userApi.getShortlistedMailbox(userData.userId);
@@ -1398,7 +1489,7 @@ const ShortlistedTab = () => {
     const loadShortlistedData = async () => {
       try {
         if (!userData.userId) {
-          setError('User ID not found');
+          setError('Could not identify your account. Please sign in again.');
           return;
         }
         const response = await userApi.getShortlistedMailbox(userData.userId);
@@ -1438,9 +1529,12 @@ const ShortlistedTab = () => {
 
   if (error) {
     return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateText}>{error}</Text>
-      </View>
+      <MailboxEmptyState
+        icon="cloud-offline-outline"
+        title="Something went wrong"
+        subtitle={error}
+        showCta={false}
+      />
     );
   }
 
@@ -1577,57 +1671,6 @@ const MailBox = () => {
 };
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-  },
-  errorText: {
-    color: '#ff3b30',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  premiumContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  premiumContent: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  premiumTitle: {
-    fontSize: 24,
-    fontFamily: 'Rubik-Bold',
-    color: '#1d4ed8',
-    marginTop: 20,
-  },
-  premiumText: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-    marginVertical: 20,
-  },
-  upgradeButton: {
-    backgroundColor: '#ec4899',
-    padding: 12,
-    borderRadius: 8,
-    width: '80%',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  upgradeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Rubik-Medium',
-  },
   tabStyle: {
     flex: 1,
     padding: 0,
@@ -1653,8 +1696,18 @@ const styles = StyleSheet.create({
   // Clears the floating VVMFooterNav (absolute-positioned, ~68px + safe-area inset) so the
   // last item in a list isn't hidden behind it — was previously defined but never actually
   // wired up to any FlatList's contentContainerStyle, and the padding was too small anyway.
+  // A FlatList that is the root of its scene is sized by its content unless it takes flex:1,
+  // which also gives flexGrow on the content container something to grow against.
+  flexList: {
+    flex: 1,
+  },
   listContent: {
     paddingBottom: 100,
+    // Without flexGrow the content container collapses to its content's height, so an empty
+    // list gives ListEmptyComponent no room and its flex:1 centring is a no-op — the message
+    // rendered jammed against the top. Harmless when rows exist (it only grows when the
+    // content is SHORTER than the list's frame).
+    flexGrow: 1,
   },
   // Outcome chip shown in place of the accept/reject buttons once a permission request has
   // been decided, so the row stays in the inbox as a record instead of vanishing.
@@ -1843,11 +1896,76 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    paddingHorizontal: 36,
+    paddingVertical: 40,
   },
   emptyStateText: {
-    color: '#666',
-    fontSize: 16,
+    color: '#64748b',
+    fontSize: 14,
+    fontFamily: 'Rubik-Regular',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  // Soft outer ring + inner disc, so the icon reads as a deliberate illustration rather than a
+  // lone glyph floating in whitespace.
+  emptyIconRing: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: 'rgba(31,127,229,0.07)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyIconCircle: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1F7FE5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontFamily: 'Rubik-Bold',
+    color: '#0f1724',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    fontFamily: 'Rubik-Regular',
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  emptyCta: {
+    marginTop: 22,
+    borderRadius: 26,
+    overflow: 'hidden',
+    shadowColor: '#1F7FE5',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  emptyCtaInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 26,
+    paddingVertical: 13,
+  },
+  emptyCtaText: {
+    color: '#fff',
+    fontSize: 13.5,
+    fontFamily: 'Rubik-Bold',
   },
   filterContainer: {
     flexDirection: 'row',

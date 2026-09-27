@@ -35,4 +35,7 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-
+# Play upload signing — the key and its passwords must never be committed.
+*.keystore
+!android/app/debug.keystore
+android/keystore.properties

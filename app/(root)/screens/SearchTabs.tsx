@@ -79,6 +79,16 @@ type Filters = {
 // - card height 66 + bottom gap 10 + safe-area bottom inset
 const NAV_BAR_FOOTPRINT = 66 + 10;
 
+// Range-slider bounds live here so the <RangeSlider min/max>, the initial state and
+// handleClearFilters can never drift apart — they were separate literals in three places, and
+// `toIncome` was seeded at 100 while its slider's max is 99. The slider clamps internally, but
+// the React state stayed 100, so the Maximum box read "₹100L" on first paint and "₹100L+" after
+// any interaction (the label branches on `toIncome === 99`).
+const AGE_MIN = 18;
+const AGE_MAX = 60;
+const INCOME_MIN = 0;
+const INCOME_MAX = 99;
+
 const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const footerPad = useFooterClearance();
     const tabInsets = useSafeAreaInsets();
@@ -117,15 +127,14 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     const [isPremiumUser, setIsPremiumUser] = useState(false);
     // Silver+ only — a stricter gate than isPremiumUser (Classic+). See the entitlement effect below.
     const [canSearchBySubcaste, setCanSearchBySubcaste] = useState(false);
-    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [showJobSectorModal, setShowJobSectorModal] = useState(false);
     const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSearchSubmitting, setIsSearchSubmitting] = useState(false);
-    const [fromAge, setFromAge] = useState(18);
-    const [toAge, setToAge] = useState(60);
-    const [fromIncome, setFromIncome] = useState(0);
-    const [toIncome, setToIncome] = useState(100);
+    const [fromAge, setFromAge] = useState(AGE_MIN);
+    const [toAge, setToAge] = useState(AGE_MAX);
+    const [fromIncome, setFromIncome] = useState(INCOME_MIN);
+    const [toIncome, setToIncome] = useState(INCOME_MAX);
 
     // Stable identity is required here — rn-range-slider's internal effect depends on this
     // callback's reference and re-fires whenever it changes. An inline arrow function gets a new
@@ -148,7 +157,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
         setFilters(prev => ({
             ...prev,
             annualIncomeFilter: low === high
-                ? (low === 0 ? '0' : low === 99 ? '100L+' : `${low}L`)
+                ? (low === INCOME_MIN ? '0' : low === INCOME_MAX ? '100L+' : `${low}L`)
                 : `${low} Lakhs - ${high} Lakhs`
         }));
     }, []);
@@ -226,10 +235,17 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                 .map(s => s.split(' ')[0])
             : ['18', '60'];
 
-        // Parse income range (format: "2 Lakhs - 9 Lakhs")
+        // Parse income range (format: "2 Lakhs - 9 Lakhs").
+        // A FULL-SPAN slider means "no income preference" and must send null, not 0–99L.
+        // RangeSlider fires onValueChanged once on mount (updateThumbs calls it), so
+        // annualIncomeFilter is populated as "0 Lakhs - 99 Lakhs" before the member touches
+        // anything — and again right after Clear resets the thumbs. Sending that as a real
+        // BETWEEN excludes every profile whose annualIncome is NULL or unparseable (NULL fails
+        // BETWEEN), so an untouched or just-cleared form was silently narrowing the results.
+        const incomeIsFullSpan = fromIncome === INCOME_MIN && toIncome === INCOME_MAX;
         let minAnnualIncome: string | null = null;
         let maxAnnualIncome: string | null = null;
-        if (filters.annualIncomeFilter) {
+        if (filters.annualIncomeFilter && !incomeIsFullSpan) {
             const [min, max] = filters.annualIncomeFilter
                 .split(' - ')
                 .map(s => parseFloat(s.split(' ')[0]));
@@ -343,6 +359,15 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             jobSector: [] as string[],
             degree: '',
         });
+        // 🔴 The two RangeSliders are driven by their OWN state, not by `filters`. Clearing only
+        // the `filters` strings above left the thumbs parked wherever they were dragged and the
+        // Minimum/Maximum boxes still showing those values, while the search itself fell back to
+        // the 18–60 / any-income defaults — the form said one thing and searched another.
+        // These four must be reset alongside, and to the sliders' own min/max (18..60, 0..99).
+        setFromAge(AGE_MIN);
+        setToAge(AGE_MAX);
+        setFromIncome(INCOME_MIN);
+        setToIncome(INCOME_MAX);
         // Reset toggle switches
         setPhotoOnly(false);
         setHoroscopeOnly(false);
@@ -441,6 +466,14 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
     }, [subscriptionData]);
 
 
+    // One locked-filter upsell for every gated control on this form — the shared
+    // centred popup (popup.premiumRequired), NOT the old per-screen bottom modal.
+    const lockedFilterUpsell = (featureText: string, featureName: string, minPlan: 'Classic' | 'Silver' = 'Classic') =>
+        popup.premiumRequired(
+            upgradeMessage(featureText, minPlan),
+            buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName, minPlan })
+        );
+
     const handleUseSearch = async (savedSearch: any) => {
         try {
             console.log("savedSearch=>", savedSearch);
@@ -495,6 +528,17 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             let newHoroscopeOnly = false;
             let newPhotoOnly = false;
 
+            // The two RangeSliders read their OWN state, not `filters`, so restoring a saved
+            // search has to move the thumbs explicitly — exactly like handleClearFilters does.
+            // Age was setting only updatedFilters.ageRange and never touching the slider, so the
+            // thumbs kept the PREVIOUS search's position while the text said something else.
+            // Seeded to the full span so a saved search that carries no age/income filter resets
+            // them, rather than inheriting whatever was on screen before.
+            let newFromAge = AGE_MIN;
+            let newToAge = AGE_MAX;
+            let newFromIncome = INCOME_MIN;
+            let newToIncome = INCOME_MAX;
+
             // Process each filter
             savedSearch.filters.forEach((filter: any) => {
                 const key = filter.filterKey.toLowerCase();
@@ -507,6 +551,15 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         if (value.includes('-')) {
                             const [minAge, maxAge] = value.split('-').map(s => s.trim());
                             updatedFilters.ageRange = `${minAge} Yrs - ${maxAge} Yrs`;
+                            // Move the slider to match. Guarded so a malformed saved value
+                            // can't push NaN into the slider (it would render at min and then
+                            // report NaN straight back into filters.ageRange).
+                            const lo = parseInt(minAge, 10);
+                            const hi = parseInt(maxAge, 10);
+                            if (Number.isFinite(lo) && Number.isFinite(hi)) {
+                                newFromAge = Math.min(Math.max(lo, AGE_MIN), AGE_MAX);
+                                newToAge = Math.min(Math.max(hi, AGE_MIN), AGE_MAX);
+                            }
                         } else {
                             updatedFilters.ageRange = value;
                         }
@@ -555,9 +608,13 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                 ? `${minLakhs} Lakhs - ${maxLakhs} Lakhs`
                                 : `Above ${minLakhs} Lakhs`;
 
-                            // Set the income range state values
-                            setFromIncome(minLakhs);
-                            setToIncome(maxLakhs);
+                            // Set the income range state values (applied after the loop, with
+                            // age, so both sliders move in one pass). Guarded against NaN from a
+                            // malformed saved value, same as age above.
+                            if (Number.isFinite(minLakhs) && Number.isFinite(maxLakhs)) {
+                                newFromIncome = Math.min(Math.max(minLakhs, INCOME_MIN), INCOME_MAX);
+                                newToIncome = Math.min(Math.max(maxLakhs, INCOME_MIN), INCOME_MAX);
+                            }
 
                             // Also update the incomeRanges state if needed
                             setIncomeRanges((prevRanges: any) => {
@@ -598,6 +655,13 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     ...updatedFilters
                 } as Filters; // Type assertion to ensure type safety
             });
+
+            // Move both sliders to match what was just loaded (or back to full span if this
+            // saved search doesn't constrain them).
+            setFromAge(newFromAge);
+            setToAge(newToAge);
+            setFromIncome(newFromIncome);
+            setToIncome(newToIncome);
 
             if (newHoroscopeOnly !== horoscopeOnly) {
                 setHoroscopeOnly(newHoroscopeOnly);
@@ -985,7 +1049,11 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
             return (
                 <ScrollView style={{ flex: 1, paddingHorizontal: 18, paddingTop: 12, backgroundColor: 'transparent' }}
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: footerPad }}>
+                    // flexGrow is what lets the empty state's flex:1 actually centre on the page.
+                    // Without it the content container collapses to its content's height, so the
+                    // "no saved searches" block sat near the top instead. No effect once there
+                    // are cards — it only grows when the content is shorter than the frame.
+                    contentContainerStyle={{ paddingBottom: footerPad, flexGrow: 1 }}>
                     {loading ? (
                         <ActivityIndicator size="large" color="#1F7FE5" style={{ marginTop: 24 }} />
                     ) : savedSearches.length > 0 ? (
@@ -1039,13 +1107,31 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                         ))
                     ) : (
                         <View style={styles.emptyStateContainer}>
-                            <View style={styles.exploreEmptyIcon}>
-                                <SearchIcon size={30} color="#1F7FE5" />
+                            <View style={styles.emptyIconRing}>
+                                <View style={styles.emptyIconCircle}>
+                                    <SearchIcon size={34} color="#1F7FE5" />
+                                </View>
                             </View>
                             <Text style={styles.emptyStateText}>No saved searches yet</Text>
                             <Text style={styles.emptyStateSubtext}>
-                                Save your searches to quickly access them later
+                                Set up the filters that matter to you on the By Criteria tab, then save
+                                the search — it will be waiting here next time.
                             </Text>
+                            <TouchableOpacity
+                                onPress={() => setActiveTab('criteria')}
+                                activeOpacity={0.88}
+                                style={styles.emptyCta}
+                            >
+                                <LinearGradient
+                                    colors={['#1F7FE5', '#1862b8']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.emptyCtaInner}
+                                >
+                                    <SlidersHorizontal size={15} color="#fff" />
+                                    <Text style={styles.emptyCtaText}>Start a New Search</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
                         </View>
                     )}
                 </ScrollView>
@@ -1095,8 +1181,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     <View style={styles.sliderWrap}>
                                         <RangeSlider
                                             style={styles.slider}
-                                            min={18}
-                                            max={60}
+                                            min={AGE_MIN}
+                                            max={AGE_MAX}
                                             step={1}
                                             low={fromAge}
                                             high={toAge}
@@ -1136,7 +1222,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             {!canSearchBySubcaste ? (
                                                 <TouchableOpacity
                                                     style={styles.dropdownDisabled}
-                                                    onPress={() => setShowUpgradeModal(true)}
+                                                    onPress={() => lockedFilterUpsell('search by subcaste', 'Subcaste Search', 'Silver')}
                                                     activeOpacity={0.8}
                                                 >
                                                     <Text style={styles.disabledText}>Select</Text>
@@ -1224,7 +1310,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                             <View style={[styles.sectionIconBadge, { backgroundColor: '#feead0' }]}>
                                 <Briefcase size={15} color="#c7811a" />
                             </View>
-                            <Text style={styles.sectionHeader}>Job Details</Text>
+                            <Text style={styles.sectionHeader}>Job & Education Details</Text>
                             <ChevronDown
                                 size={20}
                                 color="#1F7FE5"
@@ -1243,7 +1329,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     <Text style={styles.filterLabel}>Education  {!isPremiumUser && (
                                         <Text
                                             style={styles.lockIcon}
-                                            onPress={() => setShowUpgradeModal(true)}
+                                            onPress={() => lockedFilterUpsell('use the education filter', 'Education Filter')}
                                         >
                                             {' '}🔒
                                         </Text>
@@ -1253,7 +1339,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                         style={styles.dropdownButton}
                                         onPress={() => {
                                             if (!isPremiumUser) {
-                                                setShowUpgradeModal(true);
+                                                lockedFilterUpsell('use the education filter', 'Education Filter');
                                             } else {
                                                 setShowEducationModal(true);
                                             }
@@ -1293,7 +1379,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             ) : (
                                                 <TouchableOpacity
                                                     style={styles.dropdownDisabled}
-                                                    onPress={() => setShowUpgradeModal(true)}
+                                                    onPress={() => lockedFilterUpsell('use the education filter', 'Education Filter')}
                                                     activeOpacity={0.8}
                                                 >
                                                     <Text style={styles.disabledText}>Select</Text>
@@ -1312,8 +1398,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     <View style={styles.sliderWrap}>
                                         <RangeSlider
                                             style={styles.slider}
-                                            min={0}
-                                            max={99}
+                                            min={INCOME_MIN}
+                                            max={INCOME_MAX}
                                             step={1}
                                             low={fromIncome}
                                             high={toIncome}
@@ -1326,11 +1412,11 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                     <View style={styles.rangeBoxRow}>
                                         <View style={styles.rangeBox}>
                                             <Text style={styles.rangeBoxLabel}>Minimum</Text>
-                                            <Text style={styles.rangeBoxValue}>{fromIncome === 0 ? '0' : `₹${fromIncome}L`}</Text>
+                                            <Text style={styles.rangeBoxValue}>{fromIncome === INCOME_MIN ? '0' : `₹${fromIncome}L`}</Text>
                                         </View>
                                         <View style={styles.rangeBox}>
                                             <Text style={styles.rangeBoxLabel}>Maximum</Text>
-                                            <Text style={styles.rangeBoxValue}>{toIncome === 99 ? '₹100L+' : `₹${toIncome}L`}</Text>
+                                            <Text style={styles.rangeBoxValue}>{toIncome === INCOME_MAX ? '₹100L+' : `₹${toIncome}L`}</Text>
                                         </View>
                                     </View>
                                 </View>
@@ -1341,7 +1427,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                         {!isPremiumUser && (
                                             <Text
                                                 style={styles.lockIcon}
-                                                onPress={() => setShowUpgradeModal(true)}
+                                                onPress={() => lockedFilterUpsell('use the dosham filter', 'Dosham Filter')}
                                             >
                                                 {' '}🔒
                                             </Text>
@@ -1351,7 +1437,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                         style={styles.dropdownButton}
                                         onPress={() => {
                                             if (!isPremiumUser) {
-                                                setShowUpgradeModal(true);
+                                                lockedFilterUpsell('use the city filter', 'City Filter');
                                             } else {
                                                 setShowCityModal(true);
                                             }
@@ -1451,7 +1537,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             ) : (
                                                 <TouchableOpacity
                                                     style={styles.dropdownDisabled}
-                                                    onPress={() => setShowUpgradeModal(true)}
+                                                    onPress={() => lockedFilterUpsell('use the star (nakshatra) filter', 'Star Filter')}
                                                     activeOpacity={0.8}
                                                 >
                                                     <Text style={styles.disabledText}>Select</Text>
@@ -1493,7 +1579,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             ) : (
                                                 <TouchableOpacity
                                                     style={styles.dropdownDisabled}
-                                                    onPress={() => setShowUpgradeModal(true)}
+                                                    onPress={() => lockedFilterUpsell('use the dosham filter', 'Dosham Filter')}
                                                     activeOpacity={0.8}
                                                 >
                                                     <Text style={styles.disabledText}>Select</Text>
@@ -1519,12 +1605,17 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                                             value={horoscopeOnly}
                                             onValueChange={(value) => {
                                                 if (!isPremiumUser) {
-                                                    setShowUpgradeModal(true);
+                                                    lockedFilterUpsell('see only profiles with horoscope', 'Horoscope Filter');
                                                 } else {
                                                     setHoroscopeOnly(value);
                                                 }
                                             }}
-                                            disabled={!isPremiumUser}
+                                            // NOT `disabled` when locked: a disabled Switch never
+                                            // fires onValueChange, so the upsell above was
+                                            // unreachable and the control was silently dead for
+                                            // exactly the members it is meant to sell to. Same
+                                            // trap as ProfileDetail's locked Call/Match buttons
+                                            // (2026-09-19). The handler itself is the gate.
                                             trackColor={{ false: "#e2e8f0", true: "#1F7FE5" }}
                                             thumbColor={"#fff"}
                                         />
@@ -1536,43 +1627,6 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     </View>
                 </View>
 
-                {/* Upgrade to Premium Modal */}
-                <Modal
-                    visible={showUpgradeModal}
-                    transparent={true}
-                    animationType="slide"
-                    onRequestClose={() => setShowUpgradeModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <View style={styles.modalIconBadge}>
-                                <Feather name="lock" size={22} color="#d97706" />
-                            </View>
-                            <Text style={styles.modalTitle}>Premium Feature</Text>
-                            <Text style={styles.modalText}>
-                                Upgrade to Premium to access advanced search filters.
-                            </Text>
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    style={[styles.modalButton, styles.cancelButton]}
-                                    onPress={() => setShowUpgradeModal(false)}
-                                >
-                                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.modalButton, styles.upgradeButton]}
-                                    onPress={() => {
-                                        // Handle upgrade navigation
-                                        // router.push('/premium');
-                                        setShowUpgradeModal(false);
-                                    }}
-                                >
-                                    <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
             </View>
 
 
@@ -1766,8 +1820,8 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     setShowAgeModal(false);
                 }}
                 title="Select Age Range"
-                min={18}
-                max={60}
+                min={AGE_MIN}
+                max={AGE_MAX}
                 unit=" Yrs"
                 initialFrom={fromAge}
                 initialTo={toAge}
@@ -1845,15 +1899,15 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     setShowIncomeModal(false);
                 }}
                 title="Select Annual Income Range"
-                min={0}
-                max={99}
+                min={INCOME_MIN}
+                max={INCOME_MAX}
                 step={1}
                 unit="L"
                 initialFrom={fromIncome}
                 initialTo={toIncome}
                 formatValue={(val) => {
-                    if (val === 0) return '0';
-                    if (val === 99) return '100+';
+                    if (val === INCOME_MIN) return '0';
+                    if (val === INCOME_MAX) return '100+';
                     return val.toString();
                 }}
                 onApply={(from, to) => {
@@ -1862,7 +1916,7 @@ const Search: React.FC<SearchProps> = ({ setSwipeEnabled }) => {
                     setFilters(prev => ({
                         ...prev,
                         annualIncomeFilter: from === to
-                            ? (from === 0 ? '0' : from === 99 ? '100L+' : `${from}L`)
+                            ? (from === INCOME_MIN ? '0' : from === INCOME_MAX ? '100L+' : `${from}L`)
                             : `${from} Lakhs - ${to} Lakhs`
                     }));
                     setShowIncomeModal(false);
@@ -2291,15 +2345,6 @@ const styles = StyleSheet.create({
     jobsect: {
         marginTop: 5,
         marginBottom: 6
-    },
-    exploreEmptyIcon: {
-        width: 76,
-        height: 76,
-        borderRadius: 38,
-        backgroundColor: 'rgba(31,127,229,0.12)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
     },
     educationInputContainer: {
         marginTop: 16,
@@ -2793,25 +2838,76 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         marginTop: 4,
     },
+    // flex:1 (paired with flexGrow on the ScrollView's content container) centres this on the
+    // page instead of parking it just under the tab bar. marginTop is gone for the same reason —
+    // it would bias a centred block downward.
     emptyStateContainer: {
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 32,
-        marginTop: 20,
+        paddingHorizontal: 24,
+        paddingVertical: 40,
     },
     emptyStateText: {
-        fontSize: 15,
+        fontSize: 17,
         fontFamily: 'Rubik-Bold',
         color: '#0f1724',
-        marginBottom: 6,
+        marginBottom: 8,
         textAlign: 'center',
     },
     emptyStateSubtext: {
-        fontSize: 12.5,
+        fontSize: 13,
         fontFamily: 'Rubik-Regular',
         color: '#64748b',
         textAlign: 'center',
-        lineHeight: 18,
+        lineHeight: 20,
+    },
+    // Soft outer ring + white inner disc — same empty-state treatment as the Request tab's
+    // MailboxEmptyState, so the two screens read as one system.
+    emptyIconRing: {
+        width: 108,
+        height: 108,
+        borderRadius: 54,
+        backgroundColor: 'rgba(31,127,229,0.07)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    emptyIconCircle: {
+        width: 78,
+        height: 78,
+        borderRadius: 39,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#1F7FE5',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.14,
+        shadowRadius: 14,
+        elevation: 4,
+    },
+    emptyCta: {
+        marginTop: 22,
+        borderRadius: 26,
+        overflow: 'hidden',
+        shadowColor: '#1F7FE5',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.28,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    emptyCtaInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingHorizontal: 26,
+        paddingVertical: 13,
+    },
+    emptyCtaText: {
+        color: '#fff',
+        fontSize: 13.5,
+        fontFamily: 'Rubik-Bold',
     },
     actionButton: {
         flexDirection: 'row',

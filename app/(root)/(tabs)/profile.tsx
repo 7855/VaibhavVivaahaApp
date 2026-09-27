@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { parseServerDate } from '../../../utils/serverDate';
 import { prepareImageForUpload } from '@/utils/uploadFile';
 import {
   View, StyleSheet, Image, Text, TouchableOpacity,
@@ -13,14 +14,18 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ProgressRing from '@/components/ProgressRing';
-import EditProfileModal from '@/components/editProfileModal';
 import EditInterestsModal from '@/components/EditInterestsModal';
 import userApi from '@/app/(root)/api/userApi';
+import { markProfileDirty, consumeProfileDirty, consumeProfileFocus } from '@/utils/profileRefresh';
+import { formatProfileSections } from '@/utils/profileSections';
+import Toast from 'react-native-toast-message';
 import { useUserData } from '../contexts/UserDataContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { usePopup } from '../contexts/PopupContext';
-import { useSubscription } from '../contexts/subscriptionContext';
+import { useSubscription, usePlanChangeEffect } from '../contexts/subscriptionContext';
 import { buildUpgradeAction, upgradeMessage, resolvePaymentMode } from '../utils/upgradeNavigation';
+import { formatLanguageList } from '@/constants/data';
+import { useFooterClearance } from '@/components/VVMFooterNav';
 
 const { width: SW } = Dimensions.get('window');
 const CACHE_MS = 30000;
@@ -150,6 +155,16 @@ const ProfileScreen = () => {
   const [finalData, setFinalData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Single-navigation guard (matches settingsPage): fast double-taps pushed
+  // the target screen twice — two stacked copies felt like the app froze.
+  const navLockRef = useRef(0);
+  const go = useCallback((fn: () => void) => {
+    const now = Date.now();
+    if (now - navLockRef.current < 800) return;
+    navLockRef.current = now;
+    fn();
+  }, []);
+
   const [isParent, setIsParent] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   const [interestsEditVisible, setInterestsEditVisible] = useState(false);
@@ -164,8 +179,6 @@ const ProfileScreen = () => {
   const lastFetchRef = useRef<number>(0);
 
   // Edit modal state
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editSection, setEditSection] = useState<any>(null);
 
   // Horoscope state
   const [horoscopeImage, setHoroscopeImage] = useState<string | null>(null);
@@ -192,7 +205,15 @@ const ProfileScreen = () => {
   const [boostLoading, setBoostLoading] = useState(false);
 
   const planTitle = subscriptionData?.planTitle || 'Free';
+  // The footer is absolutely positioned and taller on gesture-nav phones (~120px); a flat 80
+  // left the Photos card's bottom row hidden behind it.
+  const footerPad = useFooterClearance();
   const planEnd = subscriptionData?.endDate; // used for expiry display
+  // Platinum is sold "until marriage"; its stored endDate is the 9999-day sentinel (some day
+  // in 2054), which must never be printed. The 20-year check catches any future lifetime
+  // pack without hardcoding a second plan name.
+  const isLifetimePlan = subscriptionData?.planTitle === 'Platinum'
+    || (!!planEnd && new Date(planEnd).getFullYear() - new Date().getFullYear() >= 20);
 
   useEffect(() => {
     (async () => {
@@ -202,30 +223,93 @@ const ProfileScreen = () => {
   }, []);
 
   // ─── Format user details ───────────────────────────
-  const formatUserDetails = (data: any) => {
-    if (!data?.userDetail?.length) return [];
-    const d = data.userDetail[0];
-    const basic = JSON.parse(d.basicInfo || '{}');
-    const astroArr = JSON.parse(d.astronomicInfo || '[]');
-    const famArr = JSON.parse(d.familyInfo || '[]');
-    const astro = astroArr[0] || {};
-    const fam = famArr[0] || {};
-    return [
-      { section: "PersonalDetail", data: { "First Name": data.firstName || "-", "Last Name": data.lastName || "-", Gender: data.gender === 'M' ? 'Male' : 'Female', "Date of Birth": data.dob || "-", Height: d.height || "-", Weight: d.weight || "-", "Physical Status": basic.physical_status || "-", "Marital Status": basic.marital_status || "-", "Mother Language": basic.mother_language || "Not specified", "Current Address": d.presentAddress || "-", "Native Place": d.permanentAddress || "-" } },
-      // Caste was hardcoded to "SC" for every user — it now resolves the real caste name from
-      // the cached caste master list. Subcaste is optional (and the `subcastes` table is empty
-      // today), so it falls back to the same "-" placeholder every other empty field here uses.
-      { section: "ReligiousDetail", data: { Religion: "Hindu", Caste: getCasteName?.(data.casteId) || "-", Subcaste: data.subcasteName || "-", Star: astro.star || "-", "Moon Sign": astro.moon_sign || "-", Dosham: astro.dosham || "-" } },
-      { section: "EducationalDetail", data: { Education: d.degree || "-", Occupation: d.occupation || "-", "Employing In": d.employedAt === 'GOVT' ? 'Government' : d.employedAt === 'PRIVATE' ? 'Private' : 'Self', "Annual Income": d.annualIncome ? d.annualIncome + "" : "-", "Job Place": d.jobPlace || "-", "Education in Detail": d.educationInDetail || "-" } },
-      { section: "FamilyDetail", data: { "Family Type": fam.family_type?.trim() || "-", "Family Status": fam.family_status?.trim() || "-", "Fathers Name": fam.father?.trim() || "-", "Fathers Occupation": fam.father_occupation?.trim() || "-", "Mothers Name": fam.mother?.trim() || "-", "Mothers Occupation": fam.mother_occupation?.trim() || "-", "No of Siblings": fam.no_of_siblings?.toString() || "-", "No of Brothers": fam.no_of_brother?.toString() || "-", "No of Sisters": fam.no_of_sister?.toString() || "-", "Sister Married": fam.sister_married?.trim() || "-", "Brother Married": fam.brother_married?.trim() || "-" } },
-      { section: "InterestsDetail", data: (() => { try { const h = d?.hobbies; return { _hobbies: Array.isArray(typeof h === 'string' ? JSON.parse(h) : h) ? (typeof h === 'string' ? JSON.parse(h) : h) : [] }; } catch { return { _hobbies: [] }; } })() }
-    ];
-  };
+  // Shared with EditProfileSection (utils/profileSections.ts) so the editor can
+  // load its own values when opened from Home's completion nudge.
+  const formatUserDetails = (data: any) => formatProfileSections(data, getCasteName);
+
+  // ─── Completion deep-link ──────────────────────────
+  // Home's "Add Profile Photo / Horoscope / Interests" nudges (and the guided
+  // Complete-your-profile flow) request a focus (photo | horoscope | interests)
+  // through the one-shot store in utils/profileRefresh, consumed here on EVERY
+  // focus — a route param did not survive a second push to the mounted tab.
+  // The request is held in state until the profile has loaded, then the card is
+  // scrolled to and its control opened. handledRef makes each request fire once.
+  const [pendingFocus, setPendingFocus] = useState<{ kind: string; ts: number } | null>(null);
+  useFocusEffect(useCallback(() => {
+    const kind = consumeProfileFocus();
+    if (kind) setPendingFocus({ kind, ts: Date.now() });
+  }, []));
+  const scrollRef = useRef<ScrollView>(null);
+  // Card positions come from onLayout, not measureLayout: on the new architecture
+  // getInnerViewNode() returns a numeric handle and measureLayout rejects it
+  // ("must be called with a ref to a native component"). Each card wrapper is a
+  // direct child of the `s.content` View, itself a direct child of the ScrollView,
+  // so the absolute offset is simply contentY + cardY.
+  const contentYRef = useRef(0);
+  const cardYRef = useRef<Record<string, number>>({});
+  const handledFocusRef = useRef('');
+  // Which control is being pointed at right now (drives a ~2.5s highlight).
+  const [focusPulse, setFocusPulse] = useState<'photo' | 'horoscope' | null>(null);
+  // The handlers are consts rebuilt every render, so the focus effect (which must not
+  // depend on them, or it would re-run and re-fire the picker) reads them through a ref
+  // refreshed below on each render.
+  const latestRef = useRef<{ pick: () => void; horo: () => void; hasHoro: boolean }>({
+    pick: () => { }, horo: () => { }, hasHoro: false,
+  });
+  const scrollToCard = useCallback((which: string) => {
+    const y = cardYRef.current[which];
+    if (typeof y !== 'number') return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, contentYRef.current + y - 12), animated: true });
+  }, []);
+  useEffect(() => {
+    if (!pendingFocus || isLoading) return;
+    const focus = pendingFocus.kind;
+    const key = `${focus}:${pendingFocus.ts}`;
+    if (handledFocusRef.current === key) return;
+    handledFocusRef.current = key;
+    // Scroll to the control, highlight it, and open its picker for the member —
+    // the whole point of the nudge is that they should not have to hunt for it.
+    //
+    // ⚠️ The delay is load-bearing: Android will not present a picker over a screen
+    // that is still animating in, so this fires only once the profile has loaded
+    // (the isLoading guard above) and the tab transition has settled. The pulse
+    // stays regardless, so if a picker is ever refused the member still lands on a
+    // clearly marked control they can tap.
+    //
+    // (An earlier cut removed the auto-open entirely, blaming it for a one-minute
+    // stall on device. That stall was the missing upload loader — fixed separately
+    // by raising it before prepareImageForUpload — not the picker.)
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    if (focus === 'photo' || focus === 'horoscope') {
+      if (focus === 'photo') scrollRef.current?.scrollTo({ y: 0, animated: true });
+      else scrollToCard('horoscope');
+      timers.push(setTimeout(() => setFocusPulse(focus), 250));
+      timers.push(setTimeout(() => setFocusPulse(null), 3000));
+      timers.push(setTimeout(() => {
+        if (focus === 'photo') {
+          latestRef.current.pick();
+        } else if (!latestRef.current.hasHoro) {
+          // Only when nothing is uploaded yet — re-opening a picker on top of an
+          // existing horoscope would be acting on a stale nudge.
+          latestRef.current.horo();
+        }
+      }, 550));
+    } else if (focus === 'interests') {
+      scrollToCard('interests');
+      timers.push(setTimeout(() => setInterestsEditVisible(true), 350));
+    }
+    return () => { timers.forEach(clearTimeout); };
+  }, [pendingFocus, isLoading, scrollToCard]);
 
   // ─── Data fetching ─────────────────────────────────
   useFocusEffect(useCallback(() => {
+    // A real edit always wins over the 30s throttle. Without this, saving a
+    // section (or deleting the horoscope) and coming straight back re-rendered
+    // the CACHED profile — the client's "still says 100% after I removed the
+    // horoscope, then 96% once I'd been to Home and back" report.
+    const forced = consumeProfileDirty();
     const now = Date.now();
-    if (now - lastFetchRef.current < CACHE_MS && finalData) return;
+    if (!forced && now - lastFetchRef.current < CACHE_MS && finalData) return;
     refreshProfile(finalData ? false : true);
   }, [userData.userId]));
 
@@ -239,6 +323,12 @@ const ProfileScreen = () => {
       ]);
       const raw = profileRes.data.data;
       if (raw?.profileImage) updateField('profileImage', raw.profileImage);
+      // The home header reads firstName/lastName out of UserDataContext, which is filled from
+      // AsyncStorage once at login — so an edited name kept showing the OLD one there until the
+      // next sign-in, while the photo updated correctly (it was the only field synced back).
+      // This is the authoritative server copy, so sync the name the same way.
+      if (raw?.firstName && raw.firstName !== userData.firstName) updateField('firstName', raw.firstName);
+      if (raw?.lastName !== undefined && raw.lastName !== userData.lastName) updateField('lastName', raw.lastName || '');
       setUserDetails(raw);
       const fmt = formatUserDetails(raw);
       setPersonalDetail(fmt);
@@ -248,12 +338,23 @@ const ProfileScreen = () => {
       setHoroscopeImage(horoImg && horoImg !== 'null' ? horoImg : null);
       setFinalData({ personalDetails: fmt || [], galleryImages: galleryRes.data.data || [] });
       lastFetchRef.current = Date.now();
-    } catch (e) { console.error('Refresh error:', e); }
+    } catch (e) {
+      console.error('Refresh error:', e);
+      // A silent catch here rendered a fully blank profile (and dead edit
+      // buttons) whenever the fetch timed out — make the failure visible.
+      Toast.show({ type: 'error', text1: 'Could not load your profile', text2: 'Please check your connection and pull down to refresh.' });
+    }
     finally { setIsLoading(false); }
-  }, [userData.userId]);
+  // firstName/lastName are in the deps so the guard above compares against the CURRENT
+  // context value — without them the closure keeps the pre-edit name and rewrites the same
+  // value on every refresh.
+  }, [userData.userId, userData.firstName, userData.lastName]);
 
-  // Fetch stats, boost, score, quota
-  useFocusEffect(useCallback(() => {
+  // Fetch stats, boost, score, quota.
+  // Extracted from the focus effect so anything that CHANGES profile content
+  // (horoscope add/delete, gallery add/delete) can refresh the completion %
+  // immediately, instead of leaving a stale number until the next focus.
+  const refreshStats = useCallback(() => {
     if (!userData.userId) return;
     Promise.allSettled([
       userApi.userConnectionCount(userData.userId),
@@ -271,13 +372,22 @@ const ProfileScreen = () => {
       }
       if (cR.status === 'fulfilled' && cR.value?.data?.code === 200) setContactRevealStatus(cR.value.data.data);
     });
-  }, [userData.userId]));
+  }, [userData.userId]);
+
+  // A new plan brings new counters (requests left, boost credits, completion-linked stats).
+  // This tab stays mounted, and its 30s focus throttle would otherwise keep the old numbers.
+  usePlanChangeEffect(() => { refreshStats(); });
+
+  useFocusEffect(useCallback(() => { refreshStats(); }, [refreshStats]));
 
   // Boost countdown
   useEffect(() => {
     if (!boostData?.isBoostActive || !boostData?.expiresAt) return;
     const timer = setInterval(() => {
-      const diff = new Date(boostData.expiresAt).getTime() - Date.now();
+      // ⚠ expiresAt arrives as zone-less UTC digits; `new Date()` read them as IST and the
+      // 24h countdown started at ~18h30m. parseServerDate treats a missing zone as UTC.
+      const end = parseServerDate(boostData.expiresAt);
+      const diff = end ? end.getTime() - Date.now() : 0;
       if (diff <= 0) {
         setCountdown('');
         setBoostData((p: any) => p ? { ...p, isBoostActive: false } : p);
@@ -291,6 +401,18 @@ const ProfileScreen = () => {
   }, [boostData?.isBoostActive, boostData?.expiresAt]);
 
   // ─── Handlers ──────────────────────────────────────
+
+  // Raw backend/exception text must never reach a member's popup — it leaks
+  // Java exception strings ("Something Went Wrong. <stack>") and reads as broken.
+  // The one member-actionable case (413 image too large — rewritten by
+  // axiosClient into friendly copy) is kept; everything else shows generic text
+  // and the real message goes to the console for debugging.
+  const friendlyUploadError = (e?: any) => {
+    const raw = e?.response?.data?.message || e?.message;
+    if (raw) console.warn('[upload] raw error:', raw);
+    if (e?.response?.status === 413) return e.response.data?.message || 'Image is too large. Please choose a smaller photo.';
+    return 'Something went wrong. Please try again later.';
+  };
 
   const handlePickImage = async () => {
     if (isParent) { popup.error('Not allowed', 'Family members cannot change the profile photo.'); return; }
@@ -312,15 +434,18 @@ const ProfileScreen = () => {
         setUploadingLabel('Updating profile photo');
         try {
           const res = await userApi.updateProfileImage(fd);
+          setImageUploading(false);
+          setUploadingLabel(null); // before ANY popup — see overlay comment
           if (res?.data?.code === 200) {
             const url = typeof res.data.data === 'string' ? res.data.data : res.data.data?.profileImage;
             if (url) updateField('profileImage', url);
             await refreshProfile(false);
+            refreshStats(); // completion % changes with photo count
             popup.success('Updated', 'Profile image updated!');
           } else throw new Error(res?.data?.message || 'Failed');
         } finally { setImageUploading(false); setUploadingLabel(null); }
       }
-    } catch (e: any) { setImageUploading(false); popup.error('Error', e.message || 'Failed to update.'); }
+    } catch (e: any) { setImageUploading(false); setUploadingLabel(null); popup.error('Upload failed', friendlyUploadError(e)); }
   };
 
   const handleBoost = async () => {
@@ -337,7 +462,7 @@ const ProfileScreen = () => {
         return;
       }
       popup.confirm('No boosts remaining', 'Buy an extra boost for ₹149?', () => {
-        router.push({ pathname: '/(root)/screens/AddOnPaymentScreen', params: { featureTitle: 'Profile Boost', featureNote: 'BOOST_PURCHASE', price: '149', planId: '0', description: 'Top of search for 24h.' } } as any);
+        go(() => router.push({ pathname: '/(root)/screens/AddOnPaymentScreen', params: { featureTitle: 'Profile Boost', featureNote: 'BOOST_PURCHASE', price: '149', planId: '0', description: 'Top of search for 24h.' } } as any));
       }, 'Buy ₹149', 'Later');
       return;
     }
@@ -356,33 +481,43 @@ const ProfileScreen = () => {
   };
 
   // ─── Gallery handlers ──────────────────────────────
-  const handleGalleryUpload = async () => {
+  // ONE shared picker flow for add AND replace. The add path was proven to open
+  // the system gallery on device while a separate replace handler's identical-
+  // looking launch silently never resolved — so replace now IS the add path,
+  // and only the API call at the end differs (replaceGalleryImage updates the
+  // tapped row in place, keeping the photo's position).
+  const handleGalleryUpload = async (replaceGalleryId?: number) => {
     if (isParent) { popup.error('Not allowed', 'Family members cannot upload gallery images.'); return; }
     try {
       // See handlePickImage above re: allowsEditing's unreliable Android crop-screen buttons.
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
       if (!result.canceled && result.assets?.length) {
-        const uri = result.assets[0].uri;
         const filePart = await prepareImageForUpload(result.assets[0], 'gallery');
         if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
         const fd = new FormData();
         fd.append('file', filePart as any);
-        fd.append('userId', userData.decodedUserId || atob(userData.userId));
-        setUploadingLabel('Uploading photo');
+        if (replaceGalleryId != null) fd.append('galleryId', String(replaceGalleryId));
+        fd.append('userId', userData.decodedUserId || atob(userData.userId || ''));
+        setUploadingLabel(replaceGalleryId != null ? 'Replacing photo' : 'Uploading photo');
         try {
-          const res = await userApi.uploadGalleryImage(fd);
+          const res = replaceGalleryId != null
+            ? await userApi.replaceGalleryImage(fd)
+            : await userApi.uploadGalleryImage(fd);
+          setUploadingLabel(null); // before ANY popup — see overlay comment
           if (res?.data?.code === 200 || res?.data?.code === 201) {
-            popup.success('Uploaded', 'Gallery image added!');
+            popup.success(replaceGalleryId != null ? 'Replaced' : 'Uploaded',
+              replaceGalleryId != null ? 'Your photo has been replaced.' : 'Gallery image added!');
             await refreshProfile(false);
-          } else popup.error('Upload failed', res?.data?.message || 'Try again.');
+            refreshStats(); // completion % changes with photo count
+          } else { console.warn('[upload] gallery:', res?.data?.message); popup.error('Upload failed', 'Something went wrong. Please try again later.'); }
         } finally { setUploadingLabel(null); }
       }
     } catch (e: any) {
       setImageUploading(false);
       setUploadingLabel(null);
-      // axios rejects on 4xx, so a 413 (file too large) lands HERE, not in the code===200 branch
-      // above — a generic "Failed to upload" hid the one thing the member could act on.
-      popup.error('Upload failed', e?.response?.data?.message || 'Failed to upload. Please try again.');
+      // axios rejects on 4xx, so a 413 (file too large) lands HERE, not in the
+      // code===200 branch — friendlyUploadError keeps that one case actionable.
+      popup.error('Upload failed', friendlyUploadError(e));
     }
   };
 
@@ -416,8 +551,10 @@ const ProfileScreen = () => {
                 if (typeof res.data.data === 'string') updateField('profileImage', res.data.data);
                 popup.success('Updated', 'This is now your profile photo.');
                 await refreshProfile(false);
+            refreshStats(); // completion % changes with photo count
               } else {
-                popup.error('Failed', res?.data?.message || 'Could not update your profile photo.');
+                console.warn('[upload] setAsProfile:', res?.data?.message);
+                popup.error('Failed', 'Something went wrong. Please try again later.');
               }
             } catch (e) {
               popup.error('Failed', 'Network error. Please try again.');
@@ -426,12 +563,16 @@ const ProfileScreen = () => {
         },
         {
           text: 'Replace with a new photo',
-          onPress: () => { popup.hide(); handleGalleryUpload(); },
+          // Same immediate wiring the old (working) sheet used — the picker
+          // opened fine when launched straight from the press.
+          onPress: () => { popup.hide(); handleGalleryUpload(galleryIdOf(img)); },
         },
         {
           text: 'Remove photo',
           variant: 'destructive',
-          onPress: () => { popup.hide(); handleGalleryDelete(galleryIdOf(img)); },
+          // Same beat as Replace: the confirm re-opens this Modal, and a
+          // hide-then-show in the same tick can leave the confirm never appearing.
+          onPress: () => { popup.hide(); setTimeout(() => handleGalleryDelete(galleryIdOf(img)), 400); },
         },
       ],
     });
@@ -442,8 +583,8 @@ const ProfileScreen = () => {
     popup.confirm('Delete photo?', 'This photo will be removed from your gallery.', async () => {
       try {
         const res = await userApi.changeGalleryImageActiveStatusByImageId(galleryId);
-        if (res?.data?.code === 200) { popup.success('Deleted', 'Photo removed.'); await refreshProfile(false); }
-        else popup.error('Failed', res?.data?.message || 'Could not delete.');
+        if (res?.data?.code === 200) { popup.success('Deleted', 'Photo removed.'); await refreshProfile(false); refreshStats(); }
+        else { console.warn('[upload] delete gallery:', res?.data?.message); popup.error('Failed', 'Something went wrong. Please try again later.'); }
       } catch (e) { popup.error('Failed', 'Network error.'); }
     }, 'Delete', 'Cancel');
   };
@@ -456,27 +597,35 @@ const ProfileScreen = () => {
       // See handlePickImage above re: allowsEditing's unreliable Android crop-screen buttons.
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
       if (!result.canceled && result.assets?.length) {
-        const uri = result.assets[0].uri;
+        // Loader up BEFORE compression — shrinking a large photo takes a few
+        // seconds, and that gap used to be silent (client: "loader not appeared").
+        setHoroscopeUploading(true);
+        setUploadingLabel('Uploading horoscope');
         const filePart = await prepareImageForUpload(result.assets[0], 'horoscope');
-        if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
+        if (!filePart) {
+          setHoroscopeUploading(false); setUploadingLabel(null); // clear the overlay before any popup
+          popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.');
+          return;
+        }
         const fd = new FormData();
         fd.append('file', filePart as any);
         fd.append('userId', atob(userData.userId));
-        setHoroscopeUploading(true);
-        setUploadingLabel('Uploading horoscope');
         try {
           const res = await userApi.uploadHoroscopeImage(fd);
+          setHoroscopeUploading(false);
+          setUploadingLabel(null); // before ANY popup — see overlay comment
           if (res?.data?.code === 200 || res?.data?.code === 201) {
-            popup.success('Success', 'Horoscope uploaded!', () => refreshProfile(false));
+            popup.success('Success', 'Horoscope uploaded!', () => { refreshProfile(false); refreshStats(); });
           } else {
-            popup.error('Upload failed', res?.data?.message || 'Try again.');
+            console.warn('[upload] horoscope:', res?.data?.message);
+            popup.error('Upload failed', 'Something went wrong. Please try again later.');
           }
         } finally { setHoroscopeUploading(false); setUploadingLabel(null); }
       }
     } catch (e: any) {
       setHoroscopeUploading(false);
       setUploadingLabel(null);
-      popup.error('Upload failed', e?.response?.data?.message || 'Failed to upload horoscope. Please try again.');
+      popup.error('Upload failed', friendlyUploadError(e));
     }
   };
 
@@ -486,8 +635,8 @@ const ProfileScreen = () => {
     popup.confirm('Delete horoscope?', 'Your horoscope image will be removed. You can upload a new one anytime.', async () => {
       try {
         const res = await userApi.deleteHoroscopeByUserId(userData.userId);
-        if (res?.data?.code === 200) { popup.success('Deleted', 'Horoscope removed.'); setHoroscopeImage(null); refreshProfile(false); }
-        else popup.error('Failed', res?.data?.message || 'Could not delete.');
+        if (res?.data?.code === 200) { popup.success('Deleted', 'Horoscope removed.'); setHoroscopeImage(null); refreshProfile(false); refreshStats(); }
+        else { console.warn('[upload] delete horoscope:', res?.data?.message); popup.error('Failed', 'Something went wrong. Please try again later.'); }
       } catch (e) { popup.error('Failed', 'Network error.'); }
     }, 'Delete', 'Cancel');
   };
@@ -498,108 +647,23 @@ const ProfileScreen = () => {
       popup.error('Not allowed', 'Family members cannot edit the primary member\'s profile.');
       return;
     }
-    setEditSection(section);
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditClose = () => {
-    setIsEditModalOpen(false);
-    setEditSection(null);
-  };
-
-  const handleEditUpdate = async (updatedData: any) => {
-    try {
-      if (!userData.userId) return;
-      const userId = userData.userId;
-      const clean = (v: string) => (!v || v === '-' || v === 'Not specified') ? '' : v;
-
-      const sectionMap: Record<string, (data: any) => any> = {
-        PersonalDetail: (data) => ({
-          userId, firstName: clean(data['First Name']), lastName: clean(data['Last Name']),
-          dateOfBirth: clean(data['Date of Birth']),
-          height: clean(data['Height']), weight: clean(data['Weight']),
-          physicalStatus: clean(data['Physical Status']), maritalStatus: clean(data['Marital Status']),
-          motherLanguage: clean(data['Mother Language']),
-          currentAddress: clean(data['Current Address']), nativePlace: clean(data['Native Place']),
-        }),
-        ReligiousDetail: (data) => ({
-          userId, star: clean(data['Star']), moonSign: clean(data['Moon Sign']), dosham: clean(data['Dosham']),
-        }),
-        EducationalDetail: (data) => ({
-          userId, education: data['Education'] || '', occupation: data['Occupation'] || '',
-          employedAt: data['Employing In'] === 'Private' ? 'PRIVATE' : data['Employing In'] === 'Government' ? 'GOVT' : data['Employing In'] === 'Self Employment' ? 'SELF' : '',
-          annualIncome: data['Annual Income'] || '',
-          jobPlace: data['Job Place'] || '', educationInDetail: data['Education in Detail'] || '',
-        }),
-        FamilyDetail: (data) => ({
-          userId, house: clean(data['Family Type']), familyStatus: clean(data['Family Status']),
-          fatherName: clean(data['Fathers Name']), fatherOccupation: clean(data['Fathers Occupation']),
-          motherName: clean(data['Mothers Name']), motherOccupation: clean(data['Mothers Occupation']),
-          noOfSiblings: clean(data['No of Siblings']), noOfBrothers: clean(data['No of Brothers']),
-          noOfSisters: clean(data['No of Sisters']), noOfBrothersMarried: clean(data['Brother Married']),
-          noOfSistersMarried: clean(data['Sister Married']),
-        }),
-      };
-
-      const apiMap: Record<string, (payload: any) => Promise<any>> = {
-        PersonalDetail: userApi.updateProfile,
-        ReligiousDetail: userApi.updateAstroInfo,
-        EducationalDetail: userApi.updateEducationInfo,
-        FamilyDetail: userApi.updateFamilyInfo,
-      };
-
-      const key = editSection?.section;
-      const formatter = sectionMap[key];
-      const apiFn = apiMap[key];
-
-      if (formatter && apiFn) {
-        // Backend returns HTTP 200 even on business failures (e.g. the dob validation added
-        // 2026-07-17) — this previously never checked res.data.code, so a rejected update still
-        // showed "updated successfully" while nothing actually saved.
-        const res = await apiFn(formatter(updatedData));
-        if (res?.data?.code !== 200) {
-          popup.error('Could not update', res?.data?.message || 'Please try again.');
-          return;
-        }
-
-        // Subcaste is displayed inside the Religious section but is stored on the user row, not
-        // in the astrology JSON — so it saves through update-personal-info, not update-astro-info.
-        // That endpoint overwrites every field it receives, so the currently-loaded personal
-        // values are re-sent verbatim alongside the new subcasteId. `dateOfBirth` is deliberately
-        // blank: the backend skips it when blank, leaving the stored dob/age untouched (re-sending
-        // it risks a 400 if the stored format isn't yyyy-MM-dd). No-ops when the caste has no
-        // subcastes, when nothing was picked, or when the pick didn't change.
-        if (key === 'ReligiousDetail') {
-          const picked = updatedData['Subcaste'];
-          const match = (getSubcastesForCaste?.(userDetails?.casteId) || [])
-            .find((sc: any) => sc.subcasteName === picked);
-          if (match && String(match.id) !== String(userDetails?.subcasteId ?? '')) {
-            const scRes = await userApi.updateProfile({
-              ...sectionMap.PersonalDetail(personalDetail?.[0]?.data || {}),
-              dateOfBirth: '',
-              subcasteId: match.id,
-            });
-            if (scRes?.data?.code !== 200) {
-              popup.error('Could not update subcaste', scRes?.data?.message || 'Please try again.');
-              await refreshProfile(false);
-              return;
-            }
-          }
-        }
-
-        const labels: Record<string, string> = {
-          PersonalDetail: 'Personal details', ReligiousDetail: 'Religious details',
-          EducationalDetail: 'Education details', FamilyDetail: 'Family details',
-        };
-        popup.success('Updated', `${labels[key] || 'Profile'} updated successfully.`);
-        handleEditClose();
-        await refreshProfile(false);
-      }
-    } catch (e) {
-      console.error('Edit update error:', e);
-      popup.error('Error', 'Failed to update. Please try again.');
+    if (!section) {
+      // Profile fetch failed or is still in flight — the edit modal would open
+      // empty (or not at all). Tell the member instead of doing nothing.
+      popup.error('Profile still loading', 'Please pull down to refresh your profile, then try again.');
+      return;
     }
+    // Full-page editor (2026-09-09) — the bottom sheet buried its Save button
+    // under the keyboard and drew a control system unrelated to the register
+    // form. The section's current values ride along as a param so the page
+    // paints instantly instead of re-fetching what this screen already has.
+    router.push({
+      pathname: '/(root)/screens/EditProfileSection',
+      params: { section: section.section, data: JSON.stringify(section.data || {}) },
+    } as any);
   };
+
+  latestRef.current = { pick: handlePickImage, horo: handleAddHoroscope, hasHoro: !!horoscopeImage };
 
   // ─── Derived ───────────────────────────────────────
   const trustCount = [true, userDetails?.idVerified, userDetails?.educationVerified, userDetails?.incomeVerified].filter(Boolean).length;
@@ -667,14 +731,14 @@ const ProfileScreen = () => {
         end={{ x: 0, y: 1 }}
         style={{ flex: 1 }}
       >
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: footerPad }} showsVerticalScrollIndicator={false}>
           {/* Top bar removed — settings icon is next to name */}
 
           {/* ─── HERO ─── */}
           <View style={s.hero}>
             <View style={s.heroRow}>
               {/* Avatar */}
-              <TouchableOpacity onPress={handlePickImage} disabled={imageUploading} style={s.avatarBox}>
+              <TouchableOpacity onPress={handlePickImage} disabled={imageUploading} style={[s.avatarBox, focusPulse === 'photo' && s.focusPulse]}>
                 <RotatingRing />
                 <View style={s.avatarImg}>
                   {userDetails?.profileImage ? (
@@ -726,7 +790,9 @@ const ProfileScreen = () => {
                   {planEnd && planTitle !== 'Free' && (
                     <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100, justifyContent: 'center', alignItems: 'center' }}>
                       <Text style={{ fontSize: 9, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: -0.1, textAlign: 'center' }}>
-                        Until {new Date(planEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        {isLifetimePlan
+                          ? 'Until marriage'
+                          : `Until ${new Date(planEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}`}
                       </Text>
                     </View>
                   )}
@@ -734,29 +800,29 @@ const ProfileScreen = () => {
               </View>
 
               {/* Settings */}
-              <TouchableOpacity onPress={() => router.push('/screens/settingsPage' as any)} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2, alignSelf: 'center', flexShrink: 0 }}>
+              <TouchableOpacity onPress={() => go(() => router.push('/screens/settingsPage' as any))} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: 'rgba(15,35,70,0.06)', shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2, alignSelf: 'center', flexShrink: 0 }}>
                 <MaterialIcons name="settings" size={20} color={C.ink3} />
               </TouchableOpacity>
             </View>
 
             {/* ─── STATS ROW ─── */}
             <View style={s.statsRow}>
-              {/* Profile Score with Ring */}
-              <View style={s.statCell}>
+              {/* Profile Score with Ring — tappable: opens the guided complete-your-profile flow */}
+              <TouchableOpacity style={s.statCell} activeOpacity={0.7} onPress={() => go(() => router.push('/(root)/screens/CompleteProfileScreen' as any))}>
                 <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
                   <ProgressRing size={48} strokeWidth={3.5} percentage={profileScore} color={C.brand} bgColor="rgba(31,127,229,0.12)" />
                   <Text style={{ position: 'absolute', fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{profileScore}%</Text>
                 </View>
-                <Text style={s.statLabel}>Profile</Text>
-              </View>
+                <Text style={s.statLabel}>{'Profile\nCompletion'}</Text>
+              </TouchableOpacity>
 
               {/* Trust Score with Ring — tappable */}
-              <TouchableOpacity style={s.statCell} activeOpacity={0.7} onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}>
+              <TouchableOpacity style={s.statCell} activeOpacity={0.7} onPress={() => go(() => router.push('/(root)/screens/TrustVerificationScreen' as any))}>
                 <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
                   <ProgressRing size={48} strokeWidth={3.5} percentage={Math.round((trustCount / 4) * 100)} color={C.green} bgColor="rgba(46,154,92,0.12)" />
                   <Text style={{ position: 'absolute', fontSize: 12, fontFamily: 'Rubik-Bold', color: C.ink }}>{trustCount}/4</Text>
                 </View>
-                <Text style={s.statLabel}>Trust</Text>
+                <Text style={s.statLabel}>{'Trust\nVerification'}</Text>
               </TouchableOpacity>
 
               {/* Requests */}
@@ -764,13 +830,15 @@ const ProfileScreen = () => {
                 <View style={{ height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
                   <Text style={s.statNum}>{requestQuota?.unlimited ? '∞' : (requestQuota?.remaining ?? '—')}</Text>
                 </View>
-                <Text style={s.statLabel}>Requests</Text>
+                {/* The number is the REMAINING interest quota — "Requests" alone
+                    didn't say which direction or what the count meant. */}
+                <Text style={s.statLabel}>{'Requests\nLeft'}</Text>
               </View>
 
               {/* Saved You — Gold+ gated */}
               <TouchableOpacity style={[s.statCell, { borderRightWidth: 0 }]} activeOpacity={0.7} onPress={() => {
                 if (isGoldPlus) {
-                  router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any);
+                  go(() => router.push({ pathname: '/(root)/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any));
                 } else {
                   popup.premiumRequired(upgradeMessage('see who shortlisted your profile', 'Gold'), buildUpgradeAction({ planTitle, featureName: 'Who Shortlisted Me', minPlan: 'Gold' }));
                 }
@@ -778,16 +846,16 @@ const ProfileScreen = () => {
                 <View style={{ height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
                   <Text style={s.statNum}>{stats?.Shortlisted || 0}</Text>
                 </View>
-                {/* "Saved You", not "Saved" — this stat is people who shortlisted YOU (Gold+),
-                    not the profiles you saved. The bare word read as the latter, which is a
-                    different, ungated feature (My Favourites / ListUser?type=shortlisted). */}
-                <Text style={s.statLabel}>Saved You</Text>
+                {/* "Shortlisted You" — the phrase every matrimony app uses for this,
+                    and it matches the list card below. ("Saved You"/"Saved" both read
+                    ambiguously against the profiles-you-saved feature.) */}
+                <Text style={s.statLabel}>{'Shortlisted\nYou'}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* ─── CONTENT ─── */}
-          <View style={s.content}>
+          <View style={s.content} onLayout={(e) => { contentYRef.current = e.nativeEvent.layout.y; }}>
 
             {/* Boost Banner */}
             {boostData?.isBoostActive ? (
@@ -819,16 +887,16 @@ const ProfileScreen = () => {
             {/* Quick Links */}
             <Text style={s.sectionTitle}>Your Matrimony Profile</Text>
 
-            <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'shortlisted', title: 'Saved Profiles' } } as any)}>
+            <TouchableOpacity style={s.listCard} onPress={() => go(() => router.push({ pathname: '/screens/ListUser', params: { type: 'shortlisted', title: 'My Shortlist' } } as any))}>
               <View style={[s.listCardIcon, { backgroundColor: C.pinkSoft }]}><Text style={{ fontSize: 22 }}>💗</Text></View>
               <View style={s.listCardBody}>
-                <Text style={s.listCardTitle}>Saved Profiles</Text>
-                <Text style={s.listCardSub}>Your shortlisted profiles</Text>
+                <Text style={s.listCardTitle}>My Shortlist</Text>
+                <Text style={s.listCardSub}>Profiles you shortlisted</Text>
               </View>
               <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'viewed', title: 'Who Viewed You' } } as any)}>
+            <TouchableOpacity style={s.listCard} onPress={() => go(() => router.push({ pathname: '/screens/ListUser', params: { type: 'viewed', title: 'Who Viewed You' } } as any))}>
               <View style={[s.listCardIcon, { backgroundColor: C.lavenderSoft }]}><Text style={{ fontSize: 22 }}>👀</Text></View>
               <View style={s.listCardBody}>
                 <Text style={s.listCardTitle}>Who Viewed You</Text>
@@ -838,11 +906,11 @@ const ProfileScreen = () => {
             </TouchableOpacity>
 
             {isGoldPlus && (
-              <TouchableOpacity style={s.listCard} onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any)}>
+              <TouchableOpacity style={s.listCard} onPress={() => go(() => router.push({ pathname: '/screens/ListUser', params: { type: 'whoShortlistedMe', title: 'Who Shortlisted You' } } as any))}>
                 <View style={[s.listCardIcon, { backgroundColor: C.amberSoft }]}><Text style={{ fontSize: 22 }}>⭐</Text></View>
                 <View style={s.listCardBody}>
                   <Text style={s.listCardTitle}>Who Shortlisted You</Text>
-                  <Text style={s.listCardSub}>{stats?.Shortlisted || 0} profiles saved you</Text>
+                  <Text style={s.listCardSub}>{stats?.Shortlisted || 0} members shortlisted you</Text>
                 </View>
                 <View style={s.listCardChev}><MaterialIcons name="chevron-right" size={16} color={C.ink3} /></View>
               </TouchableOpacity>
@@ -861,7 +929,7 @@ const ProfileScreen = () => {
                 <TouchableOpacity
                   style={[s.listCard, isUrgent && { borderWidth: 1, borderColor: C.pinkSoft }]}
                   activeOpacity={0.85}
-                  onPress={() => router.push({ pathname: '/screens/ListUser', params: { type: 'revealedContacts' } } as any)}
+                  onPress={() => go(() => router.push({ pathname: '/screens/ListUser', params: { type: 'revealedContacts' } } as any))}
                 >
                   <View style={[s.listCardIcon, { backgroundColor: isUrgent ? C.pinkSoft : C.brandSoft }]}><Text style={{ fontSize: 22 }}>📞</Text></View>
                   <View style={s.listCardBody}>
@@ -904,19 +972,30 @@ const ProfileScreen = () => {
             {/* Personal */}
             <SectionCard emoji="👤" title="Personal" subtitle={`${Object.values(personalDetail?.[0]?.data || {}).filter(v => v && v !== '-').length} fields`} onEdit={() => handleEdit(personalDetail?.[0])}>
               <View style={s.detailGrid}>
+                {/* Name was editable but never displayed here (client 2026-09-19). Mobile and
+                    email are shown read-only — they identify the account (login + admin
+                    verification call), so they are a support-desk change, not a self-edit. */}
+                <DetailField label="First name" value={userDetails?.firstName} />
+                <DetailField label="Last name" value={userDetails?.lastName} />
                 <DetailField label="Gender" value={userDetails?.gender === 'M' ? 'Male' : 'Female'} />
                 <DetailField label="DOB" value={userDetails?.dob} />
+                {/* Physical status fills the cell beside Mobile (it used to be a full row further
+                    down, leaving this slot blank); Email keeps the full width a long address needs. */}
+                <DetailField label="Mobile" value={userDetails?.mobile} />
+                <DetailField label="Physical status" value={basic.physical_status} />
+                <DetailField label="Email" value={userDetails?.email} full />
                 <DetailField label="Marital" value={basic.marital_status} />
                 <DetailField label="Height" value={detail.height} />
                 <DetailField label="Weight" value={detail.weight} />
-                <DetailField label="Mother tongue" value={basic.mother_language || detail.languages} />
-                <DetailField label="Physical status" value={basic.physical_status} full />
+                <DetailField label="Mother tongue" value={formatLanguageList(basic.mother_language) || formatLanguageList(detail.languages)} />
                 <DetailField label="Address" value={detail.presentAddress} full />
                 <DetailField label="Native place" value={detail.permanentAddress} full />
+                <DetailField label="Place of birth" value={basic.place_of_birth} />
               </View>
             </SectionCard>
 
             {/* Hobbies */}
+            <View onLayout={(e) => { cardYRef.current.interests = e.nativeEvent.layout.y; }}>
             <SectionCard emoji="🎨" title="Interests & Hobbies" subtitle={`${hobbies.length} selected`} onEdit={() => {
               if (isParent) { popup.error('Not allowed', 'Family members cannot edit interests.'); return; }
               setInterestsEditVisible(true);
@@ -932,6 +1011,7 @@ const ProfileScreen = () => {
                 )}
               </View>
             </SectionCard>
+            </View>
 
             {/* Contact */}
             <LinearGradient colors={[C.brand, C.brandDeep]} style={s.contactCard}>
@@ -941,9 +1021,11 @@ const ProfileScreen = () => {
               </View>
               <View style={s.contactBody}>
                 <Text style={s.contactNum}>{userDetails?.mobile || '—'}</Text>
-                <TouchableOpacity style={s.contactBtn}>
+                {/* Decorative chip — this is the member's OWN number; a
+                    TouchableOpacity here looked tappable but had no onPress. */}
+                <View style={s.contactBtn}>
                   <MaterialIcons name="phone" size={17} color={C.brand} />
-                </TouchableOpacity>
+                </View>
               </View>
             </LinearGradient>
 
@@ -955,12 +1037,14 @@ const ProfileScreen = () => {
                 <DetailField label="Subcaste" value={subcasteName} />
                 <DetailField label="Nakshatra" value={astro.star} />
                 <DetailField label="Moon sign" value={astro.moon_sign} />
-                <DetailField label="Dosham" value={astro.dosham} full />
+                <DetailField label="Dosham" value={astro.dosham} />
+                <DetailField label="Birth time" value={astro.birth_time} />
               </View>
             </SectionCard>
 
             {/* Horoscope */}
-            <SectionCard emoji="🔮" title="Birth Chart" subtitle={horoscopeImage ? 'Uploaded' : 'Not uploaded'}>
+            <View onLayout={(e) => { cardYRef.current.horoscope = e.nativeEvent.layout.y; }} style={focusPulse === 'horoscope' && s.focusPulseCard}>
+            <SectionCard emoji="🔮" title="Horoscope" subtitle={horoscopeImage ? 'Uploaded' : 'Not uploaded'}>
               {horoscopeUploading ? (
                 <View style={{ alignItems: 'center', paddingVertical: 30 }}>
                   <ActivityIndicator size="large" color={C.brand} />
@@ -988,6 +1072,7 @@ const ProfileScreen = () => {
                 </TouchableOpacity>
               )}
             </SectionCard>
+            </View>
 
             {/* Work & Education */}
             <SectionCard emoji="💼" title="Work & Education" subtitle="6 fields" onEdit={() => handleEdit(personalDetail?.[2])}>
@@ -1020,11 +1105,11 @@ const ProfileScreen = () => {
 
             {/* Action tiles */}
             <View style={s.actionRow}>
-              <TouchableOpacity style={s.actionTile} onPress={() => router.push('/screens/PrivacySettingsPage' as any)}>
+              <TouchableOpacity style={s.actionTile} onPress={() => go(() => router.push('/screens/PrivacySettingsPage' as any))}>
                 <View style={[s.actionTileIcon, { backgroundColor: C.brandSoft }]}><MaterialIcons name="shield" size={16} color={C.brand} /></View>
                 <View><Text style={s.actionTileTitle}>Privacy</Text><Text style={s.actionTileSub}>Who sees what</Text></View>
               </TouchableOpacity>
-              <TouchableOpacity style={s.actionTile} onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}>
+              <TouchableOpacity style={s.actionTile} onPress={() => go(() => router.push('/(root)/screens/TrustVerificationScreen' as any))}>
                 <View style={[s.actionTileIcon, { backgroundColor: C.amberSoft }]}><MaterialIcons name="star" size={16} color={C.amberDeep} /></View>
                 <View><Text style={s.actionTileTitle}>Trust score</Text><Text style={s.actionTileSub}>{trustCount} of 4 verified</Text></View>
               </TouchableOpacity>
@@ -1037,34 +1122,27 @@ const ProfileScreen = () => {
                   <View style={[s.detailIconSm, { backgroundColor: C.brandSoft }]}><Text style={{ fontSize: 18 }}>📷</Text></View>
                   <View>
                     <Text style={s.detailTitle}>Photos</Text>
-                    <Text style={s.detailSub}>High-quality boosts views by 3×</Text>
+                    {/* Was "High-quality boosts views by 3×" — a stat we don't
+                        measure and a boost feature this doesn't relate to. */}
+                    <Text style={s.detailSub}>Add up to 3 photos of yourself</Text>
                   </View>
                 </View>
-                {galleryImages?.length > 0 && (
-                  <View style={s.galProgress}>
-                    <Text style={s.galProgressText}>{galleryImages.filter((g: any) => g.isActive === 'Y').length}/{galleryImages.length}</Text>
-                    <View style={s.galProgressBar}>
-                      <View style={{ width: `${Math.min(100, (galleryImages.filter((g: any) => g.isActive === 'Y').length / Math.max(1, galleryImages.length)) * 100)}%`, height: '100%', backgroundColor: C.brand, borderRadius: 100 }} />
-                    </View>
+                {/* Always X/3 — the cap is fixed at 3, so 0/3 shows from the
+                    start and fills as photos are added (was count/count, which
+                    read 1/1, 2/2, 3/3 and never showed the remaining space). */}
+                <View style={s.galProgress}>
+                  <Text style={s.galProgressText}>{galleryImages?.filter((g: any) => g.isActive === 'Y').length || 0}/3</Text>
+                  <View style={s.galProgressBar}>
+                    <View style={{ width: `${Math.min(100, ((galleryImages?.filter((g: any) => g.isActive === 'Y').length || 0) / 3) * 100)}%`, height: '100%', backgroundColor: C.brand, borderRadius: 100 }} />
                   </View>
-                )}
+                </View>
               </View>
               <View style={s.galGrid}>
-                {/* Primary photo */}
-                {userDetails?.profileImage ? (
-                  <TouchableOpacity style={s.galSlot} onPress={handlePickImage}>
-                    <Image source={{ uri: userDetails.profileImage }} style={{ width: '100%', height: '100%' }} />
-                    <View style={s.slotTag}><Text style={s.slotTagText}>Primary</Text></View>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={[s.galSlot, s.galSlotEmpty, s.galSlotPrimary]} onPress={handlePickImage}>
-                    <MaterialIcons name="account-circle" size={22} color={C.amberDeep} />
-                    <Text style={[s.galSlotEmptyText, { color: C.amberDeep }]}>Profile photo</Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Gallery images — long press to delete */}
-                {galleryImages?.filter((g: any) => g.isActive === 'Y')?.slice(0, 2).map((img: any, i: number) => (
+                {/* All 3 slots are GALLERY slots. The profile-photo tile that
+                    used to occupy slot 1 is gone (client 2026-09-04): the
+                    profile photo is edited via the hero avatar up top, and any
+                    gallery photo can become it via "Set as profile photo". */}
+                {galleryImages?.filter((g: any) => g.isActive === 'Y')?.slice(0, 3).map((img: any, i: number) => (
                   <TouchableOpacity key={i} style={s.galSlot} onPress={() => handleGalleryImagePress(img)} onLongPress={() => handleGalleryDelete(galleryIdOf(img))} activeOpacity={0.9}>
                     <Image source={{ uri: img.userImage }} style={{ width: '100%', height: '100%' }} />
                     {i === 0 && <View style={s.slotTag}><Text style={s.slotTagText}>Gallery</Text></View>}
@@ -1072,8 +1150,8 @@ const ProfileScreen = () => {
                 ))}
 
                 {/* Empty slots — tap to upload */}
-                {Array.from({ length: Math.max(0, 3 - 1 - (galleryImages?.filter((g: any) => g.isActive === 'Y')?.length || 0)) }).map((_, i) => (
-                  <TouchableOpacity key={`empty-${i}`} style={[s.galSlot, s.galSlotEmpty]} onPress={handleGalleryUpload} activeOpacity={0.7}>
+                {Array.from({ length: Math.max(0, 3 - (galleryImages?.filter((g: any) => g.isActive === 'Y')?.length || 0)) }).map((_, i) => (
+                  <TouchableOpacity key={`empty-${i}`} style={[s.galSlot, s.galSlotEmpty]} onPress={() => handleGalleryUpload()} activeOpacity={0.7}>
                     <MaterialIcons name="add" size={22} color={C.brand} />
                     <Text style={s.galSlotEmptyText}>Add photo</Text>
                   </TouchableOpacity>
@@ -1081,24 +1159,10 @@ const ProfileScreen = () => {
               </View>
             </View>
 
-            {/* Footer */}
-            <View style={s.footer}>
-              <View style={s.footerLine} />
-              <Text style={s.footerBrand}>Vaibhav <Text style={{ color: C.brand, fontStyle: 'italic' }}>Vivaha</Text></Text>
-              <Text style={s.footerVersion}>v2.1 · Sacred matches made simple</Text>
-            </View>
+
           </View>
         </ScrollView>
       </LinearGradient>
-
-      {/* Edit Profile Modal */}
-      <EditProfileModal
-        isOpen={isEditModalOpen}
-        onClose={handleEditClose}
-        section={editSection}
-        onUpdate={handleEditUpdate}
-        refreshProfile={() => refreshProfile(false)}
-      />
 
       {/* Edit Interests Modal — multi-select chip grid, not the generic text-input modal above */}
       <EditInterestsModal
@@ -1113,9 +1177,18 @@ const ProfileScreen = () => {
           scrolled — the previous spinner lived inside the top avatar, so a gallery upload
           showed no feedback at all once you'd scrolled down to the gallery. Non-dismissable:
           the upload is already in flight and cancelling it isn't supported. */}
-      <Modal visible={!!uploadingLabel} transparent animationType="fade" statusBarTranslucent>
+      {/* Upload overlay — deliberately a plain absolute View, NOT a native Modal.
+          It used to be a Modal, and popup.success() (CommonPopup, its own native
+          Modal) opened while this one was still visible; the finally-block then
+          dismissed THIS one underneath it — on Android that leaves touch routed
+          to the dead window and the whole screen frozen (client repro: gallery
+          upload succeeds, image appears, nothing tappable). A View overlays fine,
+          still blocks taps behind it, and can never deadlock with the popup. */}
+      {!!uploadingLabel && (
         <View style={{
-          flex: 1,
+          ...StyleSheet.absoluteFillObject,
+          zIndex: 9999,
+          elevation: 9999,
           backgroundColor: 'rgba(15,23,36,0.45)',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1152,7 +1225,7 @@ const ProfileScreen = () => {
             </Text>
           </View>
         </View>
-      </Modal>
+      )}
 
     </SafeAreaView>
   );
@@ -1171,6 +1244,9 @@ const s = StyleSheet.create({
   hero: { paddingHorizontal: 16, paddingTop: 8 },
   heroRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   avatarBox: { width: 68, height: 68, position: 'relative', flexShrink: 0 },
+  // Deep-link highlight: the completion nudge points at this control for ~2.5s.
+  focusPulse: { borderWidth: 3, borderColor: '#1F7FE5', shadowColor: '#1F7FE5', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
+  focusPulseCard: { borderRadius: 20, borderWidth: 2, borderColor: '#1F7FE5', backgroundColor: 'rgba(31,127,229,0.06)' },
   avatarRingOuter: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderRadius: 22, opacity: 0.85, zIndex: 0 },
   avatarRingGradient: { width: '100%', height: '100%', borderRadius: 22, padding: 2, justifyContent: 'center', alignItems: 'center' },
   avatarRingInner: { width: '100%', height: '100%', borderRadius: 19, backgroundColor: '#b8d0e8' },
@@ -1198,7 +1274,9 @@ const s = StyleSheet.create({
   statNum: { fontSize: 26, fontFamily: 'Rubik-Bold', color: C.ink, letterSpacing: -1, lineHeight: 28 },
   statPct: { fontSize: 16, fontFamily: 'Rubik-Medium', color: C.ink4, marginLeft: 1 },
   statFrac: { fontSize: 16, fontFamily: 'Rubik-Medium', color: C.ink4, marginLeft: 1 },
-  statLabel: { marginTop: 5, fontSize: 11, fontFamily: 'Rubik-Medium', color: C.ink4, letterSpacing: -0.1 },
+  // Two-word labels ("Requests Left", "Shortlisted You") wrap to a second line
+  // when the cell is narrow, centred — never clipped or ellipsised.
+  statLabel: { marginTop: 5, fontSize: 11, fontFamily: 'Rubik-Medium', color: C.ink4, letterSpacing: -0.1, textAlign: 'center', lineHeight: 13 },
 
   // Content
   content: { paddingHorizontal: 16 },

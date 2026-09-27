@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, StyleSheet, Keyboard, KeyboardAvoidingView, Platform, Animated, ImageBackground, Modal, FlatList, Alert, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
-import { Ionicons, Feather, Fontisto } from '@expo/vector-icons';
+import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, StyleSheet, Keyboard, KeyboardAvoidingView, Platform, Animated, ImageBackground, Modal, FlatList, Alert, TouchableWithoutFeedback, ActivityIndicator, AppState } from 'react-native';
+import { Ionicons, Feather, Fontisto, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Box, NativeBaseProvider, Pressable, Toast } from 'native-base';
 import VerifiedBadges from '../../../components/VerifiedBadges';
@@ -20,7 +21,7 @@ import {
   MenuProvider,
 } from 'react-native-popup-menu';
 import { SelectList } from 'react-native-dropdown-select-list';
-import { useSubscription } from '../contexts/subscriptionContext';
+import { useSubscription, usePlanChangeEffect } from '../contexts/subscriptionContext';
 import { buildUpgradeAction, upgradeMessage } from '../utils/upgradeNavigation';
 import { REPORT_REASONS } from '@/constants/data';
 // Remove this import since we're not using Checkbox anymore
@@ -30,6 +31,10 @@ interface Message {
   senderId: string;
   timestamp: string;
   isRead: boolean;
+  // Reached the recipient's device. Read implies delivered (legacy rows have no flag).
+  isDelivered?: boolean;
+  // Optimistic copy that the server has not confirmed yet (shown with a clock, like WhatsApp).
+  pending?: boolean;
   sender: string;
   displayDateGroup: string;
 }
@@ -82,9 +87,14 @@ const MessageBubble = React.memo(function MessageBubble({
             <Text style={isMyMessage ? styles.timestampRight : styles.timestampLeft}>
               {item.timestamp}
             </Text>
+            {/* WhatsApp ticks: ✓ sent · ✓✓ grey delivered to their device · ✓✓ blue read */}
             {isMyMessage &&
-              (item.isRead ? (
+              (item.pending ? (
+                <Ionicons name="time-outline" size={14} color="gray" />
+              ) : item.isRead ? (
                 <Ionicons name="checkmark-done-sharp" size={16} color="#34B7F1" />
+              ) : item.isDelivered ? (
+                <Ionicons name="checkmark-done-sharp" size={16} color="gray" />
               ) : (
                 <Ionicons name="checkmark-sharp" size={16} color="gray" />
               ))}
@@ -105,7 +115,13 @@ function ChatScreen() {
   const navigation = useNavigation();
   const route = useLocalSearchParams();
   const conversationId = route.conversationId as string;
-  const otherUserName = route.otherUserName as string;
+  /**
+   * The header name. The route param is only a first paint: a notification carries the
+   * sender's FIRST name, the chat list the full one, so the same thread read "BALA" from one
+   * door and "BALA Murugan" from the other. The profile fetch below (already made for the
+   * verified badges) is the one source of truth and overrides it.
+   */
+  const [otherUserName, setOtherUserName] = useState<string>((route.otherUserName as string) || '');
   const profileImage = route.profileImage as string;
   const otherUserId = route.otherUserId as string;
 
@@ -305,20 +321,13 @@ function ChatScreen() {
   );
 
   const handleUnblockUser = async () => {
-
     try {
-
-
-
-
-      // Call the unblockUser API
       await userApi.deleteBlockedUser(blockedId);
-
-      // Show success message
-      popup.success('Unblocked', 'User unblocked successfully.');
-
-      // Navigate back to chat list
-      router.navigate('/myChatList');
+      // Stay in the chat: unblocking is now the step between "you blocked them" and sending,
+      // so bouncing back to the list (the old behaviour) threw away the message being typed.
+      setIsBlockedByMe(false);
+      setBlockedId('');
+      popup.success('Unblocked', 'You can message this member again.');
     } catch (error) {
       console.error('Error unblocking user:', error);
       popup.error('Error', 'Failed to unblock user. Please try again.');
@@ -572,8 +581,18 @@ function ChatScreen() {
   }, []);
 
   const formatLastSeenTime = (lastSeen: string): string => {
+    if (!lastSeen) return '';
+    // 🔴 The REST answer (getUserOnlineStatus) is UTC with NO zone marker
+    // ('2026-09-20T06:23:54.332306'), which JS parses as LOCAL — so "last seen 11:53 AM"
+    // rendered as 6:23 AM, exactly 5h30m early. Same bug fixed on the chat LIST 2026-09-19;
+    // this parser was missed because the fix there only mentioned the message timestamps.
+    // Socket presence events now carry 'Z' (Instant, not LocalDateTime) — so only add one
+    // when there is none, or a marked value would be shifted the other way.
+    const raw = String(lastSeen).trim();
+    const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
     const now = new Date();
-    const seenDate = new Date(lastSeen);
+    const seenDate = new Date(hasZone ? raw : raw.replace(' ', 'T') + 'Z');
+    if (isNaN(seenDate.getTime())) return '';
 
     const sameDay =
       now.toDateString() === seenDate.toDateString();
@@ -601,6 +620,102 @@ function ChatScreen() {
 
 
 
+  // ─── sync(): the ONE way this screen gets messages ────────────────────────────────────────
+  // The server's REST API is the only source of message data; the WebSocket merely says
+  // "something changed". Every trigger — opening the chat, a live event, the socket coming
+  // back, the app returning to the foreground, our own send — calls this same function, which
+  // asks for the rows newer than the newest one we hold and APPENDS them. A missed or repeated
+  // socket event is therefore harmless: the next sync returns the truth. (It replaced four
+  // copy-pasted "download the whole conversation and swap the list" blocks.)
+  const messagesRef = useRef<Message[]>([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  const syncingRef = useRef(false);
+  const syncAgainRef = useRef(false);
+  const syncRef = useRef<() => Promise<void>>(async () => { });
+
+  const sync = useCallback(async () => {
+    if (!conversationId) return;
+    // Coalesce: triggers arrive in bursts (message + receipt + reconnect). One request runs;
+    // anything that fires meanwhile just asks for exactly one more pass afterwards.
+    if (syncingRef.current) { syncAgainRef.current = true; return; }
+    syncingRef.current = true;
+    try {
+      // decryptedUserId is filled by an async effect and is still '' on the very first call.
+      let me = decryptedUserId;
+      if (!me && userData?.userId) { try { me = base64.decode(userData.userId); } catch { me = ''; } }
+
+      // Cursor = newest CONFIRMED id. Optimistic rows carry a Date.now() id and must not count.
+      const afterId = messagesRef.current.reduce(
+        (max, m) => (!m.pending && Number(m.id) > max ? Number(m.id) : max), 0);
+
+      const res = await userApi.syncConversation(conversationId, me, afterId);
+      const raw = res?.data?.data;
+      if (res?.data?.code !== 200 || !raw) return;
+      // A server that predates `?after=` answers with the legacy full ARRAY. Accept it rather
+      // than showing an empty chat: every row is "incoming" (de-duplication below copes), and
+      // ticks fall back to each row's own flags since there are no high-water marks.
+      const d: any = Array.isArray(raw) ? { messages: raw } : raw;
+
+      const incoming: Message[] = (d.messages || []).map((msg: any) => ({
+        id: msg.id,
+        text: msg.message,
+        senderId: msg.senderId,
+        timestamp: formatDate(msg.createdAt),
+        isRead: !!msg.isRead,
+        isDelivered: !!msg.isDelivered || !!msg.isRead,
+        sender: String(msg.senderId) === String(me) ? 'me' : 'other',
+        displayDateGroup: getDisplayDate(msg.createdAt),
+      }));
+      const readUpTo = Number(d.readUpToId) || 0;
+      const deliveredUpTo = Number(d.deliveredUpToId) || 0;
+
+      setMessages((prev) => {
+        const have = new Set(prev.filter((m) => !m.pending).map((m) => String(m.id)));
+        const fresh = incoming.filter((m) => !have.has(String(m.id)));
+        let next = prev;
+        if (fresh.length) {
+          // The server has now confirmed these — drop our optimistic copies of the same text.
+          const confirmedMine = new Set(fresh.filter((m) => m.sender === 'me').map((m) => m.text));
+          next = prev.filter((m) => !(m.pending && confirmedMine.has(m.text)));
+          next = [...fresh.slice().reverse(), ...next]; // list is newest-first (inverted FlatList)
+        }
+        // Ticks on OLDER rows: reads/deliveries are applied in bulk server-side, so "everything
+        // of mine up to id N" is exact. Only allocate a new object when a tick really changes,
+        // otherwise every memoised bubble would re-render on each sync.
+        let changed = next !== prev;
+        const ticked = next.map((m) => {
+          if (m.sender !== 'me' || m.pending) return m;
+          const id = Number(m.id);
+          const isRead = m.isRead || id <= readUpTo;
+          const isDelivered = !!m.isDelivered || isRead || id <= deliveredUpTo;
+          if (isRead === m.isRead && isDelivered === !!m.isDelivered) return m;
+          changed = true;
+          return { ...m, isRead, isDelivered };
+        });
+        return changed ? ticked : prev;
+      });
+
+      if (d.status) setChatStatus(d.status);
+
+      // We are looking at this chat, so anything new from them is read now — this also makes
+      // the server push 'message_read' to them, turning their tick blue live.
+      if (me && incoming.some((m) => m.sender === 'other')) {
+        userApi.markAsRead(parseInt(conversationId), parseInt(me)).catch(() => { });
+      }
+    } catch (error: any) {
+      console.warn('[chat] sync failed:', error?.message);
+    } finally {
+      syncingRef.current = false;
+      if (syncAgainRef.current) { syncAgainRef.current = false; syncRef.current(); }
+    }
+  }, [conversationId, decryptedUserId, userData?.userId]);
+  useEffect(() => { syncRef.current = sync; }, [sync]);
+
+  // A member who opened this chat without the MESSAGE entitlement got the upgrade wall and an
+  // empty thread. When the plan changes the wall lifts by itself (isPremium follows the shared
+  // plan) — sync() then fills the thread. The cursor is still 0, so this is the full history.
+  usePlanChangeEffect(() => { syncRef.current(); });
+
   useEffect(() => {
     const fetchConversation = async () => {
       try {
@@ -608,10 +723,13 @@ function ChatScreen() {
         // which meant the messages — the entire reason the user opened this screen — only started
         // loading after two unrelated round-trips had finished. allSettled so a failure in the
         // status/verification calls still lets the conversation render.
+        // A different conversation on a reused screen must not inherit the previous thread.
+        messagesRef.current = [];
+        setMessages([]);
         const [onlineSettled, profileSettled, conversationSettled] = await Promise.allSettled([
           userApi.getUserOnlineStatus(otherUserId),
           userApi.getProfileDetails(otherUserId),
-          userApi.getConversationData(conversationId),
+          sync(), // afterId is 0 here → the whole thread, through the same path as every later update
         ]);
 
         if (onlineSettled.status === 'fulfilled') {
@@ -631,32 +749,14 @@ function ChatScreen() {
               incomeVerified: d.incomeVerified === true,
             });
             if (d.gender) setOtherUserGender(d.gender);
+            const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ').trim();
+            if (fullName) setOtherUserName(fullName);
           }
         } else {
           console.warn('[chatscreen] verification flags fetch failed:', profileSettled.reason?.message);
         }
 
         if (conversationSettled.status === 'rejected') throw conversationSettled.reason;
-        const response = conversationSettled.value;
-        if (response.data && response.data.data) {
-          // Get conversation data
-          // console.log("response.data.data=======================>", response.data.data);
-
-          // Format messages
-          const formattedMessages = response.data.data.map((msg: any) => ({
-            id: msg.id,
-            text: msg.message,
-            senderId: msg.senderId,
-            timestamp: formatDate(msg.createdAt),
-            isRead: msg.isRead,
-            sender: msg.senderId == decryptedUserId ? 'me' : 'other',
-            displayDateGroup: getDisplayDate(msg.createdAt),
-          }));
-
-          // console.log("formattedMessages=======================>", formattedMessages);
-
-          setMessages(formattedMessages.reverse());
-        }
       } catch (error: any) {
         console.error('Error fetching conversation:', error);
       }
@@ -704,36 +804,15 @@ function ChatScreen() {
 
     const handleIncomingMessage = (data: any) => {
       if (!data || String(data.conversationId) !== String(conversationId)) return;
-      userApi.getConversationData(conversationId).then((response) => {
-        if (response.data && response.data.data) {
-          const formattedMessages = response.data.data.map((msg: any) => ({
-            id: msg.id,
-            text: msg.message,
-            senderId: msg.senderId,
-            timestamp: formatDate(msg.createdAt),
-            isRead: msg.isRead,
-            sender: msg.senderId == decryptedUserId ? 'me' : 'other',
-            displayDateGroup: getDisplayDate(msg.createdAt),
-          }));
-          setMessages(formattedMessages.reverse());
-        }
-      }).catch((error) => console.error('Error refreshing conversation after live message:', error));
-
-      // markAsRead was previously only ever called once on mount (see the effect above), so a
-      // message that arrived live WHILE this screen was already open was shown to the reader but
-      // never actually marked read in the DB — the sender's tick stayed single-grey forever and
-      // the conversation list badge/bold-text never cleared even though the reader had plainly
-      // seen it. Since we're already open and looking at this conversation, mark it read the
-      // moment a new message lands; this also triggers the backend's 'message_read' WS push back
-      // to the sender, flipping their tick to blue live.
-      if (conversationId && decryptedUserId) {
-        userApi.markAsRead(parseInt(conversationId), parseInt(decryptedUserId)).catch(() => { });
-      }
+      // The socket only says "something changed"; sync() fetches what is new and marks it read
+      // (which also pushes 'message_read' back to the sender → their tick turns blue live).
+      sync();
     };
 
-    addChatListener(handleIncomingMessage);
-    return () => removeChatListener();
-  }, [conversationId, decryptedUserId, authUserId]);
+    // addChatListener returns an unsubscribe for THIS callback. The old no-argument
+    // removeChatListener() deleted whatever was registered — including the chat list's.
+    return addChatListener(handleIncomingMessage);
+  }, [conversationId, decryptedUserId, authUserId, sync]);
 
   // Live read receipts: markMessagesAsRead (called when the OTHER person opens/views this
   // conversation) now also pushes a 'message_read' WS event to us, the original sender — before
@@ -742,27 +821,33 @@ function ChatScreen() {
   // chatting. Uses webSocketService directly since AuthContext's addChatListener is hardcoded to
   // the separate 'chat_message' channel only.
   useEffect(() => {
-    const handleReadReceipt = (data: any) => {
+    const onReceipt = (data: any) => {
       if (!data || String(data.conversationId) !== String(conversationId)) return;
-      userApi.getConversationData(conversationId).then((response) => {
-        if (response.data && response.data.data) {
-          const formattedMessages = response.data.data.map((msg: any) => ({
-            id: msg.id,
-            text: msg.message,
-            senderId: msg.senderId,
-            timestamp: formatDate(msg.createdAt),
-            isRead: msg.isRead,
-            sender: msg.senderId == decryptedUserId ? 'me' : 'other',
-            displayDateGroup: getDisplayDate(msg.createdAt),
-          }));
-          setMessages(formattedMessages.reverse());
-        }
-      }).catch((error) => console.error('Error refreshing conversation after read receipt:', error));
+      sync();
     };
+    // they READ it (→ blue) · it reached their device (→ double grey) · our own socket came back
+    // after a drop (catch up on anything missed while it was down).
+    const offRead = webSocketService.addListener('message_read', onReceipt);
+    const offDelivered = webSocketService.addListener('message_delivered', onReceipt);
+    const offReconnect = webSocketService.addListener('connected', () => sync());
+    // Back from the background: the socket may have been dead the whole time, so do not wait
+    // for it — re-dial and fetch. This is the trigger that makes a missed push harmless.
+    const appState = AppState.addEventListener('change', (next) => {
+      if (next === 'active') { webSocketService.ensureConnected(); sync(); }
+    });
+    return () => { offRead(); offDelivered(); offReconnect(); appState.remove(); };
+  }, [conversationId, sync]);
 
-    webSocketService.addListener('message_read', handleReadReceipt);
-    return () => webSocketService.removeListener('message_read');
-  }, [conversationId, decryptedUserId]);
+  // Presence is pushed by the server now (online the moment they connect, last seen the moment
+  // they leave); the 15s poll below stays as the fallback for a missed event.
+  useEffect(() => {
+    if (!otherUserId) return;
+    return webSocketService.addListener('presence', (data: any) => {
+      if (!data || String(data.userId) !== String(otherUserId)) return;
+      setIsOtherUserOnline(!!data.isOnline);
+      if (data.lastSeen) setOtherUserLastseenTime(formatLastSeenTime(data.lastSeen));
+    });
+  }, [otherUserId]);
 
   // Online status / last seen has no live push at all on the backend (no WebSocket broadcast
   // on connect/disconnect) — it was only ever fetched once on mount, so it went stale for the
@@ -795,16 +880,28 @@ function ChatScreen() {
     try {
 
       // Block check
+      // Both members can OPEN a blocked chat and read its history; only sending is stopped,
+      // and each side is told why (client decision 2026-09-19, replacing the silent
+      // single-tick behaviour of 09-17). The server enforces the same two answers.
       if (isBlockedByMe) {
-        setStatusMessage("Please unblock the user before starting a conversation.");
-        setShowStatusModal(true);
-        return; // Prevent sending
+        popup.confirm(
+          'Unblock to send',
+          `You have blocked ${otherUserName || 'this member'}. Unblock them to send a message.`,
+          handleUnblockUser,
+          'Unblock',
+          'Cancel'
+        );
+        return;
+      }
+      if (isBlockedByOtherUser) {
+        popup.info("Can't send message", `${otherUserName || 'This member'} has blocked you, so you can't message them.`);
+        return;
       }
 
-      if (isBlockedByOtherUser) {
-        setStatusMessage("You cannot send a message because the user has blocked you.");
+      if (chatStatus === 'DISCONNECTED') {
+        setStatusMessage("You're no longer connected with this member. Send an interest and get it accepted to chat again.");
         setShowStatusModal(true);
-        return; // Prevent sending
+        return;
       }
 
 
@@ -828,7 +925,12 @@ function ChatScreen() {
         senderId: decryptedUserId,
         timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
         isRead: false,
-        sender: 'me'
+        pending: true,
+        sender: 'me',
+        // Needed now that this row is CONFIRMED IN PLACE rather than thrown away by a full
+        // re-download: without it the row's group is undefined, which never equals the row
+        // below it, so a stray date separator appeared above every message just sent.
+        displayDateGroup: 'Today',
       };
 
       // Update local state first for instant UI update. The FlatList is `inverted` and every
@@ -845,8 +947,9 @@ function ChatScreen() {
 
 
       // Send to API
+      let sendRes: any = null;
       try {
-        const sendRes = await userApi.updateUserConversation({
+        sendRes = await userApi.updateUserConversation({
           conversationId: parseInt(conversationId),
           senderId: parseInt(decryptedUserId),
           message: inputText,
@@ -859,6 +962,25 @@ function ChatScreen() {
           // Revert optimistic update
           setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
 
+          if (resData?.message === 'NOT_CONNECTED' || resData?.message === 'REQUEST_PENDING') {
+            if (resData.message === 'NOT_CONNECTED') setChatStatus('DISCONNECTED');
+            setStatusMessage(resData.message === 'NOT_CONNECTED'
+              ? "You're no longer connected with this member. Send an interest and get it accepted to chat again."
+              : 'This chat opens once the interest request is accepted.');
+            setShowStatusModal(true);
+            return;
+          }
+          // Server-side answers for a block that happened while this screen was already open.
+          if (resData?.message === 'USER_BLOCKED') {
+            setIsBlockedByMe(true);
+            popup.confirm('Unblock to send', `You have blocked ${otherUserName || 'this member'}. Unblock them to send a message.`, handleUnblockUser, 'Unblock', 'Cancel');
+            return;
+          }
+          if (resData?.message === 'BLOCKED_BY_USER') {
+            setIsBlockedByOtherUser(true);
+            popup.info("Can't send message", `${otherUserName || 'This member'} has blocked you, so you can't message them.`);
+            return;
+          }
           if (resData?.message === 'CHAT_LIMIT_REACHED') {
             const limit = resData?.data?.limit || 5;
             popup.premiumRequired(
@@ -892,20 +1014,15 @@ function ChatScreen() {
         popup.error('Send failed', 'Unable to send message. Please try again.');
       }
 
-      // Refresh messages
-      const response = await userApi.getConversationData(conversationId);
-      if (response.data && response.data.data) {
-        const formattedMessages = response.data.data.map((msg: any) => ({
-          id: msg.id,
-          text: msg.message,
-          senderId: msg.senderId,
-          timestamp: formatDate(msg.createdAt),
-          isRead: msg.isRead,
-          sender: msg.senderId == decryptedUserId ? 'me' : otherUserName,
-          displayDateGroup: getDisplayDate(msg.createdAt),
-        }));
-        setMessages(formattedMessages.reverse());
+      // Confirm the optimistic row in place (real id + delivered flag from the send response)
+      // instead of re-downloading the thread, then let sync() pick up anything else.
+      const saved = sendRes?.data?.data;
+      if (sendRes?.data?.code === 200 && saved?.id) {
+        setMessages(prev => prev.map(msg => msg.id === newMessage.id
+          ? { ...msg, id: saved.id, pending: false, isDelivered: !!saved.delivered }
+          : msg));
       }
+      sync();
     } catch (error: any) {
       console.error('Error sending message:', error);
       // Revert the optimistic update if API call fails
@@ -962,26 +1079,77 @@ function ChatScreen() {
     </View>
   );
 
-  const PremiumRequiredScreen = () => (
-    <TouchableOpacity
-      style={styles.premiumContainer}
-      onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Messaging' })}
-    >
-      <View style={styles.premiumContent}>
-        <Ionicons name="lock-closed" size={40} color="#ec4899" />
-        <Text style={styles.premiumTitle}>Premium Required</Text>
-        <Text style={styles.premiumText}>
-          Upgrade to Premium to send messages and enjoy full features
-        </Text>
-        <Pressable
-          style={styles.upgradeButton}
-          onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Messaging' })}
-        >
-          <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
-        </Pressable>
-      </View>
-    </TouchableOpacity>
-  );
+  // Free members (no MESSAGE entitlement) land here when they open a conversation. Same
+  // centre-state system as ListUser's premium gate (2026-09-05, client-approved): blue ring,
+  // white disc, ink title, slate copy, blue gradient pill — centre states are blue whether
+  // empty, errored or plan-gated; the lock glyph and the copy carry the "premium" meaning.
+  // Displayed plan names go through upgradeMessage() (§17) — never hardcode a tier here.
+  const PremiumRequiredScreen = () => {
+    const firstName = (otherUserName || '').trim().split(' ')[0] || 'This member';
+    const upgrade = buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Messaging', minPlan: 'Starter' });
+    return (
+      <LinearGradient colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']} style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          <View style={styles.wallHeader}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.wallBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="chevron-back" size={22} color="#1F7FE5" />
+            </TouchableOpacity>
+            <Image source={otherAvatarSource} style={styles.wallAvatar} fadeDuration={0} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.wallName} numberOfLines={1}>{otherUserName || 'Conversation'}</Text>
+              <Text style={styles.wallNameSub}>Messages are locked on your plan</Text>
+            </View>
+          </View>
+
+          <View style={styles.wallBody}>
+            {/* A locked preview of what is waiting, so the upgrade has something concrete behind it. */}
+            <View style={styles.wallPreview}>
+              <View style={styles.wallPreviewIcon}>
+                <MaterialCommunityIcons name="lock-outline" size={16} color="#1F7FE5" />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.wallPreviewTitle} numberOfLines={1}>{firstName} sent you a message</Text>
+                <Text style={styles.wallPreviewText}>Upgrade to read it and reply</Text>
+              </View>
+            </View>
+
+            <View style={styles.wallRing}>
+              <View style={styles.wallDisc}>
+                <MaterialCommunityIcons name="message-lock-outline" size={34} color="#1F7FE5" />
+              </View>
+            </View>
+            <Text style={styles.wallTitle}>Unlock this conversation</Text>
+            <Text style={styles.wallSubtitle}>{upgradeMessage('read and reply to messages', 'Starter')}</Text>
+
+            <View style={styles.wallPerks}>
+              {[
+                'Read every message you receive',
+                'Reply and start new conversations',
+                'Reveal contact details once an interest is accepted',
+              ].map((t) => (
+                <View key={t} style={styles.wallPerkRow}>
+                  <View style={styles.wallPerkTick}>
+                    <MaterialCommunityIcons name="check" size={12} color="#1F7FE5" />
+                  </View>
+                  <Text style={styles.wallPerkText}>{t}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity onPress={upgrade} activeOpacity={0.88} style={styles.wallCta}>
+              <LinearGradient colors={['#1F7FE5', '#1862b8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.wallCtaInner}>
+                <MaterialCommunityIcons name="crown" size={16} color="#fff" />
+                <Text style={styles.wallCtaText}>Upgrade Now</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} style={styles.wallLater}>
+              <Text style={styles.wallLaterText}>Maybe later</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  };
 
   if (isLoading || contentLoading) {
     return <NativeBaseProvider>
@@ -1002,8 +1170,14 @@ function ChatScreen() {
         <MenuProvider>
 
           <ImageBackground
-            source={require('../../../assets/images/whatsappBG.png')}
-            style={{ flex: 1 }}
+            source={require('../../../assets/images/whatsappBG.webp')}
+            // The chat used to open on a blank flash: RN fades every image in over 300ms by
+            // default, and this one is a 1.1M-pixel bitmap to decode. fadeDuration={0} removes
+            // the fade, and the matching backgroundColor (the pattern's own dominant shade,
+            // 67% of its pixels) paints the correct colour on the FIRST frame, so the chat looks
+            // right immediately and the doodles simply appear once decoded.
+            fadeDuration={0}
+            style={{ flex: 1, backgroundColor: '#E5DDD5' }}
             imageStyle={{ resizeMode: 'cover' }}
           >
             {/* Header */}
@@ -1030,7 +1204,11 @@ function ChatScreen() {
                   resizeMode="cover"
                 />
                 <View style={styles.headerTextContainer}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
+                  {/* ⚠ `flex: 1` + `minWidth: 0` on the ROW is what lets the name truncate. With
+                      only `flexShrink: 1` the row kept its intrinsic width — a long name plus the
+                      verified badge ran straight over the ⋮ menu. The badge never shrinks; the
+                      text does. */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
                     <Text style={styles.headerTitle} numberOfLines={1}
                       ellipsizeMode="tail">{otherUserName}</Text>
                     <View style={{ marginLeft: 6, flexShrink: 0 }}>
@@ -1053,12 +1231,14 @@ function ChatScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* Side menu option  */}
+              {/* Side menu option — a fixed, non-shrinking slot so a long name can never
+                  push into it, and a hit area wider than the 18px glyph. */}
+              <View style={{ flexShrink: 0, marginLeft: 8 }}>
               <Menu>
                 <MenuTrigger
                   customStyles={{
                     TriggerTouchableComponent: TouchableOpacity,
-                    triggerWrapper: { width: 20 }
+                    triggerWrapper: { width: 32, height: 36, alignItems: 'center', justifyContent: 'center' }
                   }}
                 >
                   <Fontisto name="more-v-a" size={18} color="#DADADA" />
@@ -1085,14 +1265,7 @@ function ChatScreen() {
                   }}
                 >
                   {/* Show UNBLOCK if user has blocked */}
-                  {isBlockedByOtherUser ? (
-                    // Optionally show a disabled state or nothing
-                    <MenuOption disabled>
-                      <Text style={[styles.item, { color: 'grey' }]}>
-                        Blocked (No actions available)
-                      </Text>
-                    </MenuOption>
-                  ) : isBlockedByMe ? (
+                  {isBlockedByMe ? (
                     <MenuOption onSelect={handleUnblockUser}>
                       <Text style={styles.item}>Unblock</Text>
                     </MenuOption>
@@ -1133,6 +1306,7 @@ function ChatScreen() {
                   )}
                 </MenuOptions>
               </Menu>
+              </View>
 
               {/* </TouchableOpacity> */}
 
@@ -1399,6 +1573,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Bold',
     color: '#DADADA',
     flexShrink: 1,
+    minWidth: 0,
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
@@ -1594,40 +1769,41 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     textAlign: 'center',
   },
-  premiumContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+  // Free-member wall (see PremiumRequiredScreen). Values mirror ListUser's empty/gate styles.
+  wallHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  wallBack: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e7edf5', justifyContent: 'center', alignItems: 'center', paddingRight: 2 },
+  wallAvatar: { width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: '#fff', backgroundColor: '#e7edf5' },
+  wallName: { fontSize: 15.5, fontFamily: 'Rubik-Bold', color: '#0f1724' },
+  wallNameSub: { fontSize: 11.5, fontFamily: 'Rubik-Regular', color: '#64748b', marginTop: 1 },
+  wallBody: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingBottom: 24 },
+  wallPreview: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch',
+    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e7edf5',
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 28,
+    shadowColor: '#1F7FE5', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  premiumContent: {
-    alignItems: 'center',
-    padding: 20,
+  wallPreviewIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#dfecfb', justifyContent: 'center', alignItems: 'center' },
+  wallPreviewTitle: { fontSize: 13.5, fontFamily: 'Rubik-Bold', color: '#0f1724' },
+  wallPreviewText: { fontSize: 12, fontFamily: 'Rubik-Regular', color: '#64748b', marginTop: 1 },
+  wallRing: { width: 108, height: 108, borderRadius: 54, backgroundColor: 'rgba(31,127,229,0.09)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  wallDisc: {
+    width: 78, height: 78, borderRadius: 39, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#0f1724', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 14, elevation: 4,
   },
-  premiumTitle: {
-    fontSize: 24,
-    fontFamily: 'Rubik-Bold',
-    color: '#130001',
-    marginBottom: 10,
+  wallTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: '#0f1724', marginBottom: 8, textAlign: 'center' },
+  wallSubtitle: { fontSize: 13, fontFamily: 'Rubik-Regular', color: '#64748b', textAlign: 'center', lineHeight: 20, maxWidth: 290 },
+  wallPerks: { alignSelf: 'stretch', marginTop: 22, gap: 10, paddingHorizontal: 6 },
+  wallPerkRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  wallPerkTick: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#dfecfb', justifyContent: 'center', alignItems: 'center' },
+  wallPerkText: { flex: 1, fontSize: 13, fontFamily: 'Rubik-Regular', color: '#334155' },
+  wallCta: {
+    marginTop: 26, alignSelf: 'stretch', borderRadius: 26, overflow: 'hidden',
+    shadowColor: '#1F7FE5', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 5,
   },
-  premiumText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  upgradeButton: {
-    backgroundColor: '#ec4899',
-    padding: 15,
-    borderRadius: 8,
-    width: '80%',
-    alignItems: 'center',
-  },
-  upgradeButtonText: {
-    color: '#DADADA',
-    fontSize: 16,
-    fontFamily: 'Rubik-Bold',
-  },
+  wallCtaInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52 },
+  wallCtaText: { color: '#fff', fontSize: 15, fontFamily: 'Rubik-Bold', letterSpacing: 0.3 },
+  wallLater: { marginTop: 14, paddingVertical: 6 },
+  wallLaterText: { fontSize: 13.5, fontFamily: 'Rubik-Medium', color: '#1F7FE5' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

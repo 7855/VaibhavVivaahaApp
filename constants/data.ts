@@ -174,3 +174,67 @@ export const profileDeepLink = (rawUserId: string | number) =>
   `${APP_SCHEME}://screens/ProfileDetail?userId=${encodeURIComponent(String(rawUserId))}`;
 
 export const APP_DOWNLOAD_URL = `${APP_WEB_ORIGIN}/download`;
+
+/**
+ * Mother tongue / languages for display.
+ *
+ * `user_details.languages` is a JSON COLUMN, so the API hands the app the raw text
+ * `["Tamil", "English"]` — which is exactly what members were seeing on the profile
+ * (client 2026-09-19). Accepts the JSON string, a real array, or plain comma text,
+ * and returns `Tamil, English`. Stored casing is inconsistent ("tamil" vs "Tamil"),
+ * so each entry's first letter is capitalised.
+ */
+export const formatLanguageList = (value: any): string => {
+  if (value === null || value === undefined) return '';
+  let items: any[];
+  if (Array.isArray(value)) {
+    items = value;
+  } else {
+    const raw = String(value).trim();
+    if (!raw || ['null', 'undefined', '[]', '-'].includes(raw.toLowerCase())) return '';
+    if (raw.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(raw);
+        items = Array.isArray(parsed) ? parsed : [raw];
+      } catch {
+        // Malformed JSON — strip the brackets/quotes rather than printing them.
+        items = raw.replace(/^\[|\]$/g, '').split(',').map((s) => s.replace(/["']/g, ''));
+      }
+    } else {
+      items = raw.split(',');
+    }
+  }
+  return items
+    .map((i) => String(i ?? '').trim())
+    .filter((i) => i && i.toLowerCase() !== 'null')
+    .map((i) => i.charAt(0).toUpperCase() + i.slice(1))
+    .join(', ');
+};
+
+/**
+ * Strips everything that isn't a letter or a space from a name field.
+ *
+ * "Letter" here means ANY script's letter, not just A–Z: members register with
+ * Tamil names (client 2026-09-20) and the old `[^A-Za-z\s]` filter silently ate
+ * every character they typed, so the field looked broken rather than rejected.
+ *
+ * ⚠️ `\p{M}` is load-bearing — Tamil vowel signs and the virama (ு ா ்) are
+ * COMBINING MARKS, not letters, so `\p{L}` alone would strip them and mangle
+ * every word ("முருகன்" → "மரகன").
+ *
+ * Built via `new RegExp` with a try/catch because Unicode property escapes are
+ * a syntax error on an engine that doesn't support them — which would throw at
+ * module load, not at call time, and take the whole screen down. The fallback
+ * drops ASCII digits and ASCII punctuation and lets every non-ASCII letter
+ * through, which is the same intent with a coarser net.
+ */
+const NAME_STRIP: RegExp = (() => {
+  try {
+    return new RegExp('[^\\p{L}\\p{M}\\s]', 'gu');
+  } catch {
+    return /[0-9!-\/:-@[-`{-~]/g;
+  }
+})();
+
+export const stripNonNameChars = (text: string) =>
+  String(text ?? '').replace(NAME_STRIP, '');

@@ -1,5 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.INTERNET"/>
+  <!-- READ_MEDIA_IMAGES is pulled in by expo-screen-capture (NOT the image picker),
+       scoped to Android 13 only, purely so addScreenshotListener can read the
+       screenshot from MediaStore. On Android that listener is dead code: we call
+       preventScreenCaptureAsync(), which sets FLAG_SECURE and stops the screenshot
+       from ever being taken, so nothing is ever written for it to detect. The
+       listener only does real work on iOS, where blocking is impossible.
+       Removing it therefore costs nothing and avoids Play's Photo & Video
+       Permissions declaration entirely. Photo SELECTION is unaffected —
+       expo-image-picker uses the Android Photo Picker (see its photopicker_activity
+       metadata), which needs no broad media access. -->
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
+  <!-- NFC is declared by the Cashfree SDK for tap-to-read CARD entry. It was stripped here while
+       checkout was UPI-only; cards were enabled 2026-09-21, and the card screen turns on NFC
+       reader mode, which throws SecurityException without this permission. It is a NORMAL
+       permission (no runtime prompt, no Play declaration) and its uses-feature is
+       required="false", so no device is filtered out. Do not strip it again while cards are on. -->
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
@@ -10,6 +26,20 @@
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
     </intent>
+    <!-- UPI apps the Cashfree checkout hands off to. Android 11+ HIDES every other app
+         from this one unless it is declared here, and Cashfree's Android guide requires ALL
+         of these schemes: "Without this declaration, queryIntentActivities returns an empty
+         list on Android 11 and later, and UPI apps do not appear in UPI Intent checkout."
+         The SDK's own manifest merges in "upi" ALONE — which is why the checkout page showed
+         "Pay with UPI ID" but no app icons after these were lost in a rewind. -->
+    <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="upi"/></intent>
+    <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="tez"/></intent>
+    <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="gpay"/></intent>
+    <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="phonepe"/></intent>
+    <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="paytmmp"/></intent>
+    <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="credpay"/></intent>
+    <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="bhim"/></intent>
+    <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="amazonpay"/></intent>
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false" android:fullBackupContent="@xml/secure_store_backup_rules" android:dataExtractionRules="@xml/secure_store_data_extraction_rules">
     <!-- Notification small icon. MUST be a white silhouette on transparency: Android discards the

@@ -3,22 +3,24 @@ import {
   Modal, FlatList, Dimensions, Linking, StatusBar, Platform, ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import VerifiedBadges from '@/components/VerifiedBadges';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '@/app/(root)/api/userApi';
-import { Heart, Share2, Phone, Star, ChevronLeft, MoreVertical, Maximize2, Bookmark, BookmarkCheck, ShieldAlert, Flag, Clock } from 'lucide-react-native';
+import { Heart, Share2, Phone, Star, ChevronLeft, MoreVertical, Maximize2, Bookmark, BookmarkCheck, ShieldAlert, Flag, Clock, UserMinus } from 'lucide-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-native-popup-menu';
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
-import { useSubscription } from '../contexts/subscriptionContext';
+import { useSubscription, usePlanChangeEffect } from '../contexts/subscriptionContext';
 import { buildUpgradeAction, resolveMinPlanTitle, upgradeMessage } from '../utils/upgradeNavigation';
 import { LinearGradient } from 'expo-linear-gradient';
-import { REPORT_REASONS, profileWebUrl, profileDeepLink, APP_DOWNLOAD_URL } from '@/constants/data';
+import { REPORT_REASONS, profileWebUrl, profileDeepLink, APP_DOWNLOAD_URL, formatLanguageList } from '@/constants/data';
 import { useMasterData } from '../contexts/MasterDataContext';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_ASPECT = 5 / 4;
@@ -31,15 +33,51 @@ const HOBBY_EMOJI: Record<string, string> = {
   art: '🎨', dance: '💃', cooking: '🍳', gardening: '🌱', spirituality: '🙏',
 };
 
-// By default an empty field is omitted entirely (that's what keeps the two-column grid tight).
-// `showEmpty` opts a field into always rendering, with a '-' placeholder — used where the row's
-// absence would be ambiguous, e.g. Subcaste, where a missing row reads as "this app has no
-// subcaste concept" rather than "this member didn't fill it in".
-const DetailField = ({ label, value, showEmpty = false }: { label: string; value: string; showEmpty?: boolean }) => {
-  const isEmpty = !value || value === '-' || value === 'null' || value === 'undefined';
+// Height/weight are free-form legacy strings (5'6", 5.5", 3.0, "65 kg", 50, NULL).
+// Returns '' for anything empty so callers can omit the row — the old code
+// concatenated blindly and rendered "nullf.t".
+// 'n/a' / 'not specified' etc. count as blank too: the client wants a plain '-' for anything
+// empty, never "N/A" — and legacy rows / older app versions did store such placeholders.
+const BLANK_VALUES = ['', 'null', 'undefined', '-', 'n/a', 'na', 'not specified', 'not available', 'none specified'];
+const isBlankValue = (v: any) =>
+  v === null || v === undefined || BLANK_VALUES.includes(String(v).trim().toLowerCase());
+const formatHeight = (v: any): string => {
+  if (isBlankValue(v)) return '';
+  const t = String(v).trim();
+  if (/^\d+'\d*"?$/.test(t)) return t;                           // 5'6"  → as-is
+  const m = t.match(/^(\d+(?:\.\d+)?)\s*("|ft|feet)?$/i);         // 5.5" / 5.5 / 5.5 ft
+  return m ? `${m[1]} ft` : t;
+};
+const formatWeight = (v: any): string => {
+  if (isBlankValue(v)) return '';
+  const t = String(v).trim();
+  const m = t.match(/^(\d+(?:\.\d+)?)\s*(kg|kgs)?$/i);
+  return m ? `${m[1]} kg` : t;
+};
+
+// Empty fields ALWAYS render, with a '-' placeholder (client ask 2026-09-17: a null
+// value must show as '-', never disappear). `showEmpty={false}` still hides one if needed.
+// VIEW_PERSONAL_INFO comes back as `true` for plans with unlimited access (Silver+), as a
+// `{period, limit}` object for QUOTA plans (Classic = 40, Trial = 5, any future pack), and
+// falsy for plans without it. The reveal button must key off this SHAPE — it used to key off
+// `planTitle === 'Classic'`, so a Trial member with 5 reveals saw the flat upgrade wall.
+const isQuotaEntitlement = (v: any): boolean => !!v && typeof v === 'object';
+
+// ⋮ menu rows. The text column MUST be flex:1 — unbounded, a long subtitle ("Ends the match and
+// closes the chat.") ran past the menu's edge instead of wrapping. The icon is pinned to the top
+// (title line) rather than centred, so a row whose subtitle wraps still lines up with the others.
+const menuRow = { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 14, paddingVertical: 10 } as const;
+const menuIcon = { marginTop: 1 } as const;
+const menuTextCol = { flex: 1 } as const;
+const menuSub = { fontSize: 11, lineHeight: 15, color: '#94a3b8', marginTop: 1, fontFamily: 'Rubik-Regular' } as const;
+
+const DetailField = ({ label, value, showEmpty = true, fullWidth = false }: { label: string; value: string; showEmpty?: boolean; fullWidth?: boolean }) => {
+  // isBlankValue, not `!value` — a real 0 (e.g. Brothers: 0) must not render as '-'.
+  const isEmpty = isBlankValue(value);
   if (isEmpty && !showEmpty) return null;
   return (
-    <View style={{ flex: 1, minWidth: '46%', marginBottom: 0, backgroundColor: '#f6f8fa', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 }}>
+    // fullWidth takes the whole row of the wrapping flex grid instead of sharing it.
+    <View style={{ flexGrow: 1, flexBasis: fullWidth ? '100%' : '45%', minWidth: fullWidth ? '100%' : '45%', backgroundColor: '#f6f8fa', borderWidth: 1, borderColor: '#eef2f7', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 }}>
       <Text style={{ fontSize: 10, fontFamily: 'Rubik-Medium', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 2 }}>{label}</Text>
       <Text style={{ fontSize: 13.5, fontFamily: 'Rubik-Medium', color: isEmpty ? '#94a3b8' : '#0f1724', letterSpacing: -0.2, lineHeight: 18 }}>{isEmpty ? '-' : value}</Text>
     </View>
@@ -47,8 +85,10 @@ const DetailField = ({ label, value, showEmpty = false }: { label: string; value
 };
 
 const SectionCard = ({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) => (
-  <View style={{ backgroundColor: '#fff', padding: 14, borderRadius: 18, marginBottom: 8, shadowColor: 'rgba(15,35,70,0.08)', shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+  // marginBottom must exceed the shadow's reach (radius + y-offset): the old 8px gap
+  // under a 12px/4px shadow let every card's shadow spill onto the card below it.
+  <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 18, marginBottom: 14, borderWidth: 1, borderColor: '#e7edf5', shadowColor: '#0f2346', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
       <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#dfecfb', justifyContent: 'center', alignItems: 'center' }}>
         <MaterialIcons name={icon} size={16} color="#1F7FE5" />
       </View>
@@ -111,8 +151,117 @@ const RestrictedField = ({ fieldType, profileDetailId, currentUserId, initialReq
   );
 };
 
-const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profileDetailId = '', currentUserId = '', planTitle = '', interestStatus = '', permissionRequests = {}, approvedFields = [] }: {
-  personalDetail: any[]; isPremium: boolean; hiddenFields?: string[]; profileDetailId?: string; currentUserId?: string; planTitle?: string; interestStatus?: string; permissionRequests?: { [key: string]: boolean }; approvedFields?: string[];
+// user_details.hobbies is a JSON column the API returns as a STRING ('["music","yoga"]').
+// Parse it tolerantly: a malformed or comma-separated value used to throw inside the
+// try/catch and silently become [], hiding the member's interests entirely.
+const parseHobbies = (h: any): string[] => {
+  let list: any[] = [];
+  if (Array.isArray(h)) list = h;
+  else if (typeof h === 'string' && h.trim()) {
+    try {
+      const parsed = JSON.parse(h);
+      list = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      list = h.split(',');
+    }
+  }
+  const out: string[] = [];
+  list.forEach((x) => {
+    const v = String(typeof x === 'string' ? x : x?.name ?? x?.label ?? '').trim();
+    if (v && !out.some((o) => o.toLowerCase() === v.toLowerCase())) out.push(v);
+  });
+  return out;
+};
+
+// Tap-to-expand horoscope, mirroring the hero photo's Maximize2 button + dark full-screen
+// viewer. Its own Modal rather than the gallery one: the gallery is plan-gated and paged,
+// while a horoscope is one image whose access was already decided by the branch that
+// renders it. Nothing may call popup.* while this is open (stacked native Modals — §17).
+// Pinch / double-tap / drag zoom for the full-screen horoscope. A horoscope chart is dense small
+// print — "expand" alone (2026-09-17) still left it unreadable on a phone.
+const ZoomableImage = ({ uri }: { uri: string }) => {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const savedTx = useSharedValue(0);
+  const savedTy = useSharedValue(0);
+  const MAX = 5;
+
+  const reset = () => {
+    'worklet';
+    scale.value = withTiming(1); savedScale.value = 1;
+    tx.value = withTiming(0); ty.value = withTiming(0);
+    savedTx.value = 0; savedTy.value = 0;
+  };
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => { scale.value = Math.min(MAX, Math.max(1, savedScale.value * e.scale)); })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value <= 1.02) reset();
+    });
+
+  // Drag only while zoomed in, clamped so the chart can never be flung off-screen.
+  const pan = Gesture.Pan()
+    .minPointers(1)
+    .onUpdate((e) => {
+      if (scale.value <= 1) return;
+      const maxX = (SCREEN_WIDTH * (scale.value - 1)) / 2;
+      const maxY = (SCREEN_HEIGHT * 0.8 * (scale.value - 1)) / 2;
+      tx.value = Math.min(maxX, Math.max(-maxX, savedTx.value + e.translationX));
+      ty.value = Math.min(maxY, Math.max(-maxY, savedTy.value + e.translationY));
+    })
+    .onEnd(() => { savedTx.value = tx.value; savedTy.value = ty.value; });
+
+  const doubleTap = Gesture.Tap().numberOfTaps(2).maxDuration(280).onEnd(() => {
+    if (scale.value > 1.02) { reset(); }
+    else { scale.value = withTiming(2.5); savedScale.value = 2.5; }
+  });
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
+  }));
+
+  return (
+    <GestureDetector gesture={Gesture.Simultaneous(pinch, pan, doubleTap)}>
+      <Animated.Image source={{ uri }} style={[pd.horoFull, style]} resizeMode="contain" />
+    </GestureDetector>
+  );
+};
+
+const HoroscopeImage = ({ uri }: { uri: string }) => {
+  const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+  return (
+    <>
+      <TouchableOpacity activeOpacity={0.85} onPress={() => setOpen(true)} style={pd.horoWrap}>
+        <Image source={{ uri }} style={pd.horoThumb} resizeMode="contain" />
+        <View style={pd.horoExpand}>
+          <Maximize2 size={14} color="#fff" />
+          <Text style={pd.horoExpandText}>View</Text>
+        </View>
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        {/* A Modal is its own native window, OUTSIDE the app-wide GestureHandlerRootView in
+            app/_layout.tsx — gestures inside it do nothing on Android without a root of their
+            own. This does not break the "exactly one root" rule in §17: that rule is about a
+            second full-screen root over the MAIN tree swallowing its touches; this one lives
+            and dies with the Modal and covers only the Modal's window. */}
+        <GestureHandlerRootView style={pd.horoOverlay}>
+          <ZoomableImage uri={uri} />
+          <TouchableOpacity style={[pd.horoClose, { top: insets.top + 10 }]} onPress={() => setOpen(false)}>
+            <Ionicons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+          <Text style={[pd.horoHint, { bottom: insets.bottom + 18 }]}>Pinch or double-tap to zoom</Text>
+        </GestureHandlerRootView>
+      </Modal>
+    </>
+  );
+};
+
+const InlineProfileTabs = ({ personalDetail, isPremium, hasRevealQuota = false, hiddenFields = [], profileDetailId = '', currentUserId = '', planTitle = '', interestStatus = '', isSender = false, permissionRequests = {}, approvedFields = [] }: {
+  personalDetail: any[]; isPremium: boolean; hasRevealQuota?: boolean; hiddenFields?: string[]; profileDetailId?: string; currentUserId?: string; planTitle?: string; interestStatus?: string; isSender?: boolean; permissionRequests?: { [key: string]: boolean }; approvedFields?: string[];
 }) => {
   const personal = personalDetail?.[0]?.data || {};
   const religious = personalDetail?.[1]?.data || {};
@@ -130,13 +279,30 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
   // between the two users must be APPROVED) — revealing contact doesn't bypass that, it just
   // surfaces both together instead of horoscope only ever appearing passively on its own.
   const [revealedHoroscope, setRevealedHoroscope] = useState<string | null>(null);
+  const [revealedBirthTime, setRevealedBirthTime] = useState<string | null>(null);
   const [horoscopeEligible, setHoroscopeEligible] = useState<boolean | null>(null);
 
-  // Classic gets a limited number of contact reveals (see VIEW_PERSONAL_INFO plan_features
-  // row — a numeric quota, not "enabled" like Silver+), so it needs an explicit action here
-  // rather than the flat upgrade wall Free/Starter see.
+  // Quota plans (Classic 40, Trial 5 — any plan whose VIEW_PERSONAL_INFO row is a number, not
+  // "enabled" like Silver+) need an explicit reveal action here rather than the flat upgrade
+  // wall Free/Starter see. `hasRevealQuota` is derived from the entitlement, never a plan name.
+  // Contact and horoscope are released only to a CONNECTED member (backend: revealContact
+  // answers 403 INTEREST_NOT_APPROVED otherwise, and spends no reveal). That is a consent
+  // refusal, not a plan one — it used to fall into the generic 403 branch and tell a Trial
+  // member who already HAS reveals to "upgrade". Say what is actually missing instead.
+  const showNotConnected = () => {
+    if (interestStatus === 'PENDING' && isSender) {
+      popup.info('Waiting for acceptance', 'Your interest is pending. Contact and horoscope details will unlock once they accept your request.');
+    } else if (interestStatus === 'PENDING') {
+      popup.info('Accept their interest first', 'This member has sent you an interest. Accept it to view their contact and horoscope details.');
+    } else {
+      popup.info('Send an interest first', 'Send an interest to this member. Once they accept, you can view their contact and horoscope details.');
+    }
+  };
+
   const handleRevealContact = async () => {
     if (!currentUserId || !profileDetailId || revealing) return;
+    // Known locally — no need to ask the server just to be refused.
+    if (interestStatus !== 'APPROVED') { showNotConnected(); return; }
     setRevealing(true);
     try {
       const res = await userApi.revealContact(currentUserId, profileDetailId);
@@ -148,14 +314,19 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
         setHoroscopeEligible(!!res.data.data.horoscopeEligible);
         if (res.data.data.horoscopeEligible) {
           setRevealedHoroscope(res.data.data.horoscope || null);
+          setRevealedBirthTime(res.data.data.birthTime || null);
         } else {
           popup.success('Contact revealed', 'Horoscope will unlock once your interest with this profile is accepted.');
         }
       } else if (res.data?.message === 'CONTACT_VIEW_LIMIT_EXCEEDED') {
+        const limit = res.data?.data?.limit;
+        setRevealQuota(limit ? { remaining: 0, total: limit } : null);
         popup.premiumRequired(
-          `You've used all your contact reveals for this plan. Upgrade to ${resolveMinPlanTitle('Silver')} for unlimited access.`,
+          `You have used all${limit ? ` ${limit}` : ''} of your contact reveals in this plan. Upgrade to ${resolveMinPlanTitle('Silver')} for unlimited access.`,
           buildUpgradeAction({ planTitle, featureName: 'Contact Reveal', minPlan: 'Silver' })
         );
+      } else if (res.data?.message === 'INTEREST_NOT_APPROVED') {
+        showNotConnected();
       } else if (res.data?.code === 403) {
         popup.premiumRequired('Upgrade your plan to view contact details.', buildUpgradeAction({ planTitle, featureName: 'Contact Reveal' }));
       } else {
@@ -171,14 +342,32 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
   const renderPersonal = () => (
     <View style={{ gap: 0 }}>
       <SectionCard icon="person" title="Basic Details">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <DetailField label="Date of Birth" value={personal['Date of Birth']} />
           <DetailField label="Marital Status" value={personal['Marital Status']} />
-          <DetailField label="Height / Weight" value={`${personal.Height || '-'} / ${personal.Weight || '-'}`} />
+          <DetailField label="Height / Weight" value={(personal.Height || personal.Weight) ? `${personal.Height || '-'} / ${personal.Weight || '-'}` : ''} />
           <DetailField label="Mother Tongue" value={personal['Mother Language']} />
+          <DetailField label="Place of Birth" value={personal['Place of Birth']} />
           <DetailField label="Physical Status" value={personal['Physical Status']} />
           <DetailField label="Gender" value={personal.Gender} />
         </View>
+      </SectionCard>
+      {/* Always rendered: it used to be hidden when empty, and most profiles have no
+          hobbies saved, so the section looked missing from this screen altogether. */}
+      <SectionCard icon="interests" title="Interests & Hobbies">
+        {interests.length > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {interests.map((hobby: string) => (
+              <View key={hobby} style={pd.hobbyChip}>
+                <Text style={pd.hobbyChipText}>
+                  {HOBBY_EMOJI[hobby.toLowerCase()] || '🎯'} {hobby.charAt(0).toUpperCase() + hobby.slice(1)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={pd.hobbyEmpty}>No interests added yet</Text>
+        )}
       </SectionCard>
       <SectionCard icon="contact-phone" title="Contact">
         {hiddenFields.includes('mobileNumber') && !approvedFields.includes('MOBILE') ? (
@@ -196,7 +385,7 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
             </View>
             <MaterialIcons name="phone" size={20} color="#1F7FE5" />
           </View>
-        ) : planTitle === 'Classic' ? (
+        ) : hasRevealQuota ? (
           <TouchableOpacity
             onPress={handleRevealContact}
             disabled={revealing}
@@ -214,26 +403,13 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
           <PremiumLock message="Upgrade to view contact details" planTitle={planTitle} featureName="Contact Reveal" />
         )}
       </SectionCard>
-      {interests.length > 0 && (
-        <SectionCard icon="interests" title="Interests & Hobbies">
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {interests.map((hobby: string, i: number) => (
-              <View key={i} style={{ backgroundColor: '#f6f8fa', paddingHorizontal: 13, paddingVertical: 7, borderRadius: 100 }}>
-                <Text style={{ fontSize: 12, fontFamily: 'Rubik-Medium', color: '#1e293b' }}>
-                  {HOBBY_EMOJI[hobby.toLowerCase()] || '🎯'} {hobby.charAt(0).toUpperCase() + hobby.slice(1)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </SectionCard>
-      )}
     </View>
   );
 
   const renderReligious = () => (
     <View style={{ gap: 0 }}>
       <SectionCard icon="auto-awesome" title="Religious Details">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <DetailField label="Religion" value={religious.Religion} />
           <DetailField label="Caste" value={religious.Caste} />
           {/* Always rendered, showing '-' when the member hasn't set a subcaste — the row going
@@ -241,6 +417,19 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
           <DetailField label="Subcaste" value={religious.Subcaste} showEmpty />
           <DetailField label="Star" value={religious.Star} />
           <DetailField label="Moon Sign" value={religious.Moonsign} />
+          {/* Hidden by the owner → ask permission, exactly like Mobile/Horoscope. Otherwise the
+              revealed value wins (one reveal covers contact + horoscope + birth time). */}
+          {/* Birth Time occupies a FULL row in both states. Hidden, it needs the width for
+              the "Birth Time Hidden / Tap to request access" card to read on one line; shown,
+              it keeps the same footprint so the grid does not reflow when the owner unhides
+              it or a request is approved. */}
+          {hiddenFields.includes('birthTime') && !approvedFields.includes('BIRTH_TIME') ? (
+            <View style={{ flexGrow: 1, flexBasis: '100%', minWidth: '100%' }}>
+              <RestrictedField fieldType="BIRTH_TIME" profileDetailId={profileDetailId} currentUserId={currentUserId} initialRequested={permissionRequests.birthTime} />
+            </View>
+          ) : (
+            <DetailField label="Birth Time" value={revealedBirthTime || religious.BirthTime} fullWidth />
+          )}
           <DetailField label="Dosham" value={religious.Dosham} />
         </View>
       </SectionCard>
@@ -248,10 +437,10 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
         {hiddenFields.includes('horoscope') && !approvedFields.includes('HOROSCOPE') ? (
           <RestrictedField fieldType="HOROSCOPE" profileDetailId={profileDetailId} currentUserId={currentUserId} initialRequested={permissionRequests.horoscope} />
         ) : revealedHoroscope ? (
-          <Image source={{ uri: revealedHoroscope }} style={{ width: '100%', height: 200, borderRadius: 12 }} resizeMode="contain" />
+          <HoroscopeImage uri={revealedHoroscope} />
         ) : religious.Horoscope && religious.Horoscope !== 'null' ? (
-          <Image source={{ uri: religious.Horoscope }} style={{ width: '100%', height: 200, borderRadius: 12 }} resizeMode="contain" />
-        ) : planTitle === 'Classic' && horoscopeEligible === null ? (
+          <HoroscopeImage uri={religious.Horoscope} />
+        ) : hasRevealQuota && horoscopeEligible === null ? (
           // Same combined reveal as Contact — one tap unlocks whichever of the two the viewer
           // is eligible for. Only shown pre-attempt (horoscopeEligible === null); once a reveal
           // has actually run, horoscopeEligible becomes true or false and the branches below take
@@ -286,7 +475,7 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
 
   const renderProfessional = () => (
     <SectionCard icon="work" title="Job & Education">
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         <DetailField label="Education" value={education.Education} />
         <DetailField label="Employed In" value={education['Employing In']} />
         <DetailField label="Occupation" value={personal.Occupation} />
@@ -297,7 +486,7 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
 
   const renderFamily = () => (
     <SectionCard icon="family-restroom" title="Family Details">
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         <DetailField label="Family Type" value={family['Family Type']} />
         <DetailField label="Family Status" value={family['Family Status']} />
         <DetailField label="Father's Name" value={family['Fathers Name']} />
@@ -323,6 +512,32 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hiddenFields = [], profi
   );
 };
 
+const pd = StyleSheet.create({
+  hobbyChip: {
+    backgroundColor: 'rgba(31,127,229,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(31,127,229,0.18)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 100,
+  },
+  hobbyChipText: { fontSize: 12, fontFamily: 'Rubik-Medium', color: '#0f1724' },
+  hobbyEmpty: { fontSize: 12.5, fontFamily: 'Rubik-Regular', color: '#94a3b8' },
+  horoWrap: { borderRadius: 12, overflow: 'hidden', backgroundColor: '#f6f8fa', borderWidth: 1, borderColor: '#eef2f7' },
+  horoThumb: { width: '100%', height: 220 },
+  horoExpand: {
+    position: 'absolute', right: 10, bottom: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 100,
+    backgroundColor: 'rgba(15,23,36,0.72)',
+  },
+  horoExpandText: { fontSize: 11, fontFamily: 'Rubik-Medium', color: '#fff' },
+  horoOverlay: { flex: 1, backgroundColor: 'rgba(10,10,15,0.97)', justifyContent: 'center', alignItems: 'center' },
+  horoClose: { position: 'absolute', right: 16, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', justifyContent: 'center', alignItems: 'center' },
+  horoFull: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.8 },
+  horoHint: { position: 'absolute', alignSelf: 'center', color: 'rgba(255,255,255,0.55)', fontSize: 12, fontFamily: 'Rubik-Regular' },
+});
+
 // ─── Main Component ────────────────────────────────
 const ProfileDetailRevamp = () => {
   const { userData } = useUserData();
@@ -341,6 +556,7 @@ const ProfileDetailRevamp = () => {
   const [isImageModalVisible, setImageModalVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isPremiumValue, setIsPremiumValue] = useState(false);
+  const [hasRevealQuota, setHasRevealQuota] = useState(false);
   const [hiddenFeildsValue, setHiddenFeildsValue] = useState<any>([]);
   const [subscriptionId, setSubscriptionId] = useState<any>(null);
   const [isLiked, setIsLiked] = useState(false);
@@ -389,11 +605,26 @@ const ProfileDetailRevamp = () => {
       .catch(() => { });
   }, [userId, userData.userId]);
 
+  // The server masks mobile / email / horoscope / birth time by the VIEWER's plan when the
+  // profile is fetched. After an upgrade (admin, payment) the lock flags flip at once, but
+  // this screen would still be holding the masked answer — unlocked buttons over null data.
+  // So a plan change re-runs the load below, quietly.
+  const [planReloadKey, setPlanReloadKey] = useState(0);
+  const silentReloadRef = useRef(false);
+  usePlanChangeEffect(() => {
+    silentReloadRef.current = true;
+    setPlanReloadKey((k) => k + 1);
+  });
+
   // Single parallel load — all API calls fire at once for <1.5s load
   useEffect(() => {
     if (!userId || !userData.userId) return;
     setUserDetailId(userId);
-    setLoading(true);
+    // A plan-change reload is SILENT: the profile is already on screen, so flashing the
+    // full-page skeleton over it would read as a crash rather than an unlock.
+    const silent = silentReloadRef.current;
+    silentReloadRef.current = false;
+    if (!silent) setLoading(true);
 
     const loadAll = async () => {
       const userIdValue = userData.userId;
@@ -406,7 +637,8 @@ const ProfileDetailRevamp = () => {
       ]);
 
       // Fire-and-forget: record profile view (don't block render)
-      userApi.viewedProfile(userData.userId, userId).catch(() => { });
+      // …but not on a plan-change reload — that is the same visit, not a second view.
+      if (!silent) userApi.viewedProfile(userData.userId, userId).catch(() => { });
 
       // Process profile response
       if (profileRes.status === 'fulfilled') {
@@ -468,6 +700,7 @@ const ProfileDetailRevamp = () => {
           profileImage: existing.includes('PROFILE_IMAGE'),
           mobile: existing.includes('MOBILE'),
           horoscope: existing.includes('HOROSCOPE'),
+          birthTime: existing.includes('BIRTH_TIME'),
         }));
         setApprovedFields(requests.filter((r: any) => r?.fieldType && r?.status === 'APPROVED').map((r: any) => r.fieldType));
       }
@@ -476,12 +709,14 @@ const ProfileDetailRevamp = () => {
       if (subscriptionData?.entitlements) {
         setSubscriptionId(subscriptionData.subscriptionId);
         setIsPremiumValue(!!subscriptionData.entitlements.viewPersonalInfo);
+        setHasRevealQuota(isQuotaEntitlement(subscriptionData.entitlements.viewPersonalInfo));
       } else if (userData.decodedUserId) {
         try {
           const sub = await userApi.getActiveUserSubscriptionByUserId(userData.decodedUserId);
           if (sub.data?.code === 200 && sub.data?.data) {
             setSubscriptionId(sub.data.data.subscriptionId || sub.data.data.id);
             setIsPremiumValue(!!sub.data.data.entitlements?.viewPersonalInfo);
+            setHasRevealQuota(isQuotaEntitlement(sub.data.data.entitlements?.viewPersonalInfo));
           }
         } catch { }
       }
@@ -490,13 +725,14 @@ const ProfileDetailRevamp = () => {
     };
 
     loadAll();
-  }, [userId, userData.userId]);
+  }, [userId, userData.userId, planReloadKey]);
 
   // Update premium when subscription context changes
   useEffect(() => {
     if (subscriptionData?.entitlements) {
       setSubscriptionId(subscriptionData.subscriptionId);
       setIsPremiumValue(!!subscriptionData.entitlements.viewPersonalInfo);
+      setHasRevealQuota(isQuotaEntitlement(subscriptionData.entitlements.viewPersonalInfo));
     }
   }, [subscriptionData]);
 
@@ -522,11 +758,13 @@ const ProfileDetailRevamp = () => {
           Occupation: detail.occupation,
           "Date of Birth": data.dob,
           'Mobile Number': data.mobile,
-          Height: detail.height + "f.t",
-          Weight: detail.weight,
+          Height: formatHeight(detail.height),
+          Weight: formatWeight(detail.weight),
           "Physical Status": basicInfo.physical_status,
           "Marital Status": basicInfo.marital_status,
-          "Mother Language": detail.languages || "Not specified",
+          // `languages` is a JSON column — rendered raw it printed ["Tamil","English"].
+          "Mother Language": formatLanguageList(basicInfo.mother_language) || formatLanguageList(detail.languages),
+          "Place of Birth": basicInfo.place_of_birth,
         },
       },
       {
@@ -540,6 +778,9 @@ const ProfileDetailRevamp = () => {
           Subcaste: data.subcasteName || "",
           Star: astro.star,
           Moonsign: astro.moon_sign,
+          // Masked server-side unless the viewer may see the horoscope (same astro data, same
+          // consent rule) — so an empty value here means "not revealed yet", not "not set".
+          BirthTime: astro.birth_time,
           Dosham: astro.dosham,
           Horoscope: detail.horoscope
         },
@@ -570,13 +811,7 @@ const ProfileDetailRevamp = () => {
       },
       {
         section: "InterestsDetail",
-        data: (() => {
-          try {
-            const h = detail?.hobbies;
-            const hobbies = typeof h === 'string' ? JSON.parse(h) : Array.isArray(h) ? h : [];
-            return { _hobbies: hobbies };
-          } catch { return { _hobbies: [] }; }
-        })(),
+        data: { _hobbies: parseHobbies(detail?.hobbies) },
       }
     ];
   };
@@ -604,7 +839,24 @@ const ProfileDetailRevamp = () => {
     // Nothing to zoom into when this profile has no real photo — the default gendered avatar
     // isn't a "photo" to expand, and without this guard the modal opened with an empty
     // gallery, rendering an <Image source={{uri: undefined}}> (blank/broken image).
-    if (!hasProfileImage) return;
+    // SAY so rather than doing nothing: the button used to be `disabled` here, so a member
+    // tapped a dimmed control and got no response at all and read it as broken (client
+    // 2026-09-27, viewing a Free member who simply had not uploaded a photo). Same
+    // silently-dead-control trap as the locked Call/Match buttons (2026-09-19) and the
+    // horoscope-only switch (2026-09-26).
+    if (!hasProfileImage) {
+      popup.info('No photo yet', `${userDetails?.firstName || 'This member'} hasn't added a profile photo.`);
+      return;
+    }
+    // The owner has hidden their photos and has not approved THIS viewer. The hero already
+    // shows a blurred image + "Ask Permission" in that state — but this button sat outside
+    // that branch and only checked the viewer's plan, so any paid member could open the
+    // full-screen viewer and see the real photo AND the whole gallery, defeating the privacy
+    // setting entirely. Privacy first, plan second.
+    if (photoRestricted) {
+      popup.info('Photos are private', 'This member has restricted their photos. Tap "Ask Permission" on the photo to request access.');
+      return;
+    }
     setCurrentImageIndex(0);
     if (!planTitle || planTitle === 'Free') {
       popup.premiumRequired(upgradeMessage('view all profile photos', 'Starter'), buildUpgradeAction({ planTitle, featureName: 'Full Profile Photos', minPlan: 'Starter' }));
@@ -682,6 +934,7 @@ const ProfileDetailRevamp = () => {
     );
   };
 
+  const quotaTotalRef = useRef<number | undefined>(undefined);
   const handleSendInterest = async () => {
     if (isParent) { popup.error('Not allowed', 'Family logins cannot send interest requests.'); return; }
     if (!currentUserId || !userId) return;
@@ -732,8 +985,23 @@ const ProfileDetailRevamp = () => {
     const sendInterest = async () => {
       const res = await userApi.sendInterestRequest(currentUserId, parsedUserId);
       if (res.data?.code === 201) {
-        setInterestStatus('PENDING');
+        // If this member had ALREADY sent us a pending interest, the server treats ours as an
+        // acceptance and answers APPROVED — a match, not another pending request.
+        const status = res.data?.data?.acceptStatus === 'APPROVED' ? 'APPROVED' : 'PENDING';
+        setInterestStatus(status);
         setIsSender(true);
+        if (status === 'APPROVED') {
+          popup.success("It's a match!", `${userDetails?.firstName || 'This member'} had already sent you an interest — you're now connected.`);
+        }
+      } else if (res.data?.message === 'REQUEST_LIMIT_EXCEEDED') {
+        // The server now enforces the SEND_REQUEST quota itself (2026-09-26). Normally the
+        // pre-check above stops us before we get here; this is the answer for a stale
+        // local count — word it as the same upsell, not a raw error code.
+        const total = res.data?.data?.limit ?? quotaTotalRef.current ?? 0;
+        popup.premiumRequired(
+          `You have used all ${total} requests. Upgrade to send more.`,
+          buildUpgradeAction({ planTitle, featureName: 'Send Interest' }),
+        );
       } else {
         popup.error('Request Failed', res.data?.message || 'Could not send interest request.');
       }
@@ -744,6 +1012,7 @@ const ProfileDetailRevamp = () => {
       if (!uid) return;
       const quotaRes = await userApi.getRequestQuota(uid);
       const quota = quotaRes.data?.data;
+      quotaTotalRef.current = quota?.total;
 
       if (quota?.unlimited) {
         await sendInterest();
@@ -855,19 +1124,47 @@ const ProfileDetailRevamp = () => {
       popup.info('Not connected yet', 'You can check Star Match compatibility once this member accepts your interest.');
       return;
     }
+    // The Tamil 10-porutham method needs only the other member's star and rasi (birth
+    // date/time/place are not used), so that is all this hands over.
     const detail = userDetails?.userDetail?.[0];
-    let viewedStar = '', viewedRasi = '', viewedPlace = '', viewedDob = userDetails?.dob || '';
+    let viewedStar = '', viewedRasi = '';
     if (detail) {
       try { const a = JSON.parse(detail.astronomicInfo || '[]'); viewedStar = a[0]?.star || ''; viewedRasi = a[0]?.moon_sign || ''; } catch { }
-      try { viewedPlace = JSON.parse(detail.basicInfo || '{}').place_of_birth || ''; } catch { }
     }
     router.push({
       pathname: '/(root)/screens/StarMatch',
-      params: { viewedProfile: JSON.stringify({ name: `${userDetails?.firstName || ''} ${userDetails?.lastName || ''}`.trim(), gender: userDetails?.gender || '', dob: viewedDob, star: viewedStar, rasi: viewedRasi, place: viewedPlace }), viewedUserId: userId as string }
+      params: { viewedProfile: JSON.stringify({ name: `${userDetails?.firstName || ''} ${userDetails?.lastName || ''}`.trim(), gender: userDetails?.gender || '', star: viewedStar, rasi: viewedRasi }), viewedUserId: userId as string }
     });
   };
 
   // ─── Block / Report ───────────────────────────────
+  // "Unfriend" — either side can drop an accepted connection (the receiver previously could
+  // not). Removes both interest rows; the chat closes until an interest is accepted again.
+  const handleRemoveConnection = () => {
+    if (isParent) { popup.error('Not allowed', 'Family members cannot unfriend other members.'); return; }
+    popup.confirm(
+      `Unfriend ${userDetails?.firstName || 'this member'}?`,
+      `This ends the connection and closes the chat until an interest is accepted again. Your earlier messages are kept.`,
+      async () => {
+        try {
+          const res = await userApi.removeConnection(userData.userId, userId);
+          if (res.data?.code === 200) {
+            setInterestStatus('NONE');
+            setIsSender(false);
+            popup.success('Unfriended', 'You can send a new interest any time.');
+          } else {
+            popup.error('Something went wrong', res.data?.message || 'Could not unfriend this member.');
+          }
+        } catch (e) {
+          console.error('removeConnection failed:', e);
+          popup.error('Something went wrong', 'Could not unfriend this member. Please try again.');
+        }
+      },
+      'Unfriend',
+      'Cancel'
+    );
+  };
+
   const handleBlockUser = () => {
     if (isParent) { popup.error('Not allowed', 'Parent accounts cannot block users.'); return; }
     popup.confirm(
@@ -913,6 +1210,8 @@ const ProfileDetailRevamp = () => {
   // ─── Derived values ────────────────────────────────
   const profileImage = userDetails?.profileImage;
   const hasProfileImage = !!profileImage;
+  // Same condition the hero uses to blur the photo — one definition so the two cannot drift.
+  const photoRestricted = hiddenFeildsValue.includes('profileImage') && !approvedFields.includes('PROFILE_IMAGE');
   const isFree = !planTitle || planTitle === 'Free';
   const isVerifiedPlan = ['Silver', 'Gold', 'Platinum'].includes(userDetails?.subscriptionTitle || '');
   const anyVerified = userDetails?.idVerified || userDetails?.educationVerified || userDetails?.incomeVerified;
@@ -1005,7 +1304,7 @@ const ProfileDetailRevamp = () => {
         <ScrollView style={s.root} bounces={false} showsVerticalScrollIndicator={false}>
           {/* ─── Hero Image ─── */}
           <View style={{ width: SCREEN_WIDTH, height: IMAGE_HEIGHT, overflow: 'hidden', position: 'relative' }}>
-            {hiddenFeildsValue.includes('profileImage') && !approvedFields.includes('PROFILE_IMAGE') ? (
+            {photoRestricted ? (
               /* Hidden by profile owner — ask permission */
               <View style={{ flex: 1 }}>
                 <Image
@@ -1088,9 +1387,8 @@ const ProfileDetailRevamp = () => {
                 {isShortlisted ? <BookmarkCheck size={22} color="#1F7FE5" /> : <Bookmark size={22} color="#0f1724" />}
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.sideBtn, { backgroundColor: 'rgba(255,255,255,0.8)' }, !hasProfileImage && { opacity: 0.4 }]}
+                style={[s.sideBtn, { backgroundColor: 'rgba(255,255,255,0.8)' }, (!hasProfileImage || photoRestricted) && { opacity: 0.4 }]}
                 onPress={openImageModal}
-                disabled={!hasProfileImage}
               >
                 <Maximize2 size={20} color="#0f1724" />
               </TouchableOpacity>
@@ -1108,23 +1406,37 @@ const ProfileDetailRevamp = () => {
                   <MoreVertical size={22} color="#fff" />
                 </View>
               </MenuTrigger>
-              <MenuOptions customStyles={{ optionsContainer: { borderRadius: 14, paddingVertical: 6, width: 210, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 } }}>
+              <MenuOptions customStyles={{ optionsContainer: { borderRadius: 14, paddingVertical: 6, width: 236, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 } }}>
+                {interestStatus === 'APPROVED' && (
+                  <>
+                    <MenuOption onSelect={handleRemoveConnection}>
+                      <View style={menuRow}>
+                        <UserMinus size={18} color="#334155" style={menuIcon} />
+                        <View style={menuTextCol}>
+                          <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#1e293b' }}>Unfriend</Text>
+                          <Text style={menuSub}>Ends the match and closes the chat.</Text>
+                        </View>
+                      </View>
+                    </MenuOption>
+                    <View style={{ height: 1, backgroundColor: '#f1f5f9', marginHorizontal: 12 }} />
+                  </>
+                )}
                 <MenuOption onSelect={handleBlockUser}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
-                    <ShieldAlert size={18} color="#334155" />
-                    <View>
+                  <View style={menuRow}>
+                    <ShieldAlert size={18} color="#334155" style={menuIcon} />
+                    <View style={menuTextCol}>
                       <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#1e293b' }}>Block</Text>
-                      <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Hide each other. Reversible.</Text>
+                      <Text style={menuSub}>Hide each other. Reversible.</Text>
                     </View>
                   </View>
                 </MenuOption>
                 <View style={{ height: 1, backgroundColor: '#f1f5f9', marginHorizontal: 12 }} />
                 <MenuOption onSelect={handleReportUser}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
-                    <Flag size={18} color="#dc2626" />
-                    <View>
+                  <View style={menuRow}>
+                    <Flag size={18} color="#dc2626" style={menuIcon} />
+                    <View style={menuTextCol}>
                       <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#dc2626' }}>Report User</Text>
-                      <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Flag for moderator review.</Text>
+                      <Text style={menuSub}>Flag for moderator review.</Text>
                     </View>
                   </View>
                 </MenuOption>
@@ -1155,7 +1467,11 @@ const ProfileDetailRevamp = () => {
 
             {/* Age, Height, Location */}
             <Text style={s.subText}>
-              {userDetails?.age} Yrs, {userDetails?.userDetail?.[0]?.height || ''} • {userDetails?.location || ''}
+              {[
+                userDetails?.age ? `${userDetails.age} Yrs` : '',
+                formatHeight(userDetails?.userDetail?.[0]?.height),
+              ].filter(Boolean).join(', ')}
+              {userDetails?.location ? ` • ${userDetails.location}` : ''}
             </Text>
 
             {/* Occupation */}
@@ -1211,17 +1527,18 @@ const ProfileDetailRevamp = () => {
                     <TouchableOpacity
                       style={[s.secondaryBtn, callLocked && s.secondaryBtnDisabled]}
                       onPress={handleRequestCall}
-                      disabled={callLocked}
                       activeOpacity={0.8}
                     >
                       <View style={{ alignItems: 'center' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                           <Phone size={18} color={callLocked ? '#94a3b8' : '#1F7FE5'} />
                           <Text style={[s.secondaryBtnText, callLocked && s.secondaryBtnTextDisabled]}>Request Call</Text>
+                          {callLocked && (
+                            <TouchableOpacity onPress={handleRequestCall} hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} style={s.lockInfoIcon} activeOpacity={0.6}>
+                              <MaterialIcons name="info-outline" size={15} color="#94a3b8" />
+                            </TouchableOpacity>
+                          )}
                         </View>
-                        {callLocked && (
-                          <Text style={s.secondaryBtnSubtext}>Available after they accept your interest</Text>
-                        )}
                       </View>
                     </TouchableOpacity>
                   );
@@ -1234,17 +1551,18 @@ const ProfileDetailRevamp = () => {
                     <TouchableOpacity
                       style={[s.secondaryBtn, matchLocked && s.secondaryBtnDisabled]}
                       onPress={handleStarMatch}
-                      disabled={matchLocked}
                       activeOpacity={0.8}
                     >
                       <View style={{ alignItems: 'center' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                           <Star size={18} color={matchLocked ? '#94a3b8' : '#1F7FE5'} />
                           <Text style={[s.secondaryBtnText, matchLocked && s.secondaryBtnTextDisabled]}>Match Score</Text>
+                          {matchLocked && (
+                            <TouchableOpacity onPress={handleStarMatch} hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} style={s.lockInfoIcon} activeOpacity={0.6}>
+                              <MaterialIcons name="info-outline" size={15} color="#94a3b8" />
+                            </TouchableOpacity>
+                          )}
                         </View>
-                        {matchLocked && (
-                          <Text style={s.secondaryBtnSubtext}>Available after they accept your interest</Text>
-                        )}
                       </View>
                     </TouchableOpacity>
                   );
@@ -1264,11 +1582,13 @@ const ProfileDetailRevamp = () => {
             {personalDetail && <InlineProfileTabs
               personalDetail={personalDetail}
               isPremium={isPremiumValue}
+              hasRevealQuota={hasRevealQuota}
               hiddenFields={hiddenFeildsValue}
               profileDetailId={String(userDetailId || '')}
               currentUserId={currentUserId || ''}
               planTitle={planTitle || ''}
               interestStatus={interestStatus}
+              isSender={isSender}
               permissionRequests={permissionRequests}
               approvedFields={approvedFields}
             />}
@@ -1378,7 +1698,8 @@ const s = StyleSheet.create({
   secondaryBtnText: { color: '#1F7FE5', fontSize: 12.5, fontFamily: 'Rubik-Bold' },
   secondaryBtnDisabled: { backgroundColor: '#f8fafc', borderColor: '#e2e8f0' },
   secondaryBtnTextDisabled: { color: '#94a3b8' },
-  secondaryBtnSubtext: { color: '#94a3b8', fontSize: 8.5, lineHeight: 11, marginTop: 2, textAlign: 'center' },
+  // Inline after the label (client: "next to", not below) — the gap is the row's own 5px.
+  lockInfoIcon: { marginLeft: 1, paddingVertical: 2 },
   secondaryBtnSent: { backgroundColor: '#dfecfb', borderColor: 'rgba(31,127,229,0.2)' },
   secondaryBtnSentText: { color: '#1F7FE5' },
 

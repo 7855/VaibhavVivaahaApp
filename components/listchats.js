@@ -1,481 +1,240 @@
-import { View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { Pressable, Text as NBText, HStack, Avatar } from 'native-base';
-import {
-  Menu,
-  MenuOptions,
-  MenuOption,
-  MenuTrigger,
-  MenuProvider,
-} from 'react-native-popup-menu';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Pressable, StyleSheet, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import VerifiedBadges from './VerifiedBadges';
-import { usePopup } from '../app/(root)/contexts/PopupContext';
 
-// Avatar ring gradient — same brand pairing used on the profile-card family
-// (ListUser.tsx, DiscoveryProfileCard.tsx) so the chat list reads as part of
-// the same visual system instead of a plain, flat message-app list.
-const AVATAR_RING = ['#9c4040', '#7a2d2d'];
 const ACCENT = '#1F7FE5';
+const RING = '#8b3636'; // the old #9c4040→#7a2d2d ring gradient, flattened (see ChatRow)
 
-// Defined at module scope and wrapped in React.memo — this is the actual fix for selection
-// feeling slow. Previously every row's JSX was an inline closure over `selectedIds`, so tapping
-// ONE row re-rendered the entire visible list on every tap (selectedIds is a new Set each time,
-// and an inline renderItem forces FlatList to redraw every mounted cell). Now each row only
-// receives a plain `isSelected` boolean + stable callback props, so React.memo can correctly
-// skip re-rendering every row except the one whose own selected state actually changed.
-const ChatRow = React.memo(function ChatRow({ item, isSelected, selectionMode, onRowPress, onRowLongPress }) {
+// Every row is EXACTLY this tall, which is what lets getItemLayout below skip measuring.
+const CARD_HEIGHT = 84;
+const CARD_GAP = 10;
+const ITEM_HEIGHT = CARD_HEIGHT + CARD_GAP;
+
+const AVATAR_MEN = require('../assets/images/avatarMen.png');
+const AVATAR_WOMEN = require('../assets/images/avatarWomen.png');
+const AVATAR_DEFAULT = require('../assets/images/defaultAvatar.png');
+
+/**
+ * One conversation row.
+ *
+ * Scrolling 100 conversations was janky because of what each row cost to MOUNT, not because of
+ * re-renders (those were already memoised). With removeClippedSubviews + a render window, rows
+ * are created and destroyed continuously while you scroll, and every one built:
+ *   - a NativeBase Pressable, a NativeBase Avatar and three NativeBase Texts — each resolves the
+ *     theme and a style-prop pipeline on mount, several times the cost of the RN primitive;
+ *   - a LinearGradient purely to draw a 2.5px avatar ring (a native gradient view per row);
+ *   - a fresh inline style object for every element, every render.
+ * Now: plain RN primitives, a solid ring, and StyleSheet styles. Visually the same card.
+ *
+ * Selection mode / delete was removed at the client's request (2026-09-19), which also removes
+ * the per-row isSelected/selectionMode props and the long-press handler.
+ */
+const ChatRow = React.memo(function ChatRow({ item, onRowPress }) {
   const isUnread = item.unreadCount > 0;
+  const source = item.profileImage
+    ? { uri: item.profileImage }
+    : item.gender === 'M' ? AVATAR_MEN : item.gender === 'F' ? AVATAR_WOMEN : AVATAR_DEFAULT;
+  const isVerified = item.idVerified || item.educationVerified || item.incomeVerified;
 
   return (
     <Pressable
       onPress={() => onRowPress(item)}
-      onLongPress={() => onRowLongPress(item.conversationId)}
-      delayLongPress={350}
-      _pressed={{ opacity: 0.85 }}
+      android_ripple={RIPPLE}
+      style={[st.card, isUnread && st.cardUnread]}
     >
-      <View style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: isSelected ? '#eaf2fb' : (isUnread ? '#fbfdff' : '#fff'),
-        borderRadius: 18,
-        marginHorizontal: 14,
-        marginBottom: 10,
-        paddingVertical: 11,
-        paddingHorizontal: 12,
-        shadowColor: '#420001',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: isUnread ? 0.14 : 0.07,
-        shadowRadius: 8,
-        elevation: isUnread ? 4 : 2,
-        borderWidth: isSelected ? 1.5 : (isUnread ? 1 : 0),
-        borderColor: isSelected ? ACCENT : 'rgba(246,183,51,0.6)',
-      }}>
-        {/* Avatar with gradient ring — same treatment as the profile card family. In selection
-            mode a corner badge overlays it (checkmark when selected, empty ring otherwise)
-            instead of adding a separate checkbox column, so the card layout never shifts when
-            entering/leaving selection mode. */}
-        <View style={{ position: 'relative' }}>
-          <LinearGradient
-            colors={isSelected ? ['#1F7FE5', '#1862b8'] : AVATAR_RING}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              width: 60, height: 60, borderRadius: 30,
-              padding: 2.5, justifyContent: 'center', alignItems: 'center',
-              opacity: selectionMode && !isSelected ? 0.55 : 1,
-            }}
-          >
-            <Avatar
-              size="55px"
-              borderWidth={2}
-              borderColor="#fff"
-              // Forwarded to the underlying RN <Image>: on Android this makes Fresco decode the
-              // bitmap down to the 55px slot instead of keeping the full-resolution profile photo
-              // in memory for every row of the conversation list.
-              _image={{ resizeMode: 'cover', resizeMethod: 'resize' }}
-              source={
-                item.profileImage
-                  ? { uri: item.profileImage }
-                  : item.gender === 'M'
-                  ? require('../assets/images/avatarMen.png')
-                  : item.gender === 'F'
-                  ? require('../assets/images/avatarWomen.png')
-                  : require('../assets/images/defaultAvatar.png')
-              }
+      <View style={st.ring}>
+        <Image
+          source={source}
+          style={st.avatar}
+          // Decode to the 52px slot instead of holding the full-resolution photo per row, and
+          // no fade — rows remount while scrolling, and a fade-in on each reads as flicker.
+          resizeMethod="resize"
+          fadeDuration={0}
+        />
+        {isVerified ? (
+          <View style={st.verified}>
+            <VerifiedBadges
+              idVerified={item.idVerified}
+              educationVerified={item.educationVerified}
+              incomeVerified={item.incomeVerified}
+              mode="compact"
+              size="sm"
             />
-          </LinearGradient>
-          {selectionMode ? (
-            <View style={{ position: 'absolute', top: -2, left: -2 }}>
-              {isSelected ? (
-                <View style={{
-                  width: 22, height: 22, borderRadius: 11,
-                  backgroundColor: ACCENT, borderWidth: 2, borderColor: '#fff',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Ionicons name="checkmark" size={13} color="#fff" />
-                </View>
-              ) : (
-                <View style={{
-                  width: 22, height: 22, borderRadius: 11,
-                  backgroundColor: '#fff', borderWidth: 2, borderColor: '#cbd5e1',
-                }} />
-              )}
-            </View>
-          ) : (item.idVerified || item.educationVerified || item.incomeVerified) ? (
-            <View style={{ position: 'absolute', bottom: -2, right: -2 }}>
-              <VerifiedBadges
-                idVerified={item.idVerified}
-                educationVerified={item.educationVerified}
-                incomeVerified={item.incomeVerified}
-                mode="compact"
-                size="sm"
-              />
-            </View>
-          ) : null}
-        </View>
-
-        {/* Name + last message */}
-        <View style={{ flex: 1, marginLeft: 13, justifyContent: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <NBText
-              numberOfLines={1}
-              style={{
-                flexShrink: 1,
-                fontSize: 15.5,
-                letterSpacing: -0.2,
-                color: '#111827',
-                fontFamily: isUnread ? 'Rubik-Bold' : 'Rubik-Medium',
-              }}
-            >
-              {item.otherUserName}
-            </NBText>
-            {isUnread ? <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: ACCENT, marginLeft: 6 }} /> : null}
           </View>
-          <NBText
-            numberOfLines={1}
-            style={{
-              marginTop: 4,
-              fontSize: 12.5,
-              color: isUnread ? '#374151' : '#9ca3af',
-              fontFamily: isUnread ? 'Rubik-Medium' : 'Rubik-Regular',
-            }}
-          >
-            {item.lastMessage}
-          </NBText>
-        </View>
+        ) : null}
+      </View>
 
-        {/* Time + unread count */}
-        <View style={{ alignItems: 'flex-end', justifyContent: 'center', marginLeft: 8 }}>
-          <NBText style={{
-            fontSize: 11,
-            color: isUnread ? ACCENT : '#9ca3af',
-            fontFamily: isUnread ? 'Rubik-Bold' : 'Rubik-Regular',
-          }}>
-            {item.lastMessageTime}
-          </NBText>
-          {isUnread ? (
-            <View style={{
-              marginTop: 7,
-              backgroundColor: ACCENT,
-              borderRadius: 10,
-              minWidth: 20,
-              height: 20,
-              paddingHorizontal: 5,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <NBText style={{ color: '#fff', fontSize: 10, fontFamily: 'Rubik-Bold' }}>
-                {item.unreadCount}
-              </NBText>
-            </View>
-          ) : !selectionMode ? (
-            <View style={{
-              marginTop: 9, width: 22, height: 22, borderRadius: 11,
-              backgroundColor: 'rgba(31,127,229,0.08)',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Ionicons name="chevron-forward" size={12} color={ACCENT} />
-            </View>
-          ) : null}
+      <View style={st.body}>
+        <View style={st.nameRow}>
+          <Text numberOfLines={1} style={[st.name, isUnread && st.nameUnread]}>{item.otherUserName}</Text>
+          {isUnread ? <View style={st.dot} /> : null}
         </View>
+        <Text numberOfLines={1} style={[st.preview, isUnread && st.previewUnread]}>{item.lastMessage}</Text>
+      </View>
+
+      <View style={st.meta}>
+        <Text style={[st.time, isUnread && st.timeUnread]}>{item.lastMessageTime}</Text>
+        {isUnread ? (
+          <View style={st.badge}><Text style={st.badgeText}>{item.unreadCount}</Text></View>
+        ) : (
+          <View style={st.chevron}><Ionicons name="chevron-forward" size={12} color={ACCENT} /></View>
+        )}
       </View>
     </Pressable>
   );
 });
 
-// Deliberately plain: a TouchableOpacity/Pressable card in a stock FlatList, no per-row entering
-// animation, no swipe gesture library. The "Contact Reveals" list (ListUser.tsx) uses exactly
-// this recipe and stays smooth scrolling/tapping through dozens of rows — the previous version
-// of this file used Reanimated entrance animations + react-native-swipe-list-view's JS-driven
-// swipe gesture on every row, which is what made scrolling and tapping feel heavy once an
-// account had 50+ conversations. Deleting is now WhatsApp-style instead of swipe: long-press (or
-// the header's ⋮ menu → Select) enters a multi-select mode instead.
-const ListChats = ({ allChats, onPress, chatQuota, onDeleteConversations }) => {
-  const popup = usePopup();
-  const [listData, setListData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
+const RIPPLE = { color: 'rgba(31,127,229,0.10)' };
+const keyExtractor = (item) => item.conversationId;
+const getItemLayout = (_data, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index });
+
+const ListChats = ({ allChats, onPress, chatQuota }) => {
   const [searchText, setSearchText] = useState('');
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(() => new Set());
-  // Read inside stable callbacks without making them depend on (and change identity with)
-  // selectionMode — keeps onRowPress/onRowLongPress referentially stable across re-renders so
-  // ChatRow's React.memo actually holds.
-  const selectionModeRef = useRef(false);
-  useEffect(() => { selectionModeRef.current = selectionMode; }, [selectionMode]);
 
-  // myChatList.tsx is a bottom-tab screen — Expo Router tabs never unmount on navigation, so
-  // leaving mid-selection (switching to another tab, or opening a chat) and coming back left
-  // selectionMode/selectedIds exactly as they were. Reset on blur so returning to this tab always
-  // starts fresh, matching WhatsApp (it never remembers a stale selection either).
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        setSelectionMode(false);
-        setSelectedIds(new Set());
-      };
-    }, [])
-  );
+  // Derived, not mirrored into state: the old version copied allChats into two pieces of state
+  // inside an effect, so every live message re-rendered the list twice.
+  const data = useMemo(() => {
+    const list = allChats || [];
+    const q = searchText.trim().toLowerCase();
+    return q ? list.filter((c) => (c.otherUserName || '').toLowerCase().includes(q)) : list;
+  }, [allChats, searchText]);
 
-  const handleSearch = (text) => {
-    setSearchText(text);
-    if (!text) {
-      setFilteredData(listData);
-      return;
-    }
-    const filtered = listData.filter(item =>
-      item.otherUserName.toLowerCase().includes(text.toLowerCase())
-    );
-    setFilteredData(filtered);
-  };
-
-  useEffect(() => {
-    if (allChats) {
-      setListData(allChats);
-      // Re-apply any active search text against the fresh data instead of
-      // blindly replacing it — otherwise a live refresh (new message arriving)
-      // while the user has typed a search would silently clear their filter.
-      if (searchText) {
-        setFilteredData(
-          allChats.filter(item => item.otherUserName.toLowerCase().includes(searchText.toLowerCase()))
-        );
-      } else {
-        setFilteredData(allChats);
-      }
-      // Drop any selected ids that no longer exist (e.g. after a delete completes and the
-      // parent's allChats refreshes) so the count/selection never goes stale.
-      setSelectedIds(prev => {
-        const validIds = new Set(allChats.map(c => c.conversationId));
-        const next = new Set([...prev].filter(id => validIds.has(id)));
-        return next.size === prev.size ? prev : next;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allChats]);
-
-  const exitSelectionMode = useCallback(() => {
-    setSelectionMode(false);
-    setSelectedIds(new Set());
-  }, []);
-
-  const toggleSelected = useCallback((conversationId) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(conversationId)) next.delete(conversationId);
-      else next.add(conversationId);
-      return next;
-    });
-  }, []);
-
-  // Stable across every render (empty deps) — reads selectionMode via a ref instead of taking it
-  // as a dependency, which is what lets ChatRow's memoization actually skip untouched rows.
-  const handleRowPress = useCallback((item) => {
-    if (selectionModeRef.current) {
-      toggleSelected(item.conversationId);
-    } else {
-      onPress(item);
-    }
-  }, [onPress, toggleSelected]);
-
-  const handleRowLongPress = useCallback((conversationId) => {
-    setSelectionMode(true);
-    setSelectedIds(new Set([conversationId]));
-  }, []);
-
-  const handleSelectMenuPress = useCallback(() => {
-    setSelectionMode(true);
-  }, []);
-
-  const handleDeleteSelected = () => {
-    const count = selectedIds.size;
-    if (count === 0) return;
-    popup.confirm(
-      count === 1 ? 'Delete this conversation?' : `Delete ${count} conversations?`,
-      'This removes it from your conversation list. If you or the other person message again, it reappears.',
-      () => {
-        onDeleteConversations?.([...selectedIds]);
-        exitSelectionMode();
-      },
-      'Delete',
-      'Cancel'
-    );
-  };
-
-  const renderItem = useCallback(({ item }) => (
-    <ChatRow
-      item={item}
-      isSelected={selectedIds.has(item.conversationId)}
-      selectionMode={selectionMode}
-      onRowPress={handleRowPress}
-      onRowLongPress={handleRowLongPress}
-    />
-  ), [selectedIds, selectionMode, handleRowPress, handleRowLongPress]);
+  const renderItem = useCallback(({ item }) => <ChatRow item={item} onRowPress={onPress} />, [onPress]);
 
   return (
-    <MenuProvider skipInstanceCheck>
-      <LinearGradient colors={['#d0dfeb', '#f3f7fa']} style={{ flex: 1 }}>
-        {/* Decorative soft-glow blobs — purely visual depth, non-interactive, sit behind
-            everything so they never intercept taps or shift layout. */}
-        <View pointerEvents="none" style={{ position: 'absolute', top: -60, right: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(66,0,1,0.06)' }} />
-        <View pointerEvents="none" style={{ position: 'absolute', top: 160, left: -70, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(246,183,51,0.10)' }} />
-        <View pointerEvents="none" style={{ position: 'absolute', bottom: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(31,127,229,0.07)' }} />
+    <LinearGradient colors={['#d0dfeb', '#f3f7fa']} style={st.flex}>
+      {/* Decorative soft-glow blobs — non-interactive, behind everything. */}
+      <View pointerEvents="none" style={st.blobA} />
+      <View pointerEvents="none" style={st.blobB} />
+      <View pointerEvents="none" style={st.blobC} />
 
-        {/* Header */}
-        <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 }}>
-          {selectionMode ? (
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack alignItems="center" space={3}>
-                <TouchableOpacity onPress={exitSelectionMode} style={{ padding: 4 }}>
-                  <Ionicons name="close" size={22} color="#1f2937" />
-                </TouchableOpacity>
-                <Text style={{ fontSize: 16, fontFamily: 'Rubik-Bold', color: '#1f2937' }}>
-                  {selectedIds.size} selected
-                </Text>
-              </HStack>
-              <TouchableOpacity
-                onPress={handleDeleteSelected}
-                disabled={selectedIds.size === 0}
-                style={{
-                  width: 38, height: 38, borderRadius: 19,
-                  backgroundColor: selectedIds.size === 0 ? '#f1f5f9' : '#fef2f2',
-                  alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <Ionicons name="trash-outline" size={19} color={selectedIds.size === 0 ? '#cbd5e1' : '#dc2626'} />
-              </TouchableOpacity>
-            </HStack>
-          ) : (
-            <HStack justifyContent="space-between" alignItems="center">
-              <HStack alignItems="center" space={2}>
-                <View style={{
-                  width: 34, height: 34, borderRadius: 17,
-                  backgroundColor: 'rgba(66,0,1,0.08)',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <MaterialCommunityIcons name="chat-processing" size={18} color="#420001" />
-                </View>
-                <Text style={{ fontSize: 19, fontFamily: 'Rubik-Bold', color: '#1f2937' }}>My Connections</Text>
-              </HStack>
-              <HStack alignItems="center" space={2}>
-                {chatQuota && !chatQuota.unlimited && chatQuota.total > 0 && (
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: chatQuota.remaining <= 1 ? '#fef2f2' : '#eef6ff',
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderRadius: 20,
-                    borderWidth: 1,
-                    borderColor: chatQuota.remaining <= 1 ? '#fecaca' : '#bfdbfe',
-                  }}>
-                    <Text style={{
-                      fontSize: 11,
-                      fontFamily: 'Rubik-Bold',
-                      color: chatQuota.remaining <= 1 ? '#dc2626' : ACCENT,
-                    }}>
-                      {chatQuota.used}/{chatQuota.total} chats used
-                    </Text>
-                  </View>
-                )}
-                {listData.length > 0 && (
-                  <Menu>
-                    <MenuTrigger customStyles={{ triggerWrapper: { padding: 6 } }}>
-                      <Ionicons name="ellipsis-vertical" size={20} color="#1f2937" />
-                    </MenuTrigger>
-                    <MenuOptions customStyles={{
-                      optionsContainer: {
-                        borderRadius: 12,
-                        marginTop: 26,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 6,
-                        elevation: 5,
-                      },
-                    }}>
-                      <MenuOption onSelect={handleSelectMenuPress}>
-                        <HStack alignItems="center" space={2} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
-                          <Ionicons name="checkmark-circle-outline" size={18} color="#1f2937" />
-                          <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#1f2937' }}>Select</Text>
-                        </HStack>
-                      </MenuOption>
-                    </MenuOptions>
-                  </Menu>
-                )}
-              </HStack>
-            </HStack>
-          )}
-
-          {/* Search bar */}
-          {!selectionMode && (
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: '#fff',
-              borderRadius: 22,
-              paddingHorizontal: 8,
-              height: 44,
-              marginTop: 14,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 3 },
-              shadowOpacity: 0.08,
-              shadowRadius: 6,
-              elevation: 2,
-            }}>
-              <View style={{
-                width: 30, height: 30, borderRadius: 15,
-                backgroundColor: 'rgba(31,127,229,0.1)',
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Ionicons name="search" size={16} color={ACCENT} />
-              </View>
-              <TextInput
-                style={{ flex: 1, marginLeft: 8, fontSize: 14.5, color: '#111827', fontFamily: 'Rubik-Regular' }}
-                placeholder="Search conversations..."
-                placeholderTextColor="#9ca3af"
-                value={searchText}
-                onChangeText={handleSearch}
-                returnKeyType="search"
-              />
-              {searchText.length > 0 && (
-                <TouchableOpacity onPress={() => handleSearch('')} style={{ padding: 6 }}>
-                  <Ionicons name="close-circle" size={18} color="#d1d5db" />
-                </TouchableOpacity>
-              )}
+      <View style={st.header}>
+        <View style={st.headerRow}>
+          <View style={st.titleRow}>
+            <View style={st.titleIcon}>
+              <MaterialCommunityIcons name="chat-processing" size={18} color="#420001" />
             </View>
-          )}
+            <Text style={st.title}>My Connections</Text>
+          </View>
+          {chatQuota && !chatQuota.unlimited && chatQuota.total > 0 ? (
+            <View style={[st.quota, chatQuota.remaining <= 1 && st.quotaLow]}>
+              <Text style={[st.quotaText, chatQuota.remaining <= 1 && st.quotaTextLow]}>
+                {chatQuota.used}/{chatQuota.total} chats used
+              </Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* List */}
-        {filteredData.length === 0 && searchText.length > 0 ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 120 }}>
-            <Ionicons name="search-outline" size={48} color="#c7d2dd" />
-            <Text style={{ fontSize: 15, fontFamily: 'Rubik-Bold', color: '#374151', marginTop: 14, textAlign: 'center' }}>
-              No matches for "{searchText}"
-            </Text>
-            <Text style={{ fontSize: 12.5, color: '#9ca3af', textAlign: 'center', marginTop: 6 }}>
-              Try a different name.
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredData}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.conversationId}
-            contentContainerStyle={{ paddingTop: 4, paddingBottom: 100 }}
-            showsVerticalScrollIndicator={false}
-            windowSize={7}
-            initialNumToRender={8}
-            maxToRenderPerBatch={6}
-            updateCellsBatchingPeriod={50}
-            removeClippedSubviews={true}
+        <View style={st.search}>
+          <View style={st.searchIcon}><Ionicons name="search" size={16} color={ACCENT} /></View>
+          <TextInput
+            style={st.searchInput}
+            placeholder="Search conversations..."
+            placeholderTextColor="#9ca3af"
+            value={searchText}
+            onChangeText={setSearchText}
+            returnKeyType="search"
           />
-        )}
-      </LinearGradient>
-    </MenuProvider>
+          {searchText.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearchText('')} style={st.searchClear}>
+              <Ionicons name="close-circle" size={18} color="#d1d5db" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+
+      {data.length === 0 && searchText.length > 0 ? (
+        <View style={st.empty}>
+          <Ionicons name="search-outline" size={48} color="#c7d2dd" />
+          <Text style={st.emptyTitle}>No matches for "{searchText}"</Text>
+          <Text style={st.emptySub}>Try a different name.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={data}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          // Fixed-height rows: the list can jump to any offset without measuring what is above
+          // it, which is what removes the blank-then-pop while flinging through a long list.
+          getItemLayout={getItemLayout}
+          contentContainerStyle={st.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={40}
+          windowSize={11}
+          removeClippedSubviews
+        />
+      )}
+    </LinearGradient>
   );
 };
+
+const st = StyleSheet.create({
+  flex: { flex: 1 },
+  blobA: { position: 'absolute', top: -60, right: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(66,0,1,0.06)' },
+  blobB: { position: 'absolute', top: 160, left: -70, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(246,183,51,0.10)' },
+  blobC: { position: 'absolute', bottom: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(31,127,229,0.07)' },
+
+  header: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  titleIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(66,0,1,0.08)', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 19, fontFamily: 'Rubik-Bold', color: '#1f2937' },
+  quota: { backgroundColor: '#eef6ff', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#bfdbfe' },
+  quotaLow: { backgroundColor: '#fef2f2', borderColor: '#fecaca' },
+  quotaText: { fontSize: 11, fontFamily: 'Rubik-Bold', color: ACCENT },
+  quotaTextLow: { color: '#dc2626' },
+
+  search: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 22,
+    paddingHorizontal: 8, height: 44, marginTop: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
+  },
+  searchIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(31,127,229,0.1)', alignItems: 'center', justifyContent: 'center' },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 14.5, color: '#111827', fontFamily: 'Rubik-Regular', paddingVertical: 0 },
+  searchClear: { padding: 6 },
+
+  listContent: { paddingTop: 4, paddingBottom: 110 },
+
+  // height is explicit and the border is ALWAYS 1px (transparent unless unread) — a border that
+  // appeared only on unread rows changed their height by 2px and broke getItemLayout's maths.
+  card: {
+    height: CARD_HEIGHT, marginBottom: CARD_GAP, marginHorizontal: 14, paddingHorizontal: 12,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 18,
+    borderWidth: 1, borderColor: 'transparent',
+    shadowColor: '#420001', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
+    // Android only: keeps the press ripple inside the rounded corners. On iOS overflow:hidden
+    // would clip this view's own shadow, and iOS has no ripple to contain.
+    ...Platform.select({ android: { overflow: 'hidden' }, default: {} }),
+  },
+  cardUnread: { backgroundColor: '#fbfdff', borderColor: 'rgba(246,183,51,0.6)' },
+
+  ring: { width: 60, height: 60, borderRadius: 30, borderWidth: 2.5, borderColor: RING, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  avatar: { width: 51, height: 51, borderRadius: 25.5, backgroundColor: '#eef1f5' },
+  verified: { position: 'absolute', bottom: -2, right: -2 },
+
+  body: { flex: 1, marginLeft: 13, justifyContent: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
+  name: { flexShrink: 1, fontSize: 15.5, letterSpacing: -0.2, color: '#111827', fontFamily: 'Rubik-Medium' },
+  nameUnread: { fontFamily: 'Rubik-Bold' },
+  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: ACCENT, marginLeft: 6 },
+  preview: { marginTop: 4, fontSize: 12.5, color: '#9ca3af', fontFamily: 'Rubik-Regular' },
+  previewUnread: { color: '#374151', fontFamily: 'Rubik-Medium' },
+
+  meta: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 8 },
+  time: { fontSize: 11, color: '#9ca3af', fontFamily: 'Rubik-Regular' },
+  timeUnread: { color: ACCENT, fontFamily: 'Rubik-Bold' },
+  badge: { marginTop: 7, backgroundColor: ACCENT, borderRadius: 10, minWidth: 20, height: 20, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { color: '#fff', fontSize: 10, fontFamily: 'Rubik-Bold' },
+  chevron: { marginTop: 9, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(31,127,229,0.08)', alignItems: 'center', justifyContent: 'center' },
+
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 120 },
+  emptyTitle: { fontSize: 15, fontFamily: 'Rubik-Bold', color: '#374151', marginTop: 14, textAlign: 'center' },
+  emptySub: { fontSize: 12.5, color: '#9ca3af', textAlign: 'center', marginTop: 6 },
+});
 
 export default ListChats;

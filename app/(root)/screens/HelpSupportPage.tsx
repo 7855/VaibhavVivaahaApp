@@ -9,14 +9,13 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   Linking,
   ActivityIndicator,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -30,6 +29,7 @@ import {
   Send,
   Headphones,
   ChevronRight,
+  ChevronLeft,
   Users,
   CreditCard,
   Shield,
@@ -113,6 +113,12 @@ const FALLBACK_SUPPORT: SupportContent = {
 const telHref = (v?: string) => `tel:${(v || '').replace(/[^\d+]/g, '')}`;
 const waHref = (v?: string) => `https://wa.me/${(v || '').replace(/\D/g, '')}`;
 
+// Module-level so the object identity never changes: an inline options literal
+// re-ran navigation.setOptions on EVERY render — including the one caused by
+// focusing the textarea — and the resulting native header update blurred the
+// input, closing the keyboard in a blink.
+const HELP_SCREEN_OPTIONS = { headerShown: false } as const;
+
 const HelpSupportPage: React.FC = () => {
   const { content: remote } = useRemoteContent<SupportContent>('SUPPORT_CONTENT', FALLBACK_SUPPORT);
   const { userData } = useUserData();
@@ -120,8 +126,17 @@ const HelpSupportPage: React.FC = () => {
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [message, setMessage] = useState('');
-  const [focused, setFocused] = useState(false);
+  // NOTE: there is deliberately NO measured keyboard spacer here, unlike sign-up.
+  // A previous attempt added one and it CAUSED the reported "keyboard opens a bit
+  // then closes": it swung the scroll content's paddingBottom 0 → keyboardHeight → 0
+  // within the IME animation window (keyboardDidShow fires, then the container-shrank
+  // measurement lands a frame later and cancels the padding again), and that layout
+  // thrash while the IME is animating makes Android dismiss it. Its premise was also
+  // wrong — the textarea is NOT the last element in this scroll, the Quick help
+  // section renders below it, so the scroll range sign-up had to synthesise already
+  // exists here. A static paddingBottom cannot oscillate, so it cannot do this.
   const [sending, setSending] = useState(false);
+  const [formError, setFormError] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   // A partially-filled keyValue row must not blank out a field, so every value falls back
@@ -190,9 +205,10 @@ const HelpSupportPage: React.FC = () => {
     if (!canSubmit) return;
 
     if (!userData?.userId) {
-      popup.error('Not signed in', 'Please sign in again before sending a message.');
+      setFormError('Please sign in again before sending a message.');
       return;
     }
+    setFormError('');
 
     const category = SUPPORT_CATEGORIES.find((c) => c.id === selectedCategory);
     setSending(true);
@@ -210,10 +226,12 @@ const HelpSupportPage: React.FC = () => {
         setSelectedCategory('');
         setMessage('');
       } else {
-        popup.error('Could not send', res?.data?.message || 'Please try again in a moment.');
+        console.warn('[support] ticket create:', res?.data?.message);
+        setFormError('Could not send your message. Please try again in a moment.');
       }
     } catch (e: any) {
-      popup.error('Could not send', e?.response?.data?.message || 'Please check your connection and try again.');
+      console.warn('[support] ticket create threw:', e?.message);
+      setFormError('Could not send. Please check your connection and try again.');
     } finally {
       setSending(false);
     }
@@ -223,9 +241,15 @@ const HelpSupportPage: React.FC = () => {
   if (submitted) {
     return (
       <View style={styles.flex}>
-        <Stack.Screen options={{ title: 'Help & Support' }} />
+        <Stack.Screen options={HELP_SCREEN_OPTIONS} />
         <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
-        <SafeAreaView style={styles.flex} edges={['left', 'right', 'bottom']}>
+        <SafeAreaView style={styles.flex} edges={['top', 'left', 'right', 'bottom']}>
+          <View style={styles.pageHeader}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backPill} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <ChevronLeft size={20} color={C.ink} />
+            </TouchableOpacity>
+            <Text style={styles.pageTitle}>Help & Support</Text>
+          </View>
           <View style={styles.successWrap}>
             <View style={styles.successCard}>
               <View style={styles.successMedallion}>
@@ -253,18 +277,35 @@ const HelpSupportPage: React.FC = () => {
   // ─── Main ────────────────────────────────────────────
   return (
     <View style={styles.flex}>
-      <Stack.Screen options={{ title: 'Help & Support' }} />
+      <Stack.Screen options={HELP_SCREEN_OPTIONS} />
       <LinearGradient colors={BG_GRADIENT} style={StyleSheet.absoluteFill} />
-      <SafeAreaView style={styles.flex} edges={['left', 'right']}>
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-        >
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
+      {/* No onLayout measurement here on purpose — see the note by the state
+          declarations. Measuring the container fed a spacer that resized the scroll
+          content mid-IME-animation, which is what dismissed the keyboard. */}
+      <SafeAreaView style={styles.flex} edges={['top', 'left', 'right']}>
+          {/* In-page header — this screen is headerless (see screens/_layout.tsx) */}
+          <View style={styles.pageHeader}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backPill} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <ChevronLeft size={20} color={C.ink} />
+            </TouchableOpacity>
+            <Text style={styles.pageTitle}>Help & Support</Text>
+          </View>
+          {/* KeyboardAwareScrollView, NOT a plain ScrollView — a plain one does not
+              scroll the focused input clear of the IME on Android. Props match
+              sign-up's, which is the configuration proven on device, EXCEPT that
+              contentContainerStyle is a stable static style: sign-up computes a
+              spacer because its last field really is last, whereas here the Quick
+              help section already provides the scroll range. */}
+          <KeyboardAwareScrollView
+            style={styles.flex}
             contentContainerStyle={styles.scrollContent}
+            enableOnAndroid={true}
+            enableAutomaticScroll={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 30 : 45}
+            keyboardOpeningTime={0}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            enableResetScrollToCoords={false}
           >
             {/* Intro */}
             <View style={styles.intro}>
@@ -317,7 +358,7 @@ const HelpSupportPage: React.FC = () => {
               </View>
             </LinearGradient>
 
-            {/* Message form */}
+            {/* Message form — inline, per the client */}
             <Text style={styles.sectionLabel}>Send us a message</Text>
             <View style={styles.formCard}>
               <Text style={styles.fieldLabel}>What is it about?</Text>
@@ -339,18 +380,20 @@ const HelpSupportPage: React.FC = () => {
               </View>
 
               <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>Your message</Text>
-              <View style={[styles.textArea, focused && styles.textAreaFocused]}>
-                <TextInput
-                  multiline
-                  placeholder="Describe your issue in a few lines..."
-                  placeholderTextColor={C.muted}
-                  style={styles.textAreaInput}
-                  value={message}
-                  onChangeText={setMessage}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
-                />
-              </View>
+              {/* A NORMAL input, styled like every other working input in the
+                  app — no wrapper view, no focus-state re-render, no tricks. */}
+              <TextInput
+                multiline
+                placeholder="Describe your issue in a few lines..."
+                placeholderTextColor="#999"
+                style={styles.plainTextArea}
+                value={message}
+                onChangeText={setMessage}
+                maxLength={1000}
+                textAlignVertical="top"
+              />
+
+              {!!formError && <Text style={styles.formErrorText}>{formError}</Text>}
 
               <TouchableOpacity
                 activeOpacity={0.9}
@@ -396,8 +439,7 @@ const HelpSupportPage: React.FC = () => {
                 </View>
               </>
             )}
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
       </SafeAreaView>
     </View>
   );
@@ -412,9 +454,42 @@ const CARD_SHADOW = {
 };
 
 const styles = StyleSheet.create({
+  pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  backPill: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // No backChevron style any more. The back arrow used to be a ChevronRight flipped with
+  // `transform: [{ rotate: '180deg' }]`, which is why it rendered as nothing: a lucide icon
+  // is a react-native-svg <Svg>, and react-native-svg treats `transform` with SVG semantics
+  // rather than React Native's array-of-operations form — the icon collapsed instead of
+  // rotating. ChevronLeft needs no transform. Don't rotate an icon to point it the other
+  // way; import the icon that already points that way (FAQPage uses a plain ArrowLeft).
+  pageTitle: {
+    fontSize: 17,
+    fontFamily: 'Rubik-Bold',
+    color: C.ink,
+  },
   flex: { flex: 1 },
   flexShrink: { flex: 1, minWidth: 0 },
-  scrollContent: { padding: 16, paddingBottom: 48 },
+  // Static, never computed from the keyboard. The Quick help section below the textarea
+  // already gives KeyboardAwareScrollView room to lift the focused field; this trailing
+  // gap is the safety margin for a SUPPORT_CONTENT row that ships an empty quickHelp,
+  // which would otherwise leave the textarea last with nothing to scroll past.
+  scrollContent: { padding: 16, paddingBottom: 120 },
 
   // Intro
   intro: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 },
@@ -530,6 +605,27 @@ const styles = StyleSheet.create({
   },
 
   ctaWrap: { marginTop: 18 },
+  plainTextArea: {
+    minHeight: 110,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: 'Rubik-Regular',
+    color: '#333',
+  },
+  // The modalBackdrop/modalCard/modalTitle/modalCancel styles that used to sit here were
+  // orphans from an abandoned "open the form in a Modal" attempt at this same bug — no
+  // Modal is rendered on this screen.
+  formErrorText: {
+    fontSize: 12,
+    fontFamily: 'Rubik-Regular',
+    color: '#dc2626',
+    marginTop: 10,
+  },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',

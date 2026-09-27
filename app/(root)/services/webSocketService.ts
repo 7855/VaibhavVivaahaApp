@@ -17,11 +17,23 @@ export class WebSocketService {
   public socket: WebSocket | null = null;
   private userId: string | undefined;
   private rawUserId: string | undefined; // Keep original encoded userId for reconnect
-  private listeners: Map<string, (data: any) => void> = new Map();
+  // 🔴 A SET of callbacks per type, not one. This used to be Map<string, callback>: the chat
+  // list (a tab that never unmounts) and the open chat screen both listen to 'chat_message', so
+  // each registration overwrote the other's — and whichever cleaned up last deleted the ONLY
+  // entry. Net effect: a message arriving while you sat inside that very chat never appeared
+  // (the push notification still did), and the list stopped updating too.
+  private listeners: Map<string, Set<(data: any) => void>> = new Map();
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
   private reconnectDelay = 3000;
+  private maxReconnectDelay = 30000;
   private isReconnecting = false;
+  private intentionallyClosed = false;
+  // Heartbeat: without one a socket killed by a sleeping phone, a network switch or a server
+  // restart keeps reporting OPEN forever and simply never delivers anything again.
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private lastPongAt = 0;
+  private static readonly PING_EVERY_MS = 25000;
+  private static readonly PONG_GRACE_MS = 60000;
 
   private constructor() { }
 
@@ -61,19 +73,24 @@ export class WebSocketService {
 
     this.socket = new WebSocket(url);
 
+    this.intentionallyClosed = false;
+
     this.socket.onopen = () => {
       console.log(`🟢 WebSocket connected for user ${this.userId}`);
       this.reconnectAttempts = 0;
       this.isReconnecting = false;
+      this.startHeartbeat();
+      // Anything that arrived while we were disconnected never reached a listener — let
+      // screens refetch once instead of silently showing stale threads.
+      this.emit('connected', {});
     };
 
     this.socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data) as WebSocketMessage;
-        const listener = this.listeners.get(message.type);
-        if (listener) {
-          listener(message.data);
-        }
+        this.lastPongAt = Date.now(); // any traffic proves the socket is alive
+        if (message.type === 'pong') return;
+        this.emit(message.type, message.data);
       } catch (err) {
         console.error('Error parsing WebSocket message:', err);
       }
@@ -81,6 +98,7 @@ export class WebSocketService {
 
     this.socket.onclose = (event) => {
       console.log(`🔴 WebSocket closed (code: ${event.code}, reason: ${event.reason})`);
+      this.stopHeartbeat();
       if (this.userId) {
         // Backend expects Base64-encoded userId
         if (this.rawUserId) {
@@ -97,24 +115,53 @@ export class WebSocketService {
     };
   }
 
+  private emit(type: string, data: any): void {
+    const set = this.listeners.get(type);
+    if (!set || set.size === 0) return;
+    // Copy first: a listener may unsubscribe itself (or another) while we iterate.
+    Array.from(set).forEach((cb) => {
+      try { cb(data); } catch (err) { console.error(`WS listener for "${type}" threw:`, err); }
+    });
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.lastPongAt = Date.now();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.socket?.readyState !== WebSocket.OPEN) return;
+      if (Date.now() - this.lastPongAt > WebSocketService.PONG_GRACE_MS) {
+        console.warn('💔 WebSocket heartbeat lost — forcing a reconnect');
+        try { this.socket.close(); } catch { /* onclose drives the reconnect */ }
+        return;
+      }
+      try { this.socket.send(JSON.stringify({ type: 'ping', data: {} })); } catch { /* ignore */ }
+    }, WebSocketService.PING_EVERY_MS);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) { clearInterval(this.heartbeatTimer); this.heartbeatTimer = null; }
+  }
+
   private reconnect(): void {
     // Guard: don't stack multiple reconnect timers
-    if (this.isReconnecting) return;
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.warn(`🛑 WebSocket: max reconnect attempts (${this.maxReconnectAttempts}) reached`);
-      return;
-    }
+    if (this.isReconnecting || this.intentionallyClosed) return;
     if (!this.rawUserId) return;
 
     this.isReconnecting = true;
     this.reconnectAttempts++;
 
-    const delay = this.reconnectDelay * this.reconnectAttempts; // Exponential backoff
-    console.log(`🔁 WebSocket reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    // Never give up. The old cap of 5 attempts (~45s in total) meant a phone that slept a
+    // minute, or a backend redeploy, left the app deaf to live messages until it was restarted.
+    const delay = Math.min(this.reconnectDelay * this.reconnectAttempts, this.maxReconnectDelay);
+    console.log(`🔁 WebSocket reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
       this.isReconnecting = false;
-      if (this.rawUserId) {
+      // connect()/ensureConnected() may have already brought a socket up while this timer was
+      // pending — tearing that one down just to open another would drop live messages.
+      const state = this.socket?.readyState;
+      if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
+      if (this.rawUserId && !this.intentionallyClosed) {
         this.init(this.rawUserId);
       }
     }, delay);
@@ -144,9 +191,10 @@ export class WebSocketService {
     console.log('WebSocketService: Disconnecting...');
 
     // Prevent reconnect after intentional disconnect
+    this.intentionallyClosed = true;
+    this.stopHeartbeat();
     this.rawUserId = undefined;
     this.userId = undefined;
-    this.reconnectAttempts = this.maxReconnectAttempts; // Block reconnect
 
     // Remove handlers to prevent reconnect triggers
     this.socket.onclose = null;
@@ -180,20 +228,40 @@ export class WebSocketService {
     this.sendChatMessage(conversationId, message);
   }
 
-  public addChatListenerPublic(callback: (data: any) => void): void {
-    this.addListener('chat_message', callback);
+  /** Call when the app returns to the foreground — reconnects if the socket is not OPEN. */
+  public ensureConnected(): void {
+    if (!this.rawUserId || this.intentionallyClosed) return;
+    const state = this.socket?.readyState;
+    if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
+    this.isReconnecting = false;
+    this.reconnectAttempts = 0;
+    this.init(this.rawUserId);
   }
 
-  public removeChatListenerPublic(): void {
-    this.removeListener('chat_message');
+  public addChatListenerPublic(callback: (data: any) => void): () => void {
+    return this.addListener('chat_message', callback);
   }
 
-  public addListener(type: string, callback: (data: any) => void): void {
-    this.listeners.set(type, callback);
+  public removeChatListenerPublic(callback?: (data: any) => void): void {
+    this.removeListener('chat_message', callback);
   }
 
-  public removeListener(type: string): void {
-    this.listeners.delete(type);
+  /** Returns an unsubscribe function — prefer it over removeListener in effect cleanups. */
+  public addListener(type: string, callback: (data: any) => void): () => void {
+    let set = this.listeners.get(type);
+    if (!set) { set = new Set(); this.listeners.set(type, set); }
+    set.add(callback);
+    return () => this.removeListener(type, callback);
+  }
+
+  /**
+   * Removes ONE callback. Called without a callback it does nothing on purpose: the old
+   * remove-everything-for-this-type behaviour is exactly what let one screen's cleanup
+   * silence another screen.
+   */
+  public removeListener(type: string, callback?: (data: any) => void): void {
+    if (!callback) return;
+    this.listeners.get(type)?.delete(callback);
   }
 
   public clearListeners(): void {

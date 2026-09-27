@@ -18,6 +18,10 @@ const userApi = {
       params: requesterId ? { requesterId } : undefined,
     }),
 
+  // Replace ONE gallery photo in place (same row — order preserved). fd parts: userId (raw numeric), galleryId, file
+  replaceGalleryImage: (formData) =>
+    axiosClient.post(`/gallery/replaceGalleryImage`, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }),
+
   getUserGalleryImages: (userId) =>
     axiosClient.get(`/gallery/getAllImagesByUserId/${userId}`),
 
@@ -53,8 +57,15 @@ const userApi = {
   login: (request) =>
     axiosClient.post(`/user/login`, request),
 
-  getConversationData: (conversationId) =>
-    axiosClient.get(`/chat/conversation/${conversationId}`),
+  // viewerId (decoded numeric id) lets the server drop messages hidden from this viewer —
+  // ones sent by a member the viewer has blocked (WhatsApp-style silent block).
+  // THE way the chat screen gets messages: only rows newer than `afterId`, plus tick high-water
+  // marks for the viewer's own messages and the conversation status. Returns
+  // { messages, readUpToId, deliveredUpToId, status }. See chatscreen.tsx sync().
+  syncConversation: (conversationId, viewerId, afterId = 0) =>
+    axiosClient.get(`/chat/conversation/${conversationId}`, { params: { viewerId, after: afterId } }),
+  getConversationData: (conversationId, viewerId) =>
+    axiosClient.get(`/chat/conversation/${conversationId}`, { params: viewerId ? { viewerId } : {} }),
 
   updateUserConversation: (request) =>
     axiosClient.post(`/chat/send`, request),
@@ -87,7 +98,7 @@ const userApi = {
     axiosClient.get(`/caste/getAllActiveSubcastes`),
 
   createUser: (request) =>
-    axiosClient.post(`/user/createUser`, request),
+    axiosClient.post(`/user/createUser`, request, { timeout: 30000 }),
 
   getAllCasteProfilesByGender: (casteId, gender) =>
     axiosClient.get(`/user/getUserDetailByCasteId/${casteId}/${gender}`),
@@ -135,8 +146,8 @@ const userApi = {
   deleteHoroscopeByUserId: (encodedUserId) =>
     axiosClient.delete(`/gallery/deleteHoroscope/${encodedUserId}`),
 
-  deleteAccount: (encodedUserId) =>
-    axiosClient.delete(`/user/deleteAccount/${encodedUserId}`),
+  deleteAccount: (encodedUserId, reason) =>
+    axiosClient.delete(`/user/deleteAccount/${encodedUserId}`, { params: reason ? { reason } : undefined }),
 
   getMyBlockedUsers: (encodedUserId) =>
     axiosClient.get(`/block/getMyBlocked/${encodedUserId}`),
@@ -155,6 +166,9 @@ const userApi = {
 
   deleteInterestRequest: (interestId) =>
     axiosClient.delete(`/mailbox/deleteInterestRequest/${interestId}`),
+  // "Unfriend" from either side — removes BOTH interest rows + marks the thread DISCONNECTED.
+  removeConnection: (encodedUserId, otherUserId) =>
+    axiosClient.delete(`/mailbox/removeConnection/${encodedUserId}/${otherUserId}`),
 
   deleteShortlistedProfile: (shortlistedId) =>
     axiosClient.delete(`/mailbox/deleteShortlistedProfile/${shortlistedId}`),
@@ -292,8 +306,11 @@ const userApi = {
   resetPasswordWithToken: (body) =>
     axiosClient.post(`/auth/reset-password`, body),
 
-  resubmitProfile: (encodedUserId) =>
-    axiosClient.post(`/user/resubmit-profile/${encodedUserId}`),
+  // Settings → Change PIN: verifies the CURRENT pin server-side (401 on mismatch)
+  changePinWithOld: (body) => axiosClient.post(`/user/changePinWithOld`, body),
+
+  resubmitProfile: (encodedUserId, message) =>
+    axiosClient.post(`/user/resubmit-profile/${encodedUserId}`, message ? { message } : {}),
 
   sendRestrictedFieldRequest: (requestedBy, requestedTo, fieldType) =>
     axiosClient.post(`/restrictedFieldRequest/sendRestrictedFieldRequest/${requestedBy}/${requestedTo}/${fieldType}`),
@@ -358,6 +375,7 @@ const userApi = {
   uploadIncomeDocument: (encodedUserId, formData) => {
     return axiosClient.post(`/income-verification/upload/${encodedUserId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // uploads outlive the global 10s timeout
     });
   },
   getIncomeVerificationStatus: (encodedUserId) =>
@@ -367,6 +385,7 @@ const userApi = {
   uploadEducationDocument: (encodedUserId, formData) => {
     return axiosClient.post(`/education-verification/upload/${encodedUserId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // uploads outlive the global 10s timeout
     });
   },
   getEducationVerificationStatus: (encodedUserId) =>
@@ -376,6 +395,7 @@ const userApi = {
   uploadIdDocument: (encodedUserId, formData) => {
     return axiosClient.post(`/id-verification/upload/${encodedUserId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // uploads outlive the global 10s timeout
     });
   },
   getIdVerificationStatus: (encodedUserId) =>
@@ -408,8 +428,13 @@ const userApi = {
   updatePushToken: (requestBody) => {
     return axiosClient.post(`/pushNotification/updateToken`, requestBody)
   },
-  createOrder: (amount) => {
-    return axiosClient.post(`/payments/createOrder/${amount}`)
+  // Cashfree Payment Gateway (PAYMENT_MODE = 'GATEWAY'). Amount is decided server-side.
+  createCashfreeOrder: (encodedUserId, body) => {
+    return axiosClient.post(`/payments/cashfree/createOrder/${encodedUserId}`, body)
+  },
+  getCashfreeOrderStatus: (orderId, encodedRequesterId) => {
+    const q = encodedRequesterId ? `?requesterId=${encodeURIComponent(encodedRequesterId)}` : '';
+    return axiosClient.get(`/payments/cashfree/order/${encodeURIComponent(orderId)}/status${q}`)
   },
   getKeyValueByKey: (key) => {
     return axiosClient.get(`/keyValue/getKeyValueByKey/${key}`)

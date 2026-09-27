@@ -12,6 +12,8 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,6 +36,7 @@ import AntDesign from 'react-native-vector-icons/AntDesign';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearStorageForLogout } from '../../../utils/storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import userApi from '../api/userApi';
 import SupportFAB from '../../../components/SupportFAB';
@@ -45,6 +48,17 @@ interface PrivacySettings {
 }
 
 const SettingsPage: React.FC = () => {
+  // ── Tap-debounce for row navigation ──────────────────────────────
+  // Fast double-taps used to push the same screen twice (two stacked copies =
+  // the "app got stuck" feel); one shared 800ms lock covers every row.
+  const navLockRef = React.useRef(0);
+  const go = React.useCallback((fn: () => void) => {
+    const now = Date.now();
+    if (now - navLockRef.current < 800) return;
+    navLockRef.current = now;
+    fn();
+  }, []);
+  const [upgradeBusy, setUpgradeBusy] = React.useState(false);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>({
     allowMessages: true,
     showProfile: true,
@@ -63,6 +77,8 @@ const SettingsPage: React.FC = () => {
   const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  // Optional exit reason — stored server-side in the deleted_accounts table.
+  const [deleteReason, setDeleteReason] = useState('');
   const [userRole, setUserRole] = useState<string>('USER');
   const [parentName, setParentName] = useState<string>('');
   const [relationship, setRelationship] = useState<string>('');
@@ -156,6 +172,7 @@ const SettingsPage: React.FC = () => {
 
   const handleDeleteAccount = useCallback(() => {
     setDeleteConfirmText('');
+    setDeleteReason('');
     setDeleteAccountVisible(true);
   }, []);
 
@@ -166,10 +183,11 @@ const SettingsPage: React.FC = () => {
         popup.error('Error', 'User not found. Please log in again.');
         return;
       }
-      const res = await userApi.deleteAccount(userData.userId);
+      const res = await userApi.deleteAccount(userData.userId, deleteReason.trim());
       if (res?.data?.code === 200) {
-        // Clear everything locally and route to main
-        try { await AsyncStorage.clear(); } catch (_) {}
+        // Clear everything locally and route to main ('onboardingSeen' survives —
+        // a deleted account's device should come back to login, not the intro)
+        try { await clearStorageForLogout(); } catch (_) {}
         await logout();
         setDeleteAccountVisible(false);
         popup.success(
@@ -292,19 +310,19 @@ const SettingsPage: React.FC = () => {
                 icon={<MaterialIcons name="security" size={20} color="#dc2626" />}
                 title="Privacy Settings"
                 subtitle="Control what others can see"
-                onPress={() => router.push('/screens/PrivacySettingsPage')}
+                onPress={() => go(() => router.push('/screens/PrivacySettingsPage'))}
               />
               <SettingItem
                 icon={<Ionicons name="lock-closed" size={20} color="#dc2626" />}
                 title="Change PIN"
                 subtitle="Update your security PIN"
-                onPress={() => router.push('/screens/SettingPageChangePin')}
+                onPress={() => go(() => router.push('/screens/SettingPageChangePin'))}
               />
               <SettingItem
                 icon={<MaterialCommunityIcons name="shield-check" size={20} color="#059669" />}
                 title="Trust & Verification"
                 subtitle="Email, ID, Education, Income badges"
-                onPress={() => router.push('/(root)/screens/TrustVerificationScreen' as any)}
+                onPress={() => go(() => router.push('/(root)/screens/TrustVerificationScreen' as any))}
                 rightElement={
                   <View style={[styles.premiumBadge, { backgroundColor: '#10b981' }]}>
                     <Text style={styles.premiumText}>Verify</Text>
@@ -317,13 +335,13 @@ const SettingsPage: React.FC = () => {
                   icon={<MaterialCommunityIcons name="timer-sand" size={20} color="#f97316" />}
                   title="Your Payment Status"
                   subtitle="Verification in progress"
-                  onPress={() => router.push({
+                  onPress={() => go(() => router.push({
                     pathname: '/screens/PaymentScreen',
                     params: {
                       showVerificationOnInit: 'true',
                       paymentRequestId: paymentRequestId || ''
                     }
-                  })}
+                  }))}
                   rightElement={
                     <View style={[styles.premiumBadge, { backgroundColor: '#f97316' }]}>
                       <Text style={styles.premiumText}>Pending</Text>
@@ -335,7 +353,7 @@ const SettingsPage: React.FC = () => {
                   icon={<MaterialCommunityIcons name="crown" size={20} color="#f59e0b" />}
                   title="See Your Plan"
                   subtitle={subscriptionData?.planTitle ? `${subscriptionData.planTitle} plan active` : 'View your active subscription'}
-                  onPress={() => router.push('/screens/PremiumTab')}
+                  onPress={() => go(() => router.push('/screens/PremiumTab'))}
                   rightElement={
                     <View style={[styles.premiumBadge, { backgroundColor: '#10b981' }]}>
                       <Text style={styles.premiumText}>Active</Text>
@@ -347,11 +365,24 @@ const SettingsPage: React.FC = () => {
                   icon={<MaterialCommunityIcons name="crown" size={20} color="#eab308" />}
                   title="Upgrade Now"
                   subtitle="Get premium features"
-                  onPress={buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Premium Features' })}
+                  onPress={async () => {
+                    if (upgradeBusy) return;
+                    setUpgradeBusy(true);
+                    try {
+                      await buildUpgradeAction({ planTitle: subscriptionData?.planTitle, featureName: 'Premium Features' })();
+                    } finally {
+                      // Small tail so the spinner doesn't flash off before the push lands.
+                      setTimeout(() => setUpgradeBusy(false), 600);
+                    }
+                  }}
                   rightElement={
-                    <View style={styles.premiumBadge}>
-                      <Text style={styles.premiumText}>Premium</Text>
-                    </View>
+                    upgradeBusy ? (
+                      <ActivityIndicator size="small" color="#eab308" />
+                    ) : (
+                      <View style={styles.premiumBadge}>
+                        <Text style={styles.premiumText}>Premium</Text>
+                      </View>
+                    )
                   }
                 />
               )}
@@ -370,7 +401,7 @@ const SettingsPage: React.FC = () => {
                           );
                           return;
                         }
-                        router.push('/(root)/screens/FamilyAccessScreen' as any);
+                        go(() => router.push('/(root)/screens/FamilyAccessScreen' as any));
                       }}
                       rightElement={
                         isGoldPlus ? undefined : (
@@ -410,7 +441,7 @@ const SettingsPage: React.FC = () => {
                 );
                 return;
               }
-              router.push('/(root)/screens/StarMatch');
+              go(() => router.push('/(root)/screens/StarMatch'));
             }}
             rightElement={<MaterialIcons name="chevron-right" size={24} color="#9ca3af" />}
           />
@@ -418,20 +449,20 @@ const SettingsPage: React.FC = () => {
             icon={<Ionicons name="people" size={20} color="#dc2626" />}
             title="Your Connections"
             subtitle="View and manage connections"
-            onPress={() => router.push('/screens/ListUser?type=connection')}
+            onPress={() => go(() => router.push('/screens/ListUser?type=connection'))}
           />
           <SettingItem
             icon={<Ionicons name="eye" size={20} color="#dc2626" />}
             title="Viewed You"
             subtitle="See who viewed your profile"
-            onPress={() => router.push('/screens/ListUser?type=viewed')}
+            onPress={() => go(() => router.push('/screens/ListUser?type=viewed'))}
           />
 
           <SettingItem
             icon={<Ionicons name="heart" size={20} color="#dc2626" />}
             title="Shortlisted Profiles"
             subtitle="Your saved profiles"
-            onPress={() => router.push('/screens/ListUser?type=shortlisted')}
+            onPress={() => go(() => router.push('/screens/ListUser?type=shortlisted'))}
           />
           <SettingItem
             icon={<Ionicons name="people" size={20} color="#7c3aed" />}
@@ -446,7 +477,7 @@ const SettingsPage: React.FC = () => {
                 );
                 return;
               }
-              router.push('/screens/ListUser?type=whoShortlistedMe');
+              go(() => router.push('/screens/ListUser?type=whoShortlistedMe'));
             }}
           />
 
@@ -467,26 +498,26 @@ const SettingsPage: React.FC = () => {
             icon={<Ionicons name="alert-circle-sharp" size={20} color="#dc2626" />}
             title="FAQ"
             subtitle="Frequently asked questions"
-            onPress={() => router.push('/screens/FAQPage')}
+            onPress={() => go(() => router.push('/screens/FAQPage'))}
           />
           <SettingItem
             icon={<Ionicons name="help-circle-sharp" size={20} color="#dc2626" />}
             title="Help and Support"
             subtitle="Get help when you need it"
-            onPress={() => router.push('/screens/HelpSupportPage')}
+            onPress={() => go(() => router.push('/screens/HelpSupportPage'))}
           />
           <SettingItem
             icon={<Ionicons name="document-text" size={20} color="#dc2626" />}
             title="Terms and Conditions"
             subtitle="Read our terms"
-            onPress={() => router.push('/screens/TermsPage')}
+            onPress={() => go(() => router.push('/screens/TermsPage'))}
           />
           {!isParent && (
             <SettingItem
               icon={<Ionicons name="ban" size={20} color="#6b7280" />}
               title="Blocked Users"
               subtitle="Manage who you've blocked"
-              onPress={() => router.push('/screens/BlockedUsersScreen' as any)}
+              onPress={() => go(() => router.push('/screens/BlockedUsersScreen' as any))}
             />
           )}
           <SettingItem
@@ -537,9 +568,23 @@ const SettingsPage: React.FC = () => {
       {/* Delete Account — typed confirm modal */}
       <RNModal visible={deleteAccountVisible} transparent animationType="fade" onRequestClose={() => !deleteAccountLoading && setDeleteAccountVisible(false)}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          // 'padding' on BOTH platforms — with behavior undefined the component
+          // does nothing on Android, so the typed-DELETE input sat behind the
+          // keyboard. KAV computes the actual overlap between its own frame and
+          // the keyboard, so it stays correct whether or not the window resizes
+          // under edge-to-edge.
+          behavior="padding"
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 20 }}
         >
+          {/* Backdrop layer: tapping OUTSIDE the card dismisses the keyboard.
+              Rendered before (= behind) the card, so taps on the card and its
+              inputs are untouched — no full-bleed layer over interactive UI. */}
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFill}
+            onPress={Keyboard.dismiss}
+          />
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={{
             backgroundColor: '#fff', borderRadius: 20, padding: 22,
             shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
@@ -573,6 +618,25 @@ const SettingsPage: React.FC = () => {
                 • Linked family logins will be revoked
               </Text>
             </View>
+
+            <Text style={{ fontSize: 12, color: '#4b5563', marginBottom: 6, fontFamily: 'Rubik-Medium' }}>
+              Why are you leaving? <Text style={{ color: '#9ca3af' }}>(optional)</Text>
+            </Text>
+            <TextInput
+              value={deleteReason}
+              onChangeText={setDeleteReason}
+              placeholder="Found a match here / elsewhere, taking a break…"
+              placeholderTextColor="#9ca3af"
+              multiline
+              maxLength={250}
+              textAlignVertical="top"
+              style={{
+                borderWidth: 1.5, borderColor: '#e5e7eb',
+                borderRadius: 10, padding: 12, fontSize: 13,
+                fontFamily: 'Rubik-Regular', color: '#111',
+                backgroundColor: '#fafafa', marginBottom: 14, minHeight: 64,
+              }}
+            />
 
             <Text style={{ fontSize: 12, color: '#4b5563', marginBottom: 6, fontFamily: 'Rubik-Medium' }}>
               Type <Text style={{ color: '#dc2626', fontFamily: 'Rubik-ExtraBold' }}>DELETE</Text> to confirm
@@ -616,6 +680,7 @@ const SettingsPage: React.FC = () => {
               </TouchableOpacity>
             </View>
           </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </RNModal>
 

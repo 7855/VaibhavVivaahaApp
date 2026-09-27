@@ -17,7 +17,7 @@ import Animated, {
 import {
   Home,
   Search,
-  Heart,
+  MessagesSquare,
   MessageCircle,
   User,
 } from 'lucide-react-native';
@@ -81,7 +81,9 @@ const MatchesFAB = ({ active, onPress }: { active: boolean; onPress: () => void 
       end={{ x: 1, y: 1 }}
       style={[s.fabCircle, active && s.fabCircleActive]}
     >
-      <Heart size={24} color="#FFFFFF" strokeWidth={2} fill={active ? '#FFFFFF' : 'none'} />
+      {/* Chat bubbles, not a heart (client 2026-09-26) — the raised button IS the Chat tab.
+          MessagesSquare (two bubbles) so it does not duplicate Requests' MessageCircle. */}
+      <MessagesSquare size={24} color="#FFFFFF" strokeWidth={2.2} fill={active ? 'rgba(255,255,255,0.25)' : 'none'} />
     </LinearGradient>
     <Text style={[s.fabLabel, active && s.fabLabelActive]}>Chat</Text>
   </TouchableOpacity>

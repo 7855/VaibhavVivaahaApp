@@ -16,7 +16,7 @@ import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
 import { PLAN_RANK, useActivePlans, type UpgradePlanOption } from '../utils/upgradeNavigation';
 import RelationshipManagerView, { type AdminContact } from '../../../components/RelationshipManagerView';
-import { resolvePaymentMode } from '../utils/upgradeNavigation';
+import { resolvePaymentMode, type PaymentMode } from '../utils/upgradeNavigation';
 
 /**
  * Generalized "pick a plan, raise an admin request" screen — reached from any
@@ -45,10 +45,16 @@ export default function UpgradePlanScreen() {
   // PAYMENT_MODE === 'INFO': show which plans exist and what they include, but never an
   // amount and never a purchase path. See PaymentMode in utils/upgradeNavigation.ts.
   const [infoOnly, setInfoOnly] = useState(false);
+  // 🔴 This screen used to render RelationshipManagerView for EVERY selection, whatever the
+  // mode — so with PAYMENT_MODE=GATEWAY a member who already pays (Silver → Gold) could never
+  // reach the online checkout: buildUpgradeAction sends every PAID member here regardless of
+  // mode, and here the only outcome was the callback form. Free members were only luckier by
+  // accident (they route to PremiumTab in GATEWAY mode and never arrive here).
+  const [payMode, setPayMode] = useState<PaymentMode | null>(null);
   useEffect(() => {
     let alive = true;
     resolvePaymentMode()
-      .then((m) => { if (alive) setInfoOnly(m === 'INFO'); })
+      .then((m) => { if (alive) { setPayMode(m); setInfoOnly(m === 'INFO'); } })
       .catch(() => {});
     return () => { alive = false; };
   }, []);
@@ -64,6 +70,26 @@ export default function UpgradePlanScreen() {
       })
       .catch(() => { });
   }, []);
+
+  // GATEWAY: hand the chosen plan to PaymentScreen, which renders GatewayCheckoutView →
+  // Cashfree. In an effect, not in the render body — navigating while rendering is a side
+  // effect React warns about and can fire twice. `replace`, not `push`: returning from the
+  // browser should land where the member started, not on a picker holding a stale selection.
+  // Without a real plan id the server cannot price the order, so those fall through to the
+  // callback form rather than opening a checkout that could only fail.
+  const goingToGateway = !!selectedPlan && payMode === 'GATEWAY' && !!selectedPlan.id;
+  useEffect(() => {
+    if (!goingToGateway || !selectedPlan) return;
+    router.replace({
+      pathname: '/(root)/screens/PaymentScreen',
+      params: {
+        planTitle: selectedPlan.title,
+        planPrice: selectedPlan.price,
+        planPeriod: selectedPlan.period,
+        planId: String(selectedPlan.id),
+      },
+    } as any);
+  }, [goingToGateway, selectedPlan]);
 
   const currentPlanTitle = freeUser === '1' ? 'Free' : (subscriptionData?.planTitle || 'Free');
   const currentRank = PLAN_RANK[currentPlanTitle] || 1;
@@ -85,8 +111,13 @@ export default function UpgradePlanScreen() {
 
   const feature = featureName || 'this feature';
 
+  // Render nothing for the one frame between choosing a plan and the navigation landing.
+  if (goingToGateway) return null;
+
   if (selectedPlan) {
     const fullName = `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim();
+
+    // GATEWAY selections never reach here — the effect above navigates them away.
     return (
       <RelationshipManagerView
         planTitle={selectedPlan.title}

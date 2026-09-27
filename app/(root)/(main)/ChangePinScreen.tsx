@@ -257,7 +257,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   )}
                   <TouchableOpacity onPress={() => setShowNewPin(!showNewPin)}>
                     <Icon
-                      name={showNewPin ? 'visibility-off' : 'visibility'}
+                      name={showNewPin ? 'visibility' : 'visibility-off'}
                       size={20}
                       color="#94a3b8"
                     />
@@ -329,7 +329,7 @@ const ChangePinScreen: React.FC<ChangePinScreenProps> = ({ onBack, onComplete })
                   )}
                   <TouchableOpacity onPress={() => setShowConfirmPin(!showConfirmPin)}>
                     <Icon
-                      name={showConfirmPin ? 'visibility-off' : 'visibility'}
+                      name={showConfirmPin ? 'visibility' : 'visibility-off'}
                       size={20}
                       color="#94a3b8"
                     />

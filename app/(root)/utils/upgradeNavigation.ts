@@ -21,6 +21,10 @@ export const PLAN_RANK: Record<string, number> = {
 };
 
 export interface UpgradePlanOption {
+  /** subscription_plans.id — required to open a Cashfree checkout for this plan.
+   *  Null for the bundled FALLBACK_UPGRADE_PLANS (offline copy, no ids), which is why
+   *  every gateway path must handle a missing id rather than assume one. */
+  id: number | null;
   title: string;
   price: string;
   period: string;
@@ -47,25 +51,28 @@ const FEATURES_BY_TITLE: Record<string, string[]> = {
 // pricing per CLAUDE.md section 7. The purchasable plan list is otherwise always driven by the
 // backend, so deactivating a plan in the DB (isActive='N') removes it from the app with no code
 // change and no release.
+// ⚠️ The `id`s are the real subscription_plans ids (verified live 2026-09-20). They must
+// match the DB or a gateway checkout opened from this offline fallback would bill the wrong
+// plan — the server re-reads the amount from the id, it does not trust the client.
 export const FALLBACK_UPGRADE_PLANS: UpgradePlanOption[] = [
   {
-    title: 'Starter', price: '₹499', period: '30 days', tagline: 'முதல் அடி எடுங்கள்',
+    id: 2, title: 'Starter', price: '₹499', period: '30 days', tagline: 'முதல் அடி எடுங்கள்',
     features: FEATURES_BY_TITLE.Starter,
   },
   {
-    title: 'Classic', price: '₹999', period: '90 days', tagline: 'தெளிவான தேர்வு',
+    id: 3, title: 'Classic', price: '₹999', period: '90 days', tagline: 'தெளிவான தேர்வு',
     features: FEATURES_BY_TITLE.Classic,
   },
   {
-    title: 'Silver', price: '₹2,499', period: '90 days', tagline: 'இதயம் திறக்கும் நேரம்',
+    id: 4, title: 'Silver', price: '₹2,499', period: '90 days', tagline: 'இதயம் திறக்கும் நேரம்',
     features: FEATURES_BY_TITLE.Silver,
   },
   {
-    title: 'Gold', price: '₹4,999', period: '180 days', tagline: 'தங்க வாழ்க்கை தொடர்புகள்',
+    id: 5, title: 'Gold', price: '₹4,999', period: '180 days', tagline: 'தங்க வாழ்க்கை தொடர்புகள்',
     features: FEATURES_BY_TITLE.Gold,
   },
   {
-    title: 'Platinum', price: '₹9,999', period: 'Until marriage', tagline: 'திருமணம் வரை நம்மோட உதவி',
+    id: 6, title: 'Platinum', price: '₹9,999', period: 'Until marriage', tagline: 'திருமணம் வரை நம்மோட உதவி',
     features: FEATURES_BY_TITLE.Platinum,
   },
 ];
@@ -118,7 +125,9 @@ function mapRowToPlanOption(row: any): UpgradePlanOption {
   const rawPeriod = String(row?.period ?? '').trim().replace(/^\/+/, '');
   const durationDays = Number(row?.durationDays ?? row?.duration_days ?? 0);
   const period = rawPeriod || (durationDays > 0 ? `${durationDays} days` : '');
+  const rawId = Number(row?.id);
   return {
+    id: Number.isFinite(rawId) && rawId > 0 ? rawId : null,
     title,
     price,
     period,
@@ -260,6 +269,9 @@ export function useActivePlans(): { plans: UpgradePlanOption[]; loading: boolean
  * - 'QR'      self-serve UPI/QR checkout inside the app.
  * - 'CONTACT' no checkout; prices are shown and the member is routed to a relationship-manager
  *             callback form. Payment happens off-app and an admin activates the plan.
+ * - 'GATEWAY' self-serve ONLINE checkout through Cashfree (GatewayCheckoutView → website /pay page
+ *             in the system browser → PaymentReturn). Routes exactly like QR. ⚠ Google Play treats
+ *             this as alternative billing for digital content — see backend CASHFREE_INTEGRATION_PLAN.md §8.
  * - 'INFO'    informational only — the plan FEATURES are shown but no prices and no purchase
  *             call-to-action anywhere. Google Play forbids leading users toward a payment method
  *             other than Play Billing for digital content, and a visible price tag next to a
@@ -268,7 +280,7 @@ export function useActivePlans(): { plans: UpgradePlanOption[]; loading: boolean
  *             ⚠️ Nothing about the admin-activates-the-plan workflow changes in this mode; it
  *             only changes what the app displays.
  */
-export type PaymentMode = 'QR' | 'CONTACT' | 'INFO';
+export type PaymentMode = 'QR' | 'CONTACT' | 'INFO' | 'GATEWAY';
 
 const PAYMENT_MODE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — same key/TTL as PaymentScreen.tsx
 
@@ -286,7 +298,7 @@ export async function resolvePaymentMode(): Promise<PaymentMode> {
     if (modeRes?.data?.data?.valueColumn) {
       try {
         const parsed = JSON.parse(modeRes.data.data.valueColumn);
-        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT' || parsed?.mode === 'INFO') mode = parsed.mode;
+        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT' || parsed?.mode === 'INFO' || parsed?.mode === 'GATEWAY') mode = parsed.mode;
         else console.warn('[upgradeNavigation] PAYMENT_MODE value has an unexpected shape:', modeRes.data.data.valueColumn);
       } catch (e) {
         console.warn('[upgradeNavigation] Failed to parse PAYMENT_MODE valueColumn:', modeRes.data.data.valueColumn, e);
@@ -326,6 +338,31 @@ export async function resolvePaymentMode(): Promise<PaymentMode> {
  *   (Play Store-safe default) or INFO, even a first-time Free purchase has no self-serve checkout,
  *   so they land on the same assisted picker instead of a plan list that dead-ends at a form.
  */
+// ── Single-navigation guard for ALL upgrade actions ─────────────────────
+// Free-user upgrade taps used to await a NETWORK call (resolvePaymentMode)
+// before router.push, with no feedback — during a slow-server window a member
+// tapped N times and N screens later stacked up. One module-level guard covers
+// every buildUpgradeAction call site (~25 across the app): while one action is
+// in flight, or within 1.2s of the last upgrade navigation, further taps no-op.
+let upgradeNavBusy = false;
+let lastUpgradeNavAt = 0;
+
+/** resolvePaymentMode, but never slower than ~700ms: race the fresh fetch
+ *  against a cached-value fallback so a tap always navigates promptly even
+ *  mid server-stall. Fresh wins whenever the network is healthy (<700ms). */
+async function resolvePaymentModeFast(): Promise<PaymentMode> {
+  const cachedAfterDelay: Promise<PaymentMode> = new Promise((resolve) =>
+    setTimeout(async () => {
+      try {
+        const cached = await AsyncStorage.getItem('paymentModeCache');
+        const parsed = cached ? JSON.parse(cached) : null;
+        resolve((parsed?.mode as PaymentMode) || 'CONTACT');
+      } catch { resolve('CONTACT'); }
+    }, 700)
+  );
+  return Promise.race([resolvePaymentMode(), cachedAfterDelay]);
+}
+
 export function buildUpgradeAction(opts: {
   planTitle?: string | null;
   featureName: string;
@@ -333,17 +370,35 @@ export function buildUpgradeAction(opts: {
 }) {
   const { planTitle, featureName, minPlan } = opts;
   return async () => {
+    const now = Date.now();
+    if (upgradeNavBusy || now - lastUpgradeNavAt < 1200) return;
+    upgradeNavBusy = true;
+    try {
     const isPaid = !!planTitle && planTitle !== 'Free';
+    // The mode is resolved for EVERYONE now. It used to be skipped for paying members, who
+    // were sent to UpgradePlanScreen whatever the mode — so with GATEWAY on they got a plain
+    // list ending in the callback form, while Free members got the plan swiper and a checkout.
+    const mode = await resolvePaymentModeFast();
     if (isPaid) {
-      router.push({
-        pathname: '/(root)/screens/UpgradePlanScreen',
-        params: { featureName, minPlan: minPlan || '' },
-      });
+      lastUpgradeNavAt = Date.now();
+      if (mode === 'GATEWAY') {
+        // Same swiper as a first purchase; upgrade='1' lifts its "Your Membership" page out
+        // of the way and trims the cards to the tiers above the member's own.
+        router.push({
+          pathname: '/(root)/screens/PremiumTab',
+          params: { upgrade: '1', featureName, minPlan: minPlan || '' },
+        } as any);
+      } else {
+        router.push({
+          pathname: '/(root)/screens/UpgradePlanScreen',
+          params: { featureName, minPlan: minPlan || '' },
+        });
+      }
       return;
     }
-    const mode = await resolvePaymentMode();
     // INFO behaves like CONTACT for routing — the difference is what those screens render,
     // not where the member lands. Only QR has a self-serve checkout to send them to.
+    lastUpgradeNavAt = Date.now();
     if (mode === 'CONTACT' || mode === 'INFO') {
       router.push({
         pathname: '/(root)/screens/UpgradePlanScreen',
@@ -351,6 +406,9 @@ export function buildUpgradeAction(opts: {
       });
     } else {
       router.push('/(root)/screens/PremiumTab' as any);
+    }
+    } finally {
+      upgradeNavBusy = false;
     }
   };
 }

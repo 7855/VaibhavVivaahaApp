@@ -60,6 +60,22 @@ interface ViewedProfile {
 
 type ListItem = ShortlistedProfile | ViewedProfile;
 
+// The blue accent + CTA gradient shared with the Explore → Saved Search empty state and the
+// Request tab's MailboxEmptyState. Every centre state in the app uses this one pair, so the
+// upgrade gate must not introduce a second colour language of its own.
+const ACCENT_BLUE = '#1F7FE5';
+const CTA_GRADIENT = ['#1F7FE5', '#1862b8'] as const;
+
+// The per-tab accents below are plain 6-digit hex, but the empty-state ring needs them at low
+// opacity. RN accepts 8-digit #RRGGBBAA on both platforms, but only for a literal string — so
+// build an rgba() instead, which is unambiguous.
+const withAlpha = (hex: string, alpha: number) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) return `rgba(31,127,229,${alpha})`;
+    const n = parseInt(m[1], 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+};
+
 const TAB_META: Record<TabType, {
     title: string;
     subtitle: string;
@@ -483,14 +499,18 @@ export default function ListUser() {
                 </View>
             ) : upgradeRequired ? (
                 <View style={styles.centerState}>
-                    <LinearGradient
-                        colors={['#fef3c7', '#fde68a']}
-                        style={styles.upgradeIcon}
-                    >
-                        <MaterialCommunityIcons name="crown" size={46} color="#b8860b" />
-                    </LinearGradient>
-                    <Text style={styles.upgradeTitle}>Premium Feature</Text>
-                    <Text style={styles.upgradeSubtitle}>
+                    {/* Deliberately reuses the EMPTY state's own styles rather than declaring a
+                        parallel set — same blue ring, same white disc, same type, same CTA as the
+                        Saved Search empty state. Sharing the styles is what stops the two from
+                        drifting apart later. Only the glyph differs (a crown, since this is a
+                        locked feature rather than an empty list). */}
+                    <View style={[styles.emptyIconRing, { backgroundColor: withAlpha(ACCENT_BLUE, 0.09) }]}>
+                        <View style={styles.emptyIconCircle}>
+                            <MaterialCommunityIcons name="crown" size={34} color={ACCENT_BLUE} />
+                        </View>
+                    </View>
+                    <Text style={styles.emptyTitle}>Premium Feature</Text>
+                    <Text style={styles.emptySubtitle}>
                         {type === 'viewed'
                             ? upgradeMessage('see who has viewed your profile', 'Silver')
                             : type === 'whoLikedMe'
@@ -506,16 +526,16 @@ export default function ListUser() {
                             minPlan: type === 'viewed' ? 'Silver' : type === 'whoLikedMe' ? 'Starter' : undefined,
                         })}
                         activeOpacity={0.88}
-                        style={styles.upgradeBtnWrap}
+                        style={styles.emptyCta}
                     >
                         <LinearGradient
-                            colors={['#9c4040', '#7a2d2d']}
+                            colors={CTA_GRADIENT}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
-                            style={styles.upgradeBtn}
+                            style={styles.emptyCtaInner}
                         >
-                            <MaterialCommunityIcons name="crown" size={16} color="#fff" />
-                            <Text style={styles.upgradeBtnText}>Upgrade Now</Text>
+                            <MaterialCommunityIcons name="crown" size={15} color="#fff" />
+                            <Text style={styles.emptyCtaText}>Upgrade Now</Text>
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
@@ -527,17 +547,39 @@ export default function ListUser() {
                     <Text style={styles.errorTitle}>Something went wrong</Text>
                     <Text style={styles.errorSubtitle}>{error}</Text>
                     <TouchableOpacity onPress={() => loadProfileData()} style={styles.retryBtn}>
-                        <Ionicons name="refresh" size={14} color="#9c4040" />
+                        <Ionicons name="refresh" size={14} color="#1F7FE5" />
                         <Text style={styles.retryBtnText}>Try again</Text>
                     </TouchableOpacity>
                 </View>
             ) : data.length === 0 ? (
                 <View style={styles.centerState}>
-                    <View style={styles.emptyIcon}>
-                        <Ionicons name={meta.icon} size={48} color="#d1d5db" />
+                    {/* Ring + white disc, matching the Request tab's MailboxEmptyState and the
+                        Explore → Saved Search empty state so all three read as one system. The
+                        ring takes the list's own accent (pink for Likes, maroon for Views and
+                        Connections) so each list stays identifiable, while the CTA stays the
+                        app's primary blue — the same action, treated the same way everywhere. */}
+                    <View style={[styles.emptyIconRing, { backgroundColor: withAlpha(meta.accent, 0.09) }]}>
+                        <View style={styles.emptyIconCircle}>
+                            <Ionicons name={meta.icon} size={36} color={meta.accent} />
+                        </View>
                     </View>
                     <Text style={styles.emptyTitle}>{meta.emptyTitle}</Text>
                     <Text style={styles.emptySubtitle}>{meta.emptyText}</Text>
+                    <TouchableOpacity
+                        onPress={() => router.push('/(root)/(tabs)/explore' as any)}
+                        activeOpacity={0.88}
+                        style={styles.emptyCta}
+                    >
+                        <LinearGradient
+                            colors={['#1F7FE5', '#1862b8']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.emptyCtaInner}
+                        >
+                            <Ionicons name="search" size={15} color="#fff" />
+                            <Text style={styles.emptyCtaText}>Explore Matches</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
                 </View>
             ) : (
                 <FlatList
@@ -668,42 +710,10 @@ const styles = StyleSheet.create({
     },
     loadingText: { marginTop: 14, fontSize: 13, color: '#6b7280' },
 
-    upgradeIcon: {
-        width: 96, height: 96, borderRadius: 48,
-        justifyContent: 'center', alignItems: 'center',
-        marginBottom: 18,
-        shadowColor: '#d4a017',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 6,
-    },
-    upgradeTitle: { fontSize: 20, fontFamily: 'Rubik-ExtraBold', color: '#111', marginBottom: 8 },
-    upgradeSubtitle: {
-        fontSize: 13,
-        color: '#6b7280',
-        textAlign: 'center',
-        lineHeight: 20,
-        marginBottom: 24,
-        maxWidth: 300,
-    },
-    upgradeBtnWrap: {
-        borderRadius: 26,
-        overflow: 'hidden',
-        shadowColor: '#9c4040',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 6,
-    },
-    upgradeBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 28,
-        paddingVertical: 13,
-        gap: 8,
-    },
-    upgradeBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Rubik-Bold' },
+    // The upgrade gate reuses the empty state's styles (emptyIconRing / emptyIconCircle /
+    // emptyTitle / emptySubtitle / emptyCta*) instead of the parallel upgrade* set that used to
+    // live here — that set had drifted into its own palette (gold disc, maroon CTA) and its own
+    // type scale (Rubik-ExtraBold 20, a face reserved for the brand wordmark).
 
     errorIcon: {
         width: 80, height: 80, borderRadius: 40,
@@ -711,34 +721,80 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
         marginBottom: 14,
     },
-    errorTitle: { fontSize: 16, fontFamily: 'Rubik-Bold', color: '#111' },
-    errorSubtitle: { fontSize: 12, color: '#6b7280', marginTop: 6, textAlign: 'center' },
+    // Aligned with the empty/upgrade states so all three of this screen's centre states share
+    // one type scale. Retry is the app blue, not the legacy maroon — retrying is a neutral
+    // action, so it must not borrow the gold that means "paid" or the red that means "failed".
+    errorTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: '#0f1724' },
+    errorSubtitle: {
+        fontSize: 13,
+        fontFamily: 'Rubik-Regular',
+        color: '#64748b',
+        marginTop: 8,
+        textAlign: 'center',
+        lineHeight: 20,
+        maxWidth: 280,
+    },
     retryBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        marginTop: 16,
+        marginTop: 18,
         paddingHorizontal: 18,
         paddingVertical: 10,
         borderRadius: 22,
         borderWidth: 1.5,
-        borderColor: '#9c4040',
+        borderColor: '#1F7FE5',
         backgroundColor: '#fff',
     },
-    retryBtnText: { color: '#9c4040', fontSize: 13, fontFamily: 'Rubik-Bold' },
+    retryBtnText: { color: '#1F7FE5', fontSize: 13, fontFamily: 'Rubik-Bold' },
 
-    emptyIcon: {
-        width: 96, height: 96, borderRadius: 48,
-        backgroundColor: '#f3f4f6',
-        justifyContent: 'center', alignItems: 'center',
-        marginBottom: 18,
+    // Ring colour is applied inline from the tab's own accent; the disc stays white so the icon
+    // reads as lit rather than the previous flat grey-on-grey, which looked like a disabled state.
+    emptyIconRing: {
+        width: 108, height: 108, borderRadius: 54,
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 20,
     },
-    emptyTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: '#111', marginBottom: 8 },
+    emptyIconCircle: {
+        width: 78, height: 78, borderRadius: 39,
+        backgroundColor: '#fff',
+        alignItems: 'center', justifyContent: 'center',
+        shadowColor: '#0f1724',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 14,
+        elevation: 4,
+    },
+    emptyTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: '#0f1724', marginBottom: 8 },
     emptySubtitle: {
         fontSize: 13,
-        color: '#6b7280',
+        fontFamily: 'Rubik-Regular',
+        color: '#64748b',
         textAlign: 'center',
-        lineHeight: 19,
+        lineHeight: 20,
         maxWidth: 280,
+    },
+    emptyCta: {
+        marginTop: 22,
+        borderRadius: 26,
+        overflow: 'hidden',
+        shadowColor: '#1F7FE5',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.28,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    emptyCtaInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingHorizontal: 26,
+        paddingVertical: 13,
+    },
+    emptyCtaText: {
+        color: '#fff',
+        fontSize: 13.5,
+        fontFamily: 'Rubik-Bold',
     },
 });

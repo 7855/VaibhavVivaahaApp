@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { LinearGradient } from 'expo-linear-gradient';
 import { Crown, Check, X, Clock, CheckCircle, CircleDot, Circle, Shield, Compass, Rocket, Award, Star, Gem } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,7 +19,8 @@ import userApi from '../api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
-import { getActivePlansSync, resolvePaymentMode } from '../utils/upgradeNavigation';
+import { getActivePlansSync, resolvePaymentMode, PLAN_RANK, type PaymentMode } from '../utils/upgradeNavigation';
+import { startCashfreeCheckout, useCashfreeCallback } from '../utils/cashfreeCheckout';
 import { buildChecklistByPlan } from '../utils/planChecklist';
 
 // Same soft blue backdrop used app-wide (explore.tsx / profile.tsx) instead of a standalone
@@ -237,7 +238,7 @@ function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade, infoOnly }: 
         <View style={styles.trustLine}>
           <Shield size={12} color="#94a3b8" strokeWidth={2} />
           <Text style={styles.trustLineText}>
-            {infoOnly ? 'Verified profiles · Manual verification' : 'Secure payment · Cancel anytime'}
+            {infoOnly ? 'Verified profiles · Manual verification' : 'Secure payment'}
           </Text>
         </View>
       </Animated.View>
@@ -250,7 +251,18 @@ export default function PremiumTab() {
   // `return`s below (loading / error / PENDING payment / already-subscribed) and a hook added
   // after any of them breaks hook order the moment a branch flips. See CLAUDE.md section 17.
   const [infoOnly, setInfoOnly] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<number | null>(1);
+  // GATEWAY: "Proceed" on a plan opens the payment sheet straight from this screen.
+  const [payMode, setPayMode] = useState<PaymentMode | null>(null);
+  const [startingPayment, setStartingPayment] = useState(false);
+  // Cashfree's React Native guide: setCallback when the screen mounts, removeCallback when it
+  // unmounts. 'push' so "Try again" after a cancelled payment returns HERE, to the plans.
+  // (A hook — it must stay above this component's early returns, CLAUDE.md section 17.)
+  useCashfreeCallback('push');
+  // upgrade='1' = a member who ALREADY pays came here to move up (buildUpgradeAction, GATEWAY
+  // mode). Without it a paying member gets the "Your Membership" page below, as before.
+  const { upgrade, minPlan } = useLocalSearchParams<{ upgrade?: string; minPlan?: string }>();
+  const upgrading = upgrade === '1';
+  const [selectedPlan, setSelectedPlan] = useState<number | null>(upgrading ? 0 : 1);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -262,8 +274,8 @@ export default function PremiumTab() {
   useEffect(() => {
     let alive = true;
     resolvePaymentMode()
-      .then((m) => { if (alive) setInfoOnly(m === 'INFO'); })
-      .catch(() => {});
+      .then((m) => { if (alive) { setPayMode(m); setInfoOnly(m === 'INFO'); } })
+      .catch(() => { });
     return () => { alive = false; };
   }, []);
 
@@ -541,7 +553,7 @@ export default function PremiumTab() {
   // to UpgradePlanScreen instead — PremiumTab is only reached via settingsPage's "See Your Plan"
   // (any paid tier, correctly dead-ends showing the active subscription) and a Free user's
   // first-purchase flow in PAYMENT_MODE=QR (never hits this branch, since planTitle is Free).
-  if (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free')) {
+  if (!upgrading && (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free'))) {
     const planName = subscriptionData?.planTitle || 'Premium';
     return (
       <LinearGradient colors={BG_GRADIENT} locations={BG_LOCATIONS} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.container}>
@@ -576,6 +588,20 @@ export default function PremiumTab() {
             )}
           </View>
 
+          {/* GATEWAY only: a paying member can move up from here. Hidden on the highest plan —
+              an Upgrade button that leads to an empty list is worse than no button. */}
+          {payMode === 'GATEWAY' && plans.some((p) => (PLAN_RANK[p.title] || 0) > (PLAN_RANK[planName] || 0)) && (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => router.push({ pathname: '/(root)/screens/PremiumTab', params: { upgrade: '1' } } as any)}
+              style={{ alignSelf: 'stretch', marginBottom: 12, borderRadius: 28, overflow: 'hidden' }}
+            >
+              <LinearGradient colors={['#1F7FE5', '#1862b8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={{ height: 52, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontFamily: 'Rubik-Medium', fontSize: 15 }}>Upgrade my plan</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.goBackButton} onPress={() => router.back()} activeOpacity={0.85}>
             <Text style={styles.goBackButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -585,6 +611,38 @@ export default function PremiumTab() {
   }
 
   const handleUpgradePress = (plan: Plan) => {
+    // GATEWAY (client 2026-09-21): choose a plan → "Proceed?" → the payment sheet. No
+    // "Secure Payment" screen in between — that stop asked for a second tap and told the
+    // member nothing the plan card had not already said.
+    if (payMode === 'GATEWAY') {
+      popup.confirm(
+        'Proceed to payment',
+        `${plan.title} plan · ${plan.price}${plan.period ? ` · ${String(plan.period).replace(/^\/+/, '')}` : ''}\n\nPay by UPI, debit / credit card, net banking or wallet.`,
+        async () => {
+          if (startingPayment) return;
+          setStartingPayment(true);
+          try {
+            // ⚠️ Let the confirm popup finish closing first. It is a native Modal, and
+            // Android will not reliably present another native surface (the payment sheet)
+            // over a Modal that is still mid-dismiss — CLAUDE.md section 17, same rule as the
+            // photo picker.
+            await new Promise((r) => setTimeout(r, 400));
+            await startCashfreeCheckout({
+              encodedUserId: userData?.userId || null,
+              planId: String(plan.id),
+              purpose: 'SUBSCRIPTION',
+              onError: (title: string, msg: string) => popup.error(title, msg),
+            });
+          } finally {
+            setStartingPayment(false);
+          }
+        },
+        'Proceed',
+        'Cancel'
+      );
+      return;
+    }
+
     popup.confirm(
       'Confirm Upgrade',
       `Continue with ${plan.title} plan at ${plan.price}?`,
@@ -605,6 +663,16 @@ export default function PremiumTab() {
   };
 
   const currentPlanTitle = subscriptionData?.planTitle || 'Free';
+  // Upgrading members see only what they can actually move UP to. Showing Silver to a Gold
+  // member is an offer to pay for less than they already have. `minPlan` (the feature they
+  // were trying to unlock) raises the floor further. An unknown title ranks 0, so a campaign
+  // plan like Trial sees every paid tier.
+  const visiblePlans: Plan[] = upgrading
+    ? plans.filter((p) => {
+      const rank = PLAN_RANK[p.title] || 0;
+      return rank > (PLAN_RANK[currentPlanTitle] || 0) && rank >= (minPlan ? (PLAN_RANK[minPlan] || 0) : 0);
+    })
+    : plans;
 
   const onCarouselScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
@@ -619,42 +687,77 @@ export default function PremiumTab() {
       <View style={styles.headerRow}>
         <Text style={styles.pageTitle}>{HERO_TITLE}</Text>
         <View style={styles.dashRow}>
-          {plans.map((_, i) => (
+          {visiblePlans.map((_, i) => (
             <DashDot key={i} index={i} scrollX={scrollX} />
           ))}
         </View>
       </View>
       <Text style={styles.introSubtitle}>{HERO_SUBTITLE}</Text>
 
-      <Animated.FlatList
-        style={styles.carousel}
-        data={plans}
-        keyExtractor={(p: Plan) => String(p.id)}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        decelerationRate="fast"
-        initialScrollIndex={selectedPlan ?? 0}
-        getItemLayout={(_: unknown, index: number) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        onMomentumScrollEnd={onCarouselScrollEnd}
-        renderItem={({ item, index }: { item: Plan; index: number }) => (
-          <PlanCard
-            plan={item}
-            index={index}
-            scrollX={scrollX}
-            isCurrentPlan={item.title === currentPlanTitle}
-            onUpgrade={() => handleUpgradePress(item)}
-            infoOnly={infoOnly}
-          />
-        )}
-      />
+      {upgrading && visiblePlans.length === 0 && (
+        <View style={styles.topPlanState}>
+          <Crown size={34} color="#C59A40" />
+          <Text style={styles.topPlanTitle}>You're on our highest plan</Text>
+          <Text style={styles.topPlanText}>Every feature is already unlocked for you. There is nothing higher to move to.</Text>
+        </View>
+      )}
+
+      {/* An empty list with initialScrollIndex + getItemLayout throws "index out of range". */}
+      {visiblePlans.length > 0 && (
+        <Animated.FlatList
+          style={styles.carousel}
+          data={visiblePlans}
+          keyExtractor={(p: Plan) => String(p.id)}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          initialScrollIndex={Math.min(selectedPlan ?? 0, Math.max(visiblePlans.length - 1, 0))}
+          getItemLayout={(_: unknown, index: number) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={onCarouselScrollEnd}
+          renderItem={({ item, index }: { item: Plan; index: number }) => (
+            <PlanCard
+              plan={item}
+              index={index}
+              scrollX={scrollX}
+              isCurrentPlan={item.title === currentPlanTitle}
+              onUpgrade={() => handleUpgradePress(item)}
+              infoOnly={infoOnly}
+            />
+          )}
+        />
+      )}
+      {/* A plain absolute View, NOT a Modal: the payment sheet is a native surface, and a
+          Modal still on screen when it opens is the stacked-window freeze from section 17.
+          It blocks taps on the cards while the order is being created (about a second). */}
+      {startingPayment && (
+        <View style={styles.startingOverlay}>
+          <View style={styles.startingCard}>
+            <ActivityIndicator size="large" color="#1F7FE5" />
+            <Text style={styles.startingText}>Opening secure payment…</Text>
+          </View>
+        </View>
+      )}
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  startingOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(15,23,36,0.35)', alignItems: 'center', justifyContent: 'center',
+    zIndex: 9999, elevation: 9999,
+  },
+  startingCard: {
+    backgroundColor: '#fff', borderRadius: 20, paddingVertical: 24, paddingHorizontal: 32,
+    alignItems: 'center', borderWidth: 1, borderColor: '#e7edf5',
+  },
+  startingText: { marginTop: 12, fontFamily: 'Rubik-Medium', fontSize: 14, color: '#0f1724' },
+  topPlanState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  topPlanTitle: { marginTop: 14, fontFamily: 'Rubik-Bold', fontSize: 18, color: '#0f1724', textAlign: 'center' },
+  topPlanText: { marginTop: 8, fontFamily: 'Rubik-Regular', fontSize: 13, color: '#64748b', textAlign: 'center', lineHeight: 20 },
   container: {
     flex: 1,
   },

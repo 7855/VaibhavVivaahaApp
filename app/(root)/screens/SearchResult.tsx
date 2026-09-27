@@ -31,6 +31,7 @@ type SearchResultParams = {
 };
 
 interface Profile {
+  hasActiveBoost?: boolean;   // set by the boosted-first list endpoints
   id: string;
   name: string;
   age: number;
@@ -101,19 +102,40 @@ export default function ResultsScreen() {
 
     if (searchResults) {
       try {
-        const results = JSON.parse(searchResults);
+        const parsed = JSON.parse(searchResults);
+        // 🔴 De-duplicate by userId. `filterUsers` joins to user_subscriptions, and a member
+        // holding more than one ACTIVE row (see backend CLAUDE.md 2026-09-22 #5) comes back
+        // ONCE PER ROW — user 931 was returned twice, as Silver and as Free. That inflated the
+        // "N Matches found" count and gave two cards the same React key, which logs
+        // "Encountered two children with the same key" and lets React drop/duplicate a card.
+        // Keeping the FIRST occurrence keeps the server's ordering (boosted/priority first).
+        const seen = new Set<any>();
+        const results = (Array.isArray(parsed) ? parsed : []).filter((u: any) => {
+          const k = u?.userId;
+          if (k == null) return true;         // no id to dedupe on — keep it
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
         const formattedProfiles: Profile[] = results.map((user: any) => ({
           id: user?.userId, // Add fallback ID
           name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
           age: parseInt(user.age, 10) || 0,
-          height: user.height ? `${user.height}"` : 'N/A',
-          city: user.location || 'N/A',
-          jobSector: user.occupation || 'N/A',
+          height: (() => {
+            // Legacy free-form values (5'6", 5.5", 3.0, 'null') — never append a unit blindly.
+            const h = user.height == null ? '' : String(user.height).trim();
+            if (!h || ['null', 'undefined', '-'].includes(h.toLowerCase())) return '-';
+            if (/'/.test(h)) return h;
+            const m = h.match(/^(\d+(?:\.\d+)?)\s*("|ft)?$/i);
+            return m ? `${m[1]} ft` : h;
+          })(),
+          city: user.location || '-',
+          jobSector: user.occupation || '-',
           annualIncome: (() => {
             const income = parseInt(user.annualIncome || '0', 10);
             if (income >= 1000000) return `${income / 100000} LPA`;
             if (income > 0) return `${income / 100000} LPA`;
-            return 'N/A';
+            return '-';
           })(),
           image: user.profileImage || '',
           gender: user.gender || '',
@@ -122,6 +144,8 @@ export default function ResultsScreen() {
           // other screen in the app reads `subscriptionTitle` for this) — so the tier badge
           // below silently never fired for any real profile. Fixed to read the real field.
           subscriptionTag: user.subscriptionTitle || 'FREE',
+          // The server already orders boosted members first; this makes it VISIBLE.
+          hasActiveBoost: user.hasActiveBoost === true || user.hasActiveBoost === 1,
           idVerified: user.idVerified === true || user.idVerified === 1,
           educationVerified: user.educationVerified === true || user.educationVerified === 1,
           incomeVerified: user.incomeVerified === true || user.incomeVerified === 1,
@@ -415,7 +439,9 @@ export default function ResultsScreen() {
           const hasVerification = profile.idVerified || profile.educationVerified || profile.incomeVerified;
 
           return (
-            <View key={profile?.id || `profile-${index}`} style={styles.profileCard}>
+            // Index is part of the key so a duplicate id can never collide again, even if a
+            // new server-side join starts multiplying rows in some other way.
+            <View key={`${profile?.id ?? 'p'}-${index}`} style={styles.profileCard}>
               <ImageBackground
                 source={profile.image ? { uri: profile.image } :
                   profile.gender === 'M' ? require('../../../assets/images/avatarMen.png') :
@@ -425,17 +451,25 @@ export default function ResultsScreen() {
                 imageStyle={styles.cardImageRadius}
               >
                 <View style={styles.topBadgeRow}>
-                  {tierStyle ? (
-                    <LinearGradient
-                      colors={tierStyle.gradient}
-                      style={styles.tierChip}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <MaterialIcons name="auto-awesome" size={10} color={tierStyle.textColor} />
-                      <Text style={[styles.tierChipText, { color: tierStyle.textColor }]}>{tier}</Text>
-                    </LinearGradient>
-                  ) : <View />}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {profile.hasActiveBoost ? (
+                      <View style={styles.boostChip}>
+                        <MaterialIcons name="rocket-launch" size={10} color="#5E4200" />
+                        <Text style={styles.boostChipText}>BOOSTED</Text>
+                      </View>
+                    ) : null}
+                    {tierStyle ? (
+                      <LinearGradient
+                        colors={tierStyle.gradient}
+                        style={styles.tierChip}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <MaterialIcons name="auto-awesome" size={10} color={tierStyle.textColor} />
+                        <Text style={[styles.tierChipText, { color: tierStyle.textColor }]}>{tier}</Text>
+                      </LinearGradient>
+                    ) : null}
+                  </View>
 
                   {hasVerification && (
                     <View style={styles.verifiedChipWrap}>
@@ -608,6 +642,11 @@ const styles = StyleSheet.create({
   cardImageRadius: {
     resizeMode: 'cover',
   },
+  boostChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#F6B733', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
+  },
+  boostChipText: { color: '#5E4200', fontSize: 9, fontFamily: 'Rubik-Bold', letterSpacing: 0.4 },
   topBadgeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -1,163 +1,71 @@
-
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Redirect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function Index() {
+/**
+ * Retired landing screen → pure router hub.
+ *
+ * The old full-bleed "Find Your Life Partner" landing (wedding photo + Get
+ * Started / Sign In buttons) was replaced by the 3-screen onboarding flow on
+ * 2026-08-18: splash → onboarding (once) → LoginScreen. This file stays because
+ * several code paths still route to '/(root)/(main)' bare (logout in
+ * settingsPage, delete-account success) — they now all funnel to LoginScreen,
+ * matching the "after logout show login only" rule.
+ *
+ * The logged-in restore check is kept from the old screen: a cold start that
+ * somehow lands here with a valid stored session still goes straight to tabs
+ * (or the under-verification screen), same as before.
+ */
+export default function MainIndex() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     const checkUserStatus = async () => {
       try {
-        const userId = await AsyncStorage.getItem('userId');
-        const firstName = await AsyncStorage.getItem('firstName');
-        const lastName = await AsyncStorage.getItem('lastName');
-        const location = await AsyncStorage.getItem('location');
-        const storedGender = await AsyncStorage.getItem('gender');
-        const casteId = await AsyncStorage.getItem('casteId');
+        const [userId, firstName, location, gender, casteId] = await Promise.all([
+          AsyncStorage.getItem('userId'),
+          AsyncStorage.getItem('firstName'),
+          AsyncStorage.getItem('location'),
+          AsyncStorage.getItem('gender'),
+          AsyncStorage.getItem('casteId'),
+        ]);
 
-        if (userId && firstName && lastName && location && storedGender && casteId) {
+        if (userId && firstName && location && gender && casteId) {
           const approvalStatus = await AsyncStorage.getItem('userStatus');
           if (approvalStatus === 'APPROVED') {
             router.replace('/(root)/(tabs)');
           } else {
             router.replace('/(root)/(main)/ProfileUnderVerificationScreen');
           }
+          return;
         }
       } catch (error) {
         console.error('Error checking user status:', error);
       }
+      setChecked(true);
     };
 
     checkUserStatus();
   }, [router]);
 
-  return (
-    <View style={styles.container}>
-      <Image
-        source={require("../../../assets/images/wedding.webp")}
-        style={styles.backgroundImage}
-      />
-
-      {/* Dark gradient overlay from bottom */}
-      <LinearGradient
-        colors={['transparent', 'rgba(15,23,36,0.4)', 'rgba(15,23,36,0.85)', 'rgba(15,23,36,0.95)']}
-        locations={[0, 0.35, 0.65, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      {/* Bottom content */}
-      <View style={[styles.bottomSection, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
-        {/* Brand */}
-        <Text style={styles.brand}>Vaibhav Vivaaha</Text>
-
-        {/* Headline */}
-        <Text style={styles.title}>Find Your{'\n'}Life Partner</Text>
-
-        {/* Subtitle */}
-        <Text style={styles.subtitle}>
-          Where meaningful connections begin.{'\n'}Your journey to a beautiful life starts here.
-        </Text>
-
-        {/* Buttons */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={() => router.push('/(root)/(main)/sign-up')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.primaryBtnText}>Get Started</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            onPress={() => router.push('/(root)/(main)/LoginScreen')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.secondaryBtnText}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
+  if (!checked) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#1F7FE5" />
       </View>
-    </View>
-  );
+    );
+  }
+
+  return <Redirect href="/(root)/(main)/LoginScreen" />;
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loading: {
     flex: 1,
-    backgroundColor: '#0f1724',
-  },
-  backgroundImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-    position: 'absolute',
-  },
-  bottomSection: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
-  brand: {
-    fontSize: 12,
-    fontFamily: 'Rubik-Medium',
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 34,
-    fontFamily: 'Rubik-ExtraBold',
-    color: '#fff',
-    letterSpacing: -0.5,
-    lineHeight: 40,
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: 'Rubik-Regular',
-    color: 'rgba(255,255,255,0.65)',
-    lineHeight: 21,
-    marginBottom: 28,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  primaryBtn: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingVertical: 15,
-    borderRadius: 14,
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  primaryBtnText: {
-    color: '#0f1724',
-    fontSize: 15,
-    fontFamily: 'Rubik-Bold',
-  },
-  secondaryBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingVertical: 15,
-    borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  secondaryBtnText: {
-    color: '#fff',
-    fontSize: 15,
-    fontFamily: 'Rubik-Medium',
+    backgroundColor: '#f3f7fa',
   },
 });

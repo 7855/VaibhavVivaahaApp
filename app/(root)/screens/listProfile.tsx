@@ -16,6 +16,7 @@ const MUTED = '#64748b';
 const BRAND_GOLD = '#F6B733';
 
 type Profile = {
+  hasActiveBoost?: boolean;   // set by the boosted-first list endpoints
   userDetail: any;
   userId: string;
   firstName: string;
@@ -85,38 +86,40 @@ const ListProfile = () => {
       const storedGender = userData.gender;
       const casteId = userData.casteId;
 
+      // 🔴 These endpoints return `code: 404` with `data: NULL` when there are no
+      // matches — not an empty array (verified against production). Assigning that
+      // null straight into state made the render do `profileData.length` on null,
+      // which throws DURING RENDER and takes the whole app down — that was the
+      // "tap Daily Recommendation and the app closes" crash. Always coerce to [].
+      const rows = (res: any): Profile[] =>
+        Array.isArray(res?.data?.data) ? res.data.data : [];
+
       switch (type) {
         case 'newConnections': {
-          const response = await userApi.getNewConnections(parseInt(casteId!), storedGender);
-          console.log("New Connections Data ===========>", response.data.data[0].userDetail);
-
-          setProfileData(response.data.data);
+          // The removed debug log here did `response.data.data[0].userDetail`, which
+          // throws on an empty/null list before the data is ever set.
+          setProfileData(rows(await userApi.getNewConnections(parseInt(casteId!), storedGender)));
           break;
         }
         case 'dailyRecommendations': {
-          const response = await userApi.getDailyRecommendation(parseInt(casteId!), storedGender);
-          setProfileData(response.data.data);
+          setProfileData(rows(await userApi.getDailyRecommendation(parseInt(casteId!), storedGender)));
           break;
         }
         case 'nearYou': {
-          const response = await userApi.getNearYouProfiles(parseInt(casteId!), storedGender, location!);
-          setProfileData(response.data.data);
+          setProfileData(rows(await userApi.getNearYouProfiles(parseInt(casteId!), storedGender, location!)));
           break;
         }
         case 'interestMatches': {
           const oppositeGender = storedGender === 'M' ? 'F' : 'M';
-          const response = await userApi.getInterestMatchesByUser(parseInt(casteId!), oppositeGender, userData.userId);
-          setProfileData(response.data.data || []);
+          setProfileData(rows(await userApi.getInterestMatchesByUser(parseInt(casteId!), oppositeGender, userData.userId)));
           break;
         }
         case 'allMatches': {
-          const response = await userApi.getAllCasteProfilesByGender(parseInt(casteId!), storedGender);
-          setProfileData(response.data.data || []);
+          setProfileData(rows(await userApi.getAllCasteProfilesByGender(parseInt(casteId!), storedGender)));
           break;
         }
         default: {
-          const response = await userApi.getNewConnections(parseInt(casteId!), storedGender);
-          setProfileData(response.data.data);
+          setProfileData(rows(await userApi.getNewConnections(parseInt(casteId!), storedGender)));
         }
       }
     } catch (error) {
@@ -141,7 +144,7 @@ const ListProfile = () => {
 
       <View style={styles.subHeader}>
         <Text style={styles.subHeaderText} numberOfLines={1}>{meta.subtitle}</Text>
-        {!loading && profileData.length > 0 ? (
+        {!loading && (profileData?.length ?? 0) > 0 ? (
           <View style={styles.countBadge}>
             <Text style={styles.countText}>{profileData.length}</Text>
           </View>
@@ -153,7 +156,7 @@ const ListProfile = () => {
           <ActivityIndicator size="large" color={BRAND_BLUE} />
           <Text style={styles.loadingText}>Finding profiles for you...</Text>
         </View>
-      ) : profileData.length === 0 ? (
+      ) : (profileData?.length ?? 0) === 0 ? (
         <View style={styles.centerState}>
           <View style={styles.emptyIcon}>
             <Ionicons name={meta.icon} size={42} color={BRAND_BLUE} />
@@ -185,12 +188,13 @@ const ListProfile = () => {
                 name={`${item.firstName} ${item.lastName}`}
                 age={item.age}
                 location={item.location}
-                job={item.userDetail[0]?.occupation ?? 'N/A'}
+                job={item.userDetail[0]?.occupation ?? '-'}
                 gender={item.gender}
                 idVerified={item.idVerified}
                 educationVerified={item.educationVerified}
                 incomeVerified={item.incomeVerified}
                 isNew={isNewConnections}
+                isBoosted={item.hasActiveBoost === true}
               />
             </TouchableOpacity>
           )}

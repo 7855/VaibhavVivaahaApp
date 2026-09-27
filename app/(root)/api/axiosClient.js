@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { requestSubscriptionRefresh } from '../utils/subscriptionRefreshBus';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
@@ -41,6 +42,15 @@ axiosClient.interceptors.response.use(
   (response) => {
     if (__DEV__) {
       console.log('🔵 API Response:', { status: response.status, data: response.data });
+    }
+    // A business 403 (HTTP 200, code in the body) means the server refused on plan, quota or
+    // consent. For the first two, what the app BELIEVES about the plan may simply be stale —
+    // an admin downgraded it, or it expired — so treat any of them as a signal to re-read the
+    // plan. Throttled inside the provider; costs one small request at most every few seconds.
+    // ⚠️ The subscription endpoint itself is excluded: a 403 from it would re-trigger the very
+    // refresh that made the call, and the provider's "run once more" rule would loop forever.
+    if (response?.data?.code === 403 && !String(response.config?.url || '').includes('userSubscriptions')) {
+      requestSubscriptionRefresh('server-403');
     }
     return response;
   },

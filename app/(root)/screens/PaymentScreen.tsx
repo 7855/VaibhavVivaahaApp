@@ -46,11 +46,13 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { NativeBaseProvider } from 'native-base';
 import RelationshipManagerView, { type AdminContact } from '../../../components/RelationshipManagerView';
+import GatewayCheckoutView from '../../../components/GatewayCheckoutView';
+import { type PaymentMode as CatalogPaymentMode } from '../utils/upgradeNavigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 'INFO' is the review-safe mode: no QR, no amount. It renders the same assisted view as
 // CONTACT, minus the price — see PaymentMode in utils/upgradeNavigation.ts.
-type PaymentMode = 'QR' | 'CONTACT' | 'INFO' | 'LOADING';
+type PaymentMode = CatalogPaymentMode | 'LOADING';
 const PAYMENT_MODE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const TIMER_DURATION = 30 * 60; // 30 minutes in seconds
@@ -234,7 +236,7 @@ const PaymentScreen = () => {
                 if (modeRes?.data?.data?.valueColumn) {
                     try {
                         const parsed = JSON.parse(modeRes.data.data.valueColumn);
-                        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT' || parsed?.mode === 'INFO') mode = parsed.mode;
+                        if (parsed?.mode === 'QR' || parsed?.mode === 'CONTACT' || parsed?.mode === 'INFO' || parsed?.mode === 'GATEWAY') mode = parsed.mode;
                         else console.warn('[PaymentScreen] PAYMENT_MODE value has an unexpected shape:', modeRes.data.data.valueColumn);
                     } catch (e) {
                         console.warn('[PaymentScreen] Failed to parse PAYMENT_MODE valueColumn:', modeRes.data.data.valueColumn, e);
@@ -471,6 +473,22 @@ const PaymentScreen = () => {
                 defaultMobile={(userData as any)?.mobileNumber || ''}
                 defaultEmail={(userData as any)?.email}
                 adminContact={adminContact}
+                popupError={(title, msg) => popup.error(title, msg)}
+            />
+        );
+    }
+
+    // GATEWAY mode: self-serve online checkout via Cashfree (system browser → PaymentReturn)
+    if (paymentMode === 'GATEWAY') {
+        return (
+            <GatewayCheckoutView
+                title={planTitle}
+                priceLabel={planPrice}
+                periodLabel={planPeriod}
+                planId={(params.planId as string) || null}
+                purpose="SUBSCRIPTION"
+                encodedUserId={userData?.userId || null}
+                onBack={() => router.back()}
                 popupError={(title, msg) => popup.error(title, msg)}
             />
         );

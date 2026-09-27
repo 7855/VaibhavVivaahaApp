@@ -14,7 +14,7 @@ import { ArrowRight, Award, Bell, Crown, Eye, Heart, Send, User, UserCheck } fro
 import HappyStoryCard from '@/components/HappyStoryCard';
 import { usePushNotifications } from '@/usePushNotification';
 import { LinearGradient } from 'expo-linear-gradient';
-import { loadMasterData } from '../services/masterService';
+import { loadMasterData, isMasterDataStale } from '../services/masterService';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import FooterMessage from '@/components/FooterMessage';
@@ -29,6 +29,7 @@ interface ConnectionCount {
   Hearts?: number;
   Admirers?: number;
   Proposals?: number;
+  Shortlisted?: number;
 }
 
 // Get screen dimensions
@@ -255,8 +256,11 @@ const Index = () => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [memberId, setMemberId] = useState<string>('');
 
-  const { subscriptionData = {}, setSubscription } = useSubscription() || {};
-  const [userTier, setUserTier] = useState<string | null>(null);
+  const { subscriptionData = {}, refreshSubscription } = useSubscription() || {};
+  // DERIVED from the shared plan, not a private copy (2026-09-20). As state it was only ever
+  // written by this screen's own fetch, so a plan changed by an admin or a payment left the
+  // header chip on the old tier until Home was rebuilt by a restart.
+  const userTier: string | null = subscriptionData?.planTitle || null;
   const { state: masterData, setMasterData } = useMasterData();
   const [bannerData, setBannerData] = useState<any[]>([]);
 
@@ -296,13 +300,18 @@ const Index = () => {
   // (banners here) never loaded. Check for a key this screen actually consumes instead.
   const masterFetchAttempted = useRef(false);
   useEffect(() => {
+    if (masterFetchAttempted.current) return;
     const hasKeyValueLists = Array.isArray(masterData?.HomepageBottomBanner);
-    if (!hasKeyValueLists && !masterFetchAttempted.current) {
+    // Missing OR past its TTL. Without the staleness check this cache never expired: a member
+    // who already had the blob kept it until logout or reinstall, so a banner or dropdown
+    // edited in the database reached new installs and nobody else.
+    isMasterDataStale().then((stale) => {
+      if ((hasKeyValueLists && !stale) || masterFetchAttempted.current) return;
       masterFetchAttempted.current = true;
       loadMasterData(setMasterData).catch((e: any) =>
         console.warn('[Home] Failed to load master data:', e?.message || e)
       );
-    }
+    });
   }, [masterData]);
 
   useEffect(() => {
@@ -333,13 +342,10 @@ const Index = () => {
         // profile-details call ran in a third sequential batch that depended on nothing —
         // three serial round-trips where one suffices (the screen paints a skeleton until
         // all of this resolves, so nothing here is needed "before first paint").
-        const [subscription, rec, conn, near, count, intMatch, all, profileRes] = await Promise.all([
-          userData.decodedUserId
-            ? userApi.getActiveUserSubscriptionByUserId(userData.decodedUserId).catch((error: any) => {
-              console.error('Error fetching subscription:', error);
-              return null;
-            })
-            : Promise.resolve(null),
+        const [, rec, conn, near, count, intMatch, all, profileRes] = await Promise.all([
+          // The plan is owned by SubscriptionProvider now. This is just one more "ask again"
+          // signal (throttled there); its result is deliberately unused.
+          Promise.resolve(refreshSubscription?.('home-load')).catch(() => null),
           userApi.getDailyRecommendation(casteIdValue, userData.gender, userData.decodedUserId),
           userApi.getNewConnections(casteIdValue, userData.gender, userData.decodedUserId),
           userApi.getNearYouProfiles(casteIdValue, userData.gender, userData.location, userData.decodedUserId),
@@ -352,24 +358,6 @@ const Index = () => {
           userApi.getAllCasteProfilesByGender(casteIdValue, userData.gender).catch(() => ({ data: { data: [] } })),
           userApi.getProfileDetails(userData.userId).catch(() => null),
         ]);
-
-        // Get user subscription status
-        if (userData.decodedUserId) {
-          if (subscription?.data?.code === 200 && subscription.data?.data) {
-            setUserTier(subscription.data.data.planCode);
-            setSubscription(subscription.data.data);
-          } else {
-            // 404 / no active subscription / request failed → user is on Free plan
-            setUserTier('FREE');
-            setSubscription({
-              planTitle: 'Free',
-              subscriptionId: null,
-              startDate: null,
-              endDate: null,
-              entitlements: {},
-            });
-          }
-        }
 
         setRecommendations(rec.data?.data?.slice(0, 7) || []);
         setNewConnection(conn.data?.data?.slice(0, 7) || []);
@@ -390,46 +378,10 @@ const Index = () => {
     loadData();
   }, [userData.userId, userData.casteId, userData.gender, userData.location]);
 
-  // NOTE: the second subscription fetch that used to live here (loadUserSubscription) was
-  // removed — it hit the exact same endpoint as the one inside loadData() above, which also
-  // sets userTier, so it was a duplicate request on every mount.
-  //
-  // One coverage gap that de-duplication opened, closed here: loadData() is gated on casteId +
-  // gender + location all being present, but the removed effect was gated only on decodedUserId.
-  // A profile missing `location` in AsyncStorage would therefore never refresh its plan from the
-  // network and would silently run on whatever SubscriptionProvider restored from storage —
-  // which is how a user ends up gated as Free after paying. This fallback covers exactly that
-  // case and stays inert (no request) whenever loadData can run.
-  useEffect(() => {
-    const homeDataCanLoad = !!(userData.userId && userData.casteId && userData.gender && userData.location);
-    if (homeDataCanLoad || !userData.decodedUserId) return;
-
-    let isActive = true;
-    userApi
-      .getActiveUserSubscriptionByUserId(userData.decodedUserId)
-      .then((res: any) => {
-        if (!isActive) return;
-        if (res?.data?.code === 200 && res.data?.data) {
-          setUserTier(res.data.data.planCode);
-          setSubscription(res.data.data);
-        } else {
-          setUserTier('FREE');
-          setSubscription({
-            planTitle: 'Free',
-            subscriptionId: null,
-            startDate: null,
-            endDate: null,
-            entitlements: {},
-          });
-        }
-      })
-      .catch((error: any) => {
-        console.warn('[Home] subscription fallback fetch failed:', error?.message || error);
-      });
-    return () => {
-      isActive = false;
-    };
-  }, [userData.userId, userData.casteId, userData.gender, userData.location, userData.decodedUserId]);
+  // The plan is NOT fetched here any more. Two fetches used to live in this file (one in
+  // loadData, one fallback for profiles missing `location`); both wrote "Free" on ANY failure,
+  // so a network blip downgraded a paying member. SubscriptionProvider.refreshSubscription
+  // owns it now — keyed on decodedUserId alone, so the missing-location gap is covered too.
 
   const { expoPushToken, notification } = usePushNotifications();
 
@@ -505,7 +457,14 @@ const Index = () => {
           borderColor: '#d97706',
           name: 'Classic'
         };
-      default: // FREE
+      default: {
+        // An unknown-but-real plan (Trial, or any future campaign tier) must keep ITS OWN
+        // name. This switch used to map everything outside the six named tiers onto the
+        // literal 'Free', which is why a Trial member's home chip still read "Free"
+        // (client 2026-09-19) even after VVMWelcomeHeader.resolveTier was taught to pass
+        // unknown names through on 2026-09-05 — it never received one, because this ran first.
+        const raw = String(tier ?? '').trim();
+        const isFree = !raw || tierUpper === 'FREE';
         return {
           ...baseStyle,
           icon: <User size={14} color="#fff" />,
@@ -513,8 +472,9 @@ const Index = () => {
           textColor: '#fff',
           gradient: ['#64748b', '#475569'],
           borderColor: '#64748b',
-          name: 'Free'
+          name: isFree ? 'Free' : raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
         };
+      }
     }
   };
   const tierStyle = getTierStyle(userTier);
@@ -744,170 +704,188 @@ const Index = () => {
 
 
                   {/*  New Connections Section */}
-                  <Box
-                    overflow="hidden"
-                    backgroundColor="transparent"
-                    px={2}
-                    pt={2}
-                    borderRadius={20}
-                    mt={3}
-                  >
-                    <VStack space={3}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          router.push({
-                            pathname: '/screens/listProfile',
-                            params: {
-                              type: 'newConnections',
-                              title: 'New Connections'
-                            }
-                          });
-                        }}
-                      >
-                        <HStack justifyContent="space-between" alignItems="center">
-                          <VStack>
-                            <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
-                              New Connections
-                            </Text>
-                            <HStack alignItems="center" space={1}>
-                              <Icon name="bullseye" size={13} color="#8B3A3A" />
-                              <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
-                                Explore Profiles, Spark New Connections
-                              </Text>
-                            </HStack>
-                          </VStack>
-                          <Icon name="chevron-right" size={22} color="#94a3b8" />
-                        </HStack>
-                      </TouchableOpacity>
-
-                      <Center ml={1} mb={2}>
-                        {hasStarted === null || isLoading ? (
-                          <Box flexDirection="row" px={4} py={2}>
-                            {[1, 2, 3].map((item) => (
-                              <ProfileCardSmallSkeleton key={item} />
-                            ))}
-                          </Box>
-                        ) : (
-                          <SwiperProfile users={newConnection} onUserPress={(userId: any) => {
+                  {/* Hidden when the list is empty. These endpoints return
+                      404/null (not []) for no matches, so without this the shelf
+                      renders a header whose tap opens a blank screen. Kept visible
+                      while loading so the skeletons still show. */}
+                  {(isLoading || newConnection.length > 0) ? (
+                    <Box
+                      overflow="hidden"
+                      backgroundColor="transparent"
+                      px={2}
+                      pt={2}
+                      borderRadius={20}
+                      mt={3}
+                    >
+                      <VStack space={3}>
+                        <TouchableOpacity
+                          onPress={() => {
                             router.push({
-                              pathname: '/screens/ProfileDetail',
-                              params: { userId: userId }
+                              pathname: '/screens/listProfile',
+                              params: {
+                                type: 'newConnections',
+                                title: 'New Connections'
+                              }
                             });
-                          }} />
-                        )}
-                      </Center>
-                    </VStack>
-                  </Box>
+                          }}
+                        >
+                          <HStack justifyContent="space-between" alignItems="center">
+                            <VStack>
+                              <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
+                                New Connections
+                              </Text>
+                              <HStack alignItems="center" space={1}>
+                                <Icon name="bullseye" size={13} color="#8B3A3A" />
+                                <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
+                                  Explore Profiles, Spark New Connections
+                                </Text>
+                              </HStack>
+                            </VStack>
+                            <Icon name="chevron-right" size={22} color="#94a3b8" />
+                          </HStack>
+                        </TouchableOpacity>
+
+                        <Center ml={1} mb={2}>
+                          {hasStarted === null || isLoading ? (
+                            <Box flexDirection="row" px={4} py={2}>
+                              {[1, 2, 3].map((item) => (
+                                <ProfileCardSmallSkeleton key={item} />
+                              ))}
+                            </Box>
+                          ) : (
+                            <SwiperProfile users={newConnection} onUserPress={(userId: any) => {
+                              router.push({
+                                pathname: '/screens/ProfileDetail',
+                                params: { userId: userId }
+                              });
+                            }} />
+                          )}
+                        </Center>
+                      </VStack>
+                    </Box>
+                  ) : null}
 
                   {/* Daily Recommendations Section */}
-                  <Box
-                    overflow="hidden"
-                    backgroundColor="transparent"
-                    px={2}
-                    pt={2}
-                    borderRadius={20}
-                    mt={3}
-                  >
-                    <VStack space={3}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          router.push({
-                            pathname: '/screens/listProfile',
-                            params: {
-                              type: 'dailyRecommendations',
-                              title: 'Daily Recommendations'
-                            }
-                          });
-                        }}
-                      >
-                        <HStack justifyContent="space-between" alignItems="center">
-                          <VStack>
-                            <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
-                              Daily Recommendations
-                            </Text>
-                            <HStack alignItems="center" space={1}>
-                              <Icon name="clock-o" size={13} color="#8B3A3A" />
-                              <MidnightCountdown />
-                            </HStack>
-                          </VStack>
-                          <Icon name="chevron-right" size={22} color="#94a3b8" />
-                        </HStack>
-                      </TouchableOpacity>
-
-                      <Center marginLeft={1} marginBottom={2}>
-                        {isLoading ? (
-                          <Box flexDirection="row" px={4} py={2}>
-                            {[1, 2, 3].map((item) => (
-                              <ProfileCardSmallSkeleton key={item} />
-                            ))}
-                          </Box>
-                        ) : (
-                          <SwiperProfile users={recommendations} onUserPress={(userId: any) => {
+                  {/* Hidden when the list is empty. These endpoints return
+                      404/null (not []) for no matches, so without this the shelf
+                      renders a header whose tap opens a blank screen. Kept visible
+                      while loading so the skeletons still show. */}
+                  {(isLoading || recommendations.length > 0) ? (
+                    <Box
+                      overflow="hidden"
+                      backgroundColor="transparent"
+                      px={2}
+                      pt={2}
+                      borderRadius={20}
+                      mt={3}
+                    >
+                      <VStack space={3}>
+                        <TouchableOpacity
+                          onPress={() => {
                             router.push({
-                              pathname: '/screens/ProfileDetail',
-                              params: { userId: userId }
+                              pathname: '/screens/listProfile',
+                              params: {
+                                type: 'dailyRecommendations',
+                                title: 'Daily Recommendations'
+                              }
                             });
-                          }} />
-                        )}
-                      </Center>
-                    </VStack>
-                  </Box>
+                          }}
+                        >
+                          <HStack justifyContent="space-between" alignItems="center">
+                            <VStack>
+                              <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
+                                Daily Recommendations
+                              </Text>
+                              <HStack alignItems="center" space={1}>
+                                <Icon name="clock-o" size={13} color="#8B3A3A" />
+                                <MidnightCountdown />
+                              </HStack>
+                            </VStack>
+                            <Icon name="chevron-right" size={22} color="#94a3b8" />
+                          </HStack>
+                        </TouchableOpacity>
+
+                        <Center marginLeft={1} marginBottom={2}>
+                          {isLoading ? (
+                            <Box flexDirection="row" px={4} py={2}>
+                              {[1, 2, 3].map((item) => (
+                                <ProfileCardSmallSkeleton key={item} />
+                              ))}
+                            </Box>
+                          ) : (
+                            <SwiperProfile users={recommendations} onUserPress={(userId: any) => {
+                              router.push({
+                                pathname: '/screens/ProfileDetail',
+                                params: { userId: userId }
+                              });
+                            }} />
+                          )}
+                        </Center>
+                      </VStack>
+                    </Box>
+                  ) : null}
 
                   {/* Near You Section */}
-                  <Box
-                    overflow="hidden"
-                    backgroundColor="transparent"
-                    px={2}
-                    pt={2}
-                    borderRadius={20}
-                    mt={3}
-                  >
-                    <VStack space={3}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          router.push({
-                            pathname: '/screens/listProfile',
-                            params: {
-                              type: 'nearYou',
-                              title: 'Profiles Near You'
-                            }
-                          });
-                        }}
-                      >
-                        <HStack justifyContent="space-between" alignItems="center">
-                          <VStack>
-                            <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
-                              Near You
-                            </Text>
-                            <HStack alignItems="center" space={1}>
-                              <Icon name="map-marker" size={13} color="#8B3A3A" />
-                              <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
-                                Discover profiles in your area
-                              </Text>
-                            </HStack>
-                          </VStack>
-                          <Icon name="chevron-right" size={22} color="#94a3b8" />
-                        </HStack>
-                      </TouchableOpacity>
-
-                      <Center marginLeft={1} marginBottom={2}>
-                        {isLoading ? (
-                          <Box flexDirection="row" px={4} py={2}>
-                            {[1, 2, 3].map((item) => (
-                              <ProfileCardSmallSkeleton key={item} />
-                            ))}
-                          </Box>
-                        ) : (
-                          <SwiperProfile users={nearYouProfile} onUserPress={(userId: any) => {
+                  {/* Hidden when the list is empty. These endpoints return
+                      404/null (not []) for no matches, so without this the shelf
+                      renders a header whose tap opens a blank screen. Kept visible
+                      while loading so the skeletons still show. */}
+                  {(isLoading || nearYouProfile.length > 0) ? (
+                    <Box
+                      overflow="hidden"
+                      backgroundColor="transparent"
+                      px={2}
+                      pt={2}
+                      borderRadius={20}
+                      mt={3}
+                    >
+                      <VStack space={3}>
+                        <TouchableOpacity
+                          onPress={() => {
                             router.push({
-                              pathname: '/screens/ProfileDetail',
-                              params: { userId: userId }
+                              pathname: '/screens/listProfile',
+                              params: {
+                                type: 'nearYou',
+                                title: 'Profiles Near You'
+                              }
                             });
-                          }} />
-                        )}
-                      </Center>
-                    </VStack>
-                  </Box>
+                          }}
+                        >
+                          <HStack justifyContent="space-between" alignItems="center">
+                            <VStack>
+                              <Text fontSize={15} fontFamily="Rubik-Bold" color="#162336">
+                                Near You
+                              </Text>
+                              <HStack alignItems="center" space={1}>
+                                <Icon name="map-marker" size={13} color="#8B3A3A" />
+                                <Text fontSize="xs" fontFamily="Rubik-Regular" color="#64748b">
+                                  Discover profiles in your area
+                                </Text>
+                              </HStack>
+                            </VStack>
+                            <Icon name="chevron-right" size={22} color="#94a3b8" />
+                          </HStack>
+                        </TouchableOpacity>
+
+                        <Center marginLeft={1} marginBottom={2}>
+                          {isLoading ? (
+                            <Box flexDirection="row" px={4} py={2}>
+                              {[1, 2, 3].map((item) => (
+                                <ProfileCardSmallSkeleton key={item} />
+                              ))}
+                            </Box>
+                          ) : (
+                            <SwiperProfile users={nearYouProfile} onUserPress={(userId: any) => {
+                              router.push({
+                                pathname: '/screens/ProfileDetail',
+                                params: { userId: userId }
+                              });
+                            }} />
+                          )}
+                        </Center>
+                      </VStack>
+                    </Box>
+                  ) : null}
 
                   {/* Interest-Based Matches shelf */}
                   {interestMatches.length > 0 ? (
@@ -961,6 +939,7 @@ const Index = () => {
                   {/* All Matches shelf — was the "All Matches" sub-tab inside the Explore tab's
                     Search/Explore switcher; moved here so all passive browsing lives on Home,
                     letting the Explore tab collapse down to just the filter form. */}
+                  {(isLoading || allMatches.length > 0) ? (
                   <Box
                     overflow="hidden"
                     backgroundColor="transparent"
@@ -1014,6 +993,7 @@ const Index = () => {
                       </Center>
                     </VStack>
                   </Box>
+                  ) : null}
 
                   {/* last convo section  */}
                   {/* <Box
@@ -1062,7 +1042,12 @@ const Index = () => {
                 </Box> */}
 
                   <View>
-                    <QuickAction />
+                    {/* Live counts replace the placeholder 3/12/5 the tiles used to carry. */}
+                    <QuickAction counts={{
+                      connections: userConnectionCount.Matches,
+                      views: userConnectionCount.Admirers,
+                      shortlisted: userConnectionCount.Shortlisted,
+                    }} />
                   </View>
 
                   {bannerData.length > 0 ? (

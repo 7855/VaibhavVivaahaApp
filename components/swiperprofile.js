@@ -71,6 +71,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 10,
   },
+  boostBadge: {
+    backgroundColor: '#F6B733',
+  },
   badgeText: {
     color: '#fff',
     fontSize: 9,
@@ -113,6 +116,13 @@ const SwiperProfile = ({ users, onUserPress }) => {
             <View style={[styles.badge, { backgroundColor: badgeColor }]}>
               {isVerified ? <Ionicons name="checkmark-circle" size={10} color="#fff" /> : null}
               <Text style={styles.badgeText}>{profilePlan?.toUpperCase()}</Text>
+            </View>
+          ) : null}
+          {/* Set by the All Matches / Interest-Based endpoints, which also sort boosted first. */}
+          {item.hasActiveBoost ? (
+            <View style={[styles.badge, styles.boostBadge, { top: badgeColor ? 26 : 6 }]}>
+              <Ionicons name="rocket" size={9} color="#5E4200" />
+              <Text style={[styles.badgeText, { color: '#5E4200' }]}>BOOSTED</Text>
             </View>
           ) : null}
           {/* Trust shield — top-right corner with catchy gold color */}

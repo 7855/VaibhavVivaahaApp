@@ -226,7 +226,7 @@ const FirstRoute = ({
                                   const { mobile, email, remaining, total, unlimited } = res.data.data;
                                   setRevealedContact({ mobile, email });
                                   const remainingText = unlimited ? '' : `\n\n${remaining} of ${total} contact reveals remaining`;
-                                  popup.success('Contact Revealed', `📞 ${mobile || 'N/A'}${remainingText}`);
+                                  popup.success('Contact Revealed', `📞 ${mobile || '-'}${remainingText}`);
                                 } else if (res.data?.message === 'CONTACT_VIEW_LIMIT_EXCEEDED') {
                                   const limit = res.data?.data?.limit || 40;
                                   popup.premiumRequired(
@@ -256,7 +256,7 @@ const FirstRoute = ({
                             // ✅ Contact just revealed in this session — show the number
                             <View style={{ marginBottom: 8 }}>
                               <Text style={{ fontSize: 14, fontFamily: 'Rubik-Medium', color: '#1e40af' }}>
-                                {revealedContact.mobile || 'N/A'}
+                                {revealedContact.mobile || '-'}
                               </Text>
                             </View>
                           ) : (

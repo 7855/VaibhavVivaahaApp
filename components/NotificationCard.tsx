@@ -1,266 +1,119 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { Eye, Heart, MessageCircle, Users, Star, Bookmark, Clock, MoreVertical } from 'lucide-react-native';
+import {
+  Eye, Heart, MessageCircle, Star, Bookmark, Phone, KeyRound, Sparkles, CreditCard, ImageOff, ChevronRight, Trash2, CheckCircle2,
+} from 'lucide-react-native';
 import { Notification } from './notification';
-import AntDesign from 'react-native-vector-icons/AntDesign';
-interface NotificationCardProps {
-    notification: Notification;
-    onMarkAsRead: (id: string) => void;
-    onDelete: (id: string) => void;
+
+interface Props {
+  notification: Notification;
+  onPress: (n: Notification) => void;
+  onDelete: (id: string) => void;
 }
 
-const NotificationCard: React.FC<NotificationCardProps> = ({ notification, onMarkAsRead, onDelete }) => {
-    const getIcon = () => {
-        const iconProps = { size: 18, color: undefined };
-        switch (notification.type.toLowerCase()) {
-            case 'profile_view':
-                return <Eye {...iconProps} color="#3B82F6" />;
-            case 'like':
-                return <Heart {...iconProps} color="#EF4444" />;
-            case 'message':
-                return <MessageCircle {...iconProps} color="#10B981" />;
-            case 'match':
-                return <Users {...iconProps} color="#8B5CF6" />;
-            case 'interest':
-                return <Star {...iconProps} color="#F59E0B" />;
-            case 'shortlist':
-                return <Bookmark {...iconProps} color="#6366F1" />;
-            default:
-                return <Eye {...iconProps} color="#9CA3AF" />;
-        }
-    };
+/** Icon + tint per backend category. Unknown categories get a neutral bell-ish sparkle. */
+function iconFor(type: string) {
+  const t = (type || '').toUpperCase();
+  const s = 14;
+  switch (t) {
+    case 'MESSAGE':           return { node: <MessageCircle size={s} color="#fff" />, tint: '#10B981' };
+    case 'INTEREST':          return { node: <Star size={s} color="#fff" />,          tint: '#F59E0B' };
+    case 'INTEREST_ACCEPTED':
+    case 'MATCH':             return { node: <CheckCircle2 size={s} color="#fff" />,  tint: '#1F7FE5' };
+    case 'LIKE':              return { node: <Heart size={s} color="#fff" />,         tint: '#EF4444' };
+    case 'PROFILE_VIEW':      return { node: <Eye size={s} color="#fff" />,           tint: '#3B82F6' };
+    case 'SHORTLIST':         return { node: <Bookmark size={s} color="#fff" />,      tint: '#6366F1' };
+    case 'CALL_REQUEST':      return { node: <Phone size={s} color="#fff" />,         tint: '#16A34A' };
+    case 'MOBILE': case 'HOROSCOPE': case 'PROFILE_IMAGE': case 'BIRTH_TIME':
+                              return { node: <KeyRound size={s} color="#fff" />,      tint: '#8B5CF6' };
+    case 'DAILY_MATCH':       return { node: <Sparkles size={s} color="#fff" />,      tint: '#F6B733' };
+    case 'PAYMENT_SUCCESS':
+    case 'PAYMENT_REJECTED':  return { node: <CreditCard size={s} color="#fff" />,    tint: '#0EA5E9' };
+    case 'IMAGE_REJECTED':    return { node: <ImageOff size={s} color="#fff" />,      tint: '#EF4444' };
+    default:                  return { node: <Sparkles size={s} color="#fff" />,      tint: '#94A3B8' };
+  }
+}
 
-    const getTimeAgo = (timestamp: Date) => {
-        const now = new Date();
-        const diffInMinutes = Math.floor((now.getTime() - timestamp.getTime()) / (1000 * 60));
-        if (diffInMinutes < 1) return 'Just now';
-        if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-        if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-        return `${Math.floor(diffInMinutes / 1440)}d ago`;
-    };
+export function timeAgo(d: Date): string {
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `${h}h`;
+  const days = Math.floor(h / 24);
+  if (days < 7) return `${days}d`;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
 
-    return (
-        <View style={[styles.card, !notification.isRead && styles.unreadCard]}>
-            {!notification.isRead && (
-                <View style={styles.newBadge}>
-                    <Text style={styles.newBadgeText}>NEW</Text>
-                </View>
-            )}
-            <View style={[styles.sideBar, !notification.isRead && styles.activeSideBar]} />
-            <View style={styles.contentWrapper}>
-                {/* Avatar */}
-                <View style={styles.avatarWrapper}>
-                    <Image
-                        source={notification.avatar ? { uri: notification.avatar } : require('../assets/images/defaultAvatar.png')}
-                        style={styles.avatar}
-                    />
-                    {/* <View style={styles.iconWrapper}>{getIcon()}</View> */}
-                </View>
+const NotificationCard: React.FC<Props> = ({ notification: n, onPress, onDelete }) => {
+  const icon = iconFor(n.type);
+  const isMessage = (n.type || '').toUpperCase() === 'MESSAGE';
+  // A chat preview is deliberately ONE line: the tap opens the thread, and a wall of text
+  // here would let people read messages without ever opening the chat (client, 2026-09-27).
+  const lines = isMessage ? 1 : 2;
 
-                {/* Content */}
-                <View style={styles.contentBlock}>
-                    <View style={styles.headerRow}>
-                        <View style={styles.messageBlock}>
-                            <Text style={[styles.title, !notification.isRead && styles.unreadText]}>{notification.title}</Text>
-                            <Text style={[styles.message, !notification.isRead && styles.unreadSubText]}>
-                                {notification.type !== 'match' && notification.userName ? `${notification.userName} ` : ''}
-                                {notification.message}
-                            </Text>
-                            {notification.userName && (
-                                <View style={styles.userInfo}>
-                                    <Text style={styles.userInfoText}>{notification.userName}</Text>
-                                    {notification.userAge && <Text style={styles.userInfoText}> • {notification.userAge} years</Text>}
-                                    {notification.userLocation && <Text style={styles.userInfoText}> • {notification.userLocation}</Text>}
-                                </View>
-                            )}
-                        </View>
-                        {/* <View style={styles.actions}>
-              <TouchableOpacity onPress={() => onMarkAsRead(notification.id)}>
-                <View style={[styles.readDot, notification.isRead ? styles.readDotBorder : styles.readDotFill]} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => onDelete(notification.id)}>
-                <MoreVertical size={14} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View> */}
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={() => onPress(n)} style={[styles.card, !n.isRead && styles.unread]}>
+      <View style={styles.avatarWrap}>
+        <Image
+          source={n.avatar ? { uri: n.avatar } : require('../assets/images/defaultAvatar.png')}
+          style={styles.avatar}
+          fadeDuration={0}
+        />
+        <View style={[styles.typeDot, { backgroundColor: icon.tint }]}>{icon.node}</View>
+      </View>
 
-                    </View>
-                    {/* <View style={styles.timestampWrapper}>
-            <Clock size={10} color="#9CA3AF" />
-            <Text style={styles.timestampText}>{getTimeAgo(notification.timestamp)}</Text>
-          </View> */}
-                    <View style={styles.bottomRow}>
-                        {/* Left side: Icon + timestamp */}
-                        <View style={styles.leftInfo}>
-                            <View style={styles.iconWrapper}>{getIcon()}</View>
-                            <View style={styles.timestampWrapper}>
-                                <Clock size={10} color="#9CA3AF" />
-                                <Text style={styles.timestampText}>{getTimeAgo(notification.timestamp)}</Text>
-                            </View>
-                        </View>
-
-                        {/* Right side: Delete icon */}
-                        <TouchableOpacity onPress={() => onDelete(notification.id)} style={styles.deleteButton}>
-                            <AntDesign name="delete" size={14} color="#d1d5db" />
-                        </TouchableOpacity>
-                    </View>
-
-                </View>
-            </View>
+      <View style={styles.body}>
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, !n.isRead && styles.titleUnread]} numberOfLines={1}>
+            {n.userName && !isMessage ? n.userName : n.title}
+          </Text>
+          <Text style={styles.time}>{timeAgo(n.timestamp)}</Text>
         </View>
-    );
+        <Text style={styles.message} numberOfLines={lines} ellipsizeMode="tail">
+          {isMessage && n.userName ? `${n.userName}: ` : ''}{n.message}
+        </Text>
+        {!!(n.userAge || n.userLocation) && !isMessage && (
+          <Text style={styles.meta} numberOfLines={1}>
+            {[n.userAge ? `${n.userAge} yrs` : null, n.userLocation].filter(Boolean).join(' · ')}
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.trailing}>
+        {!n.isRead && <View style={styles.unreadDot} />}
+        <ChevronRight size={16} color="#cbd5e1" />
+        <TouchableOpacity hitSlop={10} onPress={() => onDelete(n.id)} style={styles.trash}>
+          <Trash2 size={13} color="#dc2626" />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
 };
 
 const styles = StyleSheet.create({
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 14,
-        marginBottom: 10,
-        flexDirection: 'row',
-        position: 'relative',
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#f3f4f6',
-    },
-    unreadCard: {
-        backgroundColor: '#fdf8f8',
-        borderColor: '#f3d5d6',
-        shadowColor: '#420001',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-        elevation: 3,
-    },
-    sideBar: {
-        width: 3,
-        backgroundColor: 'transparent',
-    },
-    activeSideBar: {
-        backgroundColor: '#420001',
-    },
-    contentWrapper: {
-        flex: 1,
-        flexDirection: 'row',
-        padding: 12,
-    },
-    avatarWrapper: {
-        marginRight: 12,
-        position: 'relative',
-    },
-    avatar: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
-        borderWidth: 2,
-        borderColor: '#F6B733',
-    },
-    iconWrapper: {
-
-        backgroundColor: 'white',
-        padding: 2,
-        borderRadius: 999,
-        elevation: 1,
-        marginRight: 8,
-    },
-    contentBlock: {
-        flex: 1,
-    },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    messageBlock: {
-        flex: 1,
-        paddingRight: 8,
-    },
-    title: {
-        fontSize: 13,
-        fontFamily: 'Rubik-Medium',
-        color: '#4b5563',
-    },
-    unreadText: {
-        color: '#420001',
-        fontFamily: 'Rubik-Bold',
-    },
-    message: {
-        fontSize: 12,
-        fontFamily: 'Rubik-Regular',
-        color: '#9ca3af',
-        marginTop: 2,
-    },
-    unreadSubText: {
-        color: '#6b7280',
-    },
-    userInfo: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginTop: 4,
-    },
-    userInfoText: {
-        fontSize: 12,
-        color: '#6B7280',
-        marginRight: 4,
-    },
-    actions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    readDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-    },
-    readDotFill: {
-        backgroundColor: '#3B82F6',
-    },
-    readDotBorder: {
-        borderWidth: 2,
-        borderColor: '#3B82F6',
-        backgroundColor: 'transparent',
-    },
-    timestampWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    timestampText: {
-        fontSize: 12,
-        color: '#6B7280',
-        marginLeft: 4,
-    },
-    newBadge: {
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        backgroundColor: '#420001',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderBottomLeftRadius: 10,
-        zIndex: 1,
-    },
-    newBadgeText: {
-        color: '#F6B733',
-        fontSize: 10,
-        fontFamily: 'Rubik-Medium',
-        letterSpacing: 0.5,
-    },
-    bottomRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 12,
-    },
-
-    deleteButton: {
-        padding: 6,
-        borderRadius: '50%',
-        backgroundColor: '#F97316',
-    },
-
-    leftInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-
+  card: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 12,
+    marginBottom: 8, borderWidth: 1, borderColor: '#e7edf5',
+  },
+  unread: { borderColor: '#bcd6f5', backgroundColor: '#f6faff' },
+  avatarWrap: { marginRight: 12 },
+  avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: '#F6B733' },
+  typeDot: {
+    position: 'absolute', right: -4, bottom: -4, width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff',
+  },
+  body: { flex: 1, minWidth: 0 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  title: { flex: 1, minWidth: 0, fontSize: 14, fontFamily: 'Rubik-Medium', color: '#0f1724' },
+  titleUnread: { fontFamily: 'Rubik-Bold' },
+  time: { fontSize: 11, fontFamily: 'Rubik-Regular', color: '#94a3b8', flexShrink: 0 },
+  message: { fontSize: 12.5, fontFamily: 'Rubik-Regular', color: '#475569', marginTop: 2, lineHeight: 17 },
+  meta: { fontSize: 11, fontFamily: 'Rubik-Regular', color: '#94a3b8', marginTop: 3 },
+  trailing: { alignItems: 'center', justifyContent: 'center', marginLeft: 8, gap: 6 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#1F7FE5' },
+  trash: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#fef2f2', alignItems: 'center', justifyContent: 'center' },
 });
 
 export default React.memo(NotificationCard);

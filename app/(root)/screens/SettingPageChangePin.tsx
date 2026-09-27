@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Dimensions, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Image } from 'react-native';
+import { usePopup } from '../contexts/PopupContext';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
@@ -8,6 +9,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { NativeBaseProvider } from 'native-base';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useUserData } from '../contexts/UserDataContext';
 
 interface ChangePinScreenProps {
   onBack: () => void;
@@ -20,6 +22,12 @@ interface ChangePinScreenProps {
   onComplete: () => void;
 }
 const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComplete }) => {
+  const { userData } = useUserData();
+  const popup = usePopup();
+  // The member must prove their CURRENT pin before it changes (2026-09-05) —
+  // settings-only rule; the forgot-PIN flow has no old pin and stays as-is.
+  const [oldPin, setOldPin] = useState('');
+  const [showOldPin, setShowOldPin] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [showNewPin, setShowNewPin] = useState(false);
@@ -29,47 +37,55 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSavePin = async () => {
-    if (newPin.length !== 4 || confirmPin.length !== 4 || newPin !== confirmPin) return;
+    if (oldPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4 || newPin !== confirmPin) return;
     setIsLoading(true);
 
     try {
-      const phoneNumber = await AsyncStorage.getItem('resetPhoneNumber');
+      // 🔴 This used to read AsyncStorage 'resetPhoneNumber', which is NEVER WRITTEN
+      // anywhere in the app — four screens read that key and nothing sets it. So this
+      // screen failed with "Phone number not found" 100% of the time and Settings →
+      // Change PIN could not work at all.
+      //
+      // That key belonged to a legacy mobile-OTP reset flow. The live forgot-PIN flow
+      // is email-based (`resetEmail` + a resetToken → SetNewPasswordScreen) and never
+      // populates it. This screen is reached by a member who is already SIGNED IN, so
+      // the right identity is simply their own number: UserDataContext, with the
+      // AsyncStorage key LoginScreen actually writes as a fallback.
+      const phoneNumber =
+        userData?.mobileNumber || (await AsyncStorage.getItem('mobileNumber'));
       if (!phoneNumber) {
         setIsLoading(false);
-        Alert.alert('Error', 'Phone number not found');
+        popup.error('Error', 'Could not identify your account. Please sign in again.');
         return;
       }
 
       const requestBody = {
         mobileNumber: phoneNumber,
-        pin: newPin
+        oldPin,
+        newPin,
       };
 
-      const response = await userApi.changePin(requestBody);
+      const response = await userApi.changePinWithOld(requestBody);
       console.log('Change PIN response:', response.data);
 
       if (response.data.code === 200) {
         setIsLoading(false);
-        Alert.alert(
-          'Success',
-          'PIN changed successfully',
-          [{
-            text: 'OK',
-            onPress: () => router.back()
-          }]
-        );
+        popup.success('PIN Changed', 'Your PIN has been updated successfully.', () => router.back());
+      } else if (response.data.code === 401) {
+        setIsLoading(false);
+        popup.error('Incorrect PIN', 'The current PIN you entered is wrong. Please try again.');
       } else {
         setIsLoading(false);
-        Alert.alert('Error', 'Something went wrong. Please try again.');
+        popup.error('Error', 'Something went wrong. Please try again.');
       }
     } catch (error) {
       console.error('Error changing PIN:', error);
       setIsLoading(false);
-      Alert.alert('Error', 'Failed to change PIN. Please try again.');
+      popup.error('Error', 'Failed to change PIN. Please try again.');
     }
   };
 
-  const isFormValid = newPin.length === 4 && confirmPin.length === 4 && newPin === confirmPin;
+  const isFormValid = oldPin.length === 4 && newPin.length === 4 && confirmPin.length === 4 && newPin === confirmPin;
   const pinsMatch = newPin === confirmPin || confirmPin === '';
 
 
@@ -135,13 +151,60 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                   fontSize: 13, fontFamily: 'Rubik-Regular', color: '#64748b',
                   marginTop: 6, lineHeight: 19, textAlign: 'center',
                 }}>
-                  Set a new 4-digit PIN to secure your account.
+                  Enter your current PIN, then set a new 4-digit PIN.
                 </Text>
+
+                {/* Current (old) PIN — must match server-side before the change is allowed */}
+                <Text style={{
+                  fontSize: 11, fontFamily: 'Rubik-Medium', color: '#94a3b8',
+                  textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 26, marginBottom: 8,
+                  width: '100%', textAlign: 'left', paddingLeft: 4,
+                }}>
+                  Current PIN
+                </Text>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  width: '100%',
+                  height: 52, borderRadius: 28, backgroundColor: '#ffffff',
+                  borderWidth: 1,
+                  borderColor: focusedField === 'oldPin' ? '#1F7FE5' : '#e2e8f0',
+                  paddingHorizontal: 20,
+                  shadowColor: '#1F7FE5',
+                  shadowOffset: { width: 0, height: focusedField === 'oldPin' ? 4 : 2 },
+                  shadowOpacity: focusedField === 'oldPin' ? 0.16 : 0.06,
+                  shadowRadius: focusedField === 'oldPin' ? 10 : 6,
+                  elevation: focusedField === 'oldPin' ? 3 : 1,
+                }}>
+                  <Icon name="lock-outline" size={18} color="#1F7FE5" style={{ marginRight: 10 }} />
+                  <TextInput
+                    defaultValue={oldPin}
+                    onChangeText={(text) => setOldPin(text.replace(/\D/g, '').slice(0, 4))}
+                    onFocus={() => setFocusedField('oldPin')}
+                    onBlur={() => setFocusedField(null)}
+                    style={{
+                      flex: 1, fontSize: 14, fontFamily: 'Rubik-Regular',
+                      color: '#333', paddingVertical: 0, textAlign: oldPin.length ? 'center' : 'left',
+                      letterSpacing: oldPin.length ? 8 : 0,
+                    }}
+                    placeholder="Current PIN"
+                    placeholderTextColor="#9aa7b8"
+                    secureTextEntry={!showOldPin}
+                    keyboardType="numeric"
+                    maxLength={4}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowOldPin(!showOldPin)}
+                    style={{ justifyContent: 'center', paddingLeft: 8 }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Icon name={showOldPin ? 'visibility' : 'visibility-off'} size={20} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
 
                 {/* New PIN */}
                 <Text style={{
                   fontSize: 11, fontFamily: 'Rubik-Medium', color: '#94a3b8',
-                  textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 26, marginBottom: 8,
+                  textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 18, marginBottom: 8,
                   width: '100%', textAlign: 'left', paddingLeft: 4,
                 }}>
                   New PIN
@@ -167,7 +230,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                     onBlur={() => setFocusedField(null)}
                     style={{
                       flex: 1, fontSize: 14, fontFamily: 'Rubik-Regular',
-                      color: '#333', paddingVertical: 0, textAlign: 'center',
+                      color: '#333', paddingVertical: 0, textAlign: newPin.length ? 'center' : 'left',
                       // letterSpacing applies to the PLACEHOLDER as well as the value, so a
                       // wide-tracked hint overflowed the pill. Only track the typed digits.
                       letterSpacing: newPin.length ? 8 : 0,
@@ -183,7 +246,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                     style={{ justifyContent: 'center', paddingLeft: 8 }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Icon name={showNewPin ? 'visibility-off' : 'visibility'} size={20} color="#94a3b8" />
+                    <Icon name={showNewPin ? 'visibility' : 'visibility-off'} size={20} color="#94a3b8" />
                   </TouchableOpacity>
                 </View>
 
@@ -219,7 +282,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                     onBlur={() => setFocusedField(null)}
                     style={{
                       flex: 1, fontSize: 14, fontFamily: 'Rubik-Regular',
-                      color: '#333', paddingVertical: 0, textAlign: 'center',
+                      color: '#333', paddingVertical: 0, textAlign: confirmPin.length ? 'center' : 'left',
                       letterSpacing: confirmPin.length ? 8 : 0,
                     }}
                     placeholder="Re-enter PIN"
@@ -233,7 +296,7 @@ const SettingPageChangePin: React.FC<ChangePinScreenProps> = ({ onBack, onComple
                     style={{ justifyContent: 'center', paddingLeft: 8 }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Icon name={showConfirmPin ? 'visibility-off' : 'visibility'} size={20} color="#94a3b8" />
+                    <Icon name={showConfirmPin ? 'visibility' : 'visibility-off'} size={20} color="#94a3b8" />
                   </TouchableOpacity>
                 </View>
 

@@ -6,122 +6,160 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Dimensions,
   Share,
   StatusBar,
-  Alert
+  Alert,
 } from 'react-native';
 // react-native's own SafeAreaView is a NO-OP on Android — it only insets on iOS. This screen is
-// registered HEADERLESS in screens/_layout.tsx and the app builds edge-to-edge (targetSdk 35),
-// so with the built-in version nothing reserved space for the status bar or the gesture/nav bar
-// and the page header + bottom button rendered underneath both. The context version insets on
-// both platforms.
-import { SafeAreaView } from 'react-native-safe-area-context';
+// registered HEADERLESS in screens/_layout.tsx and the app builds edge-to-edge, so the
+// context version is required for the status bar and nav bar to be reserved on both platforms.
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import userApi from '../api/userApi';
+import { ROYAL } from './StarMatch';
 
-const { width } = Dimensions.get('window');
-
-// ─── Design Tokens ────────────────────────────────────────
+// Navy hero + cream body: the same ceremony as the form screen, with a light surface where
+// ten cards of text have to be read.
 const C = {
-  bg: '#F9F6F1',
-  cardBg: '#FFFFFF',
-  headerBg: '#FFFFFF',
-  ink: '#1C1917',
-  inkMid: '#57534E',
-  inkSoft: '#78716C',
-  inkMute: '#A8A29E',
-  gold: '#C07D20',
-  goldDark: '#92580F',
-  goldLight: '#FEF3C7',
-  goldBorder: '#F6D589',
-  pass: '#15803D',
-  passBg: '#DCFCE7',
-  passBorder: '#86EFAC',
-  fail: '#DC2626',
-  failBg: '#FEE2E2',
-  failBorder: '#FCA5A5',
-  partial: '#C2410C',
-  partialBg: '#FFEDD5',
-  partialBorder: '#FDBA74',
-  border: '#E7E5E4',
-  shadow: 'rgba(28,25,23,0.06)',
+  ...ROYAL,
+  page: '#F6F1E6',
+  card: '#FFFDF8',
+  cardLine: '#E9DFC8',
+  ink: '#1A1F2E',
+  inkMid: '#4A5062',
+  inkSoft: '#767C8C',
+  inkMute: '#A3A8B5',
+  pass: '#1E7A46', passBg: '#E4F4EA', passLine: '#BFE3CC',
+  mid: '#A8621B', midBg: '#FBEEDC', midLine: '#F1D5AE',
+  fail: '#B93838', failBg: '#FBE6E6', failLine: '#F2C2C2',
 };
+
+type Grade = 'UTHAMAM' | 'MADHIMAM' | 'ADHAMAM' | 'UNKNOWN';
 
 interface PoruthamResult {
   key: string;
   name: string;
-  result: string;
+  result: string;      // PASS / PARTIAL / FAIL / UNKNOWN (older jar)
   reason: string;
   weight: number;
   score: number;
+  grade?: Grade;
+  points?: number;
+  essential?: boolean;
+  counted?: boolean;
 }
 
 interface MatchResult {
-  score: number;
-  percentage: number;
+  points: number;          // out of 10 (Uthamam 1, Madhimam ½)
+  total: number;           // 10
   verdict: string;
-  totalWeight: number;
+  verdictNote: string;
+  doshams: string[];
+  essentialsPassed: number;
+  essentialsTotal: number;
+  uthamam: number;
+  madhimam: number;
+  adhamam: number;
   results: PoruthamResult[];
+  extras: PoruthamResult[];
+  brideStar: string; groomStar: string; brideRasi: string; groomRasi: string;
 }
 
 interface FormData {
-  bride: { name: string; dob: string; tob: string; place: string; star: string; rasi: string; };
-  groom: { name: string; dob: string; tob: string; place: string; star: string; rasi: string; };
+  bride: { name: string; star: string; rasi: string };
+  groom: { name: string; star: string; rasi: string };
 }
+
+// The five "mukkiya" poruthams a Tamil astrologer looks at first.
+const ESSENTIAL_KEYS = ['dina', 'gana', 'yoni', 'rasi', 'rajju'];
+
+const PORUTHAM_META: Record<string, { icon: string; about: string }> = {
+  dina: { icon: 'calendar-heart', about: 'Health, prosperity and a life free of want' },
+  gana: { icon: 'account-group-outline', about: 'Temperament and nature of the two people' },
+  mahendra: { icon: 'crown-outline', about: 'Children and lasting affection' },
+  streedhirga: { icon: 'flower-outline', about: 'The bride\'s long life and well-being' },
+  yoni: { icon: 'paw-outline', about: 'Physical and intimate compatibility' },
+  rasi: { icon: 'moon-waning-crescent', about: 'Harmony between the two moon signs' },
+  rasi_adhipathi: { icon: 'star-four-points-outline', about: 'Friendship between the lords of the two rasis' },
+  vasya: { icon: 'handshake-outline', about: 'Mutual attraction and understanding' },
+  rajju: { icon: 'link-variant', about: 'Longevity of the marriage — the deciding porutham' },
+  vedhai: { icon: 'shield-alert-outline', about: 'Absence of afflicting stars between the two' },
+  nadi: { icon: 'water-outline', about: 'North Indian factor, shown for information only' },
+};
+
+const gradeOf = (r: PoruthamResult): Grade => {
+  if (r.grade) return r.grade;
+  if (r.result === 'PASS') return 'UTHAMAM';
+  if (r.result === 'PARTIAL') return 'MADHIMAM';
+  if (r.result === 'FAIL') return 'ADHAMAM';
+  return 'UNKNOWN';
+};
+const pointsOf = (r: PoruthamResult) => typeof r.points === 'number' ? r.points : gradeOf(r) === 'UTHAMAM' ? 1 : gradeOf(r) === 'MADHIMAM' ? 0.5 : 0;
+const fmtPts = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 const StarMatchResult = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(true);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [names, setNames] = useState<{ bride: string; groom: string }>({ bride: 'Bride', groom: 'Groom' });
   const { formData } = useLocalSearchParams<{ formData: string }>();
 
   useEffect(() => {
     const fetchData = async () => {
+      let requestData: any = null;
+      try { requestData = formData ? JSON.parse(formData) : null; } catch { }
+      if (!requestData?.bride?.star || !requestData?.groom?.star) {
+        Alert.alert('Missing details', 'Both stars are needed to check porutham.', [{ text: 'OK', onPress: () => router.back() }]);
+        setIsLoading(false);
+        return;
+      }
+      setNames({ bride: requestData.bride.name || 'Bride', groom: requestData.groom.name || 'Groom' });
       try {
-        let requestData = {
-          bride: { name: 'Bride', dob: '1990-01-01', tob: '00:00', place: 'Unknown', star: 'Aswini', rasi: 'mesham' },
-          groom: { name: 'Groom', dob: '1990-01-01', tob: '00:00', place: 'Unknown', star: 'Aswini', rasi: 'mesham' },
-        };
-
-        if (formData) {
-          try {
-            requestData = JSON.parse(formData);
-          } catch (e) {
-            console.error('Error parsing formData:', e);
-          }
-        }
-
         const response = await userApi.starMatching(requestData);
+        const body = response.data;
 
-        if (response.data?.code === 403 && response.data?.message === 'INTEREST_NOT_APPROVED') {
+        if (body?.code === 403 && body?.message === 'INTEREST_NOT_APPROVED') {
           Alert.alert('Not connected yet', 'You can check Star Match compatibility once this member accepts your interest.', [
             { text: 'OK', onPress: () => router.back() },
           ]);
           return;
         }
-
-        if (response.data && response.data.data) {
-          const apiData = response.data.data;
-          setResult({
-            score: apiData.score,
-            percentage: apiData.percentage,
-            totalWeight: apiData.totalWeight,
-            verdict: apiData.verdict,
-            results: apiData.results || [],
-          });
-        } else {
-          Alert.alert('Error', response.data?.message || 'Failed to fetch compatibility results. Please try again.', [
-            { text: 'OK', onPress: () => router.back() },
-          ]);
+        // HTTP 200 with the failure in the body (§17) — check the code, not just the promise.
+        if (body?.code !== 200 || !body?.data) {
+          Alert.alert('Could not check porutham', body?.message || 'Please try again.', [{ text: 'OK', onPress: () => router.back() }]);
+          return;
         }
+
+        const d = body.data;
+        const results: PoruthamResult[] = (d.results || []).filter((r: PoruthamResult) => r.counted !== false);
+        const extras: PoruthamResult[] = d.extras || [];
+        // Older jar (weighted model) has no points — derive a 0-10 count from the rows so
+        // the screen still reads sensibly until the deploy.
+        const derivedPoints = results.reduce((acc, r) => acc + pointsOf(r), 0);
+        const points = typeof d.poruthamPoints === 'number' ? d.poruthamPoints : derivedPoints;
+        const essentials = results.filter(r => (r.essential ?? ESSENTIAL_KEYS.includes(r.key)));
+        setResult({
+          points,
+          total: d.totalPoruthams || results.length || 10,
+          verdict: d.verdict || '',
+          verdictNote: d.verdictNote || '',
+          doshams: d.doshams || [],
+          essentialsPassed: typeof d.essentialsPassed === 'number' ? d.essentialsPassed : essentials.filter(r => pointsOf(r) > 0).length,
+          essentialsTotal: typeof d.essentialsTotal === 'number' ? d.essentialsTotal : essentials.length,
+          uthamam: d.uthamamCount ?? results.filter(r => gradeOf(r) === 'UTHAMAM').length,
+          madhimam: d.madhimamCount ?? results.filter(r => gradeOf(r) === 'MADHIMAM').length,
+          adhamam: d.adhamamCount ?? results.filter(r => gradeOf(r) === 'ADHAMAM').length,
+          results,
+          extras,
+          brideStar: d.brideStar || requestData.bride.star, groomStar: d.groomStar || requestData.groom.star,
+          brideRasi: d.brideRasi || requestData.bride.rasi, groomRasi: d.groomRasi || requestData.groom.rasi,
+        });
       } catch (error) {
         console.error('Error fetching star match data:', error);
-        setResult({ score: 0, percentage: 0, totalWeight: 100, verdict: 'ERROR', results: [] });
-        Alert.alert('Error', 'Failed to fetch compatibility results. Please try again.');
+        Alert.alert('Could not check porutham', 'Please check your connection and try again.', [{ text: 'OK', onPress: () => router.back() }]);
       } finally {
         setIsLoading(false);
       }
@@ -129,66 +167,36 @@ const StarMatchResult = () => {
     fetchData();
   }, [formData]);
 
-  const getStatusColors = (status: string) => {
-    switch (status) {
-      case 'PASS': return { text: C.pass, bg: C.passBg, border: C.passBorder };
-      case 'FAIL': return { text: C.fail, bg: C.failBg, border: C.failBorder };
-      case 'PARTIAL': return { text: C.partial, bg: C.partialBg, border: C.partialBorder };
-      default: return { text: C.inkSoft, bg: '#F5F5F4', border: C.border };
+  const gradeStyle = (g: Grade) => {
+    switch (g) {
+      case 'UTHAMAM': return { text: C.pass, bg: C.passBg, line: C.passLine, label: 'Uthamam', icon: 'check' as const };
+      case 'MADHIMAM': return { text: C.mid, bg: C.midBg, line: C.midLine, label: 'Madhimam', icon: 'tilde' as const };
+      case 'ADHAMAM': return { text: C.fail, bg: C.failBg, line: C.failLine, label: 'Adhamam', icon: 'close' as const };
+      default: return { text: C.inkSoft, bg: '#EFEBE2', line: C.cardLine, label: 'Unknown', icon: 'help' as const };
     }
   };
 
-  const getStatusEmoji = (status: string) => {
-    switch (status) {
-      case 'PASS': return '✓';
-      case 'FAIL': return '✗';
-      case 'PARTIAL': return '~';
-      default: return '?';
-    }
-  };
-
-  const getPoruthamIcon = (key: string) => {
-    const icons: Record<string, string> = {
-      nadi: 'water', rajju: 'link-variant', gana: 'account-group', yoni: 'paw',
-      mahendra: 'crown', streedhirga: 'gender-female', rasi: 'zodiac-aries',
-      rasi_adhipathi: 'star', vasya: 'handshake', dina: 'calendar-heart',
-    };
-    return icons[key] || 'help-circle';
-  };
-
-  const getVerdictLabel = (verdict: string) => {
-    if (!verdict) return 'Result';
-    return verdict.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
-  };
-
-  const getVerdictMeta = (pct: number) => {
-    if (pct >= 80) return { label: 'Excellent Match', sub: 'A highly auspicious and prosperous union' };
-    if (pct >= 60) return { label: 'Good Match', sub: 'A compatible and harmonious alliance' };
-    if (pct >= 40) return { label: 'Average Match', sub: 'Compatibility exists with some caution' };
-    return { label: 'Low Match', sub: 'Consider consulting an astrologer' };
-  };
-
-  const getProgressColor = (pct: number) => {
-    if (pct >= 70) return C.pass;
-    if (pct >= 40) return C.partial;
-    return C.fail;
+  const verdictMeta = (v: string, doshams: string[]) => {
+    if (v.startsWith('EXCELLENT')) return { label: 'Excellent Match', color: C.goldLight };
+    if (v.startsWith('GOOD')) return { label: 'Good Match', color: C.goldLight };
+    if (v.startsWith('FAIR')) return { label: 'Fair Match', color: '#F2C77A' };
+    if (doshams.length || v.startsWith('NOT')) return { label: 'Not Recommended', color: C.danger };
+    return { label: v ? v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Result', color: C.cream };
   };
 
   const handleShare = async () => {
-    if (!result || !formData) return;
+    if (!result) return;
     try {
-      const parsed: FormData = JSON.parse(formData as string);
-      const emoji = (r: string) => r === 'PASS' ? '✅' : r === 'FAIL' ? '❌' : '⚠️';
-      const lines = result.results.map(r => `${emoji(r.result)} ${r.name}: ${r.score}/${r.weight}`);
+      const mark = (r: PoruthamResult) => ({ UTHAMAM: '✓', MADHIMAM: '~', ADHAMAM: '✗', UNKNOWN: '?' }[gradeOf(r)]);
+      const lines = result.results.map(r => `${mark(r)} ${r.name}: ${gradeStyle(gradeOf(r)).label}`);
       const message = [
-        `🌟 Jathaga Porutham Result`,
-        `👰 Bride: ${parsed.bride.name} (${parsed.bride.star} / ${parsed.bride.rasi})`,
-        `🤵 Groom: ${parsed.groom.name} (${parsed.groom.star} / ${parsed.groom.rasi})`,
+        `Thirumana Porutham`,
+        `Bride: ${names.bride} — ${result.brideStar} / ${result.brideRasi}`,
+        `Groom: ${names.groom} — ${result.groomStar} / ${result.groomRasi}`,
         ``,
-        `📊 Score: ${result.score}/${result.totalWeight} Points (${result.percentage}%)`,
-        `🏆 Verdict: ${result.verdict}`,
+        `${fmtPts(result.points)} of ${result.total} poruthams`,
+        `${verdictMeta(result.verdict, result.doshams).label}${result.doshams.length ? ` (${result.doshams.join(', ')})` : ''}`,
         ``,
-        `Detailed Porutham:`,
         ...lines,
         ``,
         `Checked via Vaibhav Vivaaha Matrimony`,
@@ -201,197 +209,223 @@ const StarMatchResult = () => {
 
   if (isLoading || !result) {
     return (
-      <View style={s.loadingWrap}>
-        <ActivityIndicator size="large" color={C.gold} />
-        <Text style={s.loadingText}>Analysing compatibility…</Text>
-        <Text style={s.loadingHint}>Computing Jathaga Porutham</Text>
-      </View>
+      <LinearGradient colors={[C.navy0, C.navy2, C.navy0]} style={s.loading}>
+        <StatusBar barStyle="light-content" />
+        <View style={s.loadingRing}><ActivityIndicator size="large" color={C.gold} /></View>
+        <Text style={s.loadingTitle}>Counting the ten poruthams</Text>
+        <Text style={s.loadingSub}>From the bride's star to the groom's</Text>
+      </LinearGradient>
     );
   }
 
-  const verdictMeta = getVerdictMeta(result.percentage);
-  const progressColor = getProgressColor(result.percentage);
+  const vm = verdictMeta(result.verdict, result.doshams);
+  const essentials = result.results.filter(r => r.essential ?? ESSENTIAL_KEYS.includes(r.key));
+  const others = result.results.filter(r => !(r.essential ?? ESSENTIAL_KEYS.includes(r.key)));
+  const ringPct = Math.max(0, Math.min(1, result.points / result.total));
+
+  const renderRow = (item: PoruthamResult, muted = false) => {
+    const g = gradeOf(item);
+    const gs = gradeStyle(g);
+    const meta = PORUTHAM_META[item.key] || { icon: 'help-circle-outline', about: '' };
+    return (
+      <View key={item.key} style={[s.card, muted && { opacity: 0.8 }]}>
+        <View style={[s.cardStrip, { backgroundColor: gs.text }]} />
+        <View style={[s.cardIcon, { backgroundColor: gs.bg, borderColor: gs.line }]}>
+          <MaterialCommunityIcons name={meta.icon as any} size={22} color={gs.text} />
+        </View>
+        <View style={s.cardBody}>
+          <View style={s.cardTop}>
+            <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
+            <View style={[s.badge, { backgroundColor: gs.bg, borderColor: gs.line }]}>
+              <MaterialCommunityIcons name={gs.icon} size={11} color={gs.text} />
+              <Text style={[s.badgeText, { color: gs.text }]}>{gs.label}</Text>
+            </View>
+          </View>
+          <Text style={s.cardReason}>{item.reason}</Text>
+          {!!meta.about && <Text style={s.cardAbout}>{meta.about}</Text>}
+        </View>
+      </View>
+    );
+  };
+
+  const SectionHead = ({ title, sub, gold }: { title: string; sub: string; gold?: boolean }) => (
+    <View style={s.sectionHead}>
+      <View style={[s.sectionGem, !gold && { backgroundColor: C.inkMute }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={s.sectionTitle}>{title}</Text>
+        <Text style={s.sectionSub}>{sub}</Text>
+      </View>
+    </View>
+  );
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'bottom', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.headerBg} />
-
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.iconBtn}>
-          <MaterialIcons name="chevron-left" size={26} color={C.ink} />
-        </TouchableOpacity>
-        <View style={s.headerCenter}>
-          <Text style={s.headerTitle}>Jathaga Porutham</Text>
-          <Text style={s.headerSub}>Compatibility Analysis</Text>
+    <View style={{ flex: 1, backgroundColor: C.page }}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient colors={[C.navy0, C.navy1, C.navy2]} style={{ paddingTop: insets.top }}>
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.hdrBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MaterialIcons name="arrow-back-ios-new" size={18} color={C.gold} />
+          </TouchableOpacity>
+          <View style={s.headerCenter}>
+            <Text style={s.eyebrow}>Tamil 10-porutham</Text>
+            <Text style={s.title}>Thirumana Porutham</Text>
+          </View>
+          <TouchableOpacity onPress={handleShare} style={s.hdrBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MaterialIcons name="ios-share" size={19} color={C.gold} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={handleShare} style={s.iconBtn}>
-          <MaterialIcons name="share" size={22} color={C.inkMid} />
-        </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
-      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* Score Hero */}
-        <LinearGradient
-          colors={['#FEF9EF', '#FDF4DC', '#F9ECC8']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={s.heroCard}
-        >
-          <View style={s.circleWrap}>
-            <LinearGradient
-              colors={['#E9A922', '#C07D20', '#92580F']}
-              start={{ x: 0.2, y: 0 }}
-              end={{ x: 0.8, y: 1 }}
-              style={s.circleOuter}
-            >
-              <View style={s.circleInner}>
-                <Text style={s.circlePct}>{result.percentage}%</Text>
-                <Text style={s.circleLabel}>Match</Text>
-              </View>
-            </LinearGradient>
-            <Text style={s.starDeco}>✦</Text>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        <LinearGradient colors={[C.navy2, C.navy1, C.navy0]} style={s.hero}>
+          <View style={s.pairRow}>
+            <View style={s.pairCol}>
+              <View style={s.pairIcon}><MaterialCommunityIcons name="face-woman" size={18} color={C.gold} /></View>
+              <Text style={s.pairName} numberOfLines={1}>{names.bride}</Text>
+              <Text style={s.pairStar}>{result.brideStar}</Text>
+              <Text style={s.pairRasi}>{result.brideRasi}</Text>
+            </View>
+            <View style={s.pairJoin}><MaterialCommunityIcons name="infinity" size={16} color={C.gold} /></View>
+            <View style={s.pairCol}>
+              <View style={s.pairIcon}><MaterialCommunityIcons name="face-man" size={18} color={C.gold} /></View>
+              <Text style={s.pairName} numberOfLines={1}>{names.groom}</Text>
+              <Text style={s.pairStar}>{result.groomStar}</Text>
+              <Text style={s.pairRasi}>{result.groomRasi}</Text>
+            </View>
           </View>
 
-          <Text style={s.verdictHeading}>{verdictMeta.label}</Text>
-          <Text style={s.verdictBody}>{verdictMeta.sub}</Text>
-
-          <View style={s.verdictPill}>
-            <Text style={s.verdictPillText}>{getVerdictLabel(result.verdict)}</Text>
+          {/* Score ring: a gold arc whose length is the point share, over a faint full ring. */}
+          <View style={s.ringWrap}>
+            <View style={s.ringTrack} />
+            <View style={[s.ringFill, { borderColor: C.gold, opacity: 0.25 + ringPct * 0.75 }]} />
+            <View style={s.ringInner}>
+              <Text style={s.ringPts}>{fmtPts(result.points)}<Text style={s.ringOf}> / {result.total}</Text></Text>
+              <Text style={s.ringLabel}>poruthams</Text>
+            </View>
           </View>
 
-          <View style={s.summaryBox}>
-            <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>Total Score</Text>
-              <Text style={s.summaryScore}>{result.score} / {result.totalWeight} pts</Text>
+          <Text style={[s.verdict, { color: vm.color }]}>{vm.label}</Text>
+          {!!result.verdictNote && <Text style={s.verdictNote}>{result.verdictNote}</Text>}
+
+          {result.doshams.length > 0 && (
+            <View style={s.doshamRow}>
+              {result.doshams.map(d => (
+                <View key={d} style={s.doshamPill}>
+                  <MaterialCommunityIcons name="alert-outline" size={13} color={C.danger} />
+                  <Text style={s.doshamText}>{d}</Text>
+                </View>
+              ))}
             </View>
-            <View style={s.bar}>
-              <View style={[s.barFill, { width: `${(result.score / result.totalWeight) * 100}%` as any, backgroundColor: progressColor }]} />
-            </View>
-            <View style={s.summaryRow}>
-              <Text style={s.summaryFactors}>{result.results.length} factors checked</Text>
-              <Text style={[s.summaryPct, { color: progressColor }]}>{result.percentage}% compatible</Text>
-            </View>
+          )}
+
+          <View style={s.counters}>
+            {[
+              { n: result.uthamam, l: 'Uthamam', c: C.goldLight },
+              { n: result.madhimam, l: 'Madhimam', c: '#F2C77A' },
+              { n: result.adhamam, l: 'Adhamam', c: C.danger },
+              { n: `${result.essentialsPassed}/${result.essentialsTotal}`, l: 'Essential', c: result.essentialsPassed === result.essentialsTotal ? C.goldLight : '#F2C77A' },
+            ].map((x, i) => (
+              <React.Fragment key={x.l}>
+                {i > 0 && <View style={s.counterDivider} />}
+                <View style={s.counter}>
+                  <Text style={[s.counterNum, { color: x.c }]}>{x.n}</Text>
+                  <Text style={s.counterLbl}>{x.l}</Text>
+                </View>
+              </React.Fragment>
+            ))}
           </View>
         </LinearGradient>
 
-        {/* Section header */}
-        <View style={s.sectionHead}>
-          <View style={s.sectionAccent} />
-          <Text style={s.sectionTitle}>Detailed Analysis</Text>
-        </View>
+        <SectionHead gold title="Essential poruthams" sub="Dina · Gana · Yoni · Rasi · Rajju — the five checked first" />
+        <View style={s.list}>{essentials.map(r => renderRow(r))}</View>
 
-        {/* Result cards */}
-        <View style={s.cardList}>
-          {result.results.map((item) => {
-            const sc = getStatusColors(item.result);
-            return (
-              <View key={item.key} style={s.card}>
-                <View style={s.cardBody}>
-                  <View style={s.cardTopRow}>
-                    <View style={[s.badge, { backgroundColor: sc.bg, borderColor: sc.border }]}>
-                      <Text style={[s.badgeText, { color: sc.text }]}>
-                        {getStatusEmoji(item.result)} {item.result}
-                      </Text>
-                    </View>
-                    <Text style={s.cardScore}>{item.score} / {item.weight}</Text>
-                  </View>
-                  <Text style={s.cardName}>{item.name}</Text>
-                  <Text style={s.cardReason}>{item.reason}</Text>
-                </View>
-                <View style={[s.cardIconWrap, { backgroundColor: sc.bg }]}>
-                  <MaterialCommunityIcons name={getPoruthamIcon(item.key) as any} size={26} color={sc.text} />
-                </View>
-                <View style={[s.cardStrip, { backgroundColor: sc.text }]} />
-              </View>
-            );
-          })}
-        </View>
+        <SectionHead title="Other poruthams" sub="Mahendra · Stree Dheerga · Rasi Adhipathi · Vasiya · Vedhai" />
+        <View style={s.list}>{others.map(r => renderRow(r))}</View>
 
-        <View style={{ height: 100 }} />
+        {result.extras.length > 0 && (
+          <>
+            <SectionHead title="For information" sub="Not one of the ten Tamil poruthams — not counted above" />
+            <View style={s.list}>{result.extras.map(r => renderRow(r, true))}</View>
+          </>
+        )}
+
+        <Text style={s.disclaimer}>
+          Counted from the bride's star and rasi to the groom's, the Tamil way. A traditional guide — please confirm with your family astrologer before deciding.
+        </Text>
       </ScrollView>
 
-      {/* Footer */}
-      <View style={s.footer}>
-        <TouchableOpacity
-          style={s.footerBtn}
-          onPress={() => router.push('/(root)/screens/StarMatch')}
-          activeOpacity={0.85}
-        >
-          <MaterialIcons name="refresh" size={18} color="#FFFBF0" style={{ marginRight: 8 }} />
-          <Text style={s.footerBtnText}>Check Another Match</Text>
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) + 4 }]}>
+        <TouchableOpacity style={s.ctaWrap} onPress={() => router.back()} activeOpacity={0.88}>
+          <LinearGradient colors={[C.navy2, C.navy1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.cta}>
+            <MaterialCommunityIcons name="refresh" size={19} color={C.gold} />
+            <Text style={s.ctaText}>Check Another Match</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
-const SHADOW = {
-  shadowColor: C.shadow,
-  shadowOpacity: 1,
-  shadowRadius: 10,
-  shadowOffset: { width: 0, height: 3 },
-  elevation: 3,
-};
-
 const s = StyleSheet.create({
-  // White (not C.bg) so the safe-area insets match the white header above and white footer
-  // below that they sit against — otherwise the cream page colour showed as a seam in the
-  // status-bar and nav-bar strips. The scroll body keeps C.bg explicitly, below.
-  safe: { flex: 1, backgroundColor: C.headerBg },
-  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg, gap: 10 },
-  loadingText: { fontSize: 16, fontFamily: 'Rubik-Medium', color: C.ink, marginTop: 6 },
-  loadingHint: { fontSize: 13, color: C.inkSoft },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.headerBg, paddingHorizontal: 12, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  iconBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#F5F5F4',
-    justifyContent: 'center', alignItems: 'center',
-  },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingRing: { width: 84, height: 84, borderRadius: 42, borderWidth: 1, borderColor: C.goldLine, justifyContent: 'center', alignItems: 'center', marginBottom: 18 },
+  loadingTitle: { color: C.cream, fontSize: 17, fontFamily: 'Rubik-Medium', letterSpacing: 0.3 },
+  loadingSub: { color: C.creamSoft, fontSize: 12.5, marginTop: 6, fontFamily: 'Rubik-Regular' },
+
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12 },
+  hdrBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: C.goldLine, backgroundColor: C.fill, justifyContent: 'center', alignItems: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: C.ink },
-  headerSub: { fontSize: 12, color: C.inkSoft, marginTop: 1 },
-  scroll: { flex: 1, backgroundColor: C.bg },
-  heroCard: { alignItems: 'center', paddingTop: 28, paddingBottom: 28, paddingHorizontal: 20 },
-  circleWrap: { position: 'relative', marginBottom: 20 },
-  circleOuter: { width: 160, height: 160, borderRadius: 80, justifyContent: 'center', alignItems: 'center', padding: 6 },
-  circleInner: { width: '100%', height: '100%', borderRadius: 80, backgroundColor: '#FFFBF0', justifyContent: 'center', alignItems: 'center' },
-  circlePct: { fontSize: 40, fontFamily: 'Rubik-Bold', color: C.goldDark, lineHeight: 44 },
-  circleLabel: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.gold, textTransform: 'uppercase', letterSpacing: 1 },
-  starDeco: { position: 'absolute', top: -8, right: -12, fontSize: 22, color: C.gold, opacity: 0.5 },
-  verdictHeading: { fontSize: 22, fontFamily: 'Rubik-Bold', color: C.ink, textAlign: 'center', marginBottom: 4 },
-  verdictBody: { fontSize: 13, color: C.inkMid, textAlign: 'center', marginBottom: 14, paddingHorizontal: 20 },
-  verdictPill: { backgroundColor: C.goldLight, borderRadius: 20, borderWidth: 1, borderColor: C.goldBorder, paddingHorizontal: 16, paddingVertical: 5, marginBottom: 20 },
-  verdictPillText: { fontSize: 12, fontFamily: 'Rubik-Bold', color: C.goldDark, textTransform: 'uppercase', letterSpacing: 0.8 },
-  summaryBox: { width: '100%', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.goldBorder },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  summaryLabel: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.inkSoft, textTransform: 'uppercase', letterSpacing: 0.5 },
-  summaryScore: { fontSize: 14, fontFamily: 'Rubik-Bold', color: C.ink },
-  summaryFactors: { fontSize: 11, color: C.inkMute },
-  summaryPct: { fontSize: 12, fontFamily: 'Rubik-Bold' },
-  bar: { height: 8, backgroundColor: '#E7E5E4', borderRadius: 4, overflow: 'hidden', marginBottom: 6 },
-  barFill: { height: '100%', borderRadius: 4 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 14, gap: 8 },
-  sectionAccent: { width: 4, height: 20, borderRadius: 2, backgroundColor: C.gold },
-  sectionTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: C.ink },
-  cardList: { paddingHorizontal: 12, gap: 10 },
-  card: { flexDirection: 'row', backgroundColor: C.cardBg, borderRadius: 14, padding: 14, overflow: 'hidden', marginBottom: 10, ...SHADOW },
-  cardBody: { flex: 1, marginRight: 10 },
-  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
-  badgeText: { fontSize: 10, fontFamily: 'Rubik-Bold', textTransform: 'uppercase', letterSpacing: 0.3 },
-  cardScore: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.inkMid },
-  cardName: { fontSize: 15, fontFamily: 'Rubik-Bold', color: C.ink, marginBottom: 3 },
-  cardReason: { fontSize: 12, color: C.inkSoft, lineHeight: 17 },
-  cardIconWrap: { width: 52, height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  eyebrow: { fontSize: 10.5, fontFamily: 'Rubik-Medium', color: C.gold, letterSpacing: 2.2, textTransform: 'uppercase', marginBottom: 3 },
+  title: { fontSize: 20, fontFamily: 'Rubik-Bold', color: C.cream, letterSpacing: 0.2 },
+
+  hero: { alignItems: 'center', paddingHorizontal: 18, paddingTop: 6, paddingBottom: 26, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  pairRow: { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%', marginBottom: 22 },
+  pairCol: { flex: 1, alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: C.goldLine, backgroundColor: C.fill, paddingVertical: 12, paddingHorizontal: 8 },
+  pairIcon: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: C.goldLine, backgroundColor: C.goldFaint, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
+  pairName: { fontSize: 12, fontFamily: 'Rubik-Medium', color: C.creamMid, marginBottom: 2 },
+  pairStar: { fontSize: 15, fontFamily: 'Rubik-Bold', color: C.cream },
+  pairRasi: { fontSize: 11.5, color: C.creamSoft, marginTop: 1 },
+  pairJoin: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: C.goldLine, justifyContent: 'center', alignItems: 'center' },
+
+  ringWrap: { width: 172, height: 172, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  ringTrack: { position: 'absolute', width: 172, height: 172, borderRadius: 86, borderWidth: 6, borderColor: C.goldFaint },
+  ringFill: { position: 'absolute', width: 172, height: 172, borderRadius: 86, borderWidth: 6 },
+  ringInner: { width: 144, height: 144, borderRadius: 72, backgroundColor: C.navy0, borderWidth: 1, borderColor: C.goldLine, justifyContent: 'center', alignItems: 'center' },
+  ringPts: { fontSize: 42, fontFamily: 'Rubik-Bold', color: C.goldLight, lineHeight: 48 },
+  ringOf: { fontSize: 18, fontFamily: 'Rubik-Medium', color: C.gold },
+  ringLabel: { fontSize: 10.5, fontFamily: 'Rubik-Medium', color: C.gold, letterSpacing: 2, textTransform: 'uppercase', marginTop: 2 },
+  verdict: { fontSize: 24, fontFamily: 'Rubik-Bold', textAlign: 'center', letterSpacing: 0.3, marginBottom: 6 },
+  verdictNote: { fontSize: 13, color: C.creamMid, textAlign: 'center', lineHeight: 19, paddingHorizontal: 10, marginBottom: 14 },
+  doshamRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 14 },
+  doshamPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(240,138,138,0.5)', backgroundColor: 'rgba(240,138,138,0.12)', paddingHorizontal: 12, paddingVertical: 6 },
+  doshamText: { fontSize: 12, fontFamily: 'Rubik-Bold', color: C.danger, letterSpacing: 0.3 },
+  counters: { flexDirection: 'row', alignItems: 'center', width: '100%', borderRadius: 16, borderWidth: 1, borderColor: C.goldLine, backgroundColor: C.fill, paddingVertical: 12 },
+  counter: { flex: 1, alignItems: 'center' },
+  counterNum: { fontSize: 19, fontFamily: 'Rubik-Bold' },
+  counterLbl: { fontSize: 9.5, fontFamily: 'Rubik-Medium', color: C.creamSoft, letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 3 },
+  counterDivider: { width: StyleSheet.hairlineWidth, height: 30, backgroundColor: C.goldLine },
+
+  sectionHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginTop: 24, marginBottom: 12, gap: 12 },
+  sectionGem: { width: 8, height: 8, backgroundColor: C.gold, transform: [{ rotate: '45deg' }] },
+  sectionTitle: { fontSize: 17, fontFamily: 'Rubik-Bold', color: C.ink, letterSpacing: 0.2 },
+  sectionSub: { fontSize: 11.5, color: C.inkSoft, marginTop: 2 },
+  list: { paddingHorizontal: 14, gap: 10 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.cardLine, padding: 14, paddingLeft: 18, overflow: 'hidden', gap: 12 },
   cardStrip: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
-  footer: { backgroundColor: C.cardBg, padding: 16, borderTopWidth: 1, borderTopColor: C.border, ...SHADOW },
-  footerBtn: { backgroundColor: C.goldDark, height: 52, borderRadius: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  footerBtnText: { fontSize: 15, fontFamily: 'Rubik-Bold', color: '#FFFBF0', letterSpacing: 0.3 },
+  cardIcon: { width: 46, height: 46, borderRadius: 14, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  cardBody: { flex: 1, minWidth: 0 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 },
+  cardName: { flex: 1, fontSize: 15, fontFamily: 'Rubik-Bold', color: C.ink },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
+  badgeText: { fontSize: 10.5, fontFamily: 'Rubik-Bold', letterSpacing: 0.4 },
+  cardReason: { fontSize: 12.5, color: C.inkMid, lineHeight: 18 },
+  cardAbout: { fontSize: 11, color: C.inkMute, marginTop: 3 },
+  disclaimer: { fontSize: 11.5, color: C.inkMute, textAlign: 'center', paddingHorizontal: 28, marginTop: 22, lineHeight: 17 },
+
+  footer: { paddingHorizontal: 18, paddingTop: 12, backgroundColor: C.page, borderTopWidth: 1, borderTopColor: C.cardLine },
+  ctaWrap: { borderRadius: 16, borderWidth: 1, borderColor: C.goldLine, overflow: 'hidden' },
+  cta: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  ctaText: { fontSize: 16, fontFamily: 'Rubik-Bold', color: C.goldLight, letterSpacing: 0.6 },
 });
 
 export default StarMatchResult;

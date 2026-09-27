@@ -40,6 +40,13 @@ const resolveTier = (name = '') => {
   if (k.includes('silver')) return { label: 'Silver', colors: ['#7E909E', '#5F7385'] as const, glow: 'rgba(95,115,133,0.3)' };
   if (k.includes('starter')) return { label: 'Starter', colors: ['#4A9CD8', '#3280B8'] as const, glow: 'rgba(74,156,216,0.3)' };
   if (k.includes('classic')) return { label: 'Classic', colors: ['#C48550', '#A66D38'] as const, glow: 'rgba(196,133,80,0.3)' };
+  // An unknown-but-real plan (Trial pack, any future campaign tier) must show
+  // ITS OWN name, not fall through to "Free" — a Trial member's home chip read
+  // "Free" while the profile page correctly said "Trial" (landmine 2026-08-15,
+  // client-reported 2026-09-05). Only a genuinely empty/free title is Free.
+  if (name && k !== 'free') {
+    return { label: name, colors: ['#4A9CD8', '#3280B8'] as const, glow: 'rgba(74,156,216,0.3)' };
+  }
   return { label: 'Free', colors: ['#8899AA', '#6B7D8E'] as const, glow: 'transparent' };
 };
 

@@ -1,3 +1,12 @@
+// ⚠️ DEPRECATED / DEAD — replaced 2026-09-09 by the full-page editor at
+//    app/(root)/screens/EditProfileSection.tsx.
+//
+//    The profile screen no longer mounts this sheet. It survives only because
+//    components/tabs.tsx still imports it, and tabs.tsx is itself reachable only
+//    from profile_backup.tsx (dead). Do NOT "fix" bugs here — they will not
+//    reach any member. Its hardcoded star/dosham/education/occupation/income
+//    arrays had drifted from the keyValue master lists and are precisely why it
+//    was replaced.
 import React, { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {

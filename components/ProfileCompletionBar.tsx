@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import userApi from '@/app/(root)/api/userApi';
 import ProgressRing from './ProgressRing';
+import { navigateToCompletionTarget, resolveCompletionTarget } from '@/utils/profileSections';
 
 interface CompletionData {
   status: string;
@@ -18,6 +19,8 @@ interface MetaData {
   missingFields: string[];
 }
 interface NextAction {
+  /** PROFILE_IMAGE | HOROSCOPE | HEIGHT_WEIGHT | WORK_INCOME | ADDRESS | FAMILY_DETAILS | HOBBIES | <FIELD> — absent on jars before 2026-09-26. */
+  key?: string;
   route: string;
   description: string;
   boostPercentage: number;
@@ -90,7 +93,13 @@ const ProfileCompletionBar = () => {
             style={[styles.widgetTint, Platform.OS !== 'ios' && styles.widgetTintOpaque]}
             pointerEvents="none"
           />
-          <View style={styles.progressSection}>
+          {/* The ring/summary opens the guided flow: every section with a gap,
+              one after another, instead of a single nudge at a time. */}
+          <TouchableOpacity
+            style={styles.progressSection}
+            activeOpacity={0.7}
+            onPress={() => router.push('/(root)/screens/CompleteProfileScreen' as any)}
+          >
             <View style={styles.progressRingContainer}>
               <ProgressRing
                 percentage={completion.percentage}
@@ -110,8 +119,13 @@ const ProfileCompletionBar = () => {
               <Text style={styles.completionText}>
                 {meta.completedFields} of {meta.totalFields} completed
               </Text>
+              {/* The ring is tappable, but nothing said so — this labels the affordance.
+                  Hidden at 100%: there is nothing left to complete. */}
+              {completion.percentage < 100 && (
+                <Text style={styles.completeAllLink}>Complete all ›</Text>
+              )}
             </View>
-          </View>
+          </TouchableOpacity>
           {completion.percentage >= 100 ? (
             <View style={styles.completedContainer}>
               <Text style={styles.completedText}>🎉 Profile Completed</Text>
@@ -119,23 +133,14 @@ const ProfileCompletionBar = () => {
           ) : nextAction ? (
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => {
-                const route = nextAction.route;
-                if (route === '/(root)/(tabs)/profile') {
-                  // Map action title to the correct tab index
-                  const title = nextAction.title?.toLowerCase() || '';
-                  let tabIndex = 0; // default: personal details
-                  if (title.includes('horoscope')) tabIndex = 2;
-                  else if (title.includes('gallery')) tabIndex = 1;
-                  else if (title.includes('interest') || title.includes('hobbie')) tabIndex = 0;
-                  router.push({
-                    pathname: route,
-                    params: { tabIndex },
-                  } as any);
-                } else {
-                  router.push(route as any);
-                }
-              }}
+              // Lands on the exact form (or card) the nudge is about — the editor
+              // for Height / Work / Address / Family, the profile tab's photo,
+              // horoscope or interests control otherwise. The server's `route`
+              // is ignored on purpose: it is always the profile tab root.
+              onPress={() => navigateToCompletionTarget(
+                router,
+                resolveCompletionTarget(nextAction, meta.missingFields),
+              )}
             >
               <Text style={styles.actionButtonText} numberOfLines={1} ellipsizeMode="tail">{actionTitle}</Text>
               <View style={styles.badge}>
@@ -251,9 +256,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Regular',
     marginTop: 2,
   },
+  completeAllLink: {
+    fontSize: 10.5,
+    fontFamily: 'Rubik-Bold',
+    color: '#1F7FE5',
+    marginTop: 3,
+  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    // Centre the label + badge inside the pill — without this they sat flush
+    // left with dead space on the right ("Add Horoscope +15% is not centre").
+    justifyContent: 'center',
     gap: 6,
     backgroundColor: '#dfecfb',
     paddingHorizontal: 12,

@@ -28,6 +28,7 @@ interface PrivacySettings {
   mobileNumber: boolean;
   profileImage: boolean;
   horoscope: boolean;
+  birthTime: boolean;
   profileVisibility: boolean;
   lastSeen: boolean;
   location: boolean;
@@ -73,6 +74,7 @@ const PrivacySettingsPage: React.FC = () => {
     mobileNumber: false,
     profileImage: false,
     horoscope: false,
+    birthTime: false,
     profileVisibility: true,
     lastSeen: true,
     location: false,
@@ -98,7 +100,8 @@ const PrivacySettingsPage: React.FC = () => {
             ...privacySettings,
             mobileNumber: fieldNames.includes('mobileNumber'),
             profileImage: fieldNames.includes('profileImage'),
-            horoscope: fieldNames.includes('horoscope')
+            horoscope: fieldNames.includes('horoscope'),
+            birthTime: fieldNames.includes('birthTime')
           };
 
           setPrivacySettings(updatedSettings);
@@ -255,6 +258,13 @@ const PrivacySettingsPage: React.FC = () => {
             'Keep your astrological information private',
             privacySettings.horoscope,
             'horoscope'
+          )}
+          {renderPrivacyItem(
+            <Feather name="clock" size={20} color="#1F7FE5" />,
+            'Birth Time',
+            'Hide your birth time until you approve a request',
+            privacySettings.birthTime,
+            'birthTime'
           )}
           {/* {renderPrivacyItem(
         <Feather name="calendar" size={20} color="#1F7FE5" />,

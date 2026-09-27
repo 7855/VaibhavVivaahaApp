@@ -92,6 +92,18 @@ const SupportFAB: React.FC = () => {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [fabOnRight, setFabOnRight] = useState(true);
   const [showCloud, setShowCloud] = useState(true);
+  // Container height, MEASURED — never assumed. Under edge-to-edge + targetSdk 36
+  // Android honours windowSoftInputMode="adjustResize" on some devices and not on
+  // others, so whether the window already made room for the keyboard has to be
+  // observed. Same technique as chatscreen.tsx / sign-up.tsx (CLAUDE.md s18).
+  const [containerH, setContainerH] = useState(0);
+  const openContainerHRef = useRef(0);
+  // The card anchors to where the robot ACTUALLY is. translateY is a Reanimated
+  // shared value and is not reactive during render, so the position is mirrored
+  // into JS state on load and on every drag-end.
+  const [fabY, setFabY] = useState(
+    SCREEN_H - insets.bottom - FOOTER_HEIGHT - FAB_SIZE - 20,
+  );
   const flatListRef = useRef<FlatList>(null);
   const pollRef = useRef<any>(null);
 
@@ -103,6 +115,12 @@ const SupportFAB: React.FC = () => {
     const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
+
+  // Baseline = the container's height with the keyboard closed. Comparing against
+  // it is the only reliable way to tell whether the OS resized the window.
+  useEffect(() => {
+    if (keyboardHeight === 0 && containerH > 0) openContainerHRef.current = containerH;
+  }, [keyboardHeight, containerH]);
 
   // ─── Cloud show/hide cycle (3s on, every 30s) ──
   useEffect(() => {
@@ -174,6 +192,7 @@ const SupportFAB: React.FC = () => {
           const { x, y } = JSON.parse(val);
           translateX.value = Math.max(minX, Math.min(x, maxX));
           translateY.value = Math.max(minY, Math.min(y, maxY));
+          setFabY(Math.max(minY, Math.min(y, maxY)));
           setFabOnRight(x + FAB_SIZE / 2 > SCREEN_W / 2);
         } catch { }
       }
@@ -198,6 +217,7 @@ const SupportFAB: React.FC = () => {
   // ─── Save position ──────────────────────────────
   const savePosition = useCallback((x: number, y: number) => {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ x, y }));
+    setFabY(y);
     setFabOnRight(x + FAB_SIZE / 2 > SCREEN_W / 2);
   }, []);
 
@@ -378,12 +398,51 @@ const SupportFAB: React.FC = () => {
   // Don't render if not logged in
   if (!userId) return null;
 
-  const cardAbove = translateY.value > SCREEN_H / 2;
+  // ─── Card geometry ──────────────────────────────────────────────
+  // If the container genuinely shrank, the OS already made room for the keyboard
+  // and no lift is needed; if it did not, lift by the full measured keyboard
+  // height. The >100px guard keeps a status-/nav-bar shift from being mistaken
+  // for a keyboard. Assuming either way puts the card off-screen on half the
+  // devices — that is exactly the bug this replaces.
+  const availH = containerH || SCREEN_H;
+  const containerShrank =
+    openContainerHRef.current > 0 && openContainerHRef.current - containerH > 100;
+  const kbOpen = keyboardHeight > 0;
+  const kbLift = !kbOpen ? 0 : containerShrank ? 0 : keyboardHeight;
+
+  // Keyboard up → pin above the keyboard and ignore the robot: it may itself be
+  // behind the keyboard, so anchoring to it would shove the card off the top.
+  // Keyboard down → sit above the robot, or below it once it has been dragged
+  // into the top half. Previously the card was hardcoded to the bottom-right
+  // regardless of where the robot had been dragged.
+  const anchorAbove = fabY + FAB_SIZE / 2 > availH / 2;
+  const cardPos = kbOpen
+    ? { bottom: kbLift + 10 }
+    : anchorAbove
+      ? { bottom: Math.max(availH - fabY + 10, insets.bottom + 10) }
+      : { top: fabY + FAB_SIZE + 10 };
+
+  // Clamp to the space actually left, so the card can never run under the status
+  // bar — a fixed 55%-of-screen cap overflows once a keyboard takes ~40% of it.
+  const topLimit = insets.top + 12;
+  const room = kbOpen
+    ? availH - kbLift - 10 - topLimit
+    : anchorAbove
+      ? fabY - 10 - topLimit
+      : availH - (fabY + FAB_SIZE + 10) - insets.bottom - 12;
+  const maxCardH = Math.max(240, Math.min(SCREEN_H * 0.55, room));
+
+  if (__DEV__ && kbOpen) {
+    console.log('[support-kb]', { keyboardHeight, containerH, baseline: openContainerHRef.current, containerShrank, kbLift, maxCardH });
+  }
 
   return (
     <>
       {/* ── FAB Button (3D) ── */}
-      <View style={S.fabRoot}>
+      <View
+        style={S.fabRoot}
+        onLayout={(e) => setContainerH(e.nativeEvent.layout.height)}
+      >
         <GestureDetector gesture={composedGesture}>
           <Animated.View style={[S.fab, fabStyle]}>
             {/* Speech cloud */}
@@ -432,11 +491,20 @@ const SupportFAB: React.FC = () => {
           {/* Tooltip card */}
           <Animated.View style={[
             S.tooltip,
-            { bottom: (keyboardHeight > 0 ? keyboardHeight + 10 : insets.bottom + FOOTER_HEIGHT + FAB_SIZE + 12), right: 14 },
+            cardPos,
+            { maxHeight: maxCardH, right: 14 },
             chatAnimStyle,
           ]}>
-            {/* Caret */}
-            <View style={S.tooltipCaret} />
+            {/* Caret — points at the robot, so it follows the robot's side and
+                flips to the top edge when the card sits below it. Dropped while
+                the keyboard is up, where the card no longer touches the FAB. */}
+            {!kbOpen && (
+              <View style={[
+                S.tooltipCaret,
+                anchorAbove ? S.tooltipCaretDown : S.tooltipCaretUp,
+                fabOnRight ? S.tooltipCaretRight : S.tooltipCaretLeft,
+              ]} />
+            )}
 
             {/* Header */}
             <View style={S.ttHeader}>
@@ -735,7 +803,7 @@ const S = StyleSheet.create({
   tooltip: {
     position: 'absolute',
     width: SCREEN_W - 28,
-    maxHeight: SCREEN_H * 0.55,
+    // maxHeight is passed inline — it depends on the live keyboard/anchor state.
     backgroundColor: '#fff',
     borderRadius: 20,
     overflow: 'hidden',
@@ -746,7 +814,7 @@ const S = StyleSheet.create({
     }),
   },
   tooltipCaret: {
-    position: 'absolute', bottom: -8, right: 30,
+    position: 'absolute',
     width: 16, height: 16,
     backgroundColor: '#fff',
     borderRadius: 3,
@@ -756,6 +824,12 @@ const S = StyleSheet.create({
       android: { elevation: 2 },
     }),
   },
+  tooltipCaretDown: { bottom: -8 },
+  tooltipCaretUp: { top: -8 },
+  // 26 puts the caret's centre 34px from the card edge — the robot's centre when
+  // snapped to that edge (EDGE_MARGIN 12 + FAB_SIZE/2 36, less the card's 14 inset).
+  tooltipCaretRight: { right: 26 },
+  tooltipCaretLeft: { left: 26 },
 
   // Header
   ttHeader: {

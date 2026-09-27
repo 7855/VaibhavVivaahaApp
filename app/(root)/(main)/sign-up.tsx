@@ -10,7 +10,8 @@ import {
   Pressable,
   Alert,
   Modal,
-  ActivityIndicator
+  ActivityIndicator,
+  Keyboard
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -29,6 +30,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react-native";
 import { loadMasterData } from "../services/masterService";
 import { useMasterData } from "../contexts/MasterDataContext";
 import { usePopup } from "../contexts/PopupContext";
+import { stripNonNameChars } from '../../../constants/data';
 type GetstartProps = {
   onStart: () => void;
 };
@@ -169,6 +171,78 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [date, setDate] = useState(new Date());
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [swiperReady, setSwiperReady] = useState(false);
+
+  // Keyboard headroom — MEASURED, not assumed. Same technique as chatscreen.tsx
+  // (section 18, 2026-08-13), which is the only approach that proved reliable on
+  // device.
+  //
+  // PIN/Confirm PIN are the last elements in page 2's scroll view and the footer
+  // CTA sits outside it, so with no bottom padding there is no scroll range left
+  // and they cannot be lifted above the keyboard (a ScrollView cannot scroll past
+  // its own content end).
+  //
+  // How much to add is NOT guessable: windowSoftInputMode="adjustResize" is set,
+  // but under edge-to-edge / targetSdk 36 whether Android honours it varies by
+  // device. Assuming it applied leaves the field behind the keyboard; assuming it
+  // did not double-compensates and parks the form far too high. Earlier attempts
+  // here used a fixed 260→130 spacer and then a 60%-of-keyboard fudge — both were
+  // per-device guesses. So: compare the container's height now against its
+  // keyboard-closed baseline. If it genuinely shrank, the OS already made room and
+  // we add nothing; if it did not, we add the full measured keyboard height.
+  //
+  // Safe from feedback: the padding is applied to the scroll view's CONTENT, which
+  // never changes the measured container's own frame, so it cannot re-trigger this.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const openContainerHeightRef = useRef(0);
+
+  // Baseline = container height while the keyboard is closed.
+  useEffect(() => {
+    if (keyboardHeight === 0 && containerHeight > openContainerHeightRef.current) {
+      openContainerHeightRef.current = containerHeight;
+    }
+  }, [containerHeight, keyboardHeight]);
+
+  // >100px so a status-/nav-bar shift is never mistaken for a keyboard resize.
+  const containerShrankForKeyboard =
+    openContainerHeightRef.current > 0 &&
+    openContainerHeightRef.current - containerHeight > 100;
+
+  // The Next/Back row sits OUTSIDE the scroll view, so the keyboard covers it
+  // first — only the remainder actually eats into the scrollable viewport.
+  // Padding the full keyboard height (what this used to do) left a visible dead
+  // band of ~90px under the last field once you scrolled down. Measured, not
+  // guessed: navRowHeight comes from the row's own onLayout.
+  const [navRowHeight, setNavRowHeight] = useState(0);
+  const kbSpacer =
+    keyboardHeight === 0
+      ? 0
+      : containerShrankForKeyboard
+        ? 0
+        : Math.max(0, keyboardHeight - navRowHeight);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e?.endCoordinates?.height || 0);
+        // Same diagnostic as chatscreen's [chat-kb]: console is not stripped in
+        // release here, so `adb logcat | grep signup-kb` settles on a real APK
+        // whether adjustResize applied on a given device.
+        console.log('[signup-kb]', JSON.stringify({
+          keyboardHeight: e?.endCoordinates?.height,
+          containerHeight,
+          baseline: openContainerHeightRef.current,
+          shrank: openContainerHeightRef.current - containerHeight,
+        }));
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, [containerHeight]);
   // Drives the stepper header — the form has no other sense of "where am I" otherwise.
   const [activeStep, setActiveStep] = useState(0);
   const [dob, setDob] = useState(new Date());
@@ -184,6 +258,8 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [employmentOptions, setEmploymentOptions] = useState<Array<{ id: string, value: string, label: string }>>([]);
   const [districtOptions, setDistrictOptions] = useState<Array<{ id: string, value: string }>>([]);
   const [selectedCity, setSelectedCity] = useState('');
+  const [showPin, setShowPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [allCaste, setAllCaste] = useState<any[]>([]);
   const [selectedGender, setSelectedGender] = useState('');
   const [loading, setLoading] = useState(false);
@@ -200,11 +276,23 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const swiperRef = useRef<Swiper>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(new Date()); // Spinner value
-  const onlyAlphabets = (text: string) => text.replace(/[^A-Za-z\s]/g, '');
+  // Letters of ANY script + spaces. Tamil names are allowed (client 2026-09-20);
+  // digits and symbols are still rejected as they're typed. See constants/data.ts.
+  const onlyAlphabets = stripNonNameChars;
+  // Names: letters + single internal spaces only. A leading space is dropped as
+  // it's typed and repeated spaces collapse; the trailing one is trimmed on blur
+  // and again at submit (you must be able to type a space to start a surname).
+  const nameInput = (text: string, max = 50) =>
+    onlyAlphabets(text).replace(/^\s+/, '').replace(/\s{2,}/g, ' ').slice(0, max);
   const onlyNumbers = (text: string) => text.replace(/[^0-9]/g, '');
+  // Indian mobile: exactly 10 digits, starting 6–9. A 9-digit number used to slip
+  // through (only the blur hint checked length) and that account could then never
+  // sign in by mobile — the login screen requires 10 digits.
+  const isValidMobile = (m: string) => /^[6-9]\d{9}$/.test(m);
   const noSpecialChars = (text: string) => text.replace(/[^A-Za-z0-9\s]/g, '');
   const onlyAlphanumeric = (text: string) => text.replace(/[^A-Za-z0-9\s]/g, '');
   const isValidEmail = (email: string) => {
@@ -231,6 +319,27 @@ export default function SignUp({ onStart }: GetstartProps) {
     [getSubcastesForCaste, selectedCasteId]
   );
 
+  // Live gate for the Create Account button — mirrors validateFormData() so the
+  // button can only be pressed once the whole form is actually submittable.
+  const isFormComplete =
+    !!firstName.trim() &&
+    !!lastName.trim() &&
+    !!dob &&
+    !!selectedGender &&
+    !!caste &&
+    (subcasteOptions.length === 0 || !!subcaste) &&
+    isValidMobile(mobile) &&
+    !!String(age).trim() &&
+    isValidEmail(email) &&
+    emailVerified &&
+    !!verificationToken &&
+    !!education &&
+    !!occupation.trim() &&
+    !!employmentStatus &&
+    !!selectedCity &&
+    /^\d{4}$/.test(pin) &&
+    pin === confirmPin;
+
   const validateFormData = () => {
     const fieldLabels: Record<string, string> = {
       firstName: 'First Name',
@@ -245,7 +354,7 @@ export default function SignUp({ onStart }: GetstartProps) {
       education: 'Education',
       occupation: 'Occupation',
       employmentStatus: 'Employment Status',
-      selectedCity: 'City / District',
+      selectedCity: 'District',
       pin: 'PIN',
       confirmPin: 'Confirm PIN',
     };
@@ -299,6 +408,16 @@ export default function SignUp({ onStart }: GetstartProps) {
         "Missing Fields",
         `Please fill in the following required fields:\n\n• ${missingFields.join("\n• ")}`
       );
+      return false;
+    }
+
+    if (!isValidMobile(mobile)) {
+      popup.error("Invalid Mobile Number", "Please enter a valid 10-digit mobile number.");
+      return false;
+    }
+
+    if (!/^\d{4}$/.test(pin)) {
+      popup.error("Invalid PIN", "PIN must be exactly 4 digits.");
       return false;
     }
 
@@ -419,8 +538,11 @@ export default function SignUp({ onStart }: GetstartProps) {
     }
     try {
       setSendingEmailOtp(true);
-      console.log('sendAuthOtp payload →', { email, purpose: 'registration', firstName });
-      const res = await userApi.sendAuthOtp({ email, purpose: 'registration', firstName: firstName || undefined });
+      console.log('sendAuthOtp payload →', { email, purpose: 'registration' });
+      // Full name in the greeting — registration OTP is the one mail sent before
+      // a user row exists, so the name has to travel with the request.
+      const otpName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      const res = await userApi.sendAuthOtp({ email, purpose: 'registration', firstName: otpName || undefined });
       if (res.data?.code === 200) {
         popup.success(
           'OTP Sent',
@@ -464,6 +586,7 @@ export default function SignUp({ onStart }: GetstartProps) {
   );
 
   const handleFormSubmit = async () => {
+    if (submitting) return;
     // Validate all fields first
     if (!validateFormData()) return;
 
@@ -484,8 +607,10 @@ export default function SignUp({ onStart }: GetstartProps) {
     // Native Place, Annual Income, and Education in Detail are collected later via the
     // post-signup profile-completion flow instead, so they're simply omitted here.
     const payload = {
-      firstName,
-      lastName,
+      // Trimmed at the boundary too: blur handles the common case, but a member
+      // can submit straight from the keyboard without ever blurring the field.
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       dateOfBirth: dob ? dob.toISOString().split("T")[0] : "",
       mobileNumber: mobile,
       education,
@@ -507,11 +632,14 @@ export default function SignUp({ onStart }: GetstartProps) {
 
     console.log("payload=====================>", payload);
 
+    setSubmitting(true);
     try {
       const response = await userApi.createUser(payload);
 
-      if (response.data?.code === 401) {
-        popup.error("Registration Failed", "This mobile number is already registered.");
+      if (response.data?.code === 401 || response.data?.code === 409) {
+        // 401 = mobile taken, 409 = email taken (new backend gate) — either way
+        // an account with these details exists: send them to sign in.
+        popup.error("Already Registered", response.data.message || "An account with these details already exists. Please sign in instead.");
       } else if (response.data?.code === 200) {
         // Store token so subsequent API calls work
         if (response.data.data?.token) {
@@ -521,19 +649,39 @@ export default function SignUp({ onStart }: GetstartProps) {
           await AsyncStorage.setItem('refreshToken', response.data.data.refreshToken);
         }
 
-        popup.success(
-          "Account Created",
-          "Your profile has been submitted for review. You'll be notified once approved.",
-          () => router.replace('/(root)/(main)/LoginScreen')
-        );
+        // Not dismissable: a backdrop tap used to close the popup WITHOUT running
+        // the OK handler, stranding the member on a register form whose account
+        // already exists. OK (and Android back) is now the only way out → login.
+        const goToLogin = () => {
+          popup.hide();
+          setTimeout(() => router.replace('/(root)/(main)/LoginScreen'), 100);
+        };
+        popup.show({
+          title: "Account Created",
+          description: "Your profile has been submitted for review. You'll be notified once approved.",
+          variant: 'success',
+          dismissable: false,
+          buttons: [{ text: 'Go to Login', variant: 'primary', onPress: goToLogin }],
+        });
       } else if (response.data?.code === 400) {
         popup.error("Verification Failed", response.data.message || "Please verify your email and try again.");
       } else {
         popup.error("Error", "Something went wrong. Please try again.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating user:", error);
-      popup.error("Error", "Failed to create account. Please try again.");
+      // A TIMEOUT here does not mean the account wasn't created — the server may
+      // have finished after the app gave up (the reported "failed but created in
+      // background"). Guide the member to try LOGGING IN before re-registering.
+      const timedOut = error?.code === 'ECONNABORTED' || /timeout/i.test(error?.message || '');
+      popup.error(
+        timedOut ? "Taking Too Long" : "Error",
+        timedOut
+          ? "The network is slow. Your account may still have been created — please try SIGNING IN with your mobile and PIN before registering again."
+          : "Failed to create account. Please check your connection and try again."
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -627,7 +775,14 @@ export default function SignUp({ onStart }: GetstartProps) {
           end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
-        <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
+        <SafeAreaView
+          edges={['top', 'left', 'right']}
+          style={{ flex: 1 }}
+          // Ground truth for "did the OS resize us for the keyboard". useWindowDimensions
+          // does NOT reflect the resize under edge-to-edge — measurement is the only
+          // reliable signal (same finding as chatscreen.tsx).
+          onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
+        >
           {/* Persistent header — title/subtitle/Sign-In/stepper live OUTSIDE the Swiper so they
               stay fixed on screen across both pages instead of scrolling away with the fields. */}
           <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
@@ -675,6 +830,12 @@ export default function SignUp({ onStart }: GetstartProps) {
             </View>
           </View>
 
+          {/* overflow:hidden — react-native-swiper lays its pages out in a
+              horizontal scroller sized at mount; when the keyboard changes the
+              container height the pages can visually bleed into each other
+              (client: "1st page 2nd page overlapping while keyboard opens").
+              Clipping the wrapper makes that structurally impossible. */}
+          <View style={{ flex: 1, overflow: 'hidden' }}>
           <Swiper
             showsPagination={false}
             ref={swiperRef}
@@ -687,7 +848,7 @@ export default function SignUp({ onStart }: GetstartProps) {
             <View style={{ flex: 1 }}>
               <KeyboardAwareScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 15, paddingTop: 10, paddingBottom: 0 }}
+                contentContainerStyle={{ padding: 15, paddingTop: 10, paddingBottom: kbSpacer }}
                 enableOnAndroid={true}
                 // Was `Platform.OS === 'ios'` — disabled auto-scroll-to-focused-input on Android
                 // entirely (enableOnAndroid alone only resizes the view for the keyboard, it
@@ -710,12 +871,13 @@ export default function SignUp({ onStart }: GetstartProps) {
                         placeholderTextColor="#999"
                         value={firstName}
                         onChangeText={(t) => {
-                          setFirstName(onlyAlphabets(t));
+                          setFirstName(nameInput(t));
                           if (errors.firstName) {
                             setErrors(prev => ({ ...prev, firstName: '' }));
                           }
                         }}
                         onBlur={() => {
+                          setFirstName((v) => v.trim());
                           if (!firstName.trim()) {
                             setErrors(prev => ({ ...prev, firstName: 'First name is required' }));
                           } else if (firstName.trim().length < 2) {
@@ -739,12 +901,13 @@ export default function SignUp({ onStart }: GetstartProps) {
                         placeholderTextColor="#999"
                         value={lastName}
                         onChangeText={(t) => {
-                          setLastName(onlyAlphabets(t));
+                          setLastName(nameInput(t));
                           if (errors.lastName) {
                             setErrors(prev => ({ ...prev, lastName: '' }));
                           }
                         }}
                         onBlur={() => {
+                          setLastName((v) => v.trim());
                           if (!lastName.trim()) {
                             setErrors(prev => ({ ...prev, lastName: 'Last name is required' }));
                           } else if (lastName.trim().length < 2) {
@@ -916,69 +1079,12 @@ export default function SignUp({ onStart }: GetstartProps) {
                     </Box>
                   </HStack>
 
-                  {/* Caste */}
-                  <CustomModalPicker
-                    label="Caste"
-                    placeholder="Select Caste"
-                    data={casteList}
-                    selected={caste}
-                    onSelect={(val) => {
-                      setCaste(val);
-                      // A subcaste belongs to exactly one caste — a leftover selection from the
-                      // previous caste would be invalid (and the backend rejects it).
-                      setSubcaste('');
-                    }}
-                  />
-
-                  {/* Subcaste — dependent on Caste and REQUIRED. Always visible so the form's
-                      shape doesn't shift as the user fills it in; disabled (greyed, non-tappable)
-                      until a caste is chosen. Requiring it is only safe because every caste has an
-                      "Others" option for members who don't know theirs — see the seed data. */}
-                  <CustomModalPicker
-                    label="Subcaste"
-                    placeholder="Select Subcaste"
-                    data={subcasteOptions}
-                    selected={subcaste}
-                    onSelect={(val) => setSubcaste(val)}
-                    disabled={subcasteOptions.length === 0}
-                    disabledHint={
-                      !caste
-                        ? 'Select a caste first'
-                        : 'No subcastes for this caste'
-                    }
-                  />
-
-                  {/* Mobile Number - 10 digits only */}
-                  <Box style={styles.inputContainer}>
-                    <TextNB style={styles.fieldLabel}>Mobile Number</TextNB>
-                    <TextInput
-                      placeholder="Enter Mobile Number"
-                      placeholderTextColor="#999"
-                      value={mobile}
-                      onChangeText={(t) => {
-                        setMobile(onlyNumbers(t));
-                        if (errors.mobile) {
-                          setErrors(prev => ({ ...prev, mobile: '' }));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!mobile) {
-                          setErrors(prev => ({ ...prev, mobile: 'Mobile number is required' }));
-                        } else if (mobile.length !== 10) {
-                          setErrors(prev => ({ ...prev, mobile: 'Mobile number must be 10 digits' }));
-                        }
-                      }}
-                      style={[styles.input, errors.mobile && styles.inputError]}
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                    />
-                    {errors.mobile ? (
-                      <TextNB style={styles.error}>{errors.mobile}</TextNB>
-                    ) : (
-                      <TextNB style={styles.hiddenError}> </TextNB>
-                    )}
-                  </Box>
-
+                  {/* Age + Email — moved directly under the DOB/Gender row on
+                      2026-08-23. It used to sit below Mobile near the bottom of the
+                      page, where tapping Email on Android opened the keyboard over the
+                      field itself. Higher up the form there is far less to scroll past,
+                      so the focused input stays visible. Age is auto-derived from DOB,
+                      so it also now sits next to the field that produces it. */}
                   {/* Age and Email */}
                   <HStack space={2} width="100%" alignItems="flex-start">
                     {/* Age Field */}
@@ -1074,11 +1180,83 @@ export default function SignUp({ onStart }: GetstartProps) {
                     </Box>
                   </HStack>
 
+                  {/* Mobile Number - 10 digits only */}
+                  <Box style={styles.inputContainer}>
+                    <TextNB style={styles.fieldLabel}>Mobile Number</TextNB>
+                    <TextInput
+                      placeholder="Enter Mobile Number"
+                      placeholderTextColor="#999"
+                      value={mobile}
+                      onChangeText={(t) => {
+                        setMobile(onlyNumbers(t));
+                        if (errors.mobile) {
+                          setErrors(prev => ({ ...prev, mobile: '' }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!mobile) {
+                          setErrors(prev => ({ ...prev, mobile: 'Mobile number is required' }));
+                        } else if (!isValidMobile(mobile)) {
+                          setErrors(prev => ({ ...prev, mobile: mobile.length !== 10
+                            ? 'Mobile number must be 10 digits'
+                            : 'Enter a valid mobile number' }));
+                        }
+                      }}
+                      style={[styles.input, errors.mobile && styles.inputError]}
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                    />
+                    {errors.mobile ? (
+                      <TextNB style={styles.error}>{errors.mobile}</TextNB>
+                    ) : (
+                      <TextNB style={styles.fieldHint}>
+                        Enter a number you actively use — our team will call it to verify your profile.
+                      </TextNB>
+                    )}
+                  </Box>
+
+                  {/* Caste */}
+                  <CustomModalPicker
+                    label="Caste"
+                    placeholder="Select Caste"
+                    data={casteList}
+                    selected={caste}
+                    onSelect={(val) => {
+                      setCaste(val);
+                      // A subcaste belongs to exactly one caste — a leftover selection from the
+                      // previous caste would be invalid (and the backend rejects it).
+                      setSubcaste('');
+                    }}
+                  />
+
+                  {/* Subcaste — dependent on Caste and REQUIRED. Always visible so the form's
+                      shape doesn't shift as the user fills it in; disabled (greyed, non-tappable)
+                      until a caste is chosen. Requiring it is only safe because every caste has an
+                      "Others" option for members who don't know theirs — see the seed data. */}
+                  <CustomModalPicker
+                    label="Subcaste"
+                    placeholder="Select Subcaste"
+                    data={subcasteOptions}
+                    selected={subcaste}
+                    onSelect={(val) => setSubcaste(val)}
+                    disabled={subcasteOptions.length === 0}
+                    disabledHint={
+                      !caste
+                        ? 'Select a caste first'
+                        : 'No subcastes for this caste'
+                    }
+                  />
+
+
+
                 </View>
               </KeyboardAwareScrollView>
 
               {/* Single Next button — this is the first page, nothing to go Back to. */}
-              <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 12, paddingBottom: navBottomPad }}>
+              <View
+                onLayout={(e) => setNavRowHeight(e.nativeEvent.layout.height)}
+                style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 12, paddingBottom: navBottomPad }}
+              >
                 <ButtonNB style={styles.navPrimaryButton} onPress={() => swiperRef.current?.scrollBy(1)}>
                   <HStack space={2} alignItems="center">
                     <TextNB style={{ color: '#fff', fontSize: 14, fontFamily: 'Rubik-Bold' }}>Next</TextNB>
@@ -1095,13 +1273,21 @@ export default function SignUp({ onStart }: GetstartProps) {
             <View style={{ flex: 1 }}>
               <KeyboardAwareScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 15, paddingTop: 10, paddingBottom: 0 }}
+                // ⚠️ paddingBottom is load-bearing, not cosmetic. PIN/Confirm PIN are the
+                // LAST elements in this scroll view and the footer CTA sits OUTSIDE it, so
+                // with paddingBottom:0 there was nothing below them to scroll into — a
+                // ScrollView cannot scroll past its own content end, so the fields stayed
+                // under the keyboard however aggressive enableAutomaticScroll was. The
+                // spacer gives the scroll somewhere to go. Same root cause as the chat
+                // input bug (section 18, 2026-08-12): under edge-to-edge the app must make
+                // room itself, and it can only do that if the room exists.
+                contentContainerStyle={{ padding: 15, paddingTop: 10, paddingBottom: kbSpacer }}
                 enableOnAndroid={true}
                 // Was `Platform.OS === 'ios'` — disabled auto-scroll-to-focused-input on
                 // Android entirely, so PIN/Confirm PIN (near the bottom of this page) stayed
                 // hidden behind the keyboard on Android instead of scrolling into view.
                 enableAutomaticScroll={true}
-                extraScrollHeight={Platform.OS === 'ios' ? -50 : 20}
+                extraScrollHeight={Platform.OS === 'ios' ? -50 : 45}
                 keyboardOpeningTime={0}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
@@ -1170,10 +1356,10 @@ export default function SignUp({ onStart }: GetstartProps) {
                   </View>
 
 
-                  {/* City / District dropdown */}
+                  {/* District dropdown */}
                   <CustomModalPicker
-                    label="City / District"
-                    placeholder="Select Your City"
+                    label="District"
+                    placeholder="Select Your District"
                     data={districtOptions}
                     selected={selectedCity}
                     onSelect={(val) => setSelectedCity(val)}
@@ -1184,13 +1370,14 @@ export default function SignUp({ onStart }: GetstartProps) {
                     {/* PIN */}
                     <Box flex={0.5} style={styles.inputContainer}>
                       <TextNB style={styles.fieldLabel}>PIN</TextNB>
+                      <View style={styles.pinRow}>
                       <TextInput
                         placeholder="Enter 4-digit PIN"
                         placeholderTextColor="#999"
                         value={pin}
                         keyboardType="numeric"
                         maxLength={4}
-                        secureTextEntry
+                        secureTextEntry={!showPin}
                         onChangeText={(t) => {
                           setPin(onlyNumbers(t));
                           if (errors.pin) {
@@ -1210,8 +1397,16 @@ export default function SignUp({ onStart }: GetstartProps) {
                             }));
                           }
                         }}
-                        style={[styles.input, errors.pin && styles.inputError]}
+                        style={[styles.input, styles.pinInput, errors.pin && styles.inputError]}
                       />
+                      <TouchableOpacity
+                        style={styles.eyeBtn}
+                        onPress={() => setShowPin(v => !v)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name={showPin ? 'eye-outline' : 'eye-off-outline'} size={19} color="#94a3b8" />
+                      </TouchableOpacity>
+                      </View>
                       {errors.pin ? (
                         <TextNB style={styles.error}>{errors.pin}</TextNB>
                       ) : (
@@ -1222,13 +1417,14 @@ export default function SignUp({ onStart }: GetstartProps) {
                     {/* Confirm PIN */}
                     <Box flex={0.5} style={styles.inputContainer}>
                       <TextNB style={styles.fieldLabel}>Confirm PIN</TextNB>
+                      <View style={styles.pinRow}>
                       <TextInput
                         placeholder="Confirm 4-digit PIN"
                         placeholderTextColor="#999"
                         value={confirmPin}
                         keyboardType="numeric"
                         maxLength={4}
-                        secureTextEntry
+                        secureTextEntry={!showConfirmPin}
                         onChangeText={(t) => {
                           setConfirmPin(onlyNumbers(t));
                           if (errors.confirmPin) {
@@ -1248,8 +1444,16 @@ export default function SignUp({ onStart }: GetstartProps) {
                             }));
                           }
                         }}
-                        style={[styles.input, errors.confirmPin && styles.inputError]}
+                        style={[styles.input, styles.pinInput, errors.confirmPin && styles.inputError]}
                       />
+                      <TouchableOpacity
+                        style={styles.eyeBtn}
+                        onPress={() => setShowConfirmPin(v => !v)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name={showConfirmPin ? 'eye-outline' : 'eye-off-outline'} size={19} color="#94a3b8" />
+                      </TouchableOpacity>
+                      </View>
                       {errors.confirmPin ? (
                         <TextNB style={styles.error}>{errors.confirmPin}</TextNB>
                       ) : (
@@ -1263,7 +1467,10 @@ export default function SignUp({ onStart }: GetstartProps) {
               {/* Fresh footer design for the final step — a compact circular Back button beside
                   a full-width gradient "Create Account" CTA, distinct from page 1's simple
                   right-aligned Next pill (both pages used to share the same two-30%-pill row). */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, paddingBottom: navBottomPad }}>
+              <View
+                onLayout={(e) => setNavRowHeight(e.nativeEvent.layout.height)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 12, paddingBottom: navBottomPad }}
+              >
                 <TouchableOpacity
                   onPress={() => swiperRef.current?.scrollBy(-1)}
                   activeOpacity={0.8}
@@ -1274,7 +1481,8 @@ export default function SignUp({ onStart }: GetstartProps) {
                 <TouchableOpacity
                   onPress={() => handleFormSubmit()}
                   activeOpacity={0.88}
-                  style={{ flex: 1 }}
+                  disabled={!isFormComplete || submitting}
+                  style={{ flex: 1, opacity: isFormComplete ? 1 : 0.5 }}
                 >
                   <LinearGradient
                     colors={['#1F7FE5', '#1862b8']}
@@ -1282,13 +1490,20 @@ export default function SignUp({ onStart }: GetstartProps) {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                   >
-                    <TextNB style={styles.createAccountText}>Create Account</TextNB>
-                    <ArrowRight size={18} color="#fff" />
+                    {submitting ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <TextNB style={styles.createAccountText}>Create Account</TextNB>
+                        <ArrowRight size={18} color="#fff" />
+                      </>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
           </Swiper>
+          </View>
         </SafeAreaView>
       </View>
     </NativeBaseProvider>
@@ -1297,6 +1512,15 @@ export default function SignUp({ onStart }: GetstartProps) {
 
 
 const styles = StyleSheet.create({
+  // Helper line under a field (e.g. Mobile: "our team will call to verify").
+  // Sits in the same slot the error text uses, so showing it never shifts layout.
+  fieldHint: {
+    fontSize: 11,
+    fontFamily: 'Rubik-Regular',
+    color: '#64748b',
+    marginTop: 3,
+    lineHeight: 14,
+  },
   input: {
     height: 44,
     borderWidth: 1,
@@ -1314,6 +1538,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
+  },
+  pinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  // Eye overlays the input's right edge; paddingRight keeps the 4 digits and
+  // the placeholder from ever running underneath it.
+  pinInput: {
+    flex: 1,
+    paddingRight: 36,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 10,
+    height: '100%',
+    justifyContent: 'center',
   },
   inputContainer: {
     marginBottom: 2,

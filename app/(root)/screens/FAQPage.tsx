@@ -146,10 +146,6 @@ const FAQPage: React.FC = () => {
               <TouchableOpacity onPress={() => router.back()} style={styles.backPill}>
                 <ArrowLeft size={19} color="#fff" />
               </TouchableOpacity>
-              <View style={styles.heroBadge}>
-                <HelpCircle size={13} color="#fff" />
-                <Text style={styles.heroBadgeText}>Help Centre</Text>
-              </View>
             </View>
 
             <Text style={styles.title}>How can we{'\n'}help you?</Text>

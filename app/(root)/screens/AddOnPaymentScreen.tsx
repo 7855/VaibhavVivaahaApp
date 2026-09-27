@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
 import RelationshipManagerView, { type AdminContact } from '../../../components/RelationshipManagerView';
+import GatewayCheckoutView from '../../../components/GatewayCheckoutView';
 import { resolvePaymentMode } from '../utils/upgradeNavigation';
 import { useUserData } from '../contexts/UserDataContext';
 
@@ -59,7 +60,7 @@ export default function AddOnPaymentScreen() {
   // INFO is the review-safe mode: no price and no purchase path anywhere, including for add-ons
   // like Profile Boost. An add-on is digital content just like a membership, so leaving a ₹ amount
   // and a UPI flow here would reintroduce exactly the funnel INFO exists to remove.
-  const [paymentMode, setPaymentMode] = useState<'LOADING' | 'QR' | 'CONTACT' | 'INFO'>('LOADING');
+  const [paymentMode, setPaymentMode] = useState<'LOADING' | 'QR' | 'CONTACT' | 'INFO' | 'GATEWAY'>('LOADING');
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
   const [hasPending, setHasPending] = useState(false);
 
@@ -154,10 +155,12 @@ export default function AddOnPaymentScreen() {
       if (res.data.code === 200) {
         setSubmitted(true);
       } else {
-        popup.error('Upload failed', res.data.message || 'Please try again.');
+        console.log('[addon] upload refused:', res?.data?.code, res?.data?.message);
+        popup.error('Upload failed', 'Something went wrong. Please try again.');
       }
     } catch (e: any) {
-      popup.error('Upload failed', e?.response?.data?.message || 'Network error.');
+      console.log('[addon] upload failed:', e?.response?.status, e?.response?.data?.message || e?.message);
+      popup.error('Upload failed', 'Please check your connection and try again.');
     } finally {
       setUploading(false);
     }
@@ -193,6 +196,25 @@ export default function AddOnPaymentScreen() {
           defaultMobile={(userData as any)?.mobileNumber || ''}
           defaultEmail={(userData as any)?.email}
           adminContact={adminContact}
+          popupError={(title, msg) => popup.error(title, msg)}
+        />
+      </>
+    );
+  }
+
+  if (paymentMode === 'GATEWAY') {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <GatewayCheckoutView
+          title={featureTitle}
+          priceLabel={`₹${price}`}
+          periodLabel="one-time"
+          planId={null}
+          purpose="BOOST_PURCHASE"
+          description={description}
+          encodedUserId={userData?.userId || null}
+          onBack={() => router.back()}
           popupError={(title, msg) => popup.error(title, msg)}
         />
       </>

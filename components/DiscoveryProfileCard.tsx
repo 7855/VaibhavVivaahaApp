@@ -15,6 +15,7 @@ interface DiscoveryProfileCardProps {
   educationVerified?: boolean;
   incomeVerified?: boolean;
   isNew?: boolean;
+  isBoosted?: boolean;
 }
 
 // Presentational only — no touch handling here. The caller wraps this in its own
@@ -23,7 +24,7 @@ interface DiscoveryProfileCardProps {
 const DiscoveryProfileCard: React.FC<DiscoveryProfileCardProps> = ({
   imageUrl, name, age, job, location, gender,
   idVerified, educationVerified, incomeVerified,
-  isNew,
+  isNew, isBoosted,
 }) => {
   const hasVerification = idVerified || educationVerified || incomeVerified;
 
@@ -42,7 +43,11 @@ const DiscoveryProfileCard: React.FC<DiscoveryProfileCardProps> = ({
         style={styles.image}
         imageStyle={styles.imageRadius}
       >
-        {isNew ? (
+        {isBoosted ? (
+          <View style={styles.newBadge}>
+            <Text style={styles.newBadgeText}>BOOSTED</Text>
+          </View>
+        ) : isNew ? (
           <View style={styles.newBadge}>
             <Text style={styles.newBadgeText}>NEW</Text>
           </View>

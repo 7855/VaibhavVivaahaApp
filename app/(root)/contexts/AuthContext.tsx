@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import userApi from '../api/userApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearStorageForLogout } from '../../../utils/storage';
 import { AppState, AppStateStatus } from 'react-native';
 import { webSocketService } from '../services/webSocketService';
 import { router } from 'expo-router';
@@ -21,8 +22,8 @@ interface AuthContextType {
   login: (userId: string) => Promise<void>;
   logout: () => Promise<void>;
   sendMessage: (conversationId: string, message: string) => void;
-  addChatListener: (callback: (data: WebSocketMessage['data']) => void) => void;
-  removeChatListener: () => void;
+  addChatListener: (callback: (data: WebSocketMessage['data']) => void) => () => void;
+  removeChatListener: (callback?: (data: WebSocketMessage['data']) => void) => void;
 }
 
 // Export the context and provider as default
@@ -107,7 +108,7 @@ export default {
     };
 
     const addChatListener = (callback: (data: WebSocketMessage['data']) => void) => {
-      webSocketService.addListener('chat_message', callback);
+      return webSocketService.addListener('chat_message', callback);
     };
 
     const removeChatListener = () => {
@@ -148,8 +149,8 @@ interface AuthContextType {
   login: (userId: string) => Promise<void>;
   logout: () => Promise<void>;
   sendMessage: (conversationId: string, message: string) => void;
-  addChatListener: (callback: (data: WebSocketMessage['data']) => void) => void;
-  removeChatListener: () => void;
+  addChatListener: (callback: (data: WebSocketMessage['data']) => void) => () => void;
+  removeChatListener: (callback?: (data: WebSocketMessage['data']) => void) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -186,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // (the user might already be on register/login page).
       if (storedUserId && !storedAuthToken) {
         console.warn('⚠️ Stale session detected (userId without authToken). Clearing.');
-        try { await AsyncStorage.clear(); } catch (_) {}
+        try { await clearStorageForLogout(); } catch (_) {}
         setUserId(null);
         setIsOnline(false);
         return;
@@ -197,6 +198,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsOnline(true);
         userApi.lastSeen(storedUserId).catch(() => {});
         webSocketService.connect(storedUserId);
+        // connect() is a no-op while the socket still CLAIMS to be open; after the phone slept
+        // that claim is often false. ensureConnected() re-dials anything that is not OPEN, and
+        // the service's own heartbeat catches the half-open case.
+        webSocketService.ensureConnected();
       }
     } catch (error) {
       console.error('Error checking user status:', error);
@@ -221,9 +226,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserId(null);
       setIsOnline(false);
       try {
-        AsyncStorage.clear();
+        // Awaited on purpose — the old fire-and-forget clear() could complete
+        // AFTER a fast logout→relogin's fresh writes, silently deleting the new
+        // session (section 17 landmine). Preserves 'onboardingSeen'.
+        await clearStorageForLogout();
       } catch (error) {
-        console.error('Error removing userId from storage:', error);
+        console.error('Error clearing storage on logout:', error);
       }
     }
   }, []);
@@ -291,21 +299,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     webSocketService.sendChatMessagePublic(conversationId, message);
   }, [userId]);
 
+  // Returns an UNSUBSCRIBE function. Several screens listen at once now (the chat list tab and
+  // an open chat), so cleanup must remove exactly the callback it added — the old
+  // remove-whatever-is-registered form let one screen's cleanup silence another.
   const addChatListener = useCallback((callback: (data: WebSocketMessage['data']) => void) => {
     if (!userId) {
       console.error('Cannot add chat listener: User not logged in');
-      return;
+      return () => { };
     }
-    webSocketService.addChatListenerPublic(callback);
+    return webSocketService.addChatListenerPublic(callback);
   }, [userId]);
 
-  const removeChatListener = useCallback(() => {
-    if (!userId) {
-      console.error('Cannot remove chat listener: User not logged in');
-      return;
-    }
-    webSocketService.removeChatListenerPublic();
-  }, [userId]);
+  const removeChatListener = useCallback((callback?: (data: WebSocketMessage['data']) => void) => {
+    webSocketService.removeChatListenerPublic(callback);
+  }, []);
 
   // Memoized so the only thing that re-renders every consumer in the app is an actual
   // userId/isOnline change — not simply the provider itself re-rendering.

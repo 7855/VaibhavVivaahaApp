@@ -5,6 +5,8 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
+    TextInput,
+    Keyboard,
     Linking,
     ActivityIndicator,
     SafeAreaView,
@@ -24,6 +26,9 @@ export default function ProfileUnderVerificationScreen() {
     const [firstName, setFirstName] = useState<string>('');
     const [userId, setUserId] = useState<string | null>(null);
     const [resubmitting, setResubmitting] = useState(false);
+    // Optional message to the admin, sent with the resubmission (max 250 chars,
+    // mirrored server-side in UserService.resubmitProfile).
+    const [adminMessage, setAdminMessage] = useState('');
 
     useEffect(() => {
         loadStatus();
@@ -33,20 +38,22 @@ export default function ProfileUnderVerificationScreen() {
         const status = await AsyncStorage.getItem('userStatus');
         const reason = await AsyncStorage.getItem('rejectionReason');
         const fname = await AsyncStorage.getItem('firstName');
+        const lname = await AsyncStorage.getItem('lastName');
         const uid = await AsyncStorage.getItem('userId');
         setUserStatus(status || 'PENDING');
         setRejectionReason(reason);
-        setFirstName(fname || '');
+        // Full name (client ask) — falls back to first name alone if lastName is absent.
+        setFirstName([fname, lname].map(v => (v || '').trim()).filter(Boolean).join(' '));
         setUserId(uid);
     };
 
     const handleContactSupport = async () => {
-        const whatsappUrl = 'whatsapp://send?phone=+919876543210&text=Hi, I need help with my Vaibhav Vivaaha profile verification';
+        const whatsappUrl = 'whatsapp://send?phone=+917904547565&text=Hi, I need help with my Vaibhav Vivaaha profile verification';
         const canOpen = await Linking.canOpenURL(whatsappUrl);
         if (canOpen) {
             Linking.openURL(whatsappUrl);
         } else {
-            Linking.openURL('mailto:support@vaibhavvivaaha.com');
+            Linking.openURL('mailto:selvakrish820@gmail.com');
         }
     };
 
@@ -71,12 +78,14 @@ export default function ProfileUnderVerificationScreen() {
         if (!userId) return;
         try {
             setResubmitting(true);
-            const res = await userApi.resubmitProfile(userId);
+            Keyboard.dismiss();
+            const res = await userApi.resubmitProfile(userId, adminMessage.trim());
             if (res.data?.code === 200) {
                 await AsyncStorage.setItem('userStatus', 'PENDING');
                 await AsyncStorage.removeItem('rejectionReason');
                 setUserStatus('PENDING');
                 setRejectionReason(null);
+                setAdminMessage('');
                 popup.success('Profile Resubmitted', "Your profile has been sent for review again. We'll let you know once it's approved.");
             } else {
                 popup.error('Error', res.data?.message || 'Something went wrong. Please try again.');
@@ -126,12 +135,30 @@ export default function ProfileUnderVerificationScreen() {
 
                 {/* Message */}
                 {isRejected ? (
+                    <>
                     <View style={styles.rejectionCard}>
                         <AppText weight="bold" style={styles.rejectionTitle}>Reason For Rejection</AppText>
                         <AppText weight="regular" style={styles.rejectionText}>
                             {rejectionReason || 'Your profile could not be approved. Please review your details and submit it again.'}
                         </AppText>
                     </View>
+
+                    {/* Optional note to the admin, sent with the resubmission */}
+                    <View style={styles.noteCard}>
+                        <AppText weight="bold" style={styles.noteLabel}>MESSAGE TO OUR TEAM (OPTIONAL)</AppText>
+                        <TextInput
+                            style={styles.noteInput}
+                            value={adminMessage}
+                            onChangeText={setAdminMessage}
+                            placeholder="Tell us what you have corrected, or anything we should know…"
+                            placeholderTextColor="#999"
+                            multiline
+                            maxLength={250}
+                            textAlignVertical="top"
+                        />
+                        <AppText weight="regular" style={styles.noteCounter}>{adminMessage.length}/250</AppText>
+                    </View>
+                    </>
                 ) : (
                     <View style={styles.messageCard}>
                         <AppText weight="regular" style={styles.messageText}>
@@ -192,6 +219,42 @@ export default function ProfileUnderVerificationScreen() {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
+    },
+    noteCard: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#e7edf5',
+        padding: 14,
+        marginBottom: 16,
+        shadowColor: '#1c2b3f',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        elevation: 2,
+    },
+    noteLabel: {
+        fontSize: 11,
+        color: '#64748b',
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    noteInput: {
+        minHeight: 84,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 13,
+        fontFamily: 'Rubik-Regular',
+        color: '#333',
+        backgroundColor: '#f8fafc',
+    },
+    noteCounter: {
+        fontSize: 11,
+        color: '#94a3b8',
+        textAlign: 'right',
+        marginTop: 6,
     },
     container: {
         padding: 24,

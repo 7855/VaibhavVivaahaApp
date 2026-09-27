@@ -1,5 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-  <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+  <!-- Light, NOT DayNight. app.json declares "userInterfaceStyle": "light" and every screen
+       is light-themed, but this native theme followed the SYSTEM setting — so on a phone in
+       dark mode the native dialogs (date picker, time picker, alerts) rendered dark while the
+       app around them stayed white: the time picker's numbers were invisible even though the
+       wheel still scrolled (client 2026-09-20). values-night only overrides the splash colour,
+       which is the same maroon either way, so nothing else changes. -->
+  <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
     <item name="android:enforceNavigationBarContrast" tools:targetApi="29">true</item>
     <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     <item name="colorPrimary">@color/colorPrimary</item>

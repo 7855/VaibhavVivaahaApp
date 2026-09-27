@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { requestSubscriptionRefresh } from './app/(root)/utils/subscriptionRefreshBus';
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
@@ -102,11 +103,16 @@ export const usePushNotifications = (): PushNotificationState => {
     notificationListener.current =
       Notifications.addNotificationReceivedListener((notification) => {
         setNotification(notification);
+        // "Membership Activated" arrives as a push as well as a socket event; the push still
+        // gets through when the socket is down. Any push is a cheap cue to re-read the plan
+        // (throttled in the provider), so no fragile matching on the notification's title.
+        requestSubscriptionRefresh('push-received');
       });
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
         console.log("Notification response:", response);
+        requestSubscriptionRefresh('push-tapped');
       });
 
     // Listen for push token refresh and update backend.

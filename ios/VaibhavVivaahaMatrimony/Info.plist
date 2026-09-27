@@ -93,5 +93,23 @@
     <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
-  </dict>
+  	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>upi</string>
+		<string>phonepe</string>
+		<string>tez</string>
+		<string>paytmmp</string>
+		<string>bhim</string>
+		<string>credpay</string>
+		<string>amazonpay</string>
+		<string>navipay</string>
+		<string>mobikwik</string>
+		<string>myairtel</string>
+		<string>super</string>
+		<string>kiwi</string>
+		<string>simplypayupi</string>
+		<string>popclubapp</string>
+		<string>whatsapp</string>
+	</array>
+</dict>
 </plist>
