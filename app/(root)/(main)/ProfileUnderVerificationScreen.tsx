@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Image,
@@ -14,7 +14,11 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Clock, AlertTriangle, LogOut, MessageCircle, RefreshCw } from 'lucide-react-native';
+import { Clock, AlertTriangle, LogOut, MessageCircle, RefreshCw, Camera, FileText, Sparkles, Users, CheckCircle2, Circle } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from 'expo-router';
+import { prepareImageForUpload } from '../../../utils/uploadFile';
+import EditInterestsModal from '../../../components/EditInterestsModal';
 import userApi from '../api/userApi';
 import { usePopup } from '../contexts/PopupContext';
 import AppText from '../../../components/AppText';
@@ -29,6 +33,105 @@ export default function ProfileUnderVerificationScreen() {
     // Optional message to the admin, sent with the resubmission (max 250 chars,
     // mirrored server-side in UserService.resubmitProfile).
     const [adminMessage, setAdminMessage] = useState('');
+
+    // "While you wait" checklist (2026-10-16): the four profile pieces that matter most for
+    // matches, done right here instead of waiting for approval. State is read from the
+    // server on every focus so a save in the interests sheet / family editor is reflected.
+    const [done, setDone] = useState<{ photo: boolean; horoscope: boolean; about: boolean; interests: boolean; family: boolean }>({ photo: false, horoscope: false, about: false, interests: false, family: false });
+    const [hobbies, setHobbies] = useState<string[]>([]);
+    const [aboutDraft, setAboutDraft] = useState('');
+    const [aboutOpen, setAboutOpen] = useState(false);
+    const [busyItem, setBusyItem] = useState<string | null>(null);
+    const [interestsOpen, setInterestsOpen] = useState(false);
+    const [checklistLoaded, setChecklistLoaded] = useState(false);
+
+    const loadChecklist = useCallback(async () => {
+        const uid = await AsyncStorage.getItem('userId');
+        if (!uid) return;
+        try {
+            const [cRes, pRes] = await Promise.all([
+                userApi.getProfileCompletion(uid),
+                userApi.getProfileDetails(uid),
+            ]);
+            // The completion endpoint wraps its answer twice (ResultResponse inside ResultResponse):
+            // the fields live at data.data.meta — the same depth CompleteProfileScreen and
+            // ProfileCompletionBar read. Reading one level too shallow returned [] and marked
+            // every item "Added" on a brand-new profile.
+            const missing: string[] = cRes.data?.data?.data?.meta?.missingFields || [];
+            const raw = pRes.data?.data;
+            const detail = raw?.userDetail?.[0] || {};
+            const about = (detail.about || '').trim();
+            let h: string[] = [];
+            try { h = typeof detail.hobbies === 'string' ? JSON.parse(detail.hobbies) : Array.isArray(detail.hobbies) ? detail.hobbies : []; } catch { h = []; }
+            setHobbies(Array.isArray(h) ? h : []);
+            if (about && !aboutOpen) setAboutDraft(about);
+            const familyMissing = ['fatherName', 'motherName', 'familyType', 'familyStatus'].some(f => missing.includes(f));
+            setDone({
+                photo: !missing.includes('profileImage'),
+                horoscope: !missing.includes('horoscope'),
+                about: about.length >= 20,
+                interests: !missing.includes('hobbies') && (Array.isArray(h) ? h.length : 0) > 0,
+                family: !familyMissing,
+            });
+        } catch (e) {
+            console.warn('[verification] checklist load failed', e);
+        } finally {
+            setChecklistLoaded(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useFocusEffect(useCallback(() => { loadChecklist(); }, [loadChecklist]));
+
+    const pickAndUpload = async (kind: 'photo' | 'horoscope') => {
+        const uid = await AsyncStorage.getItem('userId');
+        if (!uid) return;
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+        if (result.canceled || !result.assets?.length) return;
+        const filePart = await prepareImageForUpload(result.assets[0], kind === 'photo' ? 'profile' : 'horoscope');
+        if (!filePart) { popup.error('Unsupported file', 'Please choose a JPG, PNG or WEBP image.'); return; }
+        const fd = new FormData();
+        fd.append('file', filePart as any);
+        fd.append('userId', atob(uid));
+        setBusyItem(kind);
+        try {
+            const res = kind === 'photo' ? await userApi.updateProfileImage(fd) : await userApi.uploadHoroscopeImage(fd);
+            setBusyItem(null);
+            if (res.data?.code === 200) {
+                if (kind === 'photo' && res.data?.data?.profileImage) await AsyncStorage.setItem('profileImage', res.data.data.profileImage);
+                setDone(d => ({ ...d, [kind]: true }));
+                popup.success('Saved', kind === 'photo' ? 'Your profile photo has been added.' : 'Your horoscope has been added.');
+            } else {
+                popup.error('Could not upload', 'Something went wrong. Please try again later.');
+            }
+        } catch (e: any) {
+            setBusyItem(null);
+            popup.error('Could not upload', e?.response?.status === 413 ? 'This image is too large. Please choose a smaller one.' : 'Something went wrong. Please try again later.');
+        }
+    };
+
+    const saveAbout = async () => {
+        const uid = await AsyncStorage.getItem('userId');
+        const text = aboutDraft.trim();
+        if (!uid) return;
+        if (text.length < 20) { popup.warning('A little more', 'Write at least a couple of lines about yourself (20+ characters).'); return; }
+        setBusyItem('about');
+        try {
+            const res = await userApi.updateAboutByUserId({ userId: Number(atob(uid)), about: text });
+            setBusyItem(null);
+            if (res.data?.code === 200 || res.data?.status === 'SUCCESS') {
+                setDone(d => ({ ...d, about: true }));
+                setAboutOpen(false);
+            } else {
+                popup.error('Could not save', res.data?.message || 'Please try again.');
+            }
+        } catch {
+            setBusyItem(null);
+            popup.error('Could not save', 'Please check your connection and try again.');
+        }
+    };
+
+    const doneCount = Object.values(done).filter(Boolean).length;
 
     useEffect(() => {
         loadStatus();
@@ -162,7 +265,7 @@ export default function ProfileUnderVerificationScreen() {
                 ) : (
                     <View style={styles.messageCard}>
                         <AppText weight="regular" style={styles.messageText}>
-                            Our team is reviewing your profile. This usually takes up to 24 hours, and we'll let you know as soon as it's approved.
+                            Our team is reviewing your profile. Verification usually takes under 24 hours — we'll message you on WhatsApp the moment it's approved.
                         </AppText>
                         <View style={styles.infoRow}>
                             <AppText weight="medium" style={styles.infoLabel}>Status:</AppText>
@@ -172,6 +275,86 @@ export default function ProfileUnderVerificationScreen() {
                         </View>
                     </View>
                 )}
+
+                {/* While you wait — finish the profile */}
+                <View style={styles.checkCard}>
+                    <View style={styles.checkHead}>
+                        <View style={{ flex: 1 }}>
+                            <AppText weight="bold" style={styles.checkTitle}>While you wait</AppText>
+                            <AppText weight="regular" style={styles.checkSub}>Profiles with a photo and horoscope get far more responses.</AppText>
+                        </View>
+                        <View style={styles.checkRing}>
+                            <AppText weight="bold" style={styles.checkRingText}>{doneCount}/5</AppText>
+                        </View>
+                    </View>
+
+                    <TouchableOpacity style={styles.checkRow} onPress={() => pickAndUpload('photo')} disabled={busyItem === 'photo'}>
+                        <View style={[styles.checkIcon, { backgroundColor: '#dfecfb' }]}><Camera size={18} color="#1F7FE5" /></View>
+                        <View style={{ flex: 1 }}>
+                            <AppText weight="bold" style={styles.checkRowTitle}>Profile photo</AppText>
+                            <AppText weight="regular" style={styles.checkRowSub}>{done.photo ? 'Added — tap to change' : 'A clear, recent photo of you'}</AppText>
+                        </View>
+                        {busyItem === 'photo' ? <ActivityIndicator color="#1F7FE5" /> : done.photo ? <CheckCircle2 size={22} color="#16a34a" /> : <Circle size={22} color="#cbd5e1" />}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.checkRow} onPress={() => pickAndUpload('horoscope')} disabled={busyItem === 'horoscope'}>
+                        <View style={[styles.checkIcon, { backgroundColor: '#fdf1dc' }]}><FileText size={18} color="#c48a1a" /></View>
+                        <View style={{ flex: 1 }}>
+                            <AppText weight="bold" style={styles.checkRowTitle}>Horoscope</AppText>
+                            <AppText weight="regular" style={styles.checkRowSub}>{done.horoscope ? 'Added — tap to change' : 'Needed for star matching'}</AppText>
+                        </View>
+                        {busyItem === 'horoscope' ? <ActivityIndicator color="#1F7FE5" /> : done.horoscope ? <CheckCircle2 size={22} color="#16a34a" /> : <Circle size={22} color="#cbd5e1" />}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.checkRow} onPress={() => setAboutOpen(o => !o)}>
+                        <View style={[styles.checkIcon, { backgroundColor: '#ece9fb' }]}><Sparkles size={18} color="#6d5bd0" /></View>
+                        <View style={{ flex: 1 }}>
+                            <AppText weight="bold" style={styles.checkRowTitle}>About you</AppText>
+                            <AppText weight="regular" style={styles.checkRowSub}>{done.about ? 'Written — tap to edit' : 'A few lines in your own words'}</AppText>
+                        </View>
+                        {done.about ? <CheckCircle2 size={22} color="#16a34a" /> : <Circle size={22} color="#cbd5e1" />}
+                    </TouchableOpacity>
+                    {aboutOpen && (
+                        <View style={styles.aboutBox}>
+                            <TextInput
+                                style={styles.aboutInput}
+                                value={aboutDraft}
+                                onChangeText={(t) => setAboutDraft(t.slice(0, 500))}
+                                placeholder="Tell matches about yourself, your family and what you are looking for…"
+                                placeholderTextColor="#999"
+                                multiline
+                                maxLength={500}
+                                textAlignVertical="top"
+                                autoFocus
+                            />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <AppText weight="regular" style={styles.noteCounter}>{aboutDraft.trim().length}/500</AppText>
+                                <TouchableOpacity style={styles.aboutSave} onPress={saveAbout} disabled={busyItem === 'about'}>
+                                    {busyItem === 'about' ? <ActivityIndicator color="#fff" /> : <AppText weight="bold" style={{ color: '#fff', fontSize: 13 }}>Save</AppText>}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+
+                    <TouchableOpacity style={styles.checkRow} onPress={() => setInterestsOpen(true)}>
+                        <View style={[styles.checkIcon, { backgroundColor: '#fde7ef' }]}><Sparkles size={18} color="#d04a7a" /></View>
+                        <View style={{ flex: 1 }}>
+                            <AppText weight="bold" style={styles.checkRowTitle}>Interests</AppText>
+                            <AppText weight="regular" style={styles.checkRowSub}>{done.interests ? `${hobbies.length} selected — tap to change` : 'Pick at least 3'}</AppText>
+                        </View>
+                        {done.interests ? <CheckCircle2 size={22} color="#16a34a" /> : <Circle size={22} color="#cbd5e1" />}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.checkRow, { borderBottomWidth: 0 }]} onPress={() => router.push({ pathname: '/(root)/screens/EditProfileSection', params: { section: 'FamilyDetail' } } as any)}>
+                        <View style={[styles.checkIcon, { backgroundColor: '#e3f5ea' }]}><Users size={18} color="#16a34a" /></View>
+                        <View style={{ flex: 1 }}>
+                            <AppText weight="bold" style={styles.checkRowTitle}>Family details</AppText>
+                            <AppText weight="regular" style={styles.checkRowSub}>{done.family ? 'Added — tap to edit' : 'Parents, siblings and family type'}</AppText>
+                        </View>
+                        {done.family ? <CheckCircle2 size={22} color="#16a34a" /> : <Circle size={22} color="#cbd5e1" />}
+                    </TouchableOpacity>
+                    {!checklistLoaded && <ActivityIndicator color="#1F7FE5" style={{ marginTop: 8 }} />}
+                </View>
 
                 {/* Why review */}
                 <View style={styles.stepsCard}>
@@ -212,6 +395,13 @@ export default function ProfileUnderVerificationScreen() {
                 </View>
             </ScrollView>
             </SafeAreaView>
+            <EditInterestsModal
+                visible={interestsOpen}
+                onClose={() => setInterestsOpen(false)}
+                initialSelected={hobbies}
+                userId={userId}
+                refreshProfile={loadChecklist}
+            />
         </View>
     );
 }
@@ -220,6 +410,22 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
     },
+    checkCard: {
+        backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#e7edf5', padding: 16, marginBottom: 16,
+        shadowColor: '#1c2b3f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2,
+    },
+    checkHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
+    checkTitle: { fontSize: 16, color: '#0f1724' },
+    checkSub: { fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 17 },
+    checkRing: { width: 54, height: 54, borderRadius: 27, borderWidth: 3, borderColor: '#1F7FE5', alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef5fd' },
+    checkRingText: { fontSize: 13, color: '#1F7FE5' },
+    checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eef2f7' },
+    checkIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    checkRowTitle: { fontSize: 14, color: '#0f1724' },
+    checkRowSub: { fontSize: 12, color: '#64748b', marginTop: 1 },
+    aboutBox: { backgroundColor: '#f6f9fc', borderRadius: 14, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: '#e7edf5' },
+    aboutInput: { minHeight: 96, fontSize: 14, color: '#0f1724', fontFamily: 'Rubik-Regular', lineHeight: 20, paddingTop: 4 },
+    aboutSave: { backgroundColor: '#1F7FE5', borderRadius: 16, paddingHorizontal: 18, height: 34, alignItems: 'center', justifyContent: 'center' },
     noteCard: {
         backgroundColor: '#fff',
         borderRadius: 20,

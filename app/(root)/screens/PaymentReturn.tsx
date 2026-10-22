@@ -218,8 +218,7 @@ export default function PaymentReturn() {
             <XCircle size={56} color="#94a3b8" style={{ marginBottom: 12 }} />
             <Text style={s.h1}>Payment cancelled</Text>
             <Text style={s.p}>You left before paying, so nothing has been charged. You can try again whenever you like.</Text>
-            <TouchableOpacity style={s.btn} onPress={() => router.back()}><Text style={s.btnText}>Try again</Text></TouchableOpacity>
-            <TouchableOpacity style={s.btnGhost} onPress={goHome}><Text style={s.btnGhostText}>Not now</Text></TouchableOpacity>
+            <TouchableOpacity style={s.btn} onPress={goHome}><Text style={s.btnText}>Back to Home</Text></TouchableOpacity>
           </>
         )}
 
@@ -229,11 +228,10 @@ export default function PaymentReturn() {
             <Text style={s.h1}>{sdkError === 'no_upi_app' ? 'No UPI app found' : 'Payment could not start'}</Text>
             <Text style={s.p}>
               {sdkError === 'no_upi_app'
-                ? 'There is no UPI app on this phone. You can pay by card, net banking or wallet instead, or install a UPI app and try again. Nothing has been charged.'
+                ? 'There is no UPI app on this phone. You can pay by card instead, or install a UPI app and try again. Nothing has been charged.'
                 : 'The payment page did not open, so nothing has been charged. Please try again. If it keeps happening, update the app to the latest version.'}
             </Text>
-            <TouchableOpacity style={s.btn} onPress={() => router.back()}><Text style={s.btnText}>Try again</Text></TouchableOpacity>
-            <TouchableOpacity style={s.btnGhost} onPress={goHome}><Text style={s.btnGhostText}>Not now</Text></TouchableOpacity>
+            <TouchableOpacity style={s.btn} onPress={goHome}><Text style={s.btnText}>Back to Home</Text></TouchableOpacity>
           </>
         )}
 
@@ -242,9 +240,7 @@ export default function PaymentReturn() {
             <XCircle size={56} color="#dc2626" style={{ marginBottom: 12 }} />
             <Text style={[s.h1, { color: '#b91c1c' }]}>Payment not completed</Text>
             <Text style={s.p}>{friendlyFailure(order)}</Text>
-            {/* Back to the plans for a fresh SDK payment — not the old browser /pay page. */}
-            <TouchableOpacity style={s.btn} onPress={() => router.back()}><Text style={s.btnText}>Try again</Text></TouchableOpacity>
-            <TouchableOpacity style={s.btnGhost} onPress={goHome}><Text style={s.btnGhostText}>Not now</Text></TouchableOpacity>
+            <TouchableOpacity style={s.btn} onPress={goHome}><Text style={s.btnText}>Back to Home</Text></TouchableOpacity>
           </>
         )}
 

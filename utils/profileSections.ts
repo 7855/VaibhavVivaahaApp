@@ -54,7 +54,7 @@ export function formatProfileSections(
     { section: 'PersonalDetail', data: { 'First Name': data.firstName || '-', 'Last Name': data.lastName || '-', Gender: data.gender === 'M' ? 'Male' : 'Female', 'Date of Birth': data.dob || '-', Height: d.height || '-', Weight: d.weight || '-', 'Physical Status': basic.physical_status || '-', 'Marital Status': basic.marital_status || '-', 'Mother Language': basic.mother_language || 'Not specified', 'Mobile Number': data.mobile || '-', Email: data.email || '-', 'Current Address': d.presentAddress || '-', 'Native Place': d.permanentAddress || '-', 'Place of Birth': basic.place_of_birth || '-' } },
     // Caste resolves from the cached caste master list; Subcaste is optional and falls
     // back to the same "-" placeholder every other empty field uses.
-    { section: 'ReligiousDetail', data: { Religion: 'Hindu', Caste: getCasteName?.(data.casteId) || '-', Subcaste: data.subcasteName || '-', Star: astro.star || '-', 'Moon Sign': astro.moon_sign || '-', Dosham: astro.dosham || '-', 'Birth Time': astro.birth_time || '' } },
+    { section: 'ReligiousDetail', data: { Religion: 'Hindu', Caste: getCasteName?.(data.casteId) || '-', Subcaste: data.subcasteName || '-', Star: astro.star || '-', 'Moon Sign': astro.moon_sign || '-', Lagnam: astro.lagnam || '-', Dosham: astro.dosham || '-', 'Birth Time': astro.birth_time || '' } },
     { section: 'EducationalDetail', data: { Education: d.degree || '-', Occupation: d.occupation || '-', 'Employing In': d.employedAt === 'GOVT' ? 'Government' : d.employedAt === 'PRIVATE' ? 'Private' : 'Self', 'Annual Income': d.annualIncome ? d.annualIncome + '' : '-', 'Job Place': d.jobPlace || '-', 'Education in Detail': d.educationInDetail || '-' } },
     { section: 'FamilyDetail', data: { 'Family Type': (fam.family_type ?? fam.familyType)?.trim?.() || '-', 'Family Status': fam.family_status?.trim() || '-', 'Fathers Name': fam.father?.trim() || '-', 'Fathers Occupation': fam.father_occupation?.trim() || '-', 'Mothers Name': fam.mother?.trim() || '-', 'Mothers Occupation': fam.mother_occupation?.trim() || '-', 'No of Siblings': fam.no_of_siblings?.toString() || '-', 'No of Brothers': fam.no_of_brother?.toString() || '-', 'No of Sisters': fam.no_of_sister?.toString() || '-', 'Sister Married': fam.sister_married?.trim() || '-', 'Brother Married': fam.brother_married?.trim() || '-' } },
     { section: 'InterestsDetail', data: (() => { try { const h = d?.hobbies; const arr = typeof h === 'string' ? JSON.parse(h) : h; return { _hobbies: Array.isArray(arr) ? arr : [] }; } catch { return { _hobbies: [] }; } })() },
@@ -87,6 +87,7 @@ export const FIELD_TARGET: Record<string, CompletionTarget> = {
   caste: S('ReligiousDetail'),
   star: S('ReligiousDetail', 'Star'),
   moonSign: S('ReligiousDetail', 'Moon Sign'),
+  lagnam: S('ReligiousDetail', 'Lagnam'),
   dosham: S('ReligiousDetail', 'Dosham'),
   birthTime: S('ReligiousDetail', 'Birth Time'),
 
@@ -117,7 +118,7 @@ export const FIELD_LABEL: Record<string, string> = {
   firstName: 'First name', lastName: 'Last name', dateOfBirth: 'Date of birth', gender: 'Gender',
   height: 'Height', weight: 'Weight', maritalStatus: 'Marital status', motherLanguage: 'Mother tongue',
   currentAddress: 'Current address', nativePlace: 'Native place', location: 'District',
-  caste: 'Caste', star: 'Star', moonSign: 'Moon sign', dosham: 'Dosham', birthTime: 'Birth time',
+  caste: 'Caste', star: 'Star', moonSign: 'Moon sign', lagnam: 'Lagnam', dosham: 'Dosham', birthTime: 'Birth time',
   education: 'Education', occupation: 'Occupation', employedAt: 'Employing in', annualIncome: 'Annual income',
   jobPlace: 'Job place', educationInDetail: 'Education in detail',
   familyType: 'Family type', familyStatus: 'Family status', fatherName: "Father's name",

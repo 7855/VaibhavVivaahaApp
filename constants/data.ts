@@ -158,6 +158,19 @@ export const APP_WEB_ORIGIN = 'https://vaibhavvivaahamatrimony.com';
 // app/(root)/screens/ProfileDetail.tsx is reachable at `/screens/ProfileDetail`.
 export const APP_SCHEME = 'vaibhavvivaaha';
 
+/**
+ * The published legal pages (2026-09-28). The WEBSITE is the source of truth for all legal text
+ * (VaibhavVivaahaWeb/src/content/legal.js); the app links to it rather than carrying its own copy,
+ * which is how the app's Terms came to claim auto-renewal the product never had.
+ */
+export const LEGAL_URLS = {
+  terms: `${APP_WEB_ORIGIN}/terms-and-conditions`,
+  refund: `${APP_WEB_ORIGIN}/refund-policy`,
+  privacy: `${APP_WEB_ORIGIN}/privacy-policy`,
+  subscription: `${APP_WEB_ORIGIN}/subscription-policy`,
+  contact: `${APP_WEB_ORIGIN}/contact-us`,
+} as const;
+
 /** Web URL for a profile — safe to send to anyone, app installed or not. */
 export const profileWebUrl = (encodedUserId: string) =>
   `${APP_WEB_ORIGIN}/profile/${encodedUserId}`;
@@ -238,3 +251,50 @@ const NAME_STRIP: RegExp = (() => {
 
 export const stripNonNameChars = (text: string) =>
   String(text ?? '').replace(NAME_STRIP, '');
+
+// ─── Minimum age to register, by gender (2026-09-28) ─────────────────────────────────────────
+// India's legal minimum marriage ages (Prohibition of Child Marriage Act, 2006): 21 for men, 18
+// for women. Stated in the Terms (§2) and the Privacy Policy, and applied by TamilMatrimony /
+// Matrimony.com. Until this date the app applied 18 to everyone, so an 18-year-old man could
+// register on a platform that facilitates marriage — contradicting our own published Terms.
+//
+// Accepts every gender spelling in use: sign-up 'male'/'female', the edit page 'Male'/'Female',
+// the database 'M'/'F'. An unknown or missing gender gets 18 (the lower bound) — sign-up re-checks
+// the moment a gender is picked, so this never lets a man under 21 through.
+export const MIN_MARRIAGE_AGE = { male: 21, female: 18 } as const;
+
+export function isMaleGender(g?: string | null): boolean {
+  const s = String(g ?? '').trim().toLowerCase();
+  return s === 'male' || s === 'm';
+}
+
+export function minAgeForGender(g?: string | null): number {
+  return isMaleGender(g) ? MIN_MARRIAGE_AGE.male : MIN_MARRIAGE_AGE.female;
+}
+
+/** Latest date of birth that still meets the rule — used as the date picker's maximumDate. */
+export function latestDobForGender(g?: string | null): Date {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - minAgeForGender(g));
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+/** Completed years on today's date (a birthday later this year has not counted yet). */
+export function ageOnDate(dob: Date): number {
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+export function meetsMinAge(dob: Date | null | undefined, g?: string | null): boolean {
+  return !!dob && !isNaN(dob.getTime()) && ageOnDate(dob) >= minAgeForGender(g);
+}
+
+export function ageRuleMessage(g?: string | null): string {
+  return isMaleGender(g)
+    ? 'Men must be at least 21 years old — the legal minimum age for marriage in India.'
+    : 'You must be at least 18 years old.';
+}

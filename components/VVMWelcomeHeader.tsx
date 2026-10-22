@@ -114,6 +114,9 @@ interface Props {
   onActivityPress?: () => void;
   onStatRefresh?: () => void;
   onStatsPress?: (key: string) => void;
+  /** Tap on the plan pill (FREE / SILVER / GOLD…) → the plan picker. Optional so the
+   *  header stays a plain display where no upgrade route makes sense. */
+  onTierPress?: () => void;
 }
 
 // ────────────��────────────────────────────────
@@ -131,6 +134,7 @@ const VVMWelcomeHeader: React.FC<Props> = ({
   onActivityPress,
   onStatRefresh,
   onStatsPress,
+  onTierPress,
 }) => {
   const tier = resolveTier(tierName);
   const [refreshing, setRefreshing] = useState(false);
@@ -231,7 +235,15 @@ const VVMWelcomeHeader: React.FC<Props> = ({
             </Text>
             <View style={S.midRow}>
               <Text style={S.midTxt}>VVM · {memberId || 'MB00000'}</Text>
-              <View style={[S.pillShadow, { shadowColor: tier.glow }]}>
+              {/* The pill is small (19px tall): hitSlop gives it a finger-sized target
+                  without changing the layout. */}
+              <TouchableOpacity
+                onPress={onTierPress}
+                disabled={!onTierPress}
+                activeOpacity={0.75}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                style={[S.pillShadow, { shadowColor: tier.glow }]}
+              >
                 <LinearGradient
                   colors={[...tier.colors]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -240,7 +252,7 @@ const VVMWelcomeHeader: React.FC<Props> = ({
                   {tier.label !== 'FREE' && <Crown size={9} color="#FFFFFF" strokeWidth={2.5} />}
                   <Text style={S.tierPillTxt}>{tier.label}</Text>
                 </LinearGradient>
-              </View>
+              </TouchableOpacity>
               {isVerified && (
                 <View style={S.verPill}>
                   <BadgeCheck size={10} color="#1F7FE5" strokeWidth={2.4} />

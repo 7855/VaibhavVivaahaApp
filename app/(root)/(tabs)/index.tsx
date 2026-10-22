@@ -22,6 +22,7 @@ import VVMWelcomeHeader from '@/components/VVMWelcomeHeader';
 import PromotionalPopup from '@/components/PromotionalPopup';
 import { useUserData } from '../contexts/UserDataContext';
 import { usePopup } from '../contexts/PopupContext';
+import { buildUpgradeAction } from '../utils/upgradeNavigation';
 import * as WebBrowser from 'expo-web-browser';
 
 interface ConnectionCount {
@@ -524,6 +525,9 @@ const Index = () => {
               <VVMWelcomeHeader
                 userData={userData}
                 tierName={tierStyle?.name}
+                // Plan pill → plan picker (client 2026-10-06). Same routing as every
+                // upgrade prompt: mode-aware, Platinum lands on "highest plan".
+                onTierPress={buildUpgradeAction({ planTitle: userTier, featureName: 'Membership plans' })}
                 unreadCount={unreadCount}
                 router={router}
                 isVerified={false}

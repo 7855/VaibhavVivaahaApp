@@ -11,6 +11,10 @@ import userApi from '../api/userApi';
 import { NativeBaseProvider } from 'native-base';
 import { usePopup } from '../contexts/PopupContext';
 import AppText from '../../../components/AppText';
+import { persistLoginSession, routeAfterLogin } from '../utils/persistSession';
+import { draftFromRegistration } from './RegisterScreen';
+import { useAuth } from '../contexts/AuthContext';
+import { useUserData } from '../contexts/UserDataContext';
 
 interface OTPValidationScreenProps {
   onBack: () => void;
@@ -20,17 +24,24 @@ interface OTPValidationScreenProps {
 export default function OTPValidationScreen({ onBack, onVerified }: OTPValidationScreenProps) {
   const router = useRouter();
   const popup = usePopup();
+  const { login: authLogin } = useAuth();
+  const { loadUserData } = useUserData();
   const params = useLocalSearchParams<{
     phoneNumber?: string;
     email?: string;
+    mobile?: string;
     purpose?: string;
   }>();
   const phoneNumber = params.phoneNumber || '';
   const email = params.email || '';
+  // WhatsApp flow (2026-10-14): a 6-digit code sent to `mobile` by /auth/send-mobile-otp.
+  const mobile = params.mobile || '';
   const purpose = params.purpose || '';
   const isEmailFlow = !!email;
+  const isWhatsAppFlow = !!mobile;
+  const otpLength = isWhatsAppFlow ? 6 : 4;
   const { width, height } = Dimensions.get('window');
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState<string[]>(() => Array(isWhatsAppFlow ? 6 : 4).fill(''));
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
@@ -53,13 +64,23 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
   }, []);
 
   const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) return;
+    if (value.length > 1) {
+      // Pasted (the WhatsApp "Copy Code" button): spread the digits across the boxes.
+      const digits = value.replace(/\D/g, '').slice(0, otpLength).split('');
+      if (digits.length === otpLength) {
+        setOtp(digits);
+        // The boxes are uncontrolled (defaultValue), so push the digits into them too.
+        digits.forEach((d, i) => inputRefs.current[i]?.setNativeProps({ text: d }));
+        inputRefs.current[otpLength - 1]?.focus();
+      }
+      return;
+    }
 
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
 
-    if (value && index < 3) {
+    if (value && index < otpLength - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -78,6 +99,85 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
     try {
       const otpCode = otp.join('');
 
+      if (isWhatsAppFlow && purpose) {
+        const response = await userApi.verifyMobileOtp({ mobile, otp: otpCode, purpose });
+        if (response.data?.code === 200) {
+          setIsLoading(false);
+          if (purpose === 'reset') {
+            // Forgot PIN on WhatsApp: same resetToken the email path uses.
+            router.replace({
+              pathname: '/(root)/(main)/SetNewPasswordScreen',
+              params: { resetToken: response.data.data?.resetToken || '' },
+            });
+            return;
+          }
+          if (purpose === 'start') {
+            // Phone-first entry: a registered number signs in here; a new one goes to sign-up
+            // with the mobile already verified (and the website lead's name, if any).
+            const d = response.data.data || {};
+            if (d.registration?.registrationToken) {
+              // Unfinished registration (new flow): hand the server's draft to RegisterScreen.
+              await AsyncStorage.setItem('registerDraft', JSON.stringify(draftFromRegistration(d.registration, mobile)));
+              router.replace('/(root)/(main)/RegisterScreen' as any);
+              return;
+            }
+            if (d.exists) {
+              setIsLoading(true);
+              try {
+                const lr = await userApi.loginWithOtp({ mobile, verificationToken: d.verificationToken });
+                if (lr.data?.code === 200) {
+                  const userStatus = await persistLoginSession(lr.data.data, authLogin);
+                  await loadUserData();
+                  setIsLoading(false);
+                  router.replace(routeAfterLogin(userStatus) as any);
+                } else if (lr.data?.code === 403 && (lr.data?.data?.userStatus === 'PENDING' || lr.data?.data?.userStatus === 'REJECTED')) {
+                  const pd = lr.data.data;
+                  if (pd.userId) await AsyncStorage.setItem('userId', pd.userId);
+                  await AsyncStorage.setItem('firstName', pd.firstName || '');
+                  await AsyncStorage.setItem('lastName', pd.lastName || '');
+                  await AsyncStorage.setItem('userStatus', pd.userStatus);
+                  if (pd.rejectionReason) await AsyncStorage.setItem('rejectionReason', pd.rejectionReason);
+                  setIsLoading(false);
+                  router.replace('/(root)/(main)/ProfileUnderVerificationScreen');
+                } else {
+                  setIsLoading(false);
+                  popup.error('Could not sign in', lr.data?.message || 'Please try again.');
+                }
+              } catch {
+                setIsLoading(false);
+                popup.error('Could not sign in', 'Please check your connection and try again.');
+              }
+            } else {
+              router.replace({
+                pathname: '/(root)/(main)/sign-up',
+                params: {
+                  mobile,
+                  mobileVerificationToken: d.verificationToken || '',
+                  leadName: d.lead?.firstName || '',
+                  profileFor: d.lead?.profileFor || '',
+                },
+              });
+            }
+            return;
+          }
+          const token = response.data.data?.verificationToken;
+          if (token) {
+            // Sign-up and the edit page both read these on focus, like the email pair.
+            await AsyncStorage.setItem('mobileVerificationToken', token);
+            await AsyncStorage.setItem('verifiedMobile', mobile);
+            const lead = response.data.data?.lead;
+            if (lead?.firstName) await AsyncStorage.setItem('verifiedMobileLeadName', String(lead.firstName));
+          }
+          popup.success('Mobile Verified', 'Your WhatsApp number has been verified.', () => router.back());
+        } else {
+          setIsLoading(false);
+          popup.error('Invalid Code', response.data?.message || 'The code you entered is incorrect. Please try again.');
+          setOtp(Array(otpLength).fill(''));
+          inputRefs.current[0]?.focus();
+        }
+        return;
+      }
+
       if (email && purpose) {
         const response = await userApi.verifyAuthOtp({
           email,
@@ -88,7 +188,8 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
         if (response.data?.code === 200) {
           setIsLoading(false);
 
-          if (purpose === 'registration') {
+          // 'add-email' (edit page, member with no email) hands its token back the same way.
+          if (purpose === 'registration' || purpose === 'add-email') {
             const token = response.data.data?.verificationToken;
             if (token) {
               await AsyncStorage.setItem('emailVerificationToken', token);
@@ -105,7 +206,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
         } else {
           setIsLoading(false);
           popup.error('Invalid Code', response.data?.message || 'The code you entered is incorrect. Please try again.');
-          setOtp(['', '', '', '']);
+          setOtp(Array(otpLength).fill(''));
           inputRefs.current[0]?.focus();
         }
         return;
@@ -127,19 +228,19 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
       } else if (response.data.code === 400) {
         setIsLoading(false);
         popup.error('Invalid Code', 'The code you entered is incorrect. Please try again.');
-        setOtp(['', '', '', '']);
+        setOtp(Array(otpLength).fill(''));
         inputRefs.current[0]?.focus();
       } else {
         setIsLoading(false);
         popup.error('Error', 'Something went wrong. Please try again.');
-        setOtp(['', '', '', '']);
+        setOtp(Array(otpLength).fill(''));
         inputRefs.current[0]?.focus();
       }
     } catch (error) {
       console.error('Error verifying OTP:', error);
       setIsLoading(false);
       popup.error('Error', 'Something went wrong. Please try again.');
-      setOtp(['', '', '', '']);
+      setOtp(Array(otpLength).fill(''));
       inputRefs.current[0]?.focus();
     }
   };
@@ -147,11 +248,15 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
   const handleResend = async () => {
     setResendTimer(30);
     setCanResend(false);
-    setOtp(['', '', '', '']);
+    setOtp(Array(otpLength).fill(''));
     inputRefs.current[0]?.focus();
 
     try {
-      if (email && purpose) {
+      if (isWhatsAppFlow && purpose) {
+        const res = await userApi.sendMobileOtp({ mobile, purpose });
+        if (res.data?.code === 200) popup.success('Code Sent', `We've sent a new code on WhatsApp to +91 ${mobile}.`);
+        else popup.error('Could not send', res.data?.message || 'Please try again in a moment.');
+      } else if (email && purpose) {
         await userApi.sendAuthOtp({ email, purpose });
         popup.success('Code Sent', `We've sent a new verification code to ${email}.`);
       } else {
@@ -177,7 +282,9 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
   };
   const maskedContact = isEmailFlow
     ? maskEmail(email)
-    : (phoneNumber ? phoneNumber.replace(/(\d{2})(\d{4})(\d{4})/, '$1****$3') : '------');
+    : isWhatsAppFlow
+      ? mobile.replace(/(\d{2})(\d{4})(\d{4})/, '$1****$3')
+      : (phoneNumber ? phoneNumber.replace(/(\d{2})(\d{4})(\d{4})/, '$1****$3') : '------');
 
   return (
     <NativeBaseProvider>
@@ -264,9 +371,11 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
               marginTop: 6,
               textAlign: 'center',
             }}>
-              {isEmailFlow
-                ? 'We sent a 4-digit code to your email address. Enter it below to continue.'
-                : 'We sent a 4-digit code to your mobile number. Enter it below to continue.'}
+              {isWhatsAppFlow
+                ? 'We sent a 6-digit code on WhatsApp to your mobile number. Tap Copy Code in the message, then paste it here.'
+                : isEmailFlow
+                  ? 'We sent a 4-digit code to your email address. Enter it below to continue.'
+                  : 'We sent a 4-digit code to your mobile number. Enter it below to continue.'}
             </AppText>
 
             {/* Dark step banner */}
@@ -308,7 +417,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                   lineHeight: 15,
                   marginTop: 2,
                 }}>
-                  4-digit code sent to {isEmailFlow ? maskedContact : `+91 ${maskedContact}`}
+                  {otpLength}-digit code sent {isWhatsAppFlow ? 'on WhatsApp ' : ''}to {isEmailFlow ? maskedContact : `+91 ${maskedContact}`}
                 </AppText>
               </View>
             </View>
@@ -317,7 +426,7 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
             <View style={{
               flexDirection: 'row',
               justifyContent: 'center',
-              gap: 12,
+              gap: otpLength > 4 ? 8 : 12,
             }}>
               {otp.map((digit, index) => (
                 <TextInput
@@ -330,9 +439,9 @@ export default function OTPValidationScreen({ onBack, onVerified }: OTPValidatio
                   onBlur={() => setFocusedIndex(null)}
                   style={{
                     flex: 1,
-                    maxWidth: 64,
-                    height: 62,
-                    borderRadius: 18,
+                    maxWidth: otpLength > 4 ? 50 : 64,
+                    height: otpLength > 4 ? 56 : 62,
+                    borderRadius: otpLength > 4 ? 14 : 18,
                     backgroundColor: '#ffffff',
                     borderWidth: 1.5,
                     borderColor: (digit || focusedIndex === index) ? '#1F7FE5' : '#e2e8f0',

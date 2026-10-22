@@ -23,7 +23,7 @@ import { useUserData } from '../contexts/UserDataContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { usePopup } from '../contexts/PopupContext';
 import { useSubscription, usePlanChangeEffect } from '../contexts/subscriptionContext';
-import { buildUpgradeAction, upgradeMessage, resolvePaymentMode } from '../utils/upgradeNavigation';
+import { buildUpgradeAction, upgradeMessage, resolvePaymentMode, isLifetimeValidity, LIFETIME_VALIDITY_LABEL } from '../utils/upgradeNavigation';
 import { formatLanguageList } from '@/constants/data';
 import { useFooterClearance } from '@/components/VVMFooterNav';
 
@@ -212,8 +212,7 @@ const ProfileScreen = () => {
   // Platinum is sold "until marriage"; its stored endDate is the 9999-day sentinel (some day
   // in 2054), which must never be printed. The 20-year check catches any future lifetime
   // pack without hardcoding a second plan name.
-  const isLifetimePlan = subscriptionData?.planTitle === 'Platinum'
-    || (!!planEnd && new Date(planEnd).getFullYear() - new Date().getFullYear() >= 20);
+  const isLifetimePlan = isLifetimeValidity(subscriptionData?.planTitle, planEnd);
 
   useEffect(() => {
     (async () => {
@@ -776,10 +775,18 @@ const ProfileScreen = () => {
                   <Text style={s.heroLocationText}>{userDetails?.location || 'Location not set'}</Text>
                 </View>
                 <View style={s.heroTags}>
-                  <LinearGradient colors={[C.amber, C.amberDeep]} style={s.tagPillAmber}>
-                    <Text style={{ fontSize: 10, marginRight: 3 }}>♛</Text>
-                    <Text style={s.tagPillAmberText}>{planTitle}</Text>
-                  </LinearGradient>
+                  {/* Plan pill → plan picker (client 2026-10-06); same route as the
+                      home header's pill and every upgrade prompt. */}
+                  <TouchableOpacity
+                    onPress={buildUpgradeAction({ planTitle, featureName: 'Membership plans' })}
+                    activeOpacity={0.75}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  >
+                    <LinearGradient colors={[C.amber, C.amberDeep]} style={s.tagPillAmber}>
+                      <Text style={{ fontSize: 10, marginRight: 3 }}>♛</Text>
+                      <Text style={s.tagPillAmberText}>{planTitle}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
                   {trustCount > 1 && (
                     <LinearGradient colors={[C.brand, C.brandDeep]} style={s.tagPillBlue}>
                       <MaterialIcons name="verified" size={11} color="#fff" />
@@ -791,7 +798,7 @@ const ProfileScreen = () => {
                     <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100, justifyContent: 'center', alignItems: 'center' }}>
                       <Text style={{ fontSize: 9, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: -0.1, textAlign: 'center' }}>
                         {isLifetimePlan
-                          ? 'Until marriage'
+                          ? LIFETIME_VALIDITY_LABEL
                           : `Until ${new Date(planEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}`}
                       </Text>
                     </View>
@@ -1030,13 +1037,14 @@ const ProfileScreen = () => {
             </LinearGradient>
 
             {/* Religious */}
-            <SectionCard emoji="🕉️" title="Religious" subtitle="6 fields" onEdit={() => handleEdit(personalDetail?.[1])}>
+            <SectionCard emoji="🕉️" title="Religious" subtitle="8 fields" onEdit={() => handleEdit(personalDetail?.[1])}>
               <View style={s.detailGrid}>
                 <DetailField label="Religion" value="Hindu" />
                 <DetailField label="Caste" value={casteName} />
                 <DetailField label="Subcaste" value={subcasteName} />
                 <DetailField label="Nakshatra" value={astro.star} />
                 <DetailField label="Moon sign" value={astro.moon_sign} />
+                <DetailField label="Lagnam" value={astro.lagnam} />
                 <DetailField label="Dosham" value={astro.dosham} />
                 <DetailField label="Birth time" value={astro.birth_time} />
               </View>

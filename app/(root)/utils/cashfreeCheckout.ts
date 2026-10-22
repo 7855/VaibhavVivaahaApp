@@ -8,7 +8,7 @@
  *             new CFThemeBuilder()…build()
  *             new CFPaymentComponentBuilder().add(CFPaymentModes.UPI).build()
  *             new CFDropCheckoutPayment(session, components, theme)
- *             CFPaymentGatewayService.doPayment(dropPayment)   ← full page: UPI apps, cards, net banking, wallets
+ *             CFPaymentGatewayService.doPayment(dropPayment)   ← full page: UPI apps, cards, net banking
  *           with the callback set when the screen MOUNTS and removed when it UNMOUNTS,
  *           exactly as the guide's sample component does           → useCashfreeCallback()
  *   Step 3  Confirm the payment from the SERVER      → the PaymentReturn screen
@@ -78,7 +78,7 @@ export interface CheckoutRequest {
  *
  *   cancelled    — the member backed out (action_cancelled). Nothing was tried.
  *   no_upi_app   — NO_UPI_APP_AVAILABLE: no UPI app on the phone. Nothing was tried; the
- *                  member can still pay by card, net banking or wallet.
+ *                  member can still pay by card or net banking.
  *   not_started  — every *_MISSING / INVALID_* / WRONG_CALLING_CONTEXT code. These are
  *                  INTEGRATION faults (bad session, missing object): the page never opened,
  *                  so there is no payment to wait for. The member sees a plain "could not
@@ -91,6 +91,15 @@ export interface CheckoutRequest {
  * debited…" about a payment that had never begun.
  */
 export type SdkOutcome = 'verify' | 'cancelled' | 'no_upi_app' | 'not_started' | 'attempted';
+
+/**
+ * Which Cashfree page the app opens. 'WEB' = Cashfree's hosted web checkout inside the app
+ * (doWebPayment) — chosen 2026-10-06 for its design. 'DROP' = the native Drop screens
+ * (doPayment), the previous default. Everything else — order creation, the in-flight slot,
+ * callbacks, PaymentReturn — is identical for both, so switching back is this one line.
+ * ⚠️ Verify UPI app hand-off on a Play-installed build before relying on 'WEB'.
+ */
+const CHECKOUT_UI: 'WEB' | 'DROP' = 'WEB';
 
 const SDK_NOT_STARTED_CODES = [
   'MISSING_CALLBACK', 'ORDER_ID_MISSING', 'SESSION_OBJECT_MISSING', 'PAYMENT_OBJECT_MISSING',
@@ -140,42 +149,109 @@ function goToConfirm(how: 'push' | 'replace', orderId: string, outcome: SdkOutco
  * to reach PaymentReturn: 'push' for a screen the member should come BACK to (the plan swiper,
  * so "Try again" returns to the plans), 'replace' for a throwaway checkout screen.
  */
-export function useCashfreeCallback(navigate: 'push' | 'replace' = 'replace'): void {
-  useEffect(() => {
-    let settled = '';                     // onVerify and onError can both fire for one order
+// ── ONE checkout at a time, app-wide ─────────────────────────────────────────────
+// The slot is claimed the moment startCashfreeCheckout() begins (BEFORE the order is
+// created, so two taps racing the network cannot both mint orders) and released only when
+// the attempt is SETTLED: the SDK callback (onVerify/onError — the one true signal that the
+// payment sheet is finished with), any failure before doPayment, or the backstop below.
+//
+// 🔴 Why "settled" and not "started": doPayment is fire-and-forget, so the old flow released
+// the screen's guard the instant the Cashfree activity was LAUNCHING. On a slow phone that
+// native transition is several hundred ms of tappable plan list — a second Continue → Proceed
+// in that window started a second checkout. With server-side order reuse removed (client,
+// 2026-09-28) that would have been two payable orders. Holding until the callback closes it.
+//
+// Backstop: the SDK always calls back when its activity finishes (cancel arrives as
+// action_cancelled), so this only matters if the sheet vanished without one. While the sheet
+// is UP the member cannot tap the app anyway, so firing early there is harmless — the later
+// callback still navigates; settleInFlight() is idempotent.
+const IN_FLIGHT_BACKSTOP_MS = 45_000;
+let inFlight: { orderId: string | null; settle: () => void; timer: ReturnType<typeof setTimeout> } | null = null;
+
+export function isCheckoutInFlight(): boolean {
+  return inFlight !== null;
+}
+
+function claimInFlight(): { promise: Promise<void> } | null {
+  if (inFlight) return null;
+  let settle: () => void = () => {};
+  const promise = new Promise<void>((resolve) => { settle = resolve; });
+  const timer = setTimeout(() => {
+    console.log('[checkout] in-flight backstop fired for', inFlight?.orderId);
+    settleInFlight();
+  }, IN_FLIGHT_BACKSTOP_MS);
+  inFlight = { orderId: null, settle, timer };
+  return { promise };
+}
+
+function settleInFlight(): void {
+  if (!inFlight) return;
+  clearTimeout(inFlight.timer);
+  const { settle } = inFlight;
+  inFlight = null;
+  settle();
+}
+
+// ── Callback registration: a STACK of mounted screens, not one screen's lifetime ─────────
+// CFPaymentGatewayService holds a single global callback. Registering on mount and removing
+// on unmount (the guide's structure) is right for one screen, but PremiumTab can be mounted
+// TWICE (the membership page's "Upgrade my plan" pushes a second one). Each mount overwrote
+// the other's registration and either unmount REMOVED it — so the surviving screen had no
+// callback, the result was dropped, and (now) the in-flight slot would sit until the
+// backstop. The stack keeps the guide's mount/unmount shape while guaranteeing that whatever
+// screen is left still owns a live registration. onVerify/onError can both fire for one
+// order, and the closure is re-applied on every stack change, so the dedupe is module-level.
+type NavigateHow = 'push' | 'replace';
+const subscribers: Array<{ navigate: NavigateHow }> = [];
+let lastSettledOrderId = '';
+
+function applyTopSubscriber(): void {
+  const gateway = getGateway();
+  if (!gateway) return;                   // Expo Go: nothing to register on
+  const top = subscribers[subscribers.length - 1];
+  try {
+    if (!top) { gateway.removeCallback(); return; }
     const finish = (orderID: string, outcome: SdkOutcome) => {
-      if (!orderID || settled === orderID) return;
-      settled = orderID;
-      goToConfirm(navigate, orderID, outcome);
+      if (!orderID || lastSettledOrderId === orderID) return;
+      lastSettledOrderId = orderID;
+      settleInFlight();                   // release the slot BEFORE navigating
+      goToConfirm(top.navigate, orderID, outcome);
     };
-    const gateway = getGateway();
-    if (!gateway) return;                 // Expo Go: nothing to listen to, and nothing to clean up
-    try {
-      gateway.setCallback({
-        onVerify(orderID: string): void {
-          finish(orderID, 'verify');
-        },
-        onError(error: any, orderID: string): void {
-          // Backing out of the sheet arrives here with code `action_cancelled`. That is not a
-          // failed payment, and PaymentReturn says "cancelled" instead of polling for it.
-          const outcome = classifySdkError(error);
-          // The raw code and message are for US. Members never see them.
-          console.log('[checkout] onError', orderID, '|', outcome, '|', error?.getCode?.(), '|', error?.getMessage?.());
-          finish(orderID, outcome);
-        },
-      });
-    } catch (e: any) {
-      // Only reachable on a build that lacks the SDK's native half (setCallback is a native call).
-      console.log('[checkout] setCallback failed:', e?.message);
-    }
+    gateway.setCallback({
+      onVerify(orderID: string): void {
+        finish(orderID, 'verify');
+      },
+      onError(error: any, orderID: string): void {
+        // Backing out of the sheet arrives here with code `action_cancelled`. That is not a
+        // failed payment, and PaymentReturn says "cancelled" instead of polling for it.
+        const outcome = classifySdkError(error);
+        // The raw code and message are for US. Members never see them.
+        console.log('[checkout] onError', orderID, '|', outcome, '|', error?.getCode?.(), '|', error?.getMessage?.());
+        finish(orderID, outcome);
+      },
+    });
+  } catch (e: any) {
+    // Only reachable on a build that lacks the SDK's native half (setCallback is a native call).
+    console.log('[checkout] setCallback failed:', e?.message);
+  }
+}
+
+export function useCashfreeCallback(navigate: NavigateHow = 'replace'): void {
+  useEffect(() => {
+    const me = { navigate };
+    subscribers.push(me);
+    applyTopSubscriber();
     return () => {
-      try { gateway.removeCallback(); } catch { /* nothing registered */ }
+      const k = subscribers.indexOf(me);
+      if (k >= 0) subscribers.splice(k, 1);
+      applyTopSubscriber();               // re-arm for whichever screen remains, or clear
     };
   }, [navigate]);
 }
 
 /** Step 1 + Step 2 of the guide. The screen calling this must also call useCashfreeCallback(). */
-export async function startCashfreeCheckout(req: CheckoutRequest): Promise<void> {
+/** The guide's Step 1 + Step 2. Returns true only once doPayment has been handed a session. */
+async function openCheckout(req: CheckoutRequest): Promise<boolean> {
   // Checked BEFORE the order is created: an order made here could never be paid, and it would
   // sit ACTIVE until the nightly job expired it.
   if (!getGateway()) {
@@ -184,13 +260,13 @@ export async function startCashfreeCheckout(req: CheckoutRequest): Promise<void>
       'Not available here',
       'Payments need the installed app. Please use the app from the store, or a development build.'
     );
-    return;
+    return false;
   }
   const { encodedUserId, planId, purpose, onError } = req;
 
   if (!encodedUserId) {
     onError('Login required', 'Please log in again to continue with the payment.');
-    return;
+    return false;
   }
 
   // ── Step 1: create the order on our server (it holds the secret key and sets the price) ──
@@ -219,33 +295,39 @@ export async function startCashfreeCheckout(req: CheckoutRequest): Promise<void>
         console.log('[checkout] createOrder refused:', body?.code, m);
         onError('Could not start payment', 'Something went wrong on our side. Please try again in a moment.');
       }
-      return;
+      return false;
     }
   } catch (e: any) {
     console.log('[checkout] createOrder failed:', e?.response?.status, e?.response?.data?.message || e?.message);
     onError('Network error', 'Please check your connection and try again.');
-    return;
+    return false;
   }
 
   // ── Step 2: open the payment page — the guide's UPI Intent Checkout sample ──
   try {
+    if (inFlight) inFlight.orderId = data.orderId;
     const session = new CFSession(
       data.paymentSessionId,
       data.orderId,
       String(data.env || '').toLowerCase() === 'production' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX
     );
-    // Setting theme is optional
+    // Only colours can be themed — Cashfree owns the layout, fonts and tiles. Matched to the app:
+    // the navy top bar is the auth screens' step-banner navy, the Pay button is the app's CTA
+    // blue, text uses the app's ink/slate, and the page sits on the app's light surface.
+    // Android passes the whole theme to Cashfree's native parser; the iOS bridge applies every
+    // colour EXCEPT the background (its own source never reads it), so iOS keeps Cashfree's white.
     const theme = new CFThemeBuilder()
-      .setNavigationBarBackgroundColor('#1F7FE5') // ios
-      .setNavigationBarTextColor('#FFFFFF') // ios
-      .setButtonBackgroundColor('#1F7FE5') // ios
-      .setButtonTextColor('#FFFFFF') // ios
+      .setNavigationBarBackgroundColor('#1c2b3f')
+      .setNavigationBarTextColor('#FFFFFF')
+      .setButtonBackgroundColor('#1F7FE5')
+      .setButtonTextColor('#FFFFFF')
       .setPrimaryTextColor('#0f1724')
-      .setSecondaryTextColor('#64748b') // ios
+      .setSecondaryTextColor('#64748b')
+      .setBackgroundColor('#F3F7FA')
       .build();
 
     // DROP checkout — Cashfree's full native payment PAGE: the UPI apps on the phone and
-    // "Pay with UPI ID", then cards, net banking and wallets, in one screen. This is what the client
+    // "Pay with UPI ID", then cards and net banking, in one screen. This is what the client
     // saw working first and asked to have back (2026-09-21). The guide's other sample,
     // doUPIPayment, opens only a bare "Select UPI Application" list — on the client's phone
     // that list came up EMPTY, with no UPI ID and no QR, i.e. not a payment page at all.
@@ -258,25 +340,58 @@ export async function startCashfreeCheckout(req: CheckoutRequest): Promise<void>
     // SANDBOX, which is misleading — on production Android, Cashfree removes it from its own
     // pages. Our flow does not depend on it: the UPI app buttons are UPI INTENT, which is the
     // flow NPCI and Cashfree tell merchants to use on mobile. A member with no UPI app pays
-    // by card, net banking or wallet instead — one reason those sections exist.
+    // by card or net banking instead — one reason those sections exist.
     // Sections shown on the page, in this order (client 2026-09-21): UPI first (cheapest and
-    // what most members use), then cards, net banking and wallets (Amazon Pay, PhonePe wallet,
-    // Paytm…). DELIBERATELY NOT added: EMI, PAY_LATER, PAYPAL. The server sends the matching
-    // order_meta.payment_methods (upi,dc,cc,nb,app), and the ORDER is what really decides —
+    // what most members use), then cards and net banking. DELIBERATELY NOT added: WALLET
+    // (removed 2026-09-29 — little use at these prices, and the wallet page was the flakiest
+    // in testing), EMI, PAY_LATER, PAYPAL. The server sends the matching
+    // order_meta.payment_methods (upi,dc,cc,nb), and the ORDER is what really decides —
     // a section listed here that the order does not allow simply does not appear.
     const components = new CFPaymentComponentBuilder()
       .add(CFPaymentModes.UPI)
       .add(CFPaymentModes.CARD)
       .add(CFPaymentModes.NB)
-      .add(CFPaymentModes.WALLET)
       .build();
+    if (CHECKOUT_UI === 'WEB') {
+      // Cashfree's hosted WEB checkout, opened by the SDK inside the app. Same session, same
+      // onVerify/onError callback, same server confirmation — only the page differs. The
+      // client found the native Drop screens' design poor (2026-10-06); the web page is
+      // Cashfree's maintained checkout and takes its branding from the Cashfree dashboard,
+      // not from `theme`. Methods shown still come from the ORDER (payment_methods).
+      console.log('[checkout] doWebPayment | order', data.orderId, '| env', String(data.env || 'sandbox'));
+      getGateway().doWebPayment(session);
+      return true;
+    }
     const dropPayment = new CFDropCheckoutPayment(session, components, theme);
-    console.log('[checkout] doPayment (Drop: UPI, CARD, NB, WALLET) | order', data.orderId, '| env', String(data.env || 'sandbox'));
+    console.log('[checkout] doPayment (Drop: UPI, CARD, NB) | order', data.orderId, '| env', String(data.env || 'sandbox'));
     getGateway().doPayment(dropPayment);
+    return true;
   } catch (e: any) {
     console.log('[checkout] doPayment failed:', e?.message);
     onError('Could not open payment', 'Please update the app to the latest version and try again.');
+    return false;
   }
+}
+
+/**
+ * Start a checkout and hold the app-wide slot until the attempt is SETTLED. Resolves when the
+ * SDK callback fires (or the backstop), so a caller's `finally` — the overlay, the button's
+ * busy state — now spans the whole payment sheet, not just its launch. A second call while
+ * one is in flight is a duplicate tap and is ignored silently: no order, no popup.
+ */
+export async function startCashfreeCheckout(req: CheckoutRequest): Promise<void> {
+  const slot = claimInFlight();
+  if (!slot) {
+    console.log('[checkout] ignored: a checkout is already in flight');
+    return;
+  }
+  let opened = false;
+  try {
+    opened = await openCheckout(req);
+  } finally {
+    if (!opened) settleInFlight();        // nothing to wait for — release immediately
+  }
+  if (opened) await slot.promise;         // settled by the SDK callback / backstop
 }
 
 export default {};

@@ -67,6 +67,19 @@
         <data android:scheme="vaibhavvivaaha"/>
         <data android:scheme="exp+matrimonyapp"/>
       </intent-filter>
+      <!-- Android App Link for shared profile URLs (https://vaibhavvivaahamatrimony.com/profile/<id>).
+           app.json declares this too, but prebuild is never run here, so it has to live in this file.
+           Kept SEPARATE from the custom-scheme filter above: autoVerify on a filter that also lists a
+           custom scheme fails verification. Android only honours it when
+           https://vaibhavvivaahamatrimony.com/.well-known/assetlinks.json lists the PLAY app-signing
+           certificate (not just the upload key) — see CLAUDE.md 2026-10-07. The route that handles
+           the path is app/profile/[id].tsx. -->
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="https" android:host="vaibhavvivaahamatrimony.com" android:pathPrefix="/profile/"/>
+      </intent-filter>
     </activity>
   </application>
 </manifest>

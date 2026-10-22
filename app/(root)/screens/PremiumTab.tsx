@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Crown, Check, X, Clock, CheckCircle, CircleDot, Circle, Shield, Compass, Rocket, Award, Star, Gem } from 'lucide-react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -19,9 +19,10 @@ import userApi from '../api/userApi';
 import { useUserData } from '../contexts/UserDataContext';
 import { useSubscription } from '../contexts/subscriptionContext';
 import { usePopup } from '../contexts/PopupContext';
-import { getActivePlansSync, resolvePaymentMode, PLAN_RANK, type PaymentMode } from '../utils/upgradeNavigation';
+import { getActivePlansSync, resolvePaymentMode, PLAN_RANK, isLifetimeValidity, LIFETIME_VALIDITY_LABEL, type PaymentMode } from '../utils/upgradeNavigation';
 import { startCashfreeCheckout, useCashfreeCallback } from '../utils/cashfreeCheckout';
 import { buildChecklistByPlan } from '../utils/planChecklist';
+import PolicyAgreement from '../../../components/PolicyAgreement';
 
 // Same soft blue backdrop used app-wide (explore.tsx / profile.tsx) instead of a standalone
 // pink/rose theme, so this screen reads as part of the same app rather than a bolted-on paywall.
@@ -92,6 +93,15 @@ function getTierIcon(tier: string): LucideIcon {
   }
 }
 
+// Tint a 6-digit hex at an alpha for the hero ring. RN accepts #RRGGBBAA only as a literal,
+// so emit rgba(); an unparseable value falls back to the app blue rather than crashing.
+function withAlpha(hex: string, a: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return `rgba(31,127,229,${a})`;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
 const HERO_TITLE = "Pricing";
 const HERO_SUBTITLE = "Swipe to compare — pick the plan that fits your journey";
 
@@ -116,11 +126,13 @@ interface PlanCardProps {
   onUpgrade: () => void;
   /** PAYMENT_MODE === 'INFO' — show the feature comparison but no price and no purchase CTA. */
   infoOnly: boolean;
+  /** PAYMENT_MODE === 'GATEWAY' — the CTA leads to a Cashfree checkout, so name the processor. */
+  isGateway?: boolean;
 }
 
 // Extracted so each card can drive its own scroll-linked scale/opacity + popular-badge pulse via
 // Reanimated hooks (which must live inside a real component, not an inline renderItem closure).
-function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade, infoOnly }: PlanCardProps) {
+function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade, infoOnly, isGateway }: PlanCardProps) {
   const tier = getTierKey(plan.title);
   const tierBadge = getTierBadge(tier);
   const TierIcon = getTierIcon(tier);
@@ -238,9 +250,12 @@ function PlanCard({ plan, index, scrollX, isCurrentPlan, onUpgrade, infoOnly }: 
         <View style={styles.trustLine}>
           <Shield size={12} color="#94a3b8" strokeWidth={2} />
           <Text style={styles.trustLineText}>
-            {infoOnly ? 'Verified profiles · Manual verification' : 'Secure payment'}
+            {infoOnly ? 'Verified profiles · Manual verification' : isGateway ? 'Secure payment by Cashfree' : 'Secure payment'}
           </Text>
         </View>
+        {/* Only under a real purchase CTA — not on the current plan's ghost button, and never in
+            INFO mode, which has no purchase at all. Policy names open the website pages. */}
+        {!isCurrentPlan && !infoOnly && <PolicyAgreement style={styles.policyAgreement} />}
       </Animated.View>
     </View>
   );
@@ -254,6 +269,13 @@ export default function PremiumTab() {
   // GATEWAY: "Proceed" on a plan opens the payment sheet straight from this screen.
   const [payMode, setPayMode] = useState<PaymentMode | null>(null);
   const [startingPayment, setStartingPayment] = useState(false);
+  // The real double-submit mutex. `startingPayment` state drives the blocking overlay, but it
+  // cannot GUARD re-entry: the check below runs inside a popup callback that closed over the
+  // value at tap time, so a stale `false` would let a second checkout through. The server no
+  // longer dedupes orders (it used to reuse one for 28 minutes and hand back a dead session —
+  // see CashfreeService.createOrder), so this guard is now the only thing standing between a
+  // duplicated tap and a second payable order. A ref is read fresh, always.
+  const startingRef = useRef(false);
   // Cashfree's React Native guide: setCallback when the screen mounts, removeCallback when it
   // unmounts. 'push' so "Try again" after a cancelled payment returns HERE, to the plans.
   // (A hook — it must stay above this component's early returns, CLAUDE.md section 17.)
@@ -262,7 +284,18 @@ export default function PremiumTab() {
   // mode). Without it a paying member gets the "Your Membership" page below, as before.
   const { upgrade, minPlan } = useLocalSearchParams<{ upgrade?: string; minPlan?: string }>();
   const upgrading = upgrade === '1';
+  // Which page the carousel is on. NOTE: this must NOT drive `initialScrollIndex` — see the
+  // frozen `initialIndexRef` below. The dot indicator runs off `scrollX`, not this.
   const [selectedPlan, setSelectedPlan] = useState<number | null>(upgrading ? 0 : 1);
+  // 🔴 `initialScrollIndex` is a MOUNT-ONLY VirtualizedList prop: the list derives its render
+  // window and its leading spacer from it. Feeding it live state (it used to read
+  // `selectedPlan`, which onMomentumScrollEnd rewrites on EVERY swipe) makes the list
+  // re-derive that window while the real contentOffset is wherever the member scrolled to.
+  // The cell drawn at a coordinate then stops being the cell that receives the touch there,
+  // so on the 2nd/3rd card "Continue with this plan" did nothing at all — the tap landed on
+  // spacer/dead space. Index 0 kept working because at offset 0 the two still agreed.
+  // Frozen at the moment the list first mounts (plans load async, so not at first render).
+  const initialIndexRef = useRef<number | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -555,55 +588,97 @@ export default function PremiumTab() {
   // first-purchase flow in PAYMENT_MODE=QR (never hits this branch, since planTitle is Free).
   if (!upgrading && (paymentStatus === 'APPROVED' || (subscriptionData?.planTitle && subscriptionData.planTitle !== 'Free'))) {
     const planName = subscriptionData?.planTitle || 'Premium';
+    // Presentation only (2026-09-28): the gate above, planName, the lifetime check, the GATEWAY
+    // upgrade condition and router.back() are unchanged. The member's OWN tier drives the
+    // medallion — a Silver member used to get Gold's crown.
+    const tierKey = getTierKey(planName);
+    const TierIcon = getTierIcon(tierKey);
+    const tierBadge = getTierBadge(tierKey);
+    const included = (plans.find((p) => p.title === planName)?.checklist || []).filter((r) => r.included);
+    const canUpgrade = payMode === 'GATEWAY' && plans.some((p) => (PLAN_RANK[p.title] || 0) > (PLAN_RANK[planName] || 0));
     return (
       <LinearGradient colors={BG_GRADIENT} locations={BG_LOCATIONS} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.container}>
         <Stack.Screen options={{ title: 'Your Membership' }} />
         <ScrollView contentContainerStyle={styles.statusScrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.statusIconCircle}>
-            <LinearGradient colors={['#FFE067', '#F6B733']} style={styles.statusIconGradient}>
-              <Crown size={28} color="#5E4200" />
+          {/* Hero — the centre-state ring/disc system, tinted with the member's tier */}
+          <View style={[styles.mRing, { backgroundColor: withAlpha(tierBadge.gradient[1], 0.16) }]}>
+            <LinearGradient colors={tierBadge.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.mDisc}>
+              <TierIcon size={30} color={tierBadge.textColor} strokeWidth={2.2} />
             </LinearGradient>
           </View>
-          <Text style={styles.statusTitle}>You're a {planName} Member</Text>
-          <Text style={styles.statusSubtitle}>Enjoy every feature of your plan while you find your match.</Text>
+          <Text style={styles.mTitle}>You're a {planName} Member</Text>
+          <Text style={styles.mSubtitle}>Every feature of your plan is unlocked while you find your match.</Text>
 
+          {/* Membership card */}
           <View style={styles.card}>
-            <View style={styles.activeHeaderRow}>
-              <CheckCircle size={22} color="#10b981" />
-              <Text style={styles.activeHeaderText}>Active Subscription</Text>
+            <View style={styles.mCardHead}>
+              <Text style={styles.mEyebrow}>Membership</Text>
+              <View style={styles.mStatusPill}>
+                <View style={styles.mStatusDot} />
+                <Text style={styles.mStatusText}>Active</Text>
+              </View>
             </View>
 
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Plan</Text>
-              <Text style={styles.detailValue}>{planName}</Text>
+            <View style={styles.mRow}>
+              <Text style={styles.mRowLabel}>Plan</Text>
+              <LinearGradient colors={tierBadge.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.mTierChip}>
+                <Text style={[styles.mTierChipText, { color: tierBadge.textColor }]}>{planName}</Text>
+              </LinearGradient>
             </View>
 
             {subscriptionData?.endDate && (
-              <View style={[styles.detailRow, { marginBottom: 0 }]}>
-                <Text style={styles.detailLabel}>Valid Until</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(subscriptionData.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              <View style={[styles.mRow, styles.mRowLast]}>
+                <Text style={styles.mRowLabel}>Valid until</Text>
+                <Text style={styles.mRowValue}>
+                  {isLifetimeValidity(planName, subscriptionData.endDate)
+                    ? LIFETIME_VALIDITY_LABEL
+                    : new Date(subscriptionData.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
               </View>
             )}
           </View>
 
+          {/* What the plan includes — real planFeatures rows, same source as the plan cards.
+              Hidden when the catalog has no row for this title (fallback catalog / campaign
+              tiers like Trial): an empty "includes" card is worse than none. */}
+          {included.length > 0 && (
+            <View style={styles.card}>
+              <Text style={[styles.mEyebrow, { marginBottom: 12 }]}>Your plan includes</Text>
+              {included.map((row, idx) => (
+                <View key={row.label} style={[styles.mFeatureRow, idx === included.length - 1 && { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                  <View style={[styles.checkIconWrap, styles.checkIconIncluded]}>
+                    <Check size={11} color="#fff" strokeWidth={3} />
+                  </View>
+                  <Text style={styles.mFeatureText}>{row.label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* GATEWAY only: a paying member can move up from here. Hidden on the highest plan —
               an Upgrade button that leads to an empty list is worse than no button. */}
-          {payMode === 'GATEWAY' && plans.some((p) => (PLAN_RANK[p.title] || 0) > (PLAN_RANK[planName] || 0)) && (
+          {canUpgrade && (
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => router.push({ pathname: '/(root)/screens/PremiumTab', params: { upgrade: '1' } } as any)}
-              style={{ alignSelf: 'stretch', marginBottom: 12, borderRadius: 28, overflow: 'hidden' }}
+              style={styles.mPrimaryWrap}
             >
-              <LinearGradient colors={['#1F7FE5', '#1862b8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={{ height: 52, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#fff', fontFamily: 'Rubik-Medium', fontSize: 15 }}>Upgrade my plan</Text>
+              <LinearGradient colors={['#1F7FE5', '#1862b8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.mPrimary}>
+                <Text style={styles.mPrimaryText}>Upgrade my plan</Text>
               </LinearGradient>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.goBackButton} onPress={() => router.back()} activeOpacity={0.85}>
-            <Text style={styles.goBackButtonText}>Go Back</Text>
+          <TouchableOpacity style={styles.mGhost} onPress={() => router.back()} activeOpacity={0.85}>
+            <Text style={styles.mGhostText}>Go Back</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(root)/screens/HelpSupportPage' as any)}
+            activeOpacity={0.7}
+            hitSlop={8}
+            style={styles.mHelpLink}
+          >
+            <Text style={styles.mHelpLinkText}>Need help with your membership?</Text>
           </TouchableOpacity>
         </ScrollView>
       </LinearGradient>
@@ -617,9 +692,10 @@ export default function PremiumTab() {
     if (payMode === 'GATEWAY') {
       popup.confirm(
         'Proceed to payment',
-        `${plan.title} plan · ${plan.price}${plan.period ? ` · ${String(plan.period).replace(/^\/+/, '')}` : ''}\n\nPay by UPI, debit / credit card, net banking or wallet.`,
+        `${plan.title} plan · ${plan.price}${plan.period ? ` · ${String(plan.period).replace(/^\/+/, '')}` : ''}\n\nPay by UPI, debit / credit card, net banking or wallet.\n\nBy proceeding, you agree to our Terms & Conditions and Refund & Cancellation Policy.`,
         async () => {
-          if (startingPayment) return;
+          if (startingRef.current) return;
+          startingRef.current = true;
           setStartingPayment(true);
           try {
             // ⚠️ Let the confirm popup finish closing first. It is a native Modal, and
@@ -634,6 +710,7 @@ export default function PremiumTab() {
               onError: (title: string, msg: string) => popup.error(title, msg),
             });
           } finally {
+            startingRef.current = false;
             setStartingPayment(false);
           }
         },
@@ -674,6 +751,13 @@ export default function PremiumTab() {
     })
     : plans;
 
+  // Lazy one-time init (the React-sanctioned ref-as-cache pattern): visiblePlans is empty
+  // until the catalog resolves, and the FlatList only mounts once it is non-empty.
+  if (initialIndexRef.current === null && visiblePlans.length > 0) {
+    initialIndexRef.current = Math.min(upgrading ? 0 : 1, visiblePlans.length - 1);
+  }
+  const initialIndex = initialIndexRef.current ?? 0;
+
   const onCarouselScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
     setSelectedPlan(idx);
@@ -712,7 +796,7 @@ export default function PremiumTab() {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           decelerationRate="fast"
-          initialScrollIndex={Math.min(selectedPlan ?? 0, Math.max(visiblePlans.length - 1, 0))}
+          initialScrollIndex={initialIndex}
           getItemLayout={(_: unknown, index: number) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
@@ -725,6 +809,7 @@ export default function PremiumTab() {
               isCurrentPlan={item.title === currentPlanTitle}
               onUpgrade={() => handleUpgradePress(item)}
               infoOnly={infoOnly}
+              isGateway={payMode === 'GATEWAY'}
             />
           )}
         />
@@ -1070,6 +1155,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Regular',
     color: '#94a3b8',
   },
+  policyAgreement: {
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
 
   // Shared status card layout (PENDING / APPROVED branches)
   statusScrollContent: {
@@ -1114,16 +1203,16 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: 'rgba(15,35,70,0.08)',
+    borderColor: '#e7edf5',
+    shadowColor: 'rgba(15,35,70,0.06)',
     shadowOpacity: 1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   cardTitle: {
     fontSize: 15,
@@ -1213,16 +1302,55 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik-Bold',
     color: '#0f1724',
   },
-  goBackButton: {
-    width: '100%',
-    backgroundColor: '#1F7FE5',
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
+
+  // ── "Your Membership" state (2026-09-28) ──────────────────────────────────────
+  mRing: {
+    width: 96, height: 96, borderRadius: 48,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 6, marginBottom: 16,
   },
-  goBackButtonText: {
-    fontSize: 15,
-    fontFamily: 'Rubik-Bold',
-    color: '#ffffff',
+  mDisc: {
+    width: 72, height: 72, borderRadius: 36,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: 'rgba(15,35,70,0.18)', shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
+  mTitle: { fontSize: 22, fontFamily: 'Rubik-Bold', color: '#0f1724', textAlign: 'center', marginBottom: 6 },
+  mSubtitle: {
+    fontSize: 13, fontFamily: 'Rubik-Regular', color: '#64748b', textAlign: 'center',
+    lineHeight: 19, marginBottom: 22, paddingHorizontal: 12,
+  },
+  mCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  mEyebrow: { fontSize: 11, fontFamily: 'Rubik-Medium', color: '#64748b', letterSpacing: 0.8, textTransform: 'uppercase' },
+  mStatusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#ecfdf5', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  mStatusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#16a34a' },
+  mStatusText: { fontSize: 11, fontFamily: 'Rubik-Medium', color: '#15803d', letterSpacing: 0.3 },
+  mRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#eef2f7',
+  },
+  mRowLast: { borderBottomWidth: 0, paddingBottom: 2 },
+  mRowLabel: { fontSize: 13, fontFamily: 'Rubik-Regular', color: '#64748b' },
+  mRowValue: { fontSize: 14, fontFamily: 'Rubik-Medium', color: '#0f1724' },
+  mTierChip: { borderRadius: 100, paddingHorizontal: 12, paddingVertical: 5 },
+  mTierChipText: { fontSize: 12, fontFamily: 'Rubik-Bold', letterSpacing: 0.3 },
+  mFeatureRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#eef2f7',
+  },
+  mFeatureText: { flex: 1, minWidth: 0, fontSize: 13, fontFamily: 'Rubik-Regular', color: '#0f1724', lineHeight: 18 },
+  mPrimaryWrap: { alignSelf: 'stretch', marginTop: 4, marginBottom: 10, borderRadius: 28, overflow: 'hidden' },
+  mPrimary: { height: 52, alignItems: 'center', justifyContent: 'center' },
+  mPrimaryText: { color: '#fff', fontFamily: 'Rubik-Medium', fontSize: 15 },
+  mGhost: {
+    alignSelf: 'stretch', height: 50, borderRadius: 28,
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e2e8f0',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  mGhostText: { fontSize: 15, fontFamily: 'Rubik-Medium', color: '#475569' },
+  mHelpLink: { marginTop: 18, alignSelf: 'center', paddingVertical: 4 },
+  mHelpLinkText: { fontSize: 13, fontFamily: 'Rubik-Medium', color: '#1F7FE5' },
 });

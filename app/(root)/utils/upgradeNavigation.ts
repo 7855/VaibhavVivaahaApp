@@ -20,6 +20,30 @@ export const PLAN_RANK: Record<string, number> = {
   Platinum: 6,
 };
 
+/**
+ * "Until marriage" plans must never print their stored end date.
+ *
+ * Platinum's subscription_plans.durationDays is a 9999 SENTINEL, so activatePlan writes
+ * endDate = today + 9999 days — a real date roughly 27 years out (a purchase today lands
+ * on 5 Oct 2053). The plan is sold as "until marriage", so that date is meaningless to a
+ * member and reads as a bug.
+ *
+ * The 20-year check is what makes this generic: a future lifetime pack inherits the
+ * behaviour without a second hardcoded plan name (see the section 17 rule on never
+ * hardcoding plan names). Shared rather than inlined because it was inlined in
+ * (tabs)/profile.tsx on 2026-09-27 and PremiumTab's own "Valid Until" row was missed —
+ * one definition, so the two screens cannot disagree again.
+ */
+export const LIFETIME_VALIDITY_LABEL = 'Until marriage';
+
+export function isLifetimeValidity(planTitle?: string | null, endDate?: string | null): boolean {
+  if (planTitle === 'Platinum') return true;
+  if (!endDate) return false;
+  const end = new Date(endDate);
+  if (Number.isNaN(end.getTime())) return false;
+  return end.getFullYear() - new Date().getFullYear() >= 20;
+}
+
 export interface UpgradePlanOption {
   /** subscription_plans.id — required to open a Cashfree checkout for this plan.
    *  Null for the bundled FALLBACK_UPGRADE_PLANS (offline copy, no ids), which is why

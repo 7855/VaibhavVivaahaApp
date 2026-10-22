@@ -141,6 +141,7 @@ const NotificationScreen: React.FC = () => {
         case 'SHORTLIST':         toList('whoShortlistedMe', 'Who Shortlisted You'); break;
         case 'CALL_REQUEST':      toProfile(); break;
         case 'DAILY_MATCH':       router.push('/(root)/(tabs)/explore' as any); break;
+        case 'PROFILE_APPROVED':  router.push('/(root)/(tabs)' as any); break; // approved → start browsing matches
         case 'PAYMENT_SUCCESS':
         case 'PAYMENT_REJECTED':
         case 'IMAGE_REJECTED':    router.push('/(root)/(tabs)/profile' as any); break;

@@ -152,10 +152,8 @@ const SettingsPage: React.FC = () => {
       try { await clearSubscription?.(); } catch { /* never block sign-out */ }
       await logout();
 
-      toast.show({
-        title: 'Logout Successful',
-        duration: 2000,
-      });
+      // No success toast (client 2026-10-07): the NativeBase toast outlived the screen and sat
+      // at the bottom of the login page. Landing on login IS the confirmation.
       router.replace('/(root)/(main)');
     } catch (error) {
       console.error('Error during logout:', error);

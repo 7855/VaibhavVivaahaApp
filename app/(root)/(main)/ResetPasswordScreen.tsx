@@ -30,29 +30,34 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
   // Presentation-only: tracks which field is focused so we can accent its border.
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  // Forgot PIN now runs on WhatsApp (2026-10-16): the registered mobile gets a 6-digit
+  // code; the OTP screen's 'reset' purpose hands back a resetToken for SetNewPasswordScreen.
+  const MOBILE_REGEX = /^[6-9]\d{9}$/;
   const handleContinue = async () => {
-    if (!EMAIL_REGEX.test(email)) return;
+    if (!MOBILE_REGEX.test(email)) return;
     setIsLoading(true);
 
     try {
-      const response = await userApi.forgotPassword({ email });
+      const response = await userApi.sendMobileOtp({ mobile: email, purpose: 'reset' });
 
       if (response.data.code === 200) {
-        await AsyncStorage.setItem('resetEmail', email);
         setIsLoading(false);
         popup.success(
-          'Code Sent',
-          `We've sent a verification code to ${email}.`,
+          'Code Sent on WhatsApp',
+          `We've sent a 6-digit code on WhatsApp to +91 ${email}.`,
           () => {
             router.push({
               pathname: '/(root)/(main)/OTPValidationScreen',
-              params: { email, purpose: 'reset' },
+              params: { mobile: email, purpose: 'reset' },
             });
           }
         );
       } else if (response.data.code === 404) {
         setIsLoading(false);
-        popup.error('Not Registered', 'This email address is not registered with us. Please check and try again.');
+        popup.error('Not Registered', 'This mobile number is not registered with us. Please check and try again.');
+      } else if (response.data.code === 429) {
+        setIsLoading(false);
+        popup.warning('Please wait', response.data.message || 'Too many codes requested. Please try again after 10 minutes.');
       } else {
         setIsLoading(false);
         popup.error('Error', response.data.message || 'Something went wrong. Please try again.');
@@ -64,7 +69,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
     }
   };
 
-  const isFormValid = EMAIL_REGEX.test(email);
+  const isFormValid = MOBILE_REGEX.test(email);
 
   return (
     <NativeBaseProvider>
@@ -136,7 +141,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
           marginTop: 6,
           textAlign: 'center',
         }}>
-          Enter your registered email address and we'll send you a code to reset your PIN.
+          Enter your registered mobile number and we'll send a code on WhatsApp to reset your PIN.
         </AppText>
 
         {/* Dark step banner */}
@@ -160,11 +165,11 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
             backgroundColor: 'rgba(90,167,239,0.28)',
             justifyContent: 'center', alignItems: 'center',
           }}>
-            <Ionicons name="mail-outline" size={18} color="#ffffff" />
+            <Ionicons name="logo-whatsapp" size={18} color="#ffffff" />
           </View>
           <View style={{ flex: 1 }}>
             <AppText weight="bold" style={{ fontSize: 13.5, color: '#ffffff' }}>
-              Reset PIN via Email
+              Reset PIN via WhatsApp
             </AppText>
             <AppText weight="regular" style={{
               fontSize: 11,
@@ -172,7 +177,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
               lineHeight: 15,
               marginTop: 2,
             }}>
-              We'll send a one-time code to your registered email address
+              We'll send a one-time code on WhatsApp to your registered number
             </AppText>
           </View>
         </View>
@@ -187,7 +192,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
             marginLeft: 8,
             marginBottom: 5,
           }}>
-            Email Address
+            Mobile Number
           </AppText>
           <View style={{
             backgroundColor: '#ffffff',
@@ -207,7 +212,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
             <Icon name="email" size={18} color={focusedField === 'email' ? '#1F7FE5' : '#94a3b8'} style={{ marginRight: 10 }} />
             <TextInput
               defaultValue={phoneNumber}
-              onChangeText={(text) => setPhoneNumber(text)}
+              onChangeText={(text) => setPhoneNumber(text.replace(/\D/g, '').slice(0, 10))}
               onFocus={() => setFocusedField('email')}
               onBlur={() => setFocusedField(null)}
               style={{
@@ -217,10 +222,10 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ onBack, onCon
                 color: '#333',
                 paddingVertical: 0,
               }}
-              placeholder="Enter your email address"
+              placeholder="Enter 10-digit mobile number"
               placeholderTextColor="#9aa7b8"
-              keyboardType="email-address"
-              autoCapitalize="none"
+              keyboardType="phone-pad"
+              maxLength={10}
             />
             {EMAIL_REGEX.test(phoneNumber) && (
               <View style={{

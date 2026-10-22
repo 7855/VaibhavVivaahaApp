@@ -1,15 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, Image, TextInput, TouchableOpacity, Alert, Dimensions, Platform, Keyboard, TouchableWithoutFeedback, BackHandler } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
+import { draftFromRegistration } from './RegisterScreen';
 import { webSocketService } from '../services/webSocketService';
 import { NativeBaseProvider } from 'native-base';
 import { saveDeviceInfo } from '../../../utils/deviceInfo';
+import { persistLoginSession } from '../utils/persistSession';
 import { useUserData } from '../contexts/UserDataContext';
 import CommonPopup from '../../../components/CommonPopup';
 import { usePopup } from '../contexts/PopupContext';
@@ -20,6 +24,26 @@ interface LoginScreenProps {
 }
 
 const { width, height } = Dimensions.get('window');
+
+const KOLAM_PAGE = (() => { const d: { x: number; y: number }[] = []; for (let x = 12; x < 460; x += 26) for (let y = 12; y < 960; y += 26) d.push({ x, y }); return d; })();
+const KOLAM_BAND = (() => { const d: { x: number; y: number }[] = []; for (let x = 10; x < 460; x += 22) for (let y = 8; y < 200; y += 22) d.push({ x, y }); return d; })();
+/** Page backdrop only (2026-10-20) — the form rendered above it is untouched. */
+const LoginBackdrop = ({ bandH }: { bandH: number }) => {
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FFF8EE' }}>
+      <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+        {KOLAM_PAGE.map((d, i) => <Circle key={i} cx={d.x} cy={d.y} r="1.1" fill="rgba(66,0,1,0.07)" />)}
+      </Svg>
+      <LinearGradient colors={['#7A120B', '#420001', '#2A0004']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+        style={{ height: bandH, borderBottomLeftRadius: 34, borderBottomRightRadius: 34, overflow: 'hidden' }}>
+        <Svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+          {KOLAM_BAND.map((d, i) => <Circle key={i} cx={d.x} cy={d.y} r="1.2" fill="rgba(255,255,255,0.16)" />)}
+        </Svg>
+        <View style={{ position: 'absolute', right: -70, top: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(246,183,51,0.22)' }} />
+      </LinearGradient>
+    </View>
+  );
+};
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) => {
   const { loadUserData } = useUserData();
@@ -80,80 +104,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
       const response = await userApi.login(request)
       // console.log('Login response:', response.data)
       if (response.data.code === 200) {
-        // Store JWT token for authenticated API calls
-        if (response.data.data.token) {
-          await AsyncStorage.setItem('authToken', response.data.data.token)
-        }
-        if (response.data.data.refreshToken) {
-          await AsyncStorage.setItem('refreshToken', response.data.data.refreshToken)
-        }
-        // Store only non-null values
-        await AsyncStorage.setItem('userId', response.data.data.userId)
-        // The typed identifier may be an EMAIL now — persist the account's real
-        // mobile from the response (Change PIN and the self profile read this key).
-        await AsyncStorage.setItem('mobileNumber', String(response.data.data.mobile ?? ''))
-
-        // Sync AuthContext's in-memory userId/isOnline state. AuthContext only ever reads
-        // AsyncStorage once, at app boot (checkUserStatus) — without this call, useAuth()-gated
-        // UI (e.g. QuickAccessFAB, gated on `if (!userId) return null`) stays hidden after a
-        // same-session logout→login, since nothing else ever tells AuthContext a new user
-        // signed in. Previously required a full app restart to recover.
-        await login(response.data.data.userId).catch(() => { });
-
-        // Only store profileImage if it exists
-        if (response.data.data.profileImage) {
-          await AsyncStorage.setItem('profileImage', response.data.data.profileImage)
-        }
-        // console.log("response.data.data.isUser===================>",response.data.data.isUser);
-
-
-        await AsyncStorage.setItem('firstName', response.data.data.firstName || '')
-        await AsyncStorage.setItem('lastName', response.data.data.lastName || '')
-        await AsyncStorage.setItem('gender', response.data.data.gender || '')
-        await AsyncStorage.setItem('location', response.data.data.location || '')
-        if (response.data.data.casteId) {
-          await AsyncStorage.setItem('casteId', response.data.data.casteId.toString());
-        }
-        await AsyncStorage.setItem('isUser', response.data.data.isUser || '');
-        // Store role: 'PARENT' for family logins, 'USER' for normal members
-        await AsyncStorage.setItem('userRole', response.data.data.role || 'USER');
-        if (response.data.data.familyLoginId) {
-          await AsyncStorage.setItem('familyLoginId', String(response.data.data.familyLoginId));
-          await AsyncStorage.setItem('parentName', response.data.data.parentName || '');
-          await AsyncStorage.setItem('relationship', response.data.data.relationship || '');
-        } else {
-          await AsyncStorage.removeItem('familyLoginId');
-          await AsyncStorage.removeItem('parentName');
-          await AsyncStorage.removeItem('relationship');
-        }
-        await AsyncStorage.setItem('hasStarted', 'true')
-
-        // Store profile approval status. Default to APPROVED when the
-        // backend doesn't send it (legacy payloads) — only PENDING/REJECTED
-        // should actually hold users on the verification screen.
-        const userStatus = response.data.data.userStatus || 'APPROVED';
-        await AsyncStorage.setItem('userStatus', userStatus);
-        if (response.data.data.rejectionReason) {
-          await AsyncStorage.setItem('rejectionReason', response.data.data.rejectionReason);
-        } else {
-          await AsyncStorage.removeItem('rejectionReason');
-        }
-
-        // Initialize WebSocket connection if not already connected
-        try {
-          if (!webSocketService.socket) {
-            await webSocketService.connect(response.data.data.userId);
-          }
-        } catch (error) {
-          console.error('Error initializing WebSocket connection:', error);
-        }
-
-        // Save device info in background — don't block login
-        saveDeviceInfo(response.data.data.userId).catch((e) =>
-          console.warn('Push: saveDeviceInfo failed at login', e)
-        );
-
-        // Refresh user data context with the freshly stored values
+        // One shared persistence path with the WhatsApp login — see utils/persistSession.
+        const userStatus = await persistLoginSession(response.data.data, login);
         await loadUserData();
 
         // Full name, not just the first — the header greeting already shows both,
@@ -170,6 +122,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
           }
         });
         setWelcomeVisible(true);
+      } else if (response.data.code === 429) {
+        popup.warning('Too many attempts', response.data.message || 'Too many wrong attempts. Please try again in 15 minutes.');
       } else if (response.data.code === 404 || response.data.code === 401) {
         // ONE message for both "no such account" (404) and "wrong PIN" (401), by client ask
         // and standard practice: a distinct "Not Registered" reply confirms which mobiles and
@@ -183,6 +137,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
         // same UX as the old 200-response path used to give a PENDING/REJECTED user.
         const pendingData = response.data.data;
         const pendingStatus = pendingData?.userStatus;
+        if (response.data.message === 'REGISTRATION_INCOMPLETE') {
+          // New flow (2026-10-19): the registration was started but never finished. The PIN
+          // is chosen on the number page, so the server has just checked it and hands back the
+          // saved sections — the member lands straight on the pending steps (any phone).
+          const reg = response.data.data;
+          if (reg?.registrationToken) {
+            await AsyncStorage.setItem('registerDraft', JSON.stringify({ ...draftFromRegistration(reg, mobileNumber.trim()), fromLogin: true })).catch(() => {});
+            router.push('/(root)/(main)/RegisterScreen' as any);
+            return;
+          }
+          // Older jar (no draft on a PIN login): re-verify the number inside the register flow.
+          await AsyncStorage.setItem('registerDraft', JSON.stringify({ mobile: mobileNumber.trim(), stage: 'start', resume: true })).catch(() => {});
+          popup.info('Finish your registration', 'This number has an unfinished registration. Verify it on WhatsApp to continue where you left off.', () => router.push('/(root)/(main)/RegisterScreen' as any));
+          return;
+        }
         if (pendingStatus === 'PENDING' || pendingStatus === 'REJECTED') {
           if (pendingData.userId) await AsyncStorage.setItem('userId', pendingData.userId);
           await AsyncStorage.setItem('firstName', pendingData.firstName || '');
@@ -208,6 +177,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
     }
   }
 
+  // Maroon band height (client, 2026-10-20): its bottom edge sits on the MIDDLE line of the
+  // lotus tile, wherever the vertically-centred form puts that tile on this phone — measured
+  // from the tile itself, not assumed from the screen height.
+  const insets = useSafeAreaInsets();
+  const [bandH, setBandH] = useState(insets.top + 92);
+  const logoRef = useRef<View | null>(null);
+  const measureLogo = () => {
+    logoRef.current?.measureInWindow((_x, y, _w, h) => { if (h > 0 && y > 0) setBandH(Math.round(y + h / 2)); });
+  };
+
   // Email-or-mobile login (2026-09-05): one field carries either identifier.
   const isEmailFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mobileNumber);
   const isMobileFormat = /^\d{10}$/.test(mobileNumber);
@@ -217,15 +196,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
   return (
     <NativeBaseProvider>
       <View style={{ flex: 1 }}>
-        {/* Same soft blue theme gradient used app-wide (explore.tsx, sign-up.tsx) instead of
-            the flat '#F5F5F5' this screen had — the login screen was the odd one out. */}
-        <LinearGradient
-          colors={['#d0dfeb', '#dde8f1', '#e9f0f6', '#f3f7fa']}
-          locations={[0, 0.3, 0.6, 1.0]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-        />
+        {/* Background only (client, 2026-10-20): the register page's language — jasmine-cream
+            page with a faint maroon kolam, and a short maroon band with white kolam dots + a
+            marigold glow across the top. The band stops above the content on every phone, so the
+            ink title and slate copy below it are untouched. Nothing inside the form changed. */}
+        <LoginBackdrop bandH={bandH} />
         {/* Was a KeyboardAvoidingView with behavior=undefined on Android — i.e. a no-op — and
             there was no scrollable container, so a focused input could not be scrolled above the
             keyboard. KeyboardAwareScrollView handles both platforms; enableOnAndroid +
@@ -280,13 +255,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                       borderRadius (works on both platforms); the wrapper only carries the shadow
                       so Android elevation isn't clipped away. */}
                   <View style={{ alignItems: 'center' }}>
-                    <View style={{
-                      width: 84, height: 84, borderRadius: 25, backgroundColor: '#ffffff',
+                    <View ref={logoRef} onLayout={measureLogo} style={{
+                      width: 84, height: 84, borderRadius: 42, backgroundColor: '#ffffff',
                       shadowColor: '#1F7FE5', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.14, shadowRadius: 14, elevation: 4,
                     }}>
                       <Image
                         source={require('../../../assets/images/LotusLogo.png')}
-                        style={{ width: 84, height: 84, borderRadius: 25 }}
+                        style={{ width: 84, height: 84, borderRadius: 42 }}
                         resizeMode="cover"
                       />
                     </View>
@@ -562,7 +537,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onForgetPin = () => { } }) =>
                   <View style={{ alignItems: 'center', marginTop: 14 }}>
                     <Text style={{ fontSize: 13, fontFamily: 'Rubik-Medium', color: '#64748b' }}>
                       Don't have an account?{' '}
-                      <Text style={{ color: '#1F7FE5', fontFamily: 'Rubik-Bold' }} onPress={() => router.push('/(root)/(main)/sign-up')}>
+                      <Text style={{ color: '#1F7FE5', fontFamily: 'Rubik-Bold' }} onPress={() => router.push('/(root)/(main)/RegisterScreen' as any)} /* 2026-10-19: new register flow; old sign-up.tsx untouched */>
                         Sign Up
                       </Text>
                     </Text>

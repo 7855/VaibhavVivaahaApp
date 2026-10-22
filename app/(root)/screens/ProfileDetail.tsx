@@ -260,8 +260,8 @@ const HoroscopeImage = ({ uri }: { uri: string }) => {
   );
 };
 
-const InlineProfileTabs = ({ personalDetail, isPremium, hasRevealQuota = false, hiddenFields = [], profileDetailId = '', currentUserId = '', planTitle = '', interestStatus = '', isSender = false, permissionRequests = {}, approvedFields = [] }: {
-  personalDetail: any[]; isPremium: boolean; hasRevealQuota?: boolean; hiddenFields?: string[]; profileDetailId?: string; currentUserId?: string; planTitle?: string; interestStatus?: string; isSender?: boolean; permissionRequests?: { [key: string]: boolean }; approvedFields?: string[];
+const InlineProfileTabs = ({ personalDetail, isPremium, hasRevealQuota = false, astroLocked = false, hiddenFields = [], profileDetailId = '', currentUserId = '', planTitle = '', interestStatus = '', isSender = false, permissionRequests = {}, approvedFields = [] }: {
+  personalDetail: any[]; isPremium: boolean; hasRevealQuota?: boolean; astroLocked?: boolean; hiddenFields?: string[]; profileDetailId?: string; currentUserId?: string; planTitle?: string; interestStatus?: string; isSender?: boolean; permissionRequests?: { [key: string]: boolean }; approvedFields?: string[];
 }) => {
   const personal = personalDetail?.[0]?.data || {};
   const religious = personalDetail?.[1]?.data || {};
@@ -415,8 +415,20 @@ const InlineProfileTabs = ({ personalDetail, isPremium, hasRevealQuota = false, 
           {/* Always rendered, showing '-' when the member hasn't set a subcaste — the row going
               missing would otherwise be indistinguishable from the field not existing at all. */}
           <DetailField label="Subcaste" value={religious.Subcaste} showEmpty />
-          <DetailField label="Star" value={religious.Star} />
-          <DetailField label="Moon Sign" value={religious.Moonsign} />
+          {/* Star / Moon Sign / Lagnam are a paid benefit: for a Free viewer the server blanks them
+              and sends astroLocked, so show ONE upgrade lock in their place rather than three
+              "-" values that would read as "not filled in". */}
+          {astroLocked ? (
+            <View style={{ flexGrow: 1, flexBasis: '100%', minWidth: '100%' }}>
+              <PremiumLock message={upgradeMessage('see Star, Moon Sign & Lagnam', 'Starter')} planTitle={planTitle} featureName="Star, Moon Sign & Lagnam" />
+            </View>
+          ) : (
+            <>
+              <DetailField label="Star" value={religious.Star} />
+              <DetailField label="Moon Sign" value={religious.Moonsign} />
+              <DetailField label="Lagnam" value={religious.Lagnam} />
+            </>
+          )}
           {/* Hidden by the owner → ask permission, exactly like Mobile/Horoscope. Otherwise the
               revealed value wins (one reveal covers contact + horoscope + birth time). */}
           {/* Birth Time occupies a FULL row in both states. Hidden, it needs the width for
@@ -557,6 +569,8 @@ const ProfileDetailRevamp = () => {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isPremiumValue, setIsPremiumValue] = useState(false);
   const [hasRevealQuota, setHasRevealQuota] = useState(false);
+  // Server says Star / Moon Sign / Lagnam were withheld for this (Free) viewer.
+  const [astroLocked, setAstroLocked] = useState(false);
   const [hiddenFeildsValue, setHiddenFeildsValue] = useState<any>([]);
   const [subscriptionId, setSubscriptionId] = useState<any>(null);
   const [isLiked, setIsLiked] = useState(false);
@@ -658,7 +672,8 @@ const ProfileDetailRevamp = () => {
           return;
         }
         if (res.data?.data) {
-          const { profile, interactionStatus } = res.data.data;
+          const { profile, interactionStatus, astroLocked: locked } = res.data.data;
+          setAstroLocked(locked === true);
           setUserDetails(profile);
           setPersonalDetail(formatUserDetails(profile));
           setUserDetailId(profile.userId);
@@ -778,6 +793,7 @@ const ProfileDetailRevamp = () => {
           Subcaste: data.subcasteName || "",
           Star: astro.star,
           Moonsign: astro.moon_sign,
+          Lagnam: astro.lagnam,
           // Masked server-side unless the viewer may see the horoscope (same astro data, same
           // consent rule) — so an empty value here means "not revealed yet", not "not set".
           BirthTime: astro.birth_time,
@@ -1583,6 +1599,7 @@ const ProfileDetailRevamp = () => {
               personalDetail={personalDetail}
               isPremium={isPremiumValue}
               hasRevealQuota={hasRevealQuota}
+              astroLocked={astroLocked}
               hiddenFields={hiddenFeildsValue}
               profileDetailId={String(userDetailId || '')}
               currentUserId={currentUserId || ''}

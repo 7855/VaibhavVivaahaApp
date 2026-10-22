@@ -13,7 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Add to this list deliberately — anything here persists across accounts on a
  * shared device, so it must never contain user data.
  */
-const SURVIVES_LOGOUT = ['onboardingSeen'];
+// lastLoginMobile: the phone-first screen prefills the number after a logout (2026-10-16).
+const SURVIVES_LOGOUT = ['onboardingSeen', 'lastLoginMobile'];
 
 export async function clearStorageForLogout(): Promise<void> {
   try {

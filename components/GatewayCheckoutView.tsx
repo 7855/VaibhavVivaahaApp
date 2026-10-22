@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { startCashfreeCheckout, useCashfreeCallback, PAYMENT_RETURN_DEEP_LINK } from '../app/(root)/utils/cashfreeCheckout';
 import { ArrowLeft, Shield, Lock, CheckCircle, CreditCard } from 'lucide-react-native';
+import PolicyAgreement from './PolicyAgreement';
 
 /**
  * PAYMENT_MODE = 'GATEWAY': self-serve online checkout through Cashfree.
@@ -107,6 +108,8 @@ const GatewayCheckoutView: React.FC<Props> = ({
           )}
         </TouchableOpacity>
 
+        <PolicyAgreement style={s.agreement} />
+
         <View style={s.trustRow}>
           <Shield size={14} color="#64748b" />
           <Text style={s.trustText}>Payments processed by Cashfree Payments</Text>
@@ -142,6 +145,7 @@ const s = StyleSheet.create({
   payBtn: { backgroundColor: '#420001', borderRadius: 28, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   payBtnBusy: { opacity: 0.75 },
   payBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Rubik-Bold' },
+  agreement: { marginTop: 12, paddingHorizontal: 8 },
   trustRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16 },
   trustText: { color: '#64748b', fontSize: 12, fontFamily: 'Rubik-Medium' },
   fineprint: { color: '#94a3b8', fontSize: 11.5, fontFamily: 'Rubik-Regular', textAlign: 'center', marginTop: 12, lineHeight: 17 },

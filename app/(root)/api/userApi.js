@@ -309,6 +309,31 @@ const userApi = {
   // Settings → Change PIN: verifies the CURRENT pin server-side (401 on mismatch)
   changePinWithOld: (body) => axiosClient.post(`/user/changePinWithOld`, body),
 
+  // Add an email to an account that has NONE (imported members). `verificationToken` comes from
+  // /auth/verify-otp with purpose 'add-email'. The server refuses to change an existing email.
+  addEmail: (encodedUserId, body) =>
+    axiosClient.post(`/user/addEmail/${encodedUserId}`, body),
+  // Replace the account's email with a newly verified one (purpose 'change-email'). Body: {email, verificationToken}.
+  changeEmail: (encodedUserId, body) =>
+    axiosClient.post(`/user/changeEmail/${encodedUserId}`, body),
+
+  // WhatsApp OTP on a mobile number (2026-10-14): purpose 'registration' | 'add-mobile'.
+  // Paid per message — the server allows 3 sends per number per 10 minutes.
+  sendMobileOtp: (body) =>
+    axiosClient.post(`/auth/send-mobile-otp`, body),
+  verifyMobileOtp: (body) =>
+    axiosClient.post(`/auth/verify-mobile-otp`, body),
+  // New registration flow (2026-10-19) — separate from createUser.
+  registerStart: (body) => axiosClient.post(`/auth/register/start`, body),
+  registerStep: (body) => axiosClient.post(`/auth/register/step`, body),
+  registerComplete: (body) => axiosClient.post(`/auth/register/complete`, body, { timeout: 30000 }),
+  // Login with a WhatsApp-verified number (OTP screen, purpose 'start'). Body: {mobile, verificationToken}.
+  loginWithOtp: (body) =>
+    axiosClient.post(`/user/login-with-otp`, body),
+  // Attach a WhatsApp-verified mobile to an account that has none. Body: {mobile, verificationToken}.
+  addMobile: (encodedUserId, body) =>
+    axiosClient.post(`/user/addMobile/${encodedUserId}`, body),
+
   resubmitProfile: (encodedUserId, message) =>
     axiosClient.post(`/user/resubmit-profile/${encodedUserId}`, message ? { message } : {}),
 

@@ -21,7 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import moment from 'moment'; // Import the moment library for date formatting
 import { SelectList } from 'react-native-dropdown-select-list'
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import userApi from '../api/userApi';
 import { AntDesign } from '@expo/vector-icons';
@@ -30,7 +30,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react-native";
 import { loadMasterData } from "../services/masterService";
 import { useMasterData } from "../contexts/MasterDataContext";
 import { usePopup } from "../contexts/PopupContext";
-import { stripNonNameChars } from '../../../constants/data';
+import { stripNonNameChars, minAgeForGender, meetsMinAge, latestDobForGender, ageRuleMessage } from '../../../constants/data';
 type GetstartProps = {
   onStart: () => void;
 };
@@ -158,7 +158,9 @@ interface FormErrors {
   // Add other error fields as needed
 }
 
-const STEP_LABELS = ['Basic Info', 'Account Setup'];
+const STEP_LABELS = ['About you', 'Life & PIN'];
+const PROFILE_FOR = ['Myself', 'Son', 'Daughter', 'Brother', 'Sister', 'Relative/Friend'].map((v) => ({ id: v, value: v }));
+const DRAFT_KEY = 'signupDraft';
 
 export default function SignUp({ onStart }: GetstartProps) {
   const popup = usePopup();
@@ -269,13 +271,77 @@ export default function SignUp({ onStart }: GetstartProps) {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [age, setAge] = useState('');
+  const [profileFor, setProfileFor] = useState('');
   const [email, setEmail] = useState('');
   // Email verification state
   const [emailVerified, setEmailVerified] = useState(false);
   const [verificationToken, setVerificationToken] = useState<string | null>(null);
+  // Mobile verified on WhatsApp (2026-10-14) — same shape as the email pair.
+  const [mobileVerified, setMobileVerified] = useState(false);
+  const [mobileVerificationToken, setMobileVerificationToken] = useState<string | null>(null);
+  const [sendingMobileOtp, setSendingMobileOtp] = useState(false);
+
   const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  // Arrived from PhoneStartScreen (2026-10-16): the number is already verified on WhatsApp,
+  // and a website lead's name comes along for prefill.
+  const startParams = useLocalSearchParams<{ mobile?: string; mobileVerificationToken?: string; leadName?: string; profileFor?: string }>();
+  useEffect(() => {
+    const m = String(startParams.mobile || '');
+    const t = String(startParams.mobileVerificationToken || '');
+    if (m && t) {
+      setMobile(m);
+      setMobileVerificationToken(t);
+      setMobileVerified(true);
+    }
+    const ln = String(startParams.leadName || '').trim();
+    if (ln) {
+      const [f, ...rest] = ln.split(/\s+/);
+      setFirstName((v) => v || f);
+      if (rest.length) setLastName((v) => v || rest.join(' '));
+    }
+    const pf = String(startParams.profileFor || '').trim();
+    if (pf) setProfileFor((v) => v || pf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Draft: everything but the PIN, restored when the member comes back mid-way.
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(DRAFT_KEY);
+        if (raw) {
+          const d = JSON.parse(raw);
+          if (d.firstName) setFirstName((v) => v || d.firstName);
+          if (d.lastName) setLastName((v) => v || d.lastName);
+          if (d.email) setEmail((v) => v || d.email);
+          if (d.selectedGender) setSelectedGender((v) => v || d.selectedGender);
+          if (d.caste) setCaste((v) => v || d.caste);
+          if (d.subcaste) setSubcaste((v) => v || d.subcaste);
+          if (d.education) setEducation((v) => v || d.education);
+          if (d.occupation) setOccupation((v) => v || d.occupation);
+          if (d.selectedCity) setSelectedCity((v) => v || d.selectedCity);
+          if (d.profileFor) setProfileFor((v) => v || d.profileFor);
+          if (d.dob && d.dobDisplay) { setDob(new Date(d.dob)); setDobDisplay((v) => v || d.dobDisplay); }
+          if (d.employmentStatus) setEmploymentStatus((v) => v || d.employmentStatus);
+        }
+      } catch { /* a bad draft is just ignored */ }
+      draftLoaded.current = true;
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!draftLoaded.current) return;
+    const t = setTimeout(() => {
+      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({
+        firstName, lastName, email, selectedGender, caste, subcaste, education, occupation, selectedCity, profileFor,
+        dob: dobDisplay ? dob.toISOString() : '', dobDisplay, employmentStatus,
+      })).catch(() => {});
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstName, lastName, email, selectedGender, caste, subcaste, education, occupation, selectedCity, profileFor, dobDisplay, employmentStatus]);
   const [submitting, setSubmitting] = useState(false);
   const swiperRef = useRef<Swiper>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -326,13 +392,18 @@ export default function SignUp({ onStart }: GetstartProps) {
     !!lastName.trim() &&
     !!dob &&
     !!selectedGender &&
+    // Gender-aware minimum age (men 21, women 18). Uses the module-level helper, NOT the
+    // component's calculateAge — that const is declared further down, so calling it here would
+    // throw on every render.
+    !!dobDisplay && meetsMinAge(dob, selectedGender) &&
     !!caste &&
     (subcasteOptions.length === 0 || !!subcaste) &&
     isValidMobile(mobile) &&
     !!String(age).trim() &&
-    isValidEmail(email) &&
-    emailVerified &&
-    !!verificationToken &&
+    // Email is optional (2026-10-16); when given it must be verified.
+    (email.trim() === '' || (isValidEmail(email) && emailVerified && !!verificationToken)) &&
+    mobileVerified &&
+    !!mobileVerificationToken &&
     !!education &&
     !!occupation.trim() &&
     !!employmentStatus &&
@@ -372,7 +443,6 @@ export default function SignUp({ onStart }: GetstartProps) {
       subcaste,
       mobile,
       age,
-      email,
       education,
       occupation,
       employmentStatus,
@@ -398,8 +468,8 @@ export default function SignUp({ onStart }: GetstartProps) {
       )
       .map(field => fieldLabels[field] || field); // Map field names to labels
 
-    // Add email verification to the missing list if not verified
-    if (!emailVerified) {
+    // Email is optional; if one was typed it must be valid and verified.
+    if (email.trim() && (!isValidEmail(email) || !emailVerified)) {
       missingFields.push('Email Verification');
     }
 
@@ -413,6 +483,11 @@ export default function SignUp({ onStart }: GetstartProps) {
 
     if (!isValidMobile(mobile)) {
       popup.error("Invalid Mobile Number", "Please enter a valid 10-digit mobile number.");
+      return false;
+    }
+
+    if (!meetsMinAge(dob, selectedGender)) {
+      popup.warning("Age Restriction", ageRuleMessage(selectedGender));
       return false;
     }
 
@@ -567,6 +642,57 @@ export default function SignUp({ onStart }: GetstartProps) {
     }
   };
 
+  const handleVerifyMobile = async () => {
+    if (!isValidMobile(mobile)) {
+      setErrors(prev => ({ ...prev, mobile: 'Please enter a valid 10-digit mobile number' }));
+      return;
+    }
+    try {
+      setSendingMobileOtp(true);
+      const res = await userApi.sendMobileOtp({ mobile, purpose: 'registration' });
+      if (res.data?.code === 200) {
+        popup.success(
+          'Code Sent on WhatsApp',
+          `We've sent a 6-digit code on WhatsApp to +91 ${mobile}. Tap Copy Code in the message and paste it on the next screen.`,
+          () => {
+            router.push({
+              pathname: '/(root)/(main)/OTPValidationScreen',
+              params: { mobile, purpose: 'registration' },
+            });
+          }
+        );
+      } else if (res.data?.code === 409) {
+        popup.warning('Mobile Already Registered', res.data.message || 'This mobile number is already registered. Please login instead.');
+      } else if (res.data?.code === 429) {
+        popup.warning('Please wait', res.data.message || 'Too many codes requested. Please try again after 10 minutes.');
+      } else {
+        popup.error('Error', res.data?.message || 'Failed to send the WhatsApp code. Please try again.');
+      }
+    } catch (err: any) {
+      const code = err?.response?.data?.code ?? err?.response?.status;
+      if (code === 409) popup.warning('Mobile Already Registered', 'This mobile number is already registered. Please login instead.');
+      else if (code === 429) popup.warning('Please wait', 'Too many codes requested. Please try again after 10 minutes.');
+      else popup.error('Error', 'Failed to send the WhatsApp code. Please try again.');
+    } finally {
+      setSendingMobileOtp(false);
+    }
+  };
+
+  // Back from the OTP screen with a WhatsApp-verified mobile
+  useFocusEffect(
+    React.useCallback(() => {
+      (async () => {
+        const token = await AsyncStorage.getItem('mobileVerificationToken');
+        const verifiedMobile = await AsyncStorage.getItem('verifiedMobile');
+        if (token && verifiedMobile && verifiedMobile === mobile) {
+          setMobileVerificationToken(token);
+          setMobileVerified(true);
+          await AsyncStorage.multiRemove(['mobileVerificationToken', 'verifiedMobile']);
+        }
+      })();
+    }, [mobile])
+  );
+
   // When user returns from OTP screen, check if they verified their email
   useFocusEffect(
     React.useCallback(() => {
@@ -591,8 +717,12 @@ export default function SignUp({ onStart }: GetstartProps) {
     if (!validateFormData()) return;
 
     // Require email verification before allowing registration
-    if (!emailVerified || !verificationToken) {
-      popup.warning("Verify Email", "Please verify your email before registering.");
+    if (email.trim() && (!emailVerified || !verificationToken)) {
+      popup.warning("Verify Email", "Please verify your email, or clear it to register without one.");
+      return;
+    }
+    if (!mobileVerified || !mobileVerificationToken) {
+      popup.warning("Verify Mobile", "Please verify your mobile number on WhatsApp before registering.");
       return;
     }
 
@@ -626,8 +756,10 @@ export default function SignUp({ onStart }: GetstartProps) {
       pin,
       location: selectedCity,
       age,
-      email,
-      verificationToken,
+      email: email.trim() || null,
+      verificationToken: email.trim() ? verificationToken : null,
+      mobileVerificationToken,
+      profileFor: profileFor || null,
     };
 
     console.log("payload=====================>", payload);
@@ -652,6 +784,9 @@ export default function SignUp({ onStart }: GetstartProps) {
         // Not dismissable: a backdrop tap used to close the popup WITHOUT running
         // the OK handler, stranding the member on a register form whose account
         // already exists. OK (and Android back) is now the only way out → login.
+        // Registration done: drop the local draft and remember the number for the phone-first screen.
+        AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
+        AsyncStorage.setItem('lastLoginMobile', mobile).catch(() => {});
         const goToLogin = () => {
           popup.hide();
           setTimeout(() => router.replace('/(root)/(main)/LoginScreen'), 100);
@@ -711,8 +846,8 @@ export default function SignUp({ onStart }: GetstartProps) {
 
       const computedAge = calculateAge(selectedDate);
 
-      if (computedAge < 18) {
-        setTimeout(() => popup.warning("Age Restriction", "You must be at least 18 years old to register."), 300);
+      if (computedAge < minAgeForGender(selectedGender)) {
+        setTimeout(() => popup.warning("Age Restriction", ageRuleMessage(selectedGender)), 300);
         return;
       }
       setDate(selectedDate);
@@ -749,8 +884,8 @@ export default function SignUp({ onStart }: GetstartProps) {
 
     const computedAge = calculateAge(candidate);
 
-    if (computedAge < 18) {
-      setTimeout(() => popup.warning("Age Restriction", "You must be at least 18 years old to register."), 300);
+    if (computedAge < minAgeForGender(selectedGender)) {
+      setTimeout(() => popup.warning("Age Restriction", ageRuleMessage(selectedGender)), 300);
       return;
     }
 
@@ -760,6 +895,23 @@ export default function SignUp({ onStart }: GetstartProps) {
     setDobDisplay(moment(candidate).format("DD MMM YYYY"));
   };
 
+
+  // DOB and Gender sit side by side, so either can be filled first. Choosing Male after a date
+  // that made the member 18–20 must not leave a now-invalid date on the form: clear it and say
+  // why, rather than letting the member find out only at Create Account.
+  const onGenderPick = (value: string) => {
+    setSelectedGender(value);
+    if (dobDisplay && !meetsMinAge(dob, value)) {
+      setDobDisplay('');
+      setAge('');
+      setTimeout(() => popup.warning("Age Restriction", ageRuleMessage(value)), 300);
+    }
+  };
+
+  // The picker cannot scroll past the latest valid birth date for the chosen gender (18 until a
+  // gender is chosen). Its `value` must never sit beyond `maximumDate`, so clamp it.
+  const dobMax = latestDobForGender(selectedGender);
+  const clampToMax = (d?: Date | null) => (!d || d > dobMax ? dobMax : d);
 
   return (
     <NativeBaseProvider>
@@ -862,6 +1014,14 @@ export default function SignUp({ onStart }: GetstartProps) {
                 enableResetScrollToCoords={false}
               >
                 <View>
+                  <CustomModalPicker
+                    label="Profile for"
+                    placeholder="Who is this profile for?"
+                    data={PROFILE_FOR}
+                    selected={profileFor}
+                    onSelect={(val: string) => setProfileFor(val)}
+                  />
+
                   <HStack space={2} width="100%">
                     {/* First Name Field */}
                     <Box flex={1} style={styles.inputContainer}>
@@ -937,7 +1097,7 @@ export default function SignUp({ onStart }: GetstartProps) {
 
                       {/* Custom Styled Date Input */}
                       <TouchableOpacity
-                        onPress={() => setShowDatePicker(true)}
+                        onPress={() => { setTempDate(clampToMax(date)); setShowDatePicker(true); }}
                         style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1 }]}
                       >
                         <TextNB style={{ color: '#000', fontSize: 14, fontFamily: 'Rubik-Regular' }}>
@@ -960,10 +1120,10 @@ export default function SignUp({ onStart }: GetstartProps) {
                           separate confirm step, matching how every native Android date field works. */}
                       {Platform.OS === 'android' && showDatePicker && (
                         <RNDateTimePicker
-                          value={date || new Date()}
+                          value={clampToMax(date)}
                           mode="date"
                           display="default"
-                          maximumDate={new Date()}
+                          maximumDate={dobMax}
                           onChange={(event, selectedDate) => {
                             setShowDatePicker(false);
                             if (event.type === 'set' && selectedDate) {
@@ -1009,12 +1169,12 @@ export default function SignUp({ onStart }: GetstartProps) {
                                 }}
                               >
                                 <RNDateTimePicker
-                                  value={date || new Date()}
+                                  value={clampToMax(date)}
                                   mode="date"
                                   display="spinner"
                                   textColor="#0f1724"
                                   themeVariant="dark"
-                                  maximumDate={new Date()}
+                                  maximumDate={dobMax}
                                   style={{ backgroundColor: '#fff' }}
                                   onChange={(event, selectedDate) => {
                                     if (selectedDate) {
@@ -1064,7 +1224,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                           return (
                             <TouchableOpacity
                               key={option.value}
-                              onPress={() => setSelectedGender(option.value)}
+                              onPress={() => onGenderPick(option.value)}
                               activeOpacity={0.8}
                               style={[styles.optionPillCompact, selected && styles.optionPillSelected]}
                             >
@@ -1111,7 +1271,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                           now start at the same Y instead of Email sitting lower because its old
                           button-styled pill was taller than a line of text. */}
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 18, marginBottom: 6 }}>
-                        <TextNB style={[styles.fieldLabel, { marginBottom: 0 }]}>Email</TextNB>
+                        <TextNB style={[styles.fieldLabel, { marginBottom: 0 }]}>Email (optional)</TextNB>
                         {emailVerified ? (
                           <TouchableOpacity
                             onPress={() => {
@@ -1148,9 +1308,7 @@ export default function SignUp({ onStart }: GetstartProps) {
                             }
                           }}
                           onBlur={() => {
-                            if (!email) {
-                              setErrors(prev => ({ ...prev, email: 'Email is required' }));
-                            } else if (!isValidEmail(email)) {
+                            if (email && !isValidEmail(email)) {
                               setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
                             }
                           }}
@@ -1180,13 +1338,40 @@ export default function SignUp({ onStart }: GetstartProps) {
                     </Box>
                   </HStack>
 
-                  {/* Mobile Number - 10 digits only */}
+                  {/* Mobile Number - 10 digits only, verified on WhatsApp like the email */}
                   <Box style={styles.inputContainer}>
-                    <TextNB style={styles.fieldLabel}>Mobile Number</TextNB>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 18, marginBottom: 6 }}>
+                      <TextNB style={[styles.fieldLabel, { marginBottom: 0 }]}>Mobile Number</TextNB>
+                      {mobileVerified ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setMobileVerified(false);
+                            setMobileVerificationToken(null);
+                          }}
+                        >
+                          <TextNB style={{ color: '#f59e0b', fontSize: 12.5, fontFamily: 'Rubik-Bold' }}>Change</TextNB>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={handleVerifyMobile}
+                          disabled={!isValidMobile(mobile) || sendingMobileOtp}
+                        >
+                          {sendingMobileOtp ? (
+                            <ActivityIndicator size="small" color="#1F7FE5" />
+                          ) : (
+                            <TextNB style={{ color: !isValidMobile(mobile) ? '#9ca3af' : '#1F7FE5', fontSize: 12.5, fontFamily: 'Rubik-Bold' }}>
+                              Verify on WhatsApp
+                            </TextNB>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <View style={{ position: 'relative' }}>
                     <TextInput
                       placeholder="Enter Mobile Number"
                       placeholderTextColor="#999"
                       value={mobile}
+                      editable={!mobileVerified}
                       onChangeText={(t) => {
                         setMobile(onlyNumbers(t));
                         if (errors.mobile) {
@@ -1202,15 +1387,30 @@ export default function SignUp({ onStart }: GetstartProps) {
                             : 'Enter a valid mobile number' }));
                         }
                       }}
-                      style={[styles.input, errors.mobile && styles.inputError]}
+                      style={[
+                        styles.input,
+                        errors.mobile && styles.inputError,
+                        mobileVerified && { backgroundColor: '#f0fdf4', borderColor: '#86efac', paddingRight: 36 },
+                      ]}
                       keyboardType="phone-pad"
                       maxLength={10}
                     />
+                    {mobileVerified && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={20}
+                        color="#16a34a"
+                        style={{ position: 'absolute', right: 10, top: 10 }}
+                      />
+                    )}
+                    </View>
                     {errors.mobile ? (
                       <TextNB style={styles.error}>{errors.mobile}</TextNB>
                     ) : (
                       <TextNB style={styles.fieldHint}>
-                        Enter a number you actively use — our team will call it to verify your profile.
+                        {mobileVerified
+                          ? 'Verified on WhatsApp.'
+                          : 'Your WhatsApp number — we send a code there to verify it, and our team calls it to verify your profile.'}
                       </TextNB>
                     )}
                   </Box>

@@ -26,6 +26,7 @@ import {
   StyleSheet,
   Platform,
   Modal,
+  KeyboardAvoidingView,
   FlatList,
   ActivityIndicator,
   BackHandler,
@@ -35,6 +36,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChevronLeft } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import moment from 'moment';
@@ -43,7 +45,7 @@ import { useUserData } from '../contexts/UserDataContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { loadMasterData } from '../services/masterService';
 import { usePopup } from '../contexts/PopupContext';
-import { stripNonNameChars } from '../../../constants/data';
+import { stripNonNameChars, minAgeForGender, latestDobForGender, ageRuleMessage } from '../../../constants/data';
 import { markProfileDirty } from '@/utils/profileRefresh';
 import { formatProfileSections } from '@/utils/profileSections';
 
@@ -94,7 +96,9 @@ const SECTIONS: Record<string, { title: string; fields: Field[] }> = {
       // support-desk changes. Shown here so a member can SEE them without hunting, and so
       // the lock is explicit rather than the field simply being absent.
       { label: 'Mobile Number', kind: 'readonly', locked: 'Contact support to change' },
-      { label: 'Email', kind: 'readonly', locked: 'Contact support to change' },
+      // Empty email (imported members) → an "Add email" control with OTP verification
+      // instead of the locked row; see renderField. Once set it is locked like Mobile.
+      { label: 'Email', kind: 'readonly', locked: 'Tap Change to use a different email — we will send a code to confirm it.' },
       { label: 'Current Address', kind: 'multiline', max: 200 },
       { label: 'Native Place', kind: 'text', max: 100 },
       // Place of BIRTH, distinct from Native Place (the family's home town): it pairs with
@@ -114,7 +118,10 @@ const SECTIONS: Record<string, { title: string; fields: Field[] }> = {
       // through support rather than a free self-edit.
       { label: 'Subcaste', kind: 'readonly', locked: 'Contact support to change' },
       { label: 'Star', kind: 'picker', options: 'star' },
-      { label: 'Moon Sign', kind: 'picker', options: 'moonsign' },
+      { label: 'Moon Sign', kind: 'picker', options: 'rasi' },
+      // Lagnam (ascendant) — the sign rising at birth. Same 12 names as Moon Sign, but a
+      // different fact; both lists come from the `rasi` keyValue row.
+      { label: 'Lagnam', kind: 'picker', options: 'rasi', hint: 'Rising sign at birth — not the same as Moon sign' },
       { label: 'Dosham', kind: 'picker', options: 'dosham' },
       // Wheel picker, same control Star Match uses for time of birth — one consistent way to
       // enter a time, and it guarantees a parseable value for horoscope matching. Stored as
@@ -159,8 +166,10 @@ const STATIC_OPTIONS: Record<string, string[]> = {
   physical: ['Normal', 'Handicapped'],
   marital: ['Never Married', 'Married', 'Divorced', 'Separated', 'Widowed'],
   language: ['Tamil', 'English', 'Malayalam', 'Telugu', 'Kannada', 'Hindi'],
-  moonsign: ['Mesham', 'Rishabam', 'Mithunam', 'Kadagam', 'Simmam', 'Kanni',
-    'Thulam', 'Vrichigam', 'Dhanushu', 'Makaram', 'Kumbam', 'Meenam'],
+  // Fallback only — Moon Sign and Lagnam read the `rasi` keyValue row (see optionsFor). Same
+  // spellings as that row and as the stored data, so a saved value pre-selects in the picker.
+  rasiFallback: ['Mesham', 'Rishabam', 'Mithunam', 'Kadagam', 'Simmam', 'Kanni',
+    'Thulam', 'Viruchigam', 'Dhanusu', 'Magaram', 'Kumbam', 'Meenam'],
   familyType: ['Nuclear', 'Joint'],
   familyStatus: ['Lower Middle Class', 'Middle Class', 'Upper Middle Class', 'Rich'],
   height: Array.from({ length: 51 }, (_, i) => (3 + i * 0.1).toFixed(1)),
@@ -254,16 +263,10 @@ const Picker: React.FC<{
   );
 };
 
-// Same 18+ rule as registration (sign-up.tsx). The backend's update-personal-info
-// enforces it too and answers 400, but without this the member could pick an
-// under-18 date and only learn it was invalid after pressing Save.
-const MIN_AGE = 18;
-const latestAllowedDob = () => {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - MIN_AGE);
-  d.setHours(23, 59, 59, 999);
-  return d;
-};
+// Same rule as registration (sign-up.tsx): men 21, women 18 — India's legal minimum marriage
+// ages (constants/data.ts, 2026-09-28; this was a flat 18 for everyone). Gender is READONLY on
+// this page, so the member's saved gender decides. ⚠️ The backend's update-personal-info still
+// only rejects under-18, so this page is what stops a man editing his DOB to under 21.
 const ageOn = (dob: Date) => {
   const today = new Date();
   let age = today.getFullYear() - dob.getFullYear();
@@ -283,7 +286,7 @@ export default function EditProfileSection() {
   const sectionKey = String(params.section || '');
   const spec = SECTIONS[sectionKey];
 
-  const { userData } = useUserData();
+  const { userData, updateField } = useUserData();
   const { state: masterData, setMasterData, getCasteName } = useMasterData() as any;
   const popup = usePopup();
 
@@ -333,6 +336,233 @@ export default function EditProfileSection() {
   const scrollRef = useRef<any>(null);
   const fieldY = useRef<Record<string, number>>({});
   const [highlight, setHighlight] = useState<string | null>(null);
+
+  // ── Add email (members imported without one, 2026-10-12) ───────────────────
+  // Kept OUT of `form` so typing an address never marks the page dirty — the email is
+  // saved by its own endpoint the moment the OTP is verified, never by the Save button.
+  const [emailDraft, setEmailDraft] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
+  const emailDraftRef = useRef('');
+  emailDraftRef.current = emailDraft;
+
+  // ── Change email (2026-10-20): Change → field editable → Verify → code popup → saved ──
+  // Also kept out of `form`: the address is written by its own endpoint once the code checks
+  // out, never by Save, so editing it never marks the page dirty.
+  const [emailEditing, setEmailEditing] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [codeErr, setCodeErr] = useState('');
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeSending, setCodeSending] = useState(false);
+  const [codeTimer, setCodeTimer] = useState(0);
+  useEffect(() => {
+    if (!codeTimer) return;
+    const t = setTimeout(() => setCodeTimer((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [codeTimer]);
+
+  // Same shape for a member with NO mobile (imported profiles): verified on WhatsApp,
+  // saved by its own endpoint the moment the code checks out, never by Save.
+  const [mobileDraft, setMobileDraft] = useState('');
+  const [mobileSending, setMobileSending] = useState(false);
+  const [mobileSaving, setMobileSaving] = useState(false);
+  const mobileDraftRef = useRef('');
+  mobileDraftRef.current = mobileDraft;
+
+  const sendMobileOtp = useCallback(async () => {
+    const num = mobileDraft.trim();
+    if (!/^[6-9]\d{9}$/.test(num)) {
+      popup.error('Check the number', 'Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    setMobileSending(true);
+    try {
+      const res = await userApi.sendMobileOtp({ mobile: num, purpose: 'add-mobile' });
+      const code = res?.data?.code;
+      if (code === 200) {
+        router.push({ pathname: '/(root)/(main)/OTPValidationScreen', params: { mobile: num, purpose: 'add-mobile' } });
+      } else if (code === 409) {
+        popup.error('Already in use', 'This mobile number is already registered to another account.');
+      } else if (code === 403) {
+        popup.error('Number not allowed', 'This number cannot be used. Please contact support.');
+      } else if (code === 429) {
+        popup.error('Please wait', 'Too many codes requested for this number. Try again after 10 minutes.');
+      } else {
+        popup.error('Could not send code', res?.data?.message || 'Please try again in a moment.');
+      }
+    } catch (e: any) {
+      const code = e?.response?.data?.code ?? e?.response?.status;
+      if (code === 409) popup.error('Already in use', 'This mobile number is already registered to another account.');
+      else popup.error('Could not send code', 'Please check your connection and try again.');
+    } finally {
+      setMobileSending(false);
+    }
+  }, [mobileDraft, popup]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      (async () => {
+        const token = await AsyncStorage.getItem('mobileVerificationToken');
+        const verifiedMobile = await AsyncStorage.getItem('verifiedMobile');
+        if (!token || !verifiedMobile) return;
+        if (verifiedMobile !== mobileDraftRef.current.trim()) return; // belongs to sign-up, not us
+        await AsyncStorage.multiRemove(['mobileVerificationToken', 'verifiedMobile']);
+        if (!alive || !userData?.userId) return;
+        setMobileSaving(true);
+        try {
+          const res = await userApi.addMobile(userData.userId, { mobile: verifiedMobile, verificationToken: token });
+          if (res?.data?.code === 200) {
+            const saved = String(res.data.data?.mobile || verifiedMobile);
+            setInitial((prev) => (prev ? { ...prev, 'Mobile Number': saved } : prev));
+            setForm((prev) => ({ ...prev, 'Mobile Number': saved }));
+            setMobileDraft('');
+            try { await AsyncStorage.setItem('mobileNumber', saved); } catch {}
+            markProfileDirty();
+            popup.success('Mobile added', 'You can now sign in with this number and your PIN.');
+          } else {
+            const m = res?.data?.message;
+            popup.error(
+              'Could not add mobile',
+              m === 'MOBILE_ALREADY_SET' ? 'This account already has a mobile number. Contact support to change it.'
+                : m === 'MOBILE_NOT_VERIFIED' ? 'The verification expired. Please request a new code.'
+                : (m || 'Please try again.'),
+            );
+          }
+        } catch {
+          popup.error('Could not add mobile', 'Please check your connection and try again.');
+        } finally {
+          if (alive) setMobileSaving(false);
+        }
+      })();
+      return () => { alive = false; };
+    }, [userData?.userId, popup])
+  );
+
+  const sendEmailOtp = useCallback(async () => {
+    const addr = emailDraft.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr)) {
+      popup.error('Check the email', 'Please enter a valid email address.');
+      return;
+    }
+    setEmailSending(true);
+    try {
+      const res = await userApi.sendAuthOtp({ email: addr, purpose: 'add-email', firstName: userData?.firstName || undefined });
+      const code = res?.data?.code;
+      if (code === 200) {
+        router.push({ pathname: '/(root)/(main)/OTPValidationScreen', params: { email: addr, purpose: 'add-email' } });
+      } else if (code === 409) {
+        popup.error('Already in use', 'This email is already registered to another account.');
+      } else if (code === 403) {
+        popup.error('Email not allowed', 'This email cannot be used. Please contact support.');
+      } else {
+        popup.error('Could not send code', res?.data?.message || 'Please try again in a moment.');
+      }
+    } catch (e: any) {
+      const code = e?.response?.data?.code ?? e?.response?.status;
+      if (code === 409) popup.error('Already in use', 'This email is already registered to another account.');
+      else popup.error('Could not send code', 'Please check your connection and try again.');
+    } finally {
+      setEmailSending(false);
+    }
+  }, [emailDraft, popup, userData?.firstName]);
+
+  const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  const startEmailChange = useCallback(() => { setNewEmail(''); setEmailEditing(true); }, []);
+  const cancelEmailChange = useCallback(() => { setEmailEditing(false); setNewEmail(''); }, []);
+  const sendChangeCode = useCallback(async (resend = false) => {
+    const addr = newEmail.trim().toLowerCase();
+    if (!EMAIL_RE.test(addr)) { popup.error('Check the email', 'Please enter a valid email address.'); return; }
+    if (addr === String(form.Email || '').trim().toLowerCase()) { popup.error('Same email', 'This is already your email address.'); return; }
+    setCodeSending(true);
+    try {
+      const res = await userApi.sendAuthOtp({ email: addr, purpose: 'change-email', firstName: userData?.firstName || undefined });
+      const c = res?.data?.code;
+      if (c === 200) {
+        setCode(''); setCodeErr(''); setCodeTimer(30);
+        if (!resend) setCodeOpen(true);
+      } else if (c === 409) popup.error('Already in use', 'This email is already registered to another account.');
+      else if (c === 403) popup.error('Email not allowed', 'This email cannot be used. Please contact support.');
+      else popup.error('Could not send code', res?.data?.message || 'Please try again in a moment.');
+    } catch (e: any) {
+      const c = e?.response?.data?.code ?? e?.response?.status;
+      if (c === 409) popup.error('Already in use', 'This email is already registered to another account.');
+      else popup.error('Could not send code', 'Please check your connection and try again.');
+    } finally { setCodeSending(false); }
+  }, [newEmail, form.Email, popup, userData?.firstName]);
+  const confirmChangeCode = useCallback(async () => {
+    const addr = newEmail.trim().toLowerCase();
+    if (code.length !== 4) { setCodeErr('Enter the 4-digit code'); return; }
+    if (!userData?.userId) return;
+    setCodeBusy(true); setCodeErr('');
+    try {
+      const v = await userApi.verifyAuthOtp({ email: addr, otp: code, purpose: 'change-email' });
+      const token = v?.data?.data?.verificationToken;
+      if (v?.data?.code !== 200 || !token) { setCodeErr('That code is not right. Please check and try again.'); setCode(''); return; }
+      const res = await userApi.changeEmail(userData.userId, { email: addr, verificationToken: token });
+      if (res?.data?.code === 200) {
+        const saved = String(res.data.data?.email || addr);
+        setInitial((prev) => (prev ? { ...prev, Email: saved } : prev));
+        setForm((prev) => ({ ...prev, Email: saved }));
+        updateField('email', saved).catch(() => {});
+        markProfileDirty();
+        setCodeOpen(false); setEmailEditing(false); setNewEmail(''); setCode('');
+        popup.success('Email changed', `Your email is now ${saved}.`);
+      } else {
+        const m = res?.data?.message;
+        setCodeErr(m === 'EMAIL_NOT_VERIFIED' ? 'The code expired. Tap Resend for a new one.'
+          : m === 'SAME_EMAIL' ? 'This is already your email address.'
+          : res?.data?.code === 409 ? 'This email is already registered to another account.'
+          : (m || 'Could not change the email. Please try again.'));
+      }
+    } catch {
+      setCodeErr('Please check your connection and try again.');
+    } finally { setCodeBusy(false); }
+  }, [newEmail, code, userData?.userId, updateField, popup]);
+
+  // Back from the OTP screen: it leaves the verified address + token in AsyncStorage
+  // (same keys sign-up reads). Spend the token on the add-email endpoint, then lock the row.
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      (async () => {
+        const token = await AsyncStorage.getItem('emailVerificationToken');
+        const verifiedEmail = await AsyncStorage.getItem('verifiedEmail');
+        if (!token || !verifiedEmail) return;
+        if (verifiedEmail !== emailDraftRef.current.trim()) return; // belongs to sign-up, not us
+        await AsyncStorage.multiRemove(['emailVerificationToken', 'verifiedEmail']);
+        if (!alive || !userData?.userId) return;
+        setEmailSaving(true);
+        try {
+          const res = await userApi.addEmail(userData.userId, { email: verifiedEmail, verificationToken: token });
+          if (res?.data?.code === 200) {
+            const saved = String(res.data.data?.email || verifiedEmail);
+            setInitial((prev) => (prev ? { ...prev, Email: saved } : prev));
+            setForm((prev) => ({ ...prev, Email: saved }));
+            setEmailDraft('');
+            updateField('email', saved).catch(() => {});
+            markProfileDirty();
+            popup.success('Email added', 'You can now use it to sign in and to recover your PIN.');
+          } else {
+            const m = res?.data?.message;
+            popup.error(
+              'Could not add email',
+              m === 'EMAIL_ALREADY_SET' ? 'This account already has an email. Contact support to change it.'
+                : m === 'EMAIL_NOT_VERIFIED' ? 'The verification expired. Please request a new code.'
+                : (m || 'Please try again.'),
+            );
+          }
+        } catch {
+          popup.error('Could not add email', 'Please check your connection and try again.');
+        } finally {
+          if (alive) setEmailSaving(false);
+        }
+      })();
+      return () => { alive = false; };
+    }, [userData?.userId, updateField, popup])
+  );
   const focusLabel = String(params.focus || '');
   // "2/4" from the guided flow → "Step 2 of 4 · " prefix on the subtitle.
   const flowMatch = /^(\d+)\/(\d+)$/.exec(String(params.flow || ''));
@@ -362,7 +592,7 @@ export default function EditProfileSection() {
   // which is exactly how the register form's dropdowns once stayed blank forever.
   React.useEffect(() => {
     const md: any = masterData || {};
-    const missing = ['education', 'employingIn', 'annualIncomeRegister', 'star', 'dosham']
+    const missing = ['education', 'employingIn', 'annualIncomeRegister', 'star', 'dosham', 'rasi']
       .some((k) => !Array.isArray(md[k]));
     if (missing) loadMasterData(setMasterData).catch(() => { /* pickers fall back to empty */ });
   }, [masterData, setMasterData]);
@@ -437,18 +667,27 @@ export default function EditProfileSection() {
         return (md.star || []).map((x: any) => x.name || x.value).filter(Boolean);
       case 'dosham':
         return (md.dosham || []).map((x: any) => x.name || x.value).filter(Boolean);
+      case 'rasi': {
+        const list = (md.rasi || []).map((x: any) => x.name || x.value).filter(Boolean);
+        return list.length ? list : STATIC_OPTIONS.rasiFallback;
+      }
       default:
         return [];
     }
   }, [masterData]);
+
+  // form['Gender'] is 'Male' / 'Female' (utils/profileSections.ts); minAgeForGender accepts both.
+  const gender = form['Gender'];
+  const minAge = minAgeForGender(gender);
+  const latestAllowedDob = () => latestDobForGender(gender);
 
   const pickDob = (label: string, picked: Date) => {
     if (picked > new Date()) {
       setTimeout(() => popup.warning('Invalid Date', 'Date of birth cannot be a future date.'), 300);
       return;
     }
-    if (ageOn(picked) < MIN_AGE) {
-      setTimeout(() => popup.warning('Age Restriction', `You must be at least ${MIN_AGE} years old.`), 300);
+    if (ageOn(picked) < minAge) {
+      setTimeout(() => popup.warning('Age Restriction', ageRuleMessage(gender)), 300);
       return;
     }
     set(label, moment(picked).format('YYYY-MM-DD'));
@@ -465,8 +704,8 @@ export default function EditProfileSection() {
       if (f.nameRules && v && v.length < 2) e[f.label] = `${f.label} is too short`;
       if (f.kind === 'date' && v) {
         const dob = moment(v, ['YYYY-MM-DD', 'DD/MM/YYYY'], true);
-        if (dob.isValid() && ageOn(dob.toDate()) < MIN_AGE) {
-          e[f.label] = `You must be at least ${MIN_AGE} years old`;
+        if (dob.isValid() && ageOn(dob.toDate()) < minAge) {
+          e[f.label] = `You must be at least ${minAge} years old`;
         }
       }
     });
@@ -510,7 +749,7 @@ export default function EditProfileSection() {
           placeOfBirth: c('Place of Birth'),
         };
       case 'ReligiousDetail':
-        return { userId, star: c('Star'), moonSign: c('Moon Sign'), dosham: c('Dosham'), birthTime: c('Birth Time') };
+        return { userId, star: c('Star'), moonSign: c('Moon Sign'), dosham: c('Dosham'), birthTime: c('Birth Time'), lagnam: c('Lagnam') };
       case 'EducationalDetail':
         return {
           userId,
@@ -602,6 +841,123 @@ export default function EditProfileSection() {
     const value = form[f.label] || '';
     const err = errors[f.label];
 
+    if (f.kind === 'readonly' && f.label === 'Mobile Number' && !value) {
+      const busy = mobileSending || mobileSaving;
+      return (
+        <View key={f.label} style={wrapStyle(f.label)} onLayout={onFieldLayout(f.label)}>
+          <Text style={st.fieldLabel}>Mobile Number</Text>
+          <View style={st.addEmailRow}>
+            <TextInput
+              style={[st.input, st.addEmailInput]}
+              value={mobileDraft}
+              onChangeText={(t) => setMobileDraft(t.replace(/\D/g, '').slice(0, 10))}
+              placeholder="Add your WhatsApp number"
+              placeholderTextColor="#999"
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              editable={!busy}
+              maxLength={10}
+              returnKeyType="done"
+              onSubmitEditing={sendMobileOtp}
+            />
+            <TouchableOpacity
+              style={[st.addEmailBtn, (busy || mobileDraft.trim().length !== 10) && { opacity: 0.55 }]}
+              disabled={busy || mobileDraft.trim().length !== 10}
+              onPress={sendMobileOtp}
+              activeOpacity={0.8}
+            >
+              {busy
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={st.addEmailBtnText}>Verify</Text>}
+            </TouchableOpacity>
+          </View>
+          <Text style={st.hint}>
+            {mobileSaving ? 'Saving your number…' : 'We will send a 6-digit code on WhatsApp to confirm it. This becomes your sign-in number.'}
+          </Text>
+        </View>
+      );
+    }
+
+    if (f.kind === 'readonly' && f.label === 'Email' && !value) {
+      const busy = emailSending || emailSaving;
+      return (
+        <View key={f.label} style={wrapStyle(f.label)} onLayout={onFieldLayout(f.label)}>
+          <Text style={st.fieldLabel}>Email</Text>
+          <View style={st.addEmailRow}>
+            <TextInput
+              style={[st.input, st.addEmailInput]}
+              value={emailDraft}
+              onChangeText={(t) => setEmailDraft(t.replace(/\s/g, ''))}
+              placeholder="Add your email"
+              placeholderTextColor="#999"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              editable={!busy}
+              maxLength={120}
+              returnKeyType="done"
+              onSubmitEditing={sendEmailOtp}
+            />
+            <TouchableOpacity
+              style={[st.addEmailBtn, (busy || !emailDraft.trim()) && { opacity: 0.55 }]}
+              disabled={busy || !emailDraft.trim()}
+              onPress={sendEmailOtp}
+              activeOpacity={0.8}
+            >
+              {busy
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={st.addEmailBtnText}>Verify</Text>}
+            </TouchableOpacity>
+          </View>
+          <Text style={st.hint}>
+            {emailSaving ? 'Saving your email…' : 'We will send a 4-digit code to confirm it. Needed to recover your PIN.'}
+          </Text>
+        </View>
+      );
+    }
+
+    if (f.kind === 'readonly' && f.label === 'Email' && value) {
+      const valid = EMAIL_RE.test(newEmail.trim()) && newEmail.trim().toLowerCase() !== String(value).trim().toLowerCase();
+      const action = !emailEditing ? 'Change' : valid ? 'Verify' : 'Cancel';
+      const onAction = !emailEditing ? startEmailChange : valid ? () => sendChangeCode(false) : cancelEmailChange;
+      return (
+        <View key={f.label} style={wrapStyle(f.label)} onLayout={onFieldLayout(f.label)}>
+          <View style={st.emailLabelRow}>
+            <Text style={[st.fieldLabel, { marginBottom: 0 }]}>Email</Text>
+            <TouchableOpacity onPress={onAction} disabled={codeSending} hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}>
+              {codeSending
+                ? <ActivityIndicator size="small" color="#1F7FE5" />
+                : <Text style={[st.emailAction, action === 'Cancel' && { color: '#64748b' }]}>{action}</Text>}
+            </TouchableOpacity>
+          </View>
+          {emailEditing ? (
+            <TextInput
+              style={[st.input, { borderColor: '#1F7FE5' }]}
+              value={newEmail}
+              onChangeText={(t) => setNewEmail(t.replace(/\s/g, ''))}
+              placeholder={String(value)}
+              placeholderTextColor="#94a3b8"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              autoFocus
+              maxLength={120}
+              returnKeyType="done"
+              onSubmitEditing={() => { if (valid) sendChangeCode(false); }}
+            />
+          ) : (
+            <View style={[st.inputBox, st.inputBoxDisabled]}>
+              <Text style={{ color: '#64748b', fontSize: 14, fontFamily: 'Rubik-Regular' }} numberOfLines={1}>{value}</Text>
+              <Ionicons name="lock-closed-outline" size={15} color="#94a3b8" />
+            </View>
+          )}
+          <Text style={st.hint}>{emailEditing ? 'Enter the new email, then tap Verify.' : f.locked}</Text>
+        </View>
+      );
+    }
+
     if (f.kind === 'readonly') {
       return (
         <View key={f.label} style={wrapStyle(f.label)} onLayout={onFieldLayout(f.label)}>
@@ -630,7 +986,10 @@ export default function EditProfileSection() {
             onSelect={(v) => set(f.label, v)}
             invalid={!!err}
           />
-          <Text style={err ? st.error : st.errorHidden}>{err || ' '}</Text>
+          {/* Hint in the error's slot, as on text and time fields — no height change. */}
+          <Text style={err ? st.error : (f.hint ? st.fieldHint : st.errorHidden)} numberOfLines={1}>
+            {err || f.hint || ' '}
+          </Text>
         </View>
       );
     }
@@ -891,6 +1250,42 @@ export default function EditProfileSection() {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+
+      {/* Change-email code popup (2026-10-20). Plain RN Modal; nothing calls popup.* while it is
+          open — errors render inline (stacked-Modal freeze, §17). */}
+      <Modal visible={codeOpen} transparent animationType="fade" onRequestClose={() => { if (!codeBusy) setCodeOpen(false); }}>
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+          <View style={st.codeOverlay}>
+            <View style={st.codeCard}>
+              <Text style={st.codeTitle}>Verify your new email</Text>
+              <Text style={st.codeSub}>We sent a 4-digit code to {newEmail.trim().toLowerCase()}. Enter it to change your email.</Text>
+              <TextInput
+                style={[st.codeInput, !!codeErr && { borderColor: '#dc2626' }]}
+                value={code}
+                onChangeText={(t) => { const v = t.replace(/\D/g, '').slice(0, 4); setCode(v); setCodeErr(''); }}
+                keyboardType="number-pad"
+                maxLength={4}
+                autoFocus
+                placeholder="••••"
+                placeholderTextColor="#cbd5e1"
+                textContentType="oneTimeCode"
+                editable={!codeBusy}
+              />
+              <Text style={codeErr ? st.error : st.errorHidden}>{codeErr || ' '}</Text>
+              <TouchableOpacity onPress={confirmChangeCode} disabled={codeBusy || code.length !== 4} activeOpacity={0.85}
+                style={[st.codeBtn, (codeBusy || code.length !== 4) && { opacity: 0.55 }]}>
+                {codeBusy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={st.codeBtnText}>Verify & change</Text>}
+              </TouchableOpacity>
+              <View style={st.codeLinks}>
+                <TouchableOpacity onPress={() => setCodeOpen(false)} disabled={codeBusy}><Text style={[st.codeLink, { color: '#64748b' }]}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => sendChangeCode(true)} disabled={codeTimer > 0 || codeSending || codeBusy}>
+                  <Text style={[st.codeLink, (codeTimer > 0 || codeSending) && { color: '#94a3b8' }]}>{codeTimer > 0 ? `Resend in ${codeTimer}s` : codeSending ? 'Sending…' : 'Resend code'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -940,6 +1335,24 @@ const st = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 11, backgroundColor: '#ffffff', height: 44,
   },
   inputBoxDisabled: { backgroundColor: '#f1f5f9' },
+  emailLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 },
+  emailAction: { color: '#1F7FE5', fontSize: 13, fontFamily: 'Rubik-Bold' },
+  codeOverlay: { flex: 1, backgroundColor: 'rgba(15,23,36,0.55)', justifyContent: 'center', paddingHorizontal: 24 },
+  codeCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20 },
+  codeTitle: { fontSize: 18, fontFamily: 'Rubik-Bold', color: '#0f1724' },
+  codeSub: { fontSize: 13, fontFamily: 'Rubik-Regular', color: '#64748b', marginTop: 6, lineHeight: 19 },
+  codeInput: { height: 52, borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 14, marginTop: 16, fontSize: 22, letterSpacing: 10, textAlign: 'center', fontFamily: 'Rubik-Bold', color: '#0f1724' },
+  codeBtn: { height: 48, borderRadius: 24, backgroundColor: '#1F7FE5', alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+  codeBtnText: { color: '#fff', fontSize: 15, fontFamily: 'Rubik-Bold' },
+  codeLinks: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 },
+  codeLink: { color: '#1F7FE5', fontSize: 13, fontFamily: 'Rubik-Medium' },
+  addEmailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  addEmailInput: { flex: 1, width: undefined },
+  addEmailBtn: {
+    height: 44, minWidth: 84, paddingHorizontal: 16, borderRadius: 12,
+    backgroundColor: '#1F7FE5', alignItems: 'center', justifyContent: 'center',
+  },
+  addEmailBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Rubik-Bold' },
   inputError: { borderColor: '#dc2626', borderWidth: 1.5 },
 
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
